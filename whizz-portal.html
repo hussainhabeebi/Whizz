@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whizz Exim Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f14;--bg2:#13161f;--bg3:#1a1e2b;--bg4:#1f2438;
+  --accent:#f59e0b;--accent2:#d97706;--accent-dim:rgba(245,158,11,0.1);--accent-light:rgba(245,158,11,0.15);
+  --green:#22c55e;--green-dim:rgba(34,197,94,0.1);
+  --amber:#f59e0b;--amber-dim:rgba(245,158,11,0.1);
+  --red:#ef4444;--red-dim:rgba(239,68,68,0.1);
+  --blue:#3b82f6;--blue-dim:rgba(59,130,246,0.1);
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#475569;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);
+  --shadow:0 4px 24px rgba(0,0,0,0.4);--r:12px;--r-sm:8px;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;}
+
+/* Login */
+#login-page{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;}
+.login-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(245,158,11,0.15) 0%,transparent 60%);}
+.login-box{position:relative;background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:48px 40px;width:420px;box-shadow:0 32px 80px rgba(0,0,0,0.5);}
+.login-logo{text-align:center;margin-bottom:36px;}
+.login-logo-mark{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--accent),#ef4444);font-family:var(--font-display);font-weight:800;font-size:20px;color:#fff;margin-bottom:14px;}
+.login-logo-text{font-family:var(--font-display);font-size:24px;font-weight:700;color:var(--text);display:block;}
+.login-logo-sub{font-size:12px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;margin-top:3px;display:block;}
+.login-title{font-size:17px;font-weight:600;margin-bottom:4px;}
+.login-sub{font-size:13px;color:var(--text2);margin-bottom:28px;}
+.lf-group{margin-bottom:16px;}
+.lf-label{display:block;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:7px;}
+.lf-input{width:100%;padding:11px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);font-size:14px;font-family:var(--font);color:var(--text);outline:none;transition:all 0.15s;}
+.lf-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);}
+.lf-input::placeholder{color:var(--text3);}
+.login-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#000;border:none;border-radius:var(--r-sm);font-size:14px;font-weight:700;font-family:var(--font);cursor:pointer;margin-top:8px;transition:all 0.15s;box-shadow:0 4px 20px rgba(245,158,11,0.3);}
+.login-btn:hover{transform:translateY(-1px);}
+.login-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+.login-error{background:var(--red-dim);border:1px solid rgba(239,68,68,0.2);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;color:var(--red);margin-top:12px;display:none;}
+.login-footer{text-align:center;margin-top:20px;font-size:11px;color:var(--text3);}
+
+/* App */
+#app-shell{display:none;width:100%;height:100vh;overflow:hidden;}
+#app-shell.visible{display:flex;}
+
+/* Sidebar */
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.sidebar-logo{padding:20px 16px 16px;border-bottom:1px solid var(--border);}
+.s-logo-row{display:flex;align-items:center;gap:10px;}
+.s-logo-mark{width:34px;height:34px;border-radius:9px;flex-shrink:0;background:linear-gradient(135deg,var(--accent),#ef4444);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:800;font-size:14px;color:#fff;}
+.s-logo-text{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--text);}
+.s-logo-sub{font-size:10px;color:var(--text3);}
+.sidebar-nav{flex:1;padding:12px 10px;overflow-y:auto;}
+.nav-section{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;padding:10px 8px 5px;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;color:var(--text2);font-size:13px;transition:all 0.12s;margin-bottom:1px;}
+.nav-item:hover{background:var(--bg3);color:var(--text);}
+.nav-item.active{background:var(--accent-dim);color:var(--accent);font-weight:500;}
+.nav-item svg{width:15px;height:15px;flex-shrink:0;}
+.nav-badge{margin-left:auto;background:var(--accent);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;}
+.nav-ext{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;color:var(--text2);font-size:13px;transition:all 0.12s;margin-bottom:1px;text-decoration:none;}
+.nav-ext:hover{background:var(--accent-dim);color:var(--accent);}
+.nav-ext svg{width:15px;height:15px;flex-shrink:0;}
+.sidebar-footer{padding:12px 10px;border-top:1px solid var(--border);}
+.user-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;transition:background 0.12s;}
+.user-row:hover{background:var(--bg3);}
+.u-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--accent),#ef4444);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#fff;}
+.u-name{font-size:12px;font-weight:500;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.u-role{font-size:10px;color:var(--text3);}
+.logout-btn{background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;border-radius:4px;transition:color 0.12s;flex-shrink:0;}
+.logout-btn:hover{color:var(--red);}
+.logout-btn svg{width:14px;height:14px;}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.menu-btn{display:none;background:none;border:none;cursor:pointer;color:var(--text2);padding:6px;border-radius:6px;}
+@media(max-width:768px){.menu-btn{display:flex;align-items:center;justify-content:center;}}
+.menu-btn svg{width:18px;height:18px;}
+.page-title{font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text);}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.t-btn{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r-sm);font-size:12px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.12s;}
+.t-btn svg{width:14px;height:14px;}
+.t-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent);color:#000;}
+.btn-primary:hover{background:var(--accent2);}
+.btn-ghost{background:none;border:1px solid var(--border2);color:var(--text2);}
+.btn-ghost:hover{background:var(--bg3);color:var(--text);}
+.btn-success{background:var(--green);color:#fff;}
+.btn-success:hover{background:#16a34a;}
+.btn-refresh{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(245,158,11,0.2);}
+.btn-refresh:hover{background:var(--accent-light);}
+.last-upd{font-size:11px;color:var(--text3);}
+
+/* Notif Bell */
+.notif-btn{position:relative;width:34px;height:34px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.12s;}
+.notif-btn svg{width:16px;height:16px;color:var(--text2);}
+.notif-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid var(--bg2);display:none;}
+.notif-dot.show{display:block;}
+.notif-panel{position:absolute;top:56px;right:20px;width:300px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow);z-index:100;display:none;}
+.notif-panel.open{display:block;}
+.notif-header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.notif-title{font-size:13px;font-weight:600;}
+.notif-clear{font-size:11px;color:var(--accent);cursor:pointer;}
+.notif-empty{padding:28px;text-align:center;color:var(--text3);font-size:12px;}
+.notif-item{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:10px;}
+.notif-item:last-child{border-bottom:none;}
+.notif-text{font-size:12px;color:var(--text2);line-height:1.5;}
+.notif-time{font-size:10px;color:var(--text3);margin-top:2px;}
+
+/* Content */
+.content{flex:1;overflow-y:auto;padding:20px;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* Cache Banner */
+.cache-banner{display:none;align-items:center;gap:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--r-sm);padding:9px 14px;font-size:12px;color:var(--amber);margin-bottom:16px;}
+.cache-banner.show{display:flex;}
+.cache-banner svg{width:14px;height:14px;flex-shrink:0;}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+@media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px;position:relative;overflow:hidden;}
+.stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;}
+.stat-card.amber::after{background:var(--accent);}
+.stat-card.green::after{background:var(--green);}
+.stat-card.blue::after{background:var(--blue);}
+.stat-card.red::after{background:var(--red);}
+.s-label{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+.s-value{font-family:var(--font-display);font-size:30px;font-weight:700;color:var(--text);line-height:1;margin-bottom:4px;}
+.s-sub{font-size:11px;color:var(--text3);}
+.s-icon{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.s-icon.amber{background:var(--amber-dim);color:var(--amber);}
+.s-icon.green{background:var(--green-dim);color:var(--green);}
+.s-icon.blue{background:var(--blue-dim);color:var(--blue);}
+.s-icon.red{background:var(--red-dim);color:var(--red);}
+.s-icon svg{width:17px;height:17px;}
+
+/* Card */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden;}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:13px;font-weight:600;color:var(--text);}
+.card-body{padding:18px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:768px){.two-col{grid-template-columns:1fr;}}
+
+/* Filter Chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.chip{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);transition:all 0.12s;}
+.chip:hover{border-color:var(--accent);color:var(--accent);}
+.chip.active{background:var(--accent);color:#000;border-color:var(--accent);}
+
+/* Group Cards */
+.groups-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
+.group-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;cursor:pointer;transition:all 0.12s;position:relative;}
+.group-card:hover{border-color:var(--accent);background:var(--accent-dim);}
+.group-card.selected{border-color:var(--accent);background:var(--accent-light);}
+.group-card.selected::after{content:'✓';position:absolute;top:8px;right:10px;color:var(--accent);font-weight:700;font-size:13px;}
+.g-platform{font-size:11px;font-weight:600;color:var(--accent);margin-bottom:1px;}
+.g-country{font-size:12px;font-weight:600;color:var(--text);margin-bottom:1px;}
+.g-brand{font-size:10px;color:var(--text3);margin-bottom:6px;}
+.g-count{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--accent);}
+.g-label{font-size:10px;color:var(--text3);}
+
+/* Template Cards */
+.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
+.tpl-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;cursor:pointer;transition:all 0.12s;}
+.tpl-card:hover{border-color:var(--accent);}
+.tpl-card.selected{border-color:var(--accent);background:var(--accent-dim);}
+.tpl-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.tpl-lang{font-size:10px;padding:2px 7px;background:var(--accent-dim);color:var(--accent);border-radius:20px;font-weight:500;}
+.tpl-approved{font-size:10px;padding:2px 7px;background:var(--green-dim);color:var(--green);border-radius:20px;font-weight:500;}
+.tpl-body{font-size:11px;color:var(--text2);line-height:1.5;background:var(--bg2);border-radius:6px;padding:9px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-word;max-height:70px;overflow:hidden;}
+
+/* Wizard */
+.wizard{display:flex;align-items:center;margin-bottom:24px;}
+.wz-step{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:500;color:var(--text3);}
+.wz-num{width:26px;height:26px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:var(--bg2);flex-shrink:0;}
+.wz-step.active .wz-num{border-color:var(--accent);background:var(--accent);color:#000;}
+.wz-step.active{color:var(--accent);}
+.wz-step.done .wz-num{border-color:var(--green);background:var(--green);color:#fff;}
+.wz-step.done{color:var(--green);}
+.wz-div{flex:1;height:1px;background:var(--border);margin:0 8px;max-width:50px;}
+
+/* Conversations */
+.conv-item{display:flex;align-items:flex-start;gap:10px;padding:12px 18px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;}
+.conv-item:hover{background:var(--bg3);}
+.conv-item:last-child{border-bottom:none;}
+.c-avatar{width:36px;height:36px;border-radius:50%;background:var(--accent-dim);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.c-info{flex:1;min-width:0;}
+.c-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;}
+.c-name{font-size:13px;font-weight:600;color:var(--text);}
+.c-time{font-size:10px;color:var(--text3);}
+.c-msg{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.c-meta{display:flex;align-items:center;gap:5px;margin-top:4px;}
+.ch-badge{font-size:10px;padding:1px 7px;border-radius:20px;font-weight:500;}
+.ch-wa{background:rgba(37,211,102,0.12);color:#25d366;}
+.ch-em{background:var(--accent-dim);color:var(--accent);}
+.ch-wc{background:var(--blue-dim);color:var(--blue);}
+.unread{margin-left:auto;background:var(--accent);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;}
+.sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.dot-open{background:var(--green);}
+.dot-res{background:var(--text3);}
+.dot-pend{background:var(--amber);}
+.open-cw{margin-left:auto;color:var(--accent);font-size:10px;font-weight:500;display:flex;align-items:center;gap:3px;opacity:0;transition:opacity 0.1s;}
+.conv-item:hover .open-cw{opacity:1;}
+.open-cw svg{width:11px;height:11px;}
+
+/* Form */
+.fg{margin-bottom:14px;}
+.fl{display:block;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;}
+.fi,.fs,.ft{width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);font-size:13px;font-family:var(--font);color:var(--text);outline:none;transition:all 0.12s;}
+.fi:focus,.fs:focus,.ft:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);}
+.fi::placeholder,.ft::placeholder{color:var(--text3);}
+.fs option{background:var(--bg2);}
+.ft{resize:vertical;min-height:90px;line-height:1.6;}
+.fi-hint{font-size:10px;color:var(--text3);margin-top:3px;}
+
+/* Progress */
+.prog-wrap{background:var(--bg3);border-radius:20px;height:6px;overflow:hidden;margin-top:6px;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:20px;transition:width 0.5s;}
+
+/* Metric Row */
+.metric-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);}
+.metric-row:last-child{border-bottom:none;}
+.m-label{font-size:13px;color:var(--text2);}
+.m-value{font-size:14px;font-weight:700;color:var(--text);}
+
+/* Campaign History */
+.hist-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.hist-item:last-child{border-bottom:none;}
+.hist-icon{width:34px;height:34px;border-radius:8px;background:var(--green-dim);color:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.hist-icon svg{width:15px;height:15px;}
+.hist-info{flex:1;}
+.hist-name{font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px;}
+.hist-meta{font-size:11px;color:var(--text3);}
+.hist-stats{text-align:right;}
+.hist-sent{font-size:13px;font-weight:700;color:var(--green);}
+.hist-fail{font-size:10px;color:var(--text3);}
+
+/* Onboarding */
+.ob-step{display:flex;align-items:flex-start;gap:14px;padding:16px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg3);margin-bottom:10px;cursor:pointer;transition:all 0.12s;}
+.ob-step.done{border-color:rgba(34,197,94,0.2);background:var(--green-dim);}
+.ob-check{width:24px;height:24px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.12s;}
+.ob-step.done .ob-check{background:var(--green);border-color:var(--green);color:#fff;}
+.ob-check svg{width:12px;height:12px;}
+.ob-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.ob-desc{font-size:12px;color:var(--text2);line-height:1.5;}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);width:500px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow);}
+.modal-head{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:15px;font-weight:600;font-family:var(--font-display);}
+.modal-close{width:28px;height:28px;border-radius:6px;background:var(--bg3);border:none;cursor:pointer;color:var(--text2);font-size:15px;display:flex;align-items:center;justify-content:center;}
+.modal-close:hover{background:var(--red-dim);color:var(--red);}
+.modal-body{padding:18px 22px;}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+
+/* Toast */
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:1000;display:flex;flex-direction:column;gap:8px;}
+.toast{padding:10px 16px;border-radius:var(--r-sm);font-size:12px;font-weight:500;color:#fff;box-shadow:var(--shadow);animation:slideIn 0.2s ease;max-width:300px;}
+.toast.success{background:var(--green);color:#000;}
+.toast.error{background:var(--red);}
+.toast.info{background:var(--accent);color:#000;}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+.spin{animation:spinning 0.8s linear infinite;}
+@keyframes spinning{to{transform:rotate(360deg);}}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:199;}
+@media(max-width:768px){.sidebar-overlay.show{display:block;}.sidebar{position:fixed;left:-220px;top:0;bottom:0;z-index:200;transition:left 0.2s;}.sidebar.open{left:0;}}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-page">
+  <div class="login-bg"></div>
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-mark">W</div>
+      <span class="login-logo-text">Whizz Exim FZE</span>
+      <span class="login-logo-sub">Sales Portal</span>
+    </div>
+    <div class="login-title">Welcome back</div>
+    <div class="login-sub">Sign in to access your dashboard</div>
+    <div class="lf-group">
+      <label class="lf-label">Email</label>
+      <input class="lf-input" type="email" id="login-email" placeholder="admin@whizz.com" autocomplete="email"/>
+    </div>
+    <div class="lf-group">
+      <label class="lf-label">Password</label>
+      <input class="lf-input" type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="login-btn" onclick="doLogin()" id="login-btn">Sign in</button>
+    <div class="login-error" id="login-error">Invalid credentials.</div>
+    <div class="login-footer">Powered by Aiingo Technologies · v1.0</div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app-shell">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="s-logo-row">
+        <div class="s-logo-mark">W</div>
+        <div>
+          <div class="s-logo-text">Whizz Exim</div>
+          <div class="s-logo-sub">Sales Portal</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="navigate('dashboard',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="navigate('onboarding',this)" id="nav-onboarding">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Setup Checklist
+        <span class="nav-badge" id="ob-badge">!</span>
+      </div>
+      <div class="nav-section">Marketing</div>
+      <div class="nav-item" onclick="navigate('campaigns',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg>
+        Campaigns
+      </div>
+      <div class="nav-item" onclick="navigate('history',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Campaign History
+      </div>
+      <div class="nav-item" onclick="navigate('templates',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Templates
+      </div>
+      <div class="nav-section">Support</div>
+      <div class="nav-item" onclick="navigate('conversations',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Conversations
+        <span class="nav-badge" id="open-count" style="display:none">0</span>
+      </div>
+      <div class="nav-section">Analytics</div>
+      <div class="nav-item" onclick="navigate('reports',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Reports
+      </div>
+      <div class="nav-section">Data</div>
+      <div class="nav-item" onclick="navigate('leads',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        Leads
+      </div>
+      <div class="nav-section">Inbox</div>
+      <a class="nav-ext" href="https://chat.whizzfze.com/app/accounts/1/inbox/1" target="_blank">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Open Full Inbox
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;margin-left:auto;opacity:0.4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-row">
+        <div class="u-avatar" id="u-avatar">WA</div>
+        <div style="flex:1;min-width:0;">
+          <div class="u-name" id="u-name">Whizz Admin</div>
+          <div class="u-role" id="u-role">Administrator</div>
+        </div>
+        <button class="logout-btn" onclick="doLogout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" onclick="toggleSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="page-title" id="page-title">Dashboard</div>
+      </div>
+      <div class="topbar-right">
+        <span class="last-upd" id="last-upd"></span>
+        <div class="notif-btn" onclick="toggleNotif()" id="notif-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <div class="notif-dot" id="notif-dot"></div>
+        </div>
+        <button class="t-btn btn-refresh" id="refresh-btn" onclick="refreshPage()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="refresh-icon"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Notif Panel -->
+    <div class="notif-panel" id="notif-panel">
+      <div class="notif-header">
+        <div class="notif-title">Notifications</div>
+        <div class="notif-clear" onclick="clearNotifs()">Clear all</div>
+      </div>
+      <div id="notif-list"><div class="notif-empty">No notifications</div></div>
+    </div>
+
+    <div class="content">
+
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="cache-banner" id="dash-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Cached data from <strong id="dash-cache-time">—</strong>. Click Refresh for live data.</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card amber">
+            <div class="s-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+            <div class="s-label">Open Conversations</div>
+            <div class="s-value" id="stat-open">—</div>
+            <div class="s-sub">Active now</div>
+          </div>
+          <div class="stat-card green">
+            <div class="s-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div class="s-label">Resolved</div>
+            <div class="s-value" id="stat-resolved">—</div>
+            <div class="s-sub">This month</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="s-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+            <div class="s-label">Total Leads</div>
+            <div class="s-value" id="stat-leads">—</div>
+            <div class="s-sub">Google Sheets</div>
+          </div>
+          <div class="stat-card red">
+            <div class="s-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+            <div class="s-label">Platforms</div>
+            <div class="s-value" id="stat-platforms">—</div>
+            <div class="s-sub">Source channels</div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Recent Conversations</div>
+              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="navigate('conversations',document.querySelectorAll('.nav-item')[5])">View All</button>
+            </div>
+            <div id="dash-convs"><div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">Click Refresh to load</div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">Top Countries</div></div>
+            <div class="card-body" id="dash-countries"><div style="text-align:center;color:var(--text3);font-size:12px;">Click Refresh to load</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Onboarding -->
+      <div class="page" id="page-onboarding">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Setup Checklist</div><div class="card-title" id="ob-score" style="color:var(--accent)">0/5 complete</div></div>
+          <div class="card-body">
+            <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Complete these steps to get your WhatsApp marketing running.</div>
+            <div class="prog-wrap" style="margin-bottom:18px;"><div class="prog-fill" id="ob-prog" style="width:0%"></div></div>
+            <div class="ob-step" id="ob-1" onclick="toggleOb(1)"><div class="ob-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="ob-title">WhatsApp Business API connected</div><div class="ob-desc">Phone: +971 56 565 3555 | Phone ID: 786538647887007 | WABA: 1234338188453155</div></div></div>
+            <div class="ob-step" id="ob-2" onclick="toggleOb(2)"><div class="ob-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="ob-title">At least one approved template</div><div class="ob-desc">Create a WhatsApp message template and wait for Meta approval (24-48 hours).</div></div></div>
+            <div class="ob-step" id="ob-3" onclick="toggleOb(3)"><div class="ob-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="ob-title">Leads uploaded to Google Sheets</div><div class="ob-desc">Columns: Lead ID, Timestamp, Source Platform, Company, Contact Name, Country, WhatsApp, Email, Product Interest, Brand</div></div></div>
+            <div class="ob-step" id="ob-4" onclick="toggleOb(4)"><div class="ob-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="ob-title">Test campaign sent successfully</div><div class="ob-desc">Send a test campaign to verify the full flow works before going live.</div></div></div>
+            <div class="ob-step" id="ob-5" onclick="toggleOb(5)"><div class="ob-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="ob-title">Chatwoot inbox configured</div><div class="ob-desc">WhatsApp inbox connected at chat.whizzfze.com Account 1 Inbox 1.</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Campaigns -->
+      <div class="page" id="page-campaigns">
+        <div class="cache-banner" id="camp-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Cached data. Click Refresh to reload.</span>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Send WhatsApp Campaign</div></div>
+          <div class="card-body">
+            <div class="wizard">
+              <div class="wz-step active" id="wz1"><div class="wz-num">1</div>Audience</div>
+              <div class="wz-div"></div>
+              <div class="wz-step" id="wz2"><div class="wz-num">2</div>Template</div>
+              <div class="wz-div"></div>
+              <div class="wz-step" id="wz3"><div class="wz-num">3</div>Send</div>
+            </div>
+
+            <!-- Step 1 -->
+            <div id="cs1">
+              <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Filter by platform, country or brand. Leave all unselected to send to everyone.</p>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;margin-bottom:12px;">
+                <input type="checkbox" id="all-groups" onchange="toggleAllGroups(this)"> Send to ALL contacts
+              </label>
+              <div style="margin-bottom:8px;">
+                <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Filter by Platform</div>
+                <div class="chips" id="platform-chips"></div>
+              </div>
+              <div style="margin-bottom:8px;">
+                <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Filter by Country</div>
+                <div class="chips" id="country-chips"></div>
+              </div>
+              <div style="margin-bottom:12px;">
+                <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Filter by Brand</div>
+                <div class="chips" id="brand-chips"></div>
+              </div>
+              <div class="groups-grid" id="camp-groups">
+                <div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
+              </div>
+              <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+                <button class="t-btn btn-primary" onclick="campStep(2)">Next: Template →</button>
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div id="cs2" style="display:none;">
+              <div class="tpl-grid" id="camp-templates">
+                <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
+              </div>
+              <div style="margin-top:16px;display:flex;justify-content:space-between;">
+                <button class="t-btn btn-ghost" onclick="campStep(1)">← Back</button>
+                <button class="t-btn btn-primary" onclick="campStep(3)">Next: Review →</button>
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div id="cs3" style="display:none;">
+              <div style="background:var(--bg3);border-radius:var(--r-sm);padding:18px;border:1px solid var(--border);margin-bottom:16px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+                  <div><div class="s-label" style="margin-bottom:4px;">Audience</div><div id="rv-audience" style="font-size:12px;font-weight:600;">—</div></div>
+                  <div><div class="s-label" style="margin-bottom:4px;">Recipients</div><div id="rv-count" style="font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--accent);">—</div></div>
+                  <div><div class="s-label" style="margin-bottom:4px;">Template</div><div id="rv-template" style="font-size:13px;font-weight:600;">—</div></div>
+                  <div><div class="s-label" style="margin-bottom:4px;">Est. Time</div><div id="rv-time" style="font-size:13px;font-weight:600;">—</div></div>
+                </div>
+                <div class="s-label" style="margin-bottom:6px;">Message Preview</div>
+                <div id="rv-msg" style="font-size:12px;color:var(--text2);background:var(--bg2);padding:10px;border-radius:6px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.6;max-height:120px;overflow-y:auto;"></div>
+              </div>
+              <div id="send-progress" style="display:none;margin-bottom:14px;">
+                <div style="font-size:12px;color:var(--text2);margin-bottom:5px;">Sending...</div>
+                <div class="prog-wrap"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+                <div id="prog-text" style="font-size:11px;color:var(--text3);margin-top:4px;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;">
+                <button class="t-btn btn-ghost" onclick="campStep(2)">← Back</button>
+                <button class="t-btn btn-success" id="send-btn" onclick="sendCampaign()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Send Campaign
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="page" id="page-history">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Campaign History</div>
+            <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="exportHistoryCSV()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
+          </div>
+          <div class="card-body" id="history-list">
+            <div style="text-align:center;color:var(--text3);font-size:12px;padding:32px;">No campaigns yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Templates -->
+      <div class="page" id="page-templates">
+        <div class="cache-banner" id="tpl-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Cached. Click Refresh to reload.</span>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+          <button class="t-btn btn-primary" onclick="openTplModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Template
+          </button>
+        </div>
+        <div id="tpl-list"><div style="text-align:center;color:var(--text3);font-size:12px;padding:32px;">Click Refresh to load</div></div>
+      </div>
+
+      <!-- Conversations -->
+      <div class="page" id="page-conversations">
+        <div class="cache-banner" id="conv-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Cached. Click Refresh to reload.</span>
+        </div>
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-body" style="padding:10px 16px;">
+            <div style="display:flex;gap:7px;align-items:center;">
+              <button class="t-btn btn-primary" id="f-open" onclick="filterConv('open',this)" style="padding:5px 12px;font-size:11px;">Open</button>
+              <button class="t-btn btn-ghost" id="f-resolved" onclick="filterConv('resolved',this)" style="padding:5px 12px;font-size:11px;">Resolved</button>
+              <button class="t-btn btn-ghost" id="f-pending" onclick="filterConv('pending',this)" style="padding:5px 12px;font-size:11px;">Pending</button>
+              <div style="margin-left:auto;font-size:11px;color:var(--text3);" id="conv-count"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card"><div id="conv-list"><div style="padding:40px;text-align:center;color:var(--text3);font-size:12px;">Click Refresh to load</div></div></div>
+      </div>
+
+      <!-- Reports -->
+      <div class="page" id="page-reports">
+        <div class="cache-banner" id="rep-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Cached. Click Refresh to reload.</span>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Conversation Metrics</div></div>
+            <div class="card-body" id="rep-conv"><div style="text-align:center;color:var(--text3);font-size:12px;">Click Refresh to load</div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">Lead Distribution</div></div>
+            <div class="card-body" id="rep-leads"><div style="text-align:center;color:var(--text3);font-size:12px;">Click Refresh to load</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leads -->
+      <div class="page" id="page-leads">
+        <div class="cache-banner" id="leads-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Cached. Click Refresh to reload.</span>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Leads by Platform / Country / Brand</div>
+            <div style="display:flex;gap:7px;">
+              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="exportLeadsCSV()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+              <span style="font-size:11px;color:var(--text3);align-self:center;" id="leads-total"></span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Platform</div><div class="chips" id="leads-platform-chips"></div></div>
+            <div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Country</div><div class="chips" id="leads-country-chips"></div></div>
+            <div style="margin-bottom:12px;"><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Brand</div><div class="chips" id="leads-brand-chips"></div></div>
+            <div class="groups-grid" id="leads-groups">
+              <div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Create Template Modal -->
+<div class="modal-overlay" id="tpl-modal">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Create WhatsApp Template</div><button class="modal-close" onclick="closeTplModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">Template Name</label><input class="fi" id="tpl-name" placeholder="e.g. whizz_printer_promo"/><div class="fi-hint">Lowercase, numbers, underscores only</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><label class="fl">Language</label><select class="fs" id="tpl-lang"><option value="en">English</option><option value="ar">Arabic</option><option value="zh">Chinese</option><option value="ru">Russian</option></select></div>
+        <div class="fg"><label class="fl">Category</label><select class="fs" id="tpl-cat"><option value="MARKETING">Marketing</option><option value="UTILITY">Utility</option></select></div>
+      </div>
+      <div class="fg"><label class="fl">Header (optional)</label><input class="fi" id="tpl-header" placeholder="Whizz Exim FZE"/></div>
+      <div class="fg"><label class="fl">Body *</label><textarea class="ft" id="tpl-body" placeholder="Hi {{1}}, Whizz Exim FZE is pleased to offer exclusive pricing on {{2}}..."></textarea><div class="fi-hint">Use {{1}}, {{2}} for variables</div></div>
+      <div class="fg"><label class="fl">Footer (optional)</label><input class="fi" id="tpl-footer" placeholder="Reply STOP to unsubscribe"/></div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeTplModal()">Cancel</button>
+      <button class="t-btn btn-primary" onclick="createTemplate()">Submit for Approval</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+const N8N = 'https://n8n.aiingo.com/webhook';
+const CW_URL = 'https://chat.whizzfze.com/app/accounts/1/conversations';
+const CACHE_KEY = 'whizz_cache_v1';
+const NOTIF_KEY = 'whizz_notifs';
+const OB_KEY = 'whizz_onboarding';
+
+const USERS = {
+  'admin@whizz.com': { hash: btoa('Whizz@2026'), name: 'Whizz Admin', role: 'Administrator' },
+  'sales@whizz.com': { hash: btoa('Sales@2026'), name: 'Sales Team', role: 'Sales' },
+  'manager@whizz.com': { hash: btoa('Manager@2026'), name: 'Whizz Manager', role: 'Manager' }
+};
+
+let S = {
+  page: 'dashboard', convStatus: 'open',
+  groups: [], templates: [], platforms: [], countries: [], brands: [],
+  selectedGroups: [], selectedTemplate: null,
+  activePlatform: 'ALL', activeCountry: 'ALL', activeBrand: 'ALL',
+  cache: {}, notifications: [], history: []
+};
+
+// ── Auth ──
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const pass = document.getElementById('login-password').value;
+  const err = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  err.style.display = 'none';
+  const user = USERS[email];
+  if (!user || user.hash !== btoa(pass)) { err.style.display = 'block'; document.getElementById('login-password').value = ''; return; }
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  const session = { email, name: user.name, role: user.role, loginTime: Date.now() };
+  localStorage.setItem('whizz_session', JSON.stringify(session));
+  setTimeout(() => { initApp(session); btn.disabled = false; btn.textContent = 'Sign in'; }, 500);
+}
+
+function doLogout() {
+  localStorage.removeItem('whizz_session');
+  document.getElementById('app-shell').classList.remove('visible');
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+}
+
+function initApp(session) {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app-shell').classList.add('visible');
+  const initials = session.name.split(' ').map(w=>w[0]).join('').toUpperCase();
+  document.getElementById('u-avatar').textContent = initials;
+  document.getElementById('u-name').textContent = session.name;
+  document.getElementById('u-role').textContent = session.role;
+  loadCache(); loadOnboarding(); loadNotifications();
+}
+
+window.addEventListener('load', () => {
+  const s = localStorage.getItem('whizz_session');
+  if (s) {
+    const session = JSON.parse(s);
+    if (Date.now() - session.loginTime < 8 * 3600 * 1000) initApp(session);
+    else localStorage.removeItem('whizz_session');
+  }
+});
+
+// ── Cache ──
+function saveCache() { localStorage.setItem(CACHE_KEY, JSON.stringify({ data: S.cache, ts: Date.now() })); }
+function loadCache() {
+  const raw = localStorage.getItem(CACHE_KEY);
+  if (!raw) return;
+  const { data, ts } = JSON.parse(raw);
+  S.cache = data || {};
+  S.history = S.cache.history || [];
+  renderHistoryList();
+  if (S.cache.groups) { S.groups = S.cache.groups; S.platforms = S.cache.platforms || []; S.countries = S.cache.countries || []; S.brands = S.cache.brands || []; }
+  if (S.cache.templates) S.templates = S.cache.templates;
+  const time = new Date(ts).toLocaleString('en-AE', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('dash-cache-time').textContent = time;
+  if (S.cache.stats) { renderStats(S.cache.stats); showBanner('dash'); }
+  if (S.cache.groups) { renderDashCountries(S.cache.groups); renderCampGroups(S.cache.groups); renderLeadsPage(S.cache.groups, S.cache.leadsTotal); showBanner('camp'); showBanner('leads'); }
+  if (S.cache.templates) { renderTplPage(S.cache.templates); renderCampTemplates(S.cache.templates); showBanner('tpl'); }
+  if (S.cache.conversations) { renderConvs(S.cache.conversations); renderDashConvs(S.cache.conversations); showBanner('conv'); }
+  if (S.cache.stats) { renderReports(); showBanner('rep'); }
+}
+function showBanner(p) { const el=document.getElementById(p+'-banner'); if(el)el.classList.add('show'); }
+function hideBanner(p) { const el=document.getElementById(p+'-banner'); if(el)el.classList.remove('show'); }
+
+// ── History ──
+function saveHistory(entry) {
+  S.history.unshift(entry);
+  if (S.history.length > 50) S.history = S.history.slice(0, 50);
+  S.cache.history = S.history;
+  saveCache(); renderHistoryList();
+  addNotif(`Campaign "${entry.template}" sent to ${entry.sent} contacts`);
+}
+function renderHistoryList() {
+  const el = document.getElementById('history-list');
+  if (!S.history.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:32px;">No campaigns sent yet.</div>'; return; }
+  el.innerHTML = S.history.map(h => `<div class="hist-item"><div class="hist-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="hist-info"><div class="hist-name">${h.template} — ${h.audience}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total} contacts</div></div><div class="hist-stats"><div class="hist-sent">${h.sent} sent</div><div class="hist-fail">${h.failed} failed</div></div></div>`).join('');
+}
+function exportHistoryCSV() {
+  if (!S.history.length) { showToast('No history', 'error'); return; }
+  const rows = S.history.map(h => `"${new Date(h.ts).toLocaleString()}","${h.template}","${h.audience}",${h.total},${h.sent},${h.failed}`);
+  downloadCSV(['Date,Template,Audience,Total,Sent,Failed', ...rows].join('\n'), 'whizz_campaign_history.csv');
+  showToast('Exported!', 'success');
+}
+function exportLeadsCSV() {
+  if (!S.cache.groups) { showToast('Load leads first', 'error'); return; }
+  const rows = S.cache.groups.map(g => `"${g.platform}","${g.country}","${g.brand}",${g.count}`);
+  downloadCSV(['Platform,Country,Brand,Count', ...rows].join('\n'), 'whizz_leads.csv');
+  showToast('Exported!', 'success');
+}
+function downloadCSV(content, filename) { const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(content);a.download=filename;a.click(); }
+
+// ── Notifications ──
+function loadNotifications() { const raw=localStorage.getItem(NOTIF_KEY);S.notifications=raw?JSON.parse(raw):[];renderNotifs(); }
+function addNotif(text) {
+  S.notifications.unshift({ text, ts: Date.now() });
+  if (S.notifications.length > 20) S.notifications = S.notifications.slice(0, 20);
+  localStorage.setItem(NOTIF_KEY, JSON.stringify(S.notifications));
+  renderNotifs(); document.getElementById('notif-dot').classList.add('show');
+}
+function renderNotifs() {
+  const el = document.getElementById('notif-list');
+  if (!S.notifications.length) { el.innerHTML='<div class="notif-empty">No notifications</div>'; return; }
+  el.innerHTML = S.notifications.slice(0,10).map(n=>`<div class="notif-item"><div><div class="notif-text">${n.text}</div><div class="notif-time">${new Date(n.ts).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></div></div>`).join('');
+}
+function clearNotifs() { S.notifications=[];localStorage.removeItem(NOTIF_KEY);renderNotifs();document.getElementById('notif-dot').classList.remove('show'); }
+function toggleNotif() { document.getElementById('notif-panel').classList.toggle('open');document.getElementById('notif-dot').classList.remove('show'); }
+document.addEventListener('click',e=>{if(!e.target.closest('#notif-btn')&&!e.target.closest('#notif-panel'))document.getElementById('notif-panel').classList.remove('open');});
+
+// ── Onboarding ──
+function loadOnboarding() {
+  const raw=localStorage.getItem(OB_KEY);const done=raw?JSON.parse(raw):[];
+  done.forEach(i=>{const el=document.getElementById('ob-'+i);if(el)el.classList.add('done');});updateObScore();
+}
+function toggleOb(i) {
+  const el=document.getElementById('ob-'+i);el.classList.toggle('done');
+  const raw=localStorage.getItem(OB_KEY);let done=raw?JSON.parse(raw):[];
+  if(el.classList.contains('done')){if(!done.includes(i))done.push(i);}else done=done.filter(x=>x!==i);
+  localStorage.setItem(OB_KEY,JSON.stringify(done));updateObScore();
+}
+function updateObScore() {
+  const done=document.querySelectorAll('.ob-step.done').length;
+  document.getElementById('ob-score').textContent=`${done}/5 complete`;
+  document.getElementById('ob-prog').style.width=(done/5*100)+'%';
+  if(done===5)document.getElementById('ob-badge').style.display='none';
+}
+
+// ── Navigation ──
+function navigate(page, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item,.nav-ext').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  if(el)el.classList.add('active');
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads'};
+  document.getElementById('page-title').textContent=titles[page]||page;
+  S.page=page; closeSidebar();
+  if(page==='campaigns'&&S.cache.groups){S.groups=S.cache.groups;renderCampGroups(S.cache.groups);hideBanner('camp');}
+  if(page==='campaigns'&&S.cache.templates){S.templates=S.cache.templates;renderCampTemplates(S.cache.templates);}
+  if(page==='leads'&&S.cache.groups){renderLeadsPage(S.cache.groups,S.cache.leadsTotal);hideBanner('leads');}
+  if(page==='conversations'&&S.cache.conversations){renderConvs(S.cache.conversations);hideBanner('conv');}
+  if(page==='templates'&&S.cache.templates){renderTplPage(S.cache.templates);hideBanner('tpl');}
+  if(page==='reports'&&S.cache.stats){renderReports();hideBanner('rep');}
+}
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('show');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show');}
+
+// ── Refresh ──
+async function refreshPage() {
+  const btn=document.getElementById('refresh-btn'),icon=document.getElementById('refresh-icon');
+  btn.disabled=true;icon.classList.add('spin');
+  try {
+    const p=S.page;
+    if(p==='dashboard')await refreshDashboard();
+    else if(p==='campaigns')await refreshCampaign();
+    else if(p==='templates')await refreshTemplates();
+    else if(p==='conversations')await refreshConversations();
+    else if(p==='reports')await refreshReports();
+    else if(p==='leads')await refreshLeads();
+    else if(p==='history')renderHistoryList();
+    saveCache();
+    document.getElementById('last-upd').textContent='Updated '+new Date().toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
+    hideBanner(p==='dashboard'?'dash':p==='campaigns'?'camp':p);
+  } catch(e){showToast('Refresh failed','error');console.error(e);}
+  btn.disabled=false;icon.classList.remove('spin');
+}
+
+// ── API ──
+async function api(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`${N8N}/${path}`,opts);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+
+// ── Dashboard ──
+async function refreshDashboard(){await Promise.all([refreshStats(),refreshDashConvData(),refreshLeadData()]);}
+async function refreshStats(){const d=await api('whizz-get-stats');S.cache.stats=d;renderStats(d);const cnt=d.open||0;if(cnt>0){document.getElementById('open-count').textContent=cnt;document.getElementById('open-count').style.display='inline';addNotif(`${cnt} open conversations`);}}
+function renderStats(d){document.getElementById('stat-open').textContent=d.open??'—';document.getElementById('stat-resolved').textContent=d.resolved??'—';}
+async function refreshDashConvData(){const d=await api('whizz-get-conversations?status=open');S.cache.conversations=d.conversations||[];renderDashConvs(S.cache.conversations);}
+function renderDashConvs(convs){const el=document.getElementById('dash-convs');if(!convs.length){el.innerHTML='<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px;">No open conversations</div>';return;}el.innerHTML=convs.slice(0,5).map(c=>convHtml(c)).join('');}
+async function refreshLeadData(){const d=await api('whizz-get-leads');S.cache.groups=d.groups||[];S.cache.leadsTotal=d.total||0;S.cache.platforms=d.platforms||[];S.cache.countries=d.countries||[];S.cache.brands=d.brands||[];S.groups=S.cache.groups;S.platforms=S.cache.platforms;S.countries=S.cache.countries;S.brands=S.cache.brands;document.getElementById('stat-leads').textContent=d.total??'—';document.getElementById('stat-platforms').textContent=(d.platforms||[]).length;renderDashCountries(S.cache.groups);}
+function renderDashCountries(groups){const el=document.getElementById('dash-countries');const cm={};groups.forEach(g=>{cm[g.country]=(cm[g.country]||0)+g.count;});const sorted=Object.entries(cm).sort((a,b)=>b[1]-a[1]).slice(0,8);el.innerHTML=sorted.map(([c,n])=>`<div class="metric-row"><div class="m-label">${c}</div><div class="m-value" style="color:var(--accent)">${n}</div></div>`).join('');}
+
+// ── Conversations ──
+async function refreshConversations(){const d=await api(`whizz-get-conversations?status=${S.convStatus}`);S.cache.conversations=d.conversations||[];renderConvs(S.cache.conversations);}
+function renderConvs(convs){const el=document.getElementById('conv-list');document.getElementById('conv-count').textContent=`${convs.length} conversations`;if(!convs.length){el.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3);font-size:12px;">No conversations</div>';return;}el.innerHTML=convs.map(c=>convHtml(c)).join('');}
+function convHtml(c){const init=(c.contact_name||'U')[0].toUpperCase();const cls=c.channel?.includes('whatsapp')?'ch-wa':c.channel?.includes('email')?'ch-em':'ch-wc';const lbl=c.channel?.includes('whatsapp')?'WhatsApp':c.channel?.includes('email')?'Email':'Chat';const time=c.last_activity?new Date(c.last_activity*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';return`<div class="conv-item" onclick="window.open('${CW_URL}/${c.id}','_blank')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top"><div class="c-name">${c.contact_name||'Unknown'}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw">Open <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;}
+function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=>{b.className='t-btn btn-ghost';b.style.cssText='padding:5px 12px;font-size:11px;';});btn.className='t-btn btn-primary';btn.style.cssText='padding:5px 12px;font-size:11px;';S.convStatus=status;if(S.cache.conversations)renderConvs(S.cache.conversations);}
+
+// ── Templates ──
+async function refreshTemplates(){const d=await api('whizz-get-templates');S.cache.templates=d.templates||[];S.templates=S.cache.templates;renderTplPage(S.cache.templates);renderCampTemplates(S.cache.templates);}
+function renderTplPage(templates){const el=document.getElementById('tpl-list');if(!templates.length){el.innerHTML='<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">No approved templates.</div>';return;}el.innerHTML=`<div class="tpl-grid">${templates.map(t=>`<div class="tpl-card" style="cursor:default;"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span><span class="tpl-approved">APPROVED</span></div><div class="tpl-body">${t.body||'No body'}</div></div>`).join('')}</div>`;}
+function openTplModal(){document.getElementById('tpl-modal').classList.add('open');}
+function closeTplModal(){document.getElementById('tpl-modal').classList.remove('open');}
+async function createTemplate(){const name=document.getElementById('tpl-name').value.trim(),body=document.getElementById('tpl-body').value.trim();if(!name||!body){showToast('Name and body required','error');return;}try{const r=await api('whizz-create-template','POST',{name,body,language:document.getElementById('tpl-lang').value,category:document.getElementById('tpl-cat').value,header:document.getElementById('tpl-header').value.trim(),footer:document.getElementById('tpl-footer').value.trim()});if(r.success){showToast('Submitted!','success');closeTplModal();}else showToast('Failed','error');}catch(e){showToast('Error','error');}}
+
+// ── Campaigns ──
+async function refreshCampaign(){await Promise.all([refreshLeadData(),refreshTemplates()]);}
+function renderChips(list,containerId,activeProp,filterFn){const el=document.getElementById(containerId);el.innerHTML=['ALL',...list].map(v=>`<div class="chip ${S[activeProp]===v?'active':''}" onclick="${filterFn}('${v}',this)">${v}</div>`).join('');}
+function filterByPlatform(v,el){document.querySelectorAll('#platform-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activePlatform=v;applyGroupFilters();}
+function filterByCountry(v,el){document.querySelectorAll('#country-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activeCountry=v;applyGroupFilters();}
+function filterByBrand(v,el){document.querySelectorAll('#brand-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activeBrand=v;applyGroupFilters();}
+function applyGroupFilters(){let f=S.groups;if(S.activePlatform!=='ALL')f=f.filter(g=>g.platform===S.activePlatform);if(S.activeCountry!=='ALL')f=f.filter(g=>g.country===S.activeCountry);if(S.activeBrand!=='ALL')f=f.filter(g=>g.brand===S.activeBrand);renderGroupCards(f,'camp-groups',true);}
+function renderCampGroups(groups){renderChips(S.platforms,'platform-chips','activePlatform','filterByPlatform');renderChips(S.countries,'country-chips','activeCountry','filterByCountry');renderChips(S.brands,'brand-chips','activeBrand','filterByBrand');renderGroupCards(groups,'camp-groups',true);}
+function renderGroupCards(groups,id,selectable){const el=document.getElementById(id);if(!groups.length){el.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;">No groups match filter</div>';return;}el.innerHTML=groups.map(g=>`<div class="group-card" ${selectable?`onclick="toggleGroup('${g.platform}','${g.country}','${g.brand}',this)"`:'style="cursor:default;"'}><div class="g-platform">${g.platform}</div><div class="g-country">${g.country}</div><div class="g-brand">${g.brand}</div><div class="g-count">${g.count}</div><div class="g-label">contacts</div></div>`).join('');}
+function renderCampTemplates(templates){const el=document.getElementById('camp-templates');if(!templates.length){el.innerHTML='<div style="text-align:center;color:var(--text3);font-size:12px;padding:16px;">No approved templates.</div>';return;}el.innerHTML=templates.map(t=>`<div class="tpl-card" onclick="selectTpl('${t.name}',this)"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span></div><div class="tpl-body">${t.body||'No body'}</div></div>`).join('');}
+function toggleGroup(platform,country,brand,el){el.classList.toggle('selected');const key=platform+'||'+country+'||'+brand;const idx=S.selectedGroups.indexOf(key);if(idx===-1)S.selectedGroups.push(key);else S.selectedGroups.splice(idx,1);}
+function toggleAllGroups(cb){S.selectedGroups=[];document.querySelectorAll('#camp-groups .group-card').forEach(c=>{c.classList.toggle('selected',cb.checked);if(cb.checked){const p=c.querySelector('.g-platform').textContent,co=c.querySelector('.g-country').textContent,b=c.querySelector('.g-brand').textContent;S.selectedGroups.push(p+'||'+co+'||'+b);}});}
+function selectTpl(name,el){document.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');S.selectedTemplate=S.templates.find(t=>t.name===name);}
+function campStep(n){if(n===2&&!S.groups.length){showToast('Refresh to load leads first','error');return;}if(n===3&&!S.selectedTemplate){showToast('Select a template','error');return;}[1,2,3].forEach(i=>{document.getElementById('cs'+i).style.display=i===n?'block':'none';const wz=document.getElementById('wz'+i);wz.className='wz-step'+(i<n?' done':i===n?' active':'');});if(n===3)buildReview();}
+function buildReview(){const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;const totalCount=allGroups?S.groups.reduce((a,g)=>a+g.count,0):S.groups.filter(g=>S.selectedGroups.includes(g.platform+'||'+g.country+'||'+g.brand)).reduce((a,g)=>a+g.count,0);document.getElementById('rv-audience').textContent=allGroups?'All contacts':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', ');document.getElementById('rv-count').textContent=totalCount;document.getElementById('rv-template').textContent=S.selectedTemplate?.name||'—';document.getElementById('rv-time').textContent=`~${Math.ceil(totalCount*2/60)} min`;document.getElementById('rv-msg').textContent=S.selectedTemplate?.body||'';}
+async function sendCampaign(){
+  const btn=document.getElementById('send-btn');btn.disabled=true;btn.textContent='Sending...';
+  document.getElementById('send-progress').style.display='block';
+  let prog=0;const interval=setInterval(()=>{prog=Math.min(prog+3,90);document.getElementById('prog-fill').style.width=prog+'%';document.getElementById('prog-text').textContent=`Processing... ${prog}%`;},1200);
+  try{
+    const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
+    const firstGroup=allGroups?null:S.selectedGroups[0]?.split('||');
+    const result=await api('whizz-send-campaign','POST',{
+      platform:allGroups?'ALL':(firstGroup?.[0]||'ALL'),
+      country:allGroups?'ALL':(firstGroup?.[1]||'ALL'),
+      brand:allGroups?'ALL':(firstGroup?.[2]||'ALL'),
+      template_name:S.selectedTemplate.name,
+      language:S.selectedTemplate.language
+    });
+    clearInterval(interval);
+    document.getElementById('prog-fill').style.width='100%';
+    document.getElementById('prog-text').textContent=`Done! Sent: ${result.sent}, Failed: ${result.failed}`;
+    showToast(`Campaign sent! ${result.sent} delivered`,'success');
+    saveHistory({template:S.selectedTemplate.name,audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total,sent:result.sent,failed:result.failed,ts:Date.now()});
+    setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
+  }catch(e){clearInterval(interval);showToast('Campaign failed','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}
+}
+function resetCampaign(){S.selectedGroups=[];S.selectedTemplate=null;campStep(1);document.getElementById('all-groups').checked=false;document.querySelectorAll('.group-card').forEach(c=>c.classList.remove('selected'));}
+
+// ── Reports ──
+async function refreshReports(){if(!S.cache.stats)await refreshStats();if(!S.cache.groups)await refreshLeadData();renderReports();}
+function renderReports(){const d=S.cache.stats||{};document.getElementById('rep-conv').innerHTML=`<div class="metric-row"><div class="m-label">Open</div><div class="m-value" style="color:var(--accent)">${d.open||0}</div></div><div class="metric-row"><div class="m-label">Resolved</div><div class="m-value">${d.resolved||0}</div></div><div class="metric-row"><div class="m-label">Pending</div><div class="m-value" style="color:var(--amber)">${d.pending||0}</div></div><div class="metric-row"><div class="m-label">Campaigns Sent</div><div class="m-value" style="color:var(--green)">${S.history.length}</div></div>`;const groups=S.cache.groups||[];const cm={};groups.forEach(g=>{cm[g.country]=(cm[g.country]||0)+g.count;});document.getElementById('rep-leads').innerHTML=Object.entries(cm).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<div class="metric-row"><div class="m-label">${c}</div><div class="m-value" style="color:var(--accent)">${n}</div></div>`).join('');}
+
+// ── Leads ──
+async function refreshLeads(){const d=await api('whizz-get-leads');S.cache.groups=d.groups||[];S.cache.leadsTotal=d.total||0;S.cache.platforms=d.platforms||[];S.cache.countries=d.countries||[];S.cache.brands=d.brands||[];S.groups=S.cache.groups;S.platforms=S.cache.platforms;S.countries=S.cache.countries;S.brands=S.cache.brands;renderLeadsPage(S.cache.groups,S.cache.leadsTotal);}
+function renderLeadsPage(groups,total){document.getElementById('leads-total').textContent=`${total||0} contacts`;renderChipsFilter(S.platforms,'leads-platform-chips','filterLeadsByPlatform');renderChipsFilter(S.countries,'leads-country-chips','filterLeadsByCountry');renderChipsFilter(S.brands,'leads-brand-chips','filterLeadsByBrand');renderGroupCards(groups,'leads-groups',false);}
+function renderChipsFilter(list,id,fn){const el=document.getElementById(id);el.innerHTML=['ALL',...list].map(v=>`<div class="chip ${v==='ALL'?'active':''}" onclick="${fn}('${v}',this)">${v}</div>`).join('');}
+function filterLeadsByPlatform(v,el){document.querySelectorAll('#leads-platform-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyLeadsFilter();}
+function filterLeadsByCountry(v,el){document.querySelectorAll('#leads-country-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyLeadsFilter();}
+function filterLeadsByBrand(v,el){document.querySelectorAll('#leads-brand-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyLeadsFilter();}
+function applyLeadsFilter(){const p=document.querySelector('#leads-platform-chips .chip.active')?.textContent||'ALL';const co=document.querySelector('#leads-country-chips .chip.active')?.textContent||'ALL';const b=document.querySelector('#leads-brand-chips .chip.active')?.textContent||'ALL';let f=S.cache.groups||[];if(p!=='ALL')f=f.filter(g=>g.platform===p);if(co!=='ALL')f=f.filter(g=>g.country===co);if(b!=='ALL')f=f.filter(g=>g.brand===b);renderGroupCards(f,'leads-groups',false);}
+
+// ── Toast ──
+function showToast(msg,type='info'){const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;document.getElementById('toast-wrap').appendChild(el);setTimeout(()=>el.remove(),4000);}
+</script>
+</body>
+</html>
