@@ -838,7 +838,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
             <div style="margin-bottom:12px;"><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Status</div><div class="chips" id="stock-status-chips"></div></div>
             <div style="overflow-x:auto;">
               <table class="stock-table">
-                <thead><tr><th>Product</th><th>SKU</th><th>Brand</th><th>Region</th><th>Category</th><th>Stock</th><th>Status</th></tr></thead>
+                <thead><tr><th>Product</th><th>SKU</th><th>Brand</th><th>Region</th><th>Category</th><th>Stock</th><th>Demand</th><th>Status</th></tr></thead>
                 <tbody id="stock-rows"><tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3);">Click Refresh to load</td></tr></tbody>
               </table>
             </div>
@@ -1445,6 +1445,38 @@ async function refreshStock() {
   S.stockRegions = d.regions || [];
   S.stockParentGroups = d.parentGroups || [];
   renderStockPage();
+  // Auto-fetch demand scores to enrich stock evaluation
+  fetchStockDemandScores();
+}
+
+async function fetchStockDemandScores() {
+  const btn = document.getElementById('demand-refresh-btn');
+  const icon = document.getElementById('demand-refresh-icon');
+  if (btn) { btn.disabled = true; icon && icon.classList.add('spin'); }
+  document.getElementById('demand-body').innerHTML = '<div class="ai-thinking" style="justify-content:center;"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span style="margin-left:6px;">Fetching NewsAPI demand scores for your brands…</span></div>';
+  try {
+    const brands = S.stockBrands.length ? S.stockBrands : (S.cache.stock?.brands || []);
+    const d = await api('whizz-demand-index', 'POST', { brands });
+    S.cache.demandIndex = d;
+    S.demandData = d;
+    // Build brand→score lookup
+    S.demandByBrand = {};
+    (d.all || [...(d.mostDiscussed||[]), ...(d.leastDiscussed||[])]).forEach(item => {
+      S.demandByBrand[item.brand] = item;
+    });
+    renderDemandIndex(d);
+    if (document.getElementById('demand-updated'))
+      document.getElementById('demand-updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
+    const high = (d.mostDiscussed||[]).length;
+    if (document.getElementById('stock-trending')) document.getElementById('stock-trending').textContent = high;
+    saveCache();
+    // Re-render table with demand scores now available
+    applyStockFilters();
+    renderStockMatrix();
+  } catch(e) {
+    document.getElementById('demand-body').innerHTML = '<div style="text-align:center;color:var(--red);font-size:12px;padding:24px;">Failed to fetch demand data — ensure <strong>whizz-demand-index</strong> webhook is active in n8n.</div>';
+  }
+  if (btn) { btn.disabled = false; icon && icon.classList.remove('spin'); }
 }
 
 function renderStockPage() {
@@ -1484,10 +1516,23 @@ function applyStockFilters() {
   renderStockTable(f);
 }
 
+function getDemandBadge(brand) {
+  const d = S.demandByBrand && S.demandByBrand[brand];
+  if (!d) return '<span style="font-size:10px;color:var(--text3);">—</span>';
+  const colors = {high:'var(--green)',medium:'var(--amber)',low:'var(--red)',dormant:'var(--text3)'};
+  const labels = {high:'🔥 Hot',medium:'~ Mid',low:'↓ Low',dormant:'· Dormant'};
+  const c = colors[d.level]||colors.dormant;
+  const l = labels[d.level]||labels.dormant;
+  return `<div style="display:flex;flex-direction:column;gap:2px;min-width:70px;">
+    <span style="font-size:11px;font-weight:700;color:${c};">${d.demandIndex}</span>
+    <span style="font-size:9px;color:${c};opacity:0.85;">${l}</span>
+  </div>`;
+}
+
 function renderStockTable(items) {
   const el = document.getElementById('stock-rows');
   document.getElementById('stock-filter-count').textContent = `${items.length} items`;
-  if (!items.length) { el.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3);">No items match filters</td></tr>'; return; }
+  if (!items.length) { el.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text3);">No items match filters</td></tr>'; return; }
   const cls = {'Optimal Allocation':'status-optimal','Urgency Alert':'status-urgency','Liquidation Risk':'status-liquidation','Out of Stock':'status-oos'};
   el.innerHTML = items.map(i => `<tr>
     <td class="td-bold" title="${i.productName}">${i.productName.length>45?i.productName.slice(0,45)+'…':i.productName}</td>
@@ -1496,6 +1541,7 @@ function renderStockTable(items) {
     <td>${i.region}</td>
     <td>${i.parentGroup}</td>
     <td><span class="stock-num">${i.stock.toLocaleString()}</span></td>
+    <td>${getDemandBadge(i.brand)}</td>
     <td><span class="stock-status ${cls[i.status]||''}">${i.status}</span></td>
   </tr>`).join('');
 }
@@ -1506,20 +1552,39 @@ function renderStockMatrix() {
   el.innerHTML = S.stockCrossTab.map(m => {
     const regBlock = Object.entries(m.breakdownByRegion||{}).map(([r,n])=>`<div class="matrix-sub-item">${r}: <span class="matrix-sub-val">${n.toLocaleString()}</span></div>`).join('');
     const grpBlock = Object.entries(m.breakdownByParentGroup||{}).map(([g,n])=>`<div class="matrix-sub-item" style="border-color:rgba(59,130,246,0.2)">${g}: <span class="matrix-sub-val" style="color:var(--blue)">${n.toLocaleString()}</span></div>`).join('');
+    const dem = S.demandByBrand && S.demandByBrand[m.brand];
+    const demColors = {high:'var(--green)',medium:'var(--amber)',low:'var(--red)',dormant:'var(--text3)'};
+    const demLabels = {high:'High Demand',medium:'Moderate',low:'Low Demand',dormant:'Dormant'};
+    const demBlock = dem
+      ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:10px;text-transform:uppercase;color:var(--text3);letter-spacing:0.05em;">NewsAPI Demand</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style="height:4px;width:60px;background:var(--bg3);border-radius:2px;overflow:hidden;"><div style="height:4px;width:${dem.demandIndex}%;background:${demColors[dem.level]||'var(--text3)'};border-radius:2px;"></div></div>
+            <span style="font-size:11px;font-weight:700;color:${demColors[dem.level]||'var(--text3)'};">${dem.demandIndex}</span>
+            <span style="font-size:9px;color:${demColors[dem.level]||'var(--text3)'};background:${demColors[dem.level]||'var(--text3)'}22;padding:1px 5px;border-radius:8px;">${demLabels[dem.level]||'—'}</span>
+          </div>
+        </div>`
+      : '';
     return `<div class="matrix-row-item">
       <div class="matrix-row-header"><span class="matrix-brand-name">${m.brand}</span><span class="matrix-total-pill">Total Volume: ${(m.totalGlobalVolume||0).toLocaleString()}</span></div>
       <div style="font-size:10px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;letter-spacing:0.05em;">By Region</div>
       <div class="matrix-sub-flex" style="margin-bottom:8px;">${regBlock||'<span style="color:var(--text3)">—</span>'}</div>
       <div style="font-size:10px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;letter-spacing:0.05em;">By Category</div>
       <div class="matrix-sub-flex">${grpBlock||'<span style="color:var(--text3)">—</span>'}</div>
+      ${demBlock}
     </div>`;
   }).join('');
 }
 
 function exportStockCSV() {
   if (!S.stock.length) { showToast('Load stock data first', 'error'); return; }
-  const rows = S.stock.map(i => `"${i.productName}","${i.alias}","${i.brand}","${i.region}","${i.parentGroup}",${i.stock},"${i.status}"`);
-  downloadCSV(['Product,SKU,Brand,Region,Category,Stock,Status', ...rows].join('\n'), 'whizz_stock_evaluation.csv');
+  const rows = S.stock.map(i => {
+    const dem = S.demandByBrand && S.demandByBrand[i.brand];
+    const score = dem ? dem.demandIndex : '';
+    const level = dem ? dem.level : '';
+    return `"${i.productName}","${i.alias}","${i.brand}","${i.region}","${i.parentGroup}",${i.stock},${score},"${level}","${i.status}"`;
+  });
+  downloadCSV(['Product,SKU,Brand,Region,Category,Stock,Demand Score,Demand Level,Status', ...rows].join('\n'), 'whizz_stock_evaluation.csv');
   showToast('Export complete!', 'success');
 }
 
@@ -1912,12 +1977,18 @@ async function refreshDemandIndex() {
     const d = await api('whizz-demand-index', 'POST', { brands });
     S.cache.demandIndex = d;
     S.demandData = d;
+    S.demandByBrand = {};
+    (d.all || [...(d.mostDiscussed||[]), ...(d.leastDiscussed||[])]).forEach(item => {
+      S.demandByBrand[item.brand] = item;
+    });
     renderDemandIndex(d);
     document.getElementById('demand-updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
-    // Update trending stat
     const high = (d.mostDiscussed||[]).length;
     document.getElementById('stock-trending').textContent = high;
     saveCache();
+    // Refresh stock table and matrix with new demand scores
+    applyStockFilters();
+    renderStockMatrix();
   } catch(e) {
     document.getElementById('demand-body').innerHTML = '<div style="text-align:center;color:var(--red);font-size:12px;padding:24px;">Failed to fetch — ensure <strong>whizz-demand-index</strong> webhook is active in n8n.</div>';
   }
