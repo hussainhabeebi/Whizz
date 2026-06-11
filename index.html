@@ -51,7 +51,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .sidebar-logo{padding:20px 16px 16px;border-bottom:1px solid var(--border);}
 .s-logo-row{display:flex;align-items:center;gap:10px;}
 .s-logo-mark{width:34px;height:34px;border-radius:9px;flex-shrink:0;background:linear-gradient(135deg,var(--accent),#ef4444);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:800;font-size:14px;color:#fff;}
-.s-logo-text{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--text);}
+.sidebar-logo .s-logo-text{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--text);}
 .s-logo-sub{font-size:10px;color:var(--text3);}
 .sidebar-nav{flex:1;padding:12px 10px;overflow-y:auto;}
 .nav-section{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;padding:10px 8px 5px;}
@@ -235,6 +235,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .ft{resize:vertical;min-height:90px;line-height:1.6;}
 .fi-hint{font-size:10px;color:var(--text3);margin-top:3px;}
 
+/* Tables styling for stock page */
+.stock-table-wrap { width: 100%; overflow-x: auto; }
+.stock-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.stock-table th { background: var(--bg3); color: var(--text2); font-weight: 600; padding: 12px 16px; border-bottom: 1px solid var(--border); text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }
+.stock-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.badge-stock { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.badge-stock.liquidation { background: var(--red-dim); color: var(--red); }
+.badge-stock.urgency { background: var(--amber-dim); color: var(--amber); }
+.badge-stock.optimal { background: var(--green-dim); color: var(--green); }
+.badge-stock.empty { background: var(--bg4); color: var(--text3); }
+
 /* Progress */
 .prog-wrap{background:var(--bg3);border-radius:20px;height:6px;overflow:hidden;margin-top:6px;}
 .prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:20px;transition:width 0.5s;}
@@ -341,6 +352,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         Setup Checklist
         <span class="nav-badge" id="ob-badge">!</span>
       </div>
+      
+      <div class="nav-section">Warehouse Management</div>
+      <div class="nav-item" onclick="navigate('stock',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+        Stock Evaluation Planner
+      </div>
+
       <div class="nav-section">Marketing</div>
       <div class="nav-item" onclick="navigate('campaigns',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg>
@@ -457,7 +475,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
           <div class="card">
             <div class="card-head">
               <div class="card-title">Recent Conversations</div>
-              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="navigate('conversations',document.querySelectorAll('.nav-item')[5])">View All</button>
+              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="navigate('conversations',document.querySelectorAll('.nav-item')[6])">View All</button>
             </div>
             <div id="dash-convs"><div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">Click Refresh to load</div></div>
           </div>
@@ -479,6 +497,70 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
             <div class="ob-step" id="ob-3" onclick="toggleOb(3)"><div class="ob-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="ob-title">Leads uploaded to Google Sheets</div><div class="ob-desc">Columns: Lead ID, Timestamp, Source Platform, Company, Contact Name, Country, WhatsApp, Email, Product Interest, Brand</div></div></div>
             <div class="ob-step" id="ob-4" onclick="toggleOb(4)"><div class="ob-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="ob-title">Test campaign sent successfully</div><div class="ob-desc">Send a test campaign to verify the full flow works before going live.</div></div></div>
             <div class="ob-step" id="ob-5" onclick="toggleOb(5)"><div class="ob-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="ob-title">Chatwoot inbox configured</div><div class="ob-desc">WhatsApp inbox connected at chat.whizzfze.com Account 1 Inbox 1.</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-stock">
+        <div class="cache-banner" id="stock-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Cached warehouse inventory. Click Refresh for live sheet matching configurations.</span>
+        </div>
+        <div class="two-col" style="grid-template-columns: 1.2fr 0.8fr;">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Warehouse Physical Allocation Stock</div>
+              <span id="stock-total" style="font-size: 11px; color: var(--text3)">0 SKUs mapped</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+              <div class="stock-table-wrap">
+                <table class="stock-table">
+                  <thead>
+                    <tr>
+                      <th>Brand Focus</th>
+                      <th>Product Parameters</th>
+                      <th style="text-align: right;">Quantity</th>
+                      <th style="text-align: center;">Marketing Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stock-list-body">
+                    <tr><td colspan="4" style="text-align: center; padding: 32px; color: var(--text3);">Click Refresh to load Google Sheet metrics</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-head"><div class="card-title">Broadcast Suggestion Copy Composer</div></div>
+            <div class="card-body">
+              <div style="background:var(--bg3); border-radius: var(--r-sm); padding: 12px; border: 1px solid var(--border); margin-bottom:14px;">
+                <div style="font-size:10px; font-weight:600; text-transform:uppercase; color:var(--text3); margin-bottom:4px;">Target Anchor SKU</div>
+                <div id="planner-sku" style="font-size:13px; font-weight:700; color:var(--accent);">No Product Targeted</div>
+                <div id="planner-meta" style="font-size:11px; color:var(--text2); margin-top:2px;">Select an item line to pre-compose templates.</div>
+              </div>
+              
+          <div class="fg">
+            <label class="fl">Target Marketing Template</label>
+            <select class="fs" id="planner-tpl" onchange="updatePlannerPreview()"></select>
+          </div>
+          <div class="fg">
+            <label class="fl">Template Variable 1 (Product Hook)</label>
+            <input class="fi" id="planner-v1" placeholder="Auto-injected description" oninput="updatePlannerPreview()"/>
+          </div>
+          <div class="fg">
+            <label class="fl">Template Variable 2 (Stock Metric)</label>
+            <input class="fi" id="planner-v2" placeholder="Auto-injected stock volume" oninput="updatePlannerPreview()"/>
+          </div>
+          <div class="fg">
+            <label class="fl">Live Broadcast Body Preview</label>
+            <div id="planner-preview" style="font-size:12px; line-height:1.5; color:var(--text2); background:var(--bg3); padding:10px; border-radius:6px; border:1px solid var(--border); min-height:80px; white-space:pre-wrap;">Select a template to view text compilation.</div>
+          </div>
+          
+          <button class="login-btn" style="width: 100%; margin-top:8px;" onclick="pushPlannerToCampaign()">
+            Push to Marketing Pipeline
+          </button>
+            </div>
           </div>
         </div>
       </div>
@@ -536,6 +618,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 
             <div id="cs3" style="display:none;">
               <div style="background:var(--bg3);border-radius:var(--r-sm);padding:18px;border:1px solid var(--border);margin-bottom:16px;">
+                <div id="fatigue-warning" style="display:none; background:rgba(239,68,68,0.15); border:1px solid var(--red); color:var(--red); border-radius:6px; padding:10px; font-size:12px; font-weight:500; margin-bottom:14px;">
+                  ⚠️ Warning: This identical template was dispatched to this specific audience footprint within the past 24 hours. Change variables to protect channel metrics.
+                </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
                   <div><div class="s-label" style="margin-bottom:4px;">Audience</div><div id="rv-audience" style="font-size:12px;font-weight:600;">—</div></div>
                   <div><div class="s-label" style="margin-bottom:4px;">Recipients</div><div id="rv-count" style="font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--accent);">—</div></div>
@@ -691,7 +776,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 <script>
 const N8N = 'https://n8n.aiingo.com/webhook';
 const CW_URL = 'https://chat.whizzfze.com/app/accounts/1/conversations';
-const CACHE_KEY = 'whizz_cache_v2';
+const CACHE_KEY = 'whizz_cache_v3';
 const NOTIF_KEY = 'whizz_notifs';
 const OB_KEY = 'whizz_onboarding';
 
@@ -703,10 +788,11 @@ const USERS = {
 
 let S = {
   page: 'dashboard', convStatus: 'open',
-  groups: [], crossTabMatrix: [], templates: [], platforms: [], countries: [], brands: [],
+  groups: [], crossTabMatrix: [], templates: [], platforms: [], countries: [], brands: [], stock: [],
   selectedGroups: [], selectedTemplate: null,
   activePlatform: 'ALL', activeCountry: 'ALL', activeBrand: 'ALL',
-  cache: {}, notifications: [], history: []
+  cache: {}, notifications: [], history: [],
+  plannerProduct: null
 };
 
 // ── Auth ──
@@ -767,12 +853,15 @@ function loadCache() {
     S.countries = S.cache.countries || []; 
     S.brands = S.cache.brands || []; 
   }
+  if (S.cache.stock) S.stock = S.cache.stock;
   if (S.cache.templates) S.templates = S.cache.templates;
+  
   const time = new Date(ts).toLocaleString('en-AE', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('dash-cache-time').textContent = time;
   if (S.cache.stats) { renderStats(S.cache.stats); showBanner('dash'); }
   if (S.cache.groups) { renderDashCountries(S.cache.groups); renderCampGroups(S.cache.groups); renderLeadsPage(S.cache.groups, S.cache.leadsTotal); showBanner('camp'); showBanner('leads'); }
-  if (S.cache.templates) { renderTplPage(S.cache.templates); renderCampTemplates(S.cache.templates); showBanner('tpl'); }
+  if (S.cache.stock) { renderStockPage(S.cache.stock, S.cache.stockTotalLines); showBanner('stock'); }
+  if (S.cache.templates) { renderTplPage(S.cache.templates); renderCampTemplates(S.cache.templates); populatePlannerDropdowns(); showBanner('tpl'); }
   if (S.cache.conversations) { renderConvs(S.cache.conversations); renderDashConvs(S.cache.conversations); showBanner('conv'); }
   if (S.cache.stats || S.cache.crossTabMatrix) { renderReports(); showBanner('rep'); }
 }
@@ -847,12 +936,13 @@ function navigate(page, el) {
   document.querySelectorAll('.nav-item,.nav-ext').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads',stock:'Stock Evaluation Planner'};
   document.getElementById('page-title').textContent=titles[page]||page;
   S.page=page; closeSidebar();
   if(page==='campaigns'&&S.cache.groups){S.groups=S.cache.groups;renderCampGroups(S.cache.groups);hideBanner('camp');}
   if(page==='campaigns'&&S.cache.templates){S.templates=S.cache.templates;renderCampTemplates(S.cache.templates);}
   if(page==='leads'&&S.cache.groups){renderLeadsPage(S.cache.groups,S.cache.leadsTotal);hideBanner('leads');}
+  if(page==='stock'&&S.cache.stock){renderStockPage(S.cache.stock,S.cache.stockTotalLines);hideBanner('stock');}
   if(page==='conversations'&&S.cache.conversations){renderConvs(S.cache.conversations);hideBanner('conv');}
   if(page==='templates'&&S.cache.templates){renderTplPage(S.cache.templates);hideBanner('tpl');}
   if(page==='reports' && (S.cache.stats || S.cache.crossTabMatrix)){renderReports();hideBanner('rep');}
@@ -872,6 +962,7 @@ async function refreshPage() {
     else if(p==='conversations')await refreshConversations();
     else if(p==='reports')await refreshReportsPage();
     else if(p==='leads')await refreshLeads();
+    else if(p==='stock')await refreshStock();
     else if(p==='history')renderHistoryList();
     saveCache();
     document.getElementById('last-upd').textContent='Updated '+new Date().toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
@@ -892,7 +983,6 @@ function renderDashConvs(convs){const el=document.getElementById('dash-convs');i
 
 async function refreshLeadData(){
   const d=await api('whizz-get-leads');
-  // Handle root level backend array changes safely
   S.cache.groups=d.groups||[];
   S.cache.crossTabMatrix=d.crossTabMatrix||[];
   S.cache.leadsTotal=d.totalDistributedItems || d.total || 0;
@@ -912,14 +1002,104 @@ async function refreshLeadData(){
 }
 function renderDashCountries(groups){const el=document.getElementById('dash-countries');const cm={};groups.forEach(g=>{if(!g.isAggregatedTail){cm[g.country]=(cm[g.country]||0)+g.count;}});const sorted=Object.entries(cm).sort((a,b)=>b[1]-a[1]).slice(0,8);el.innerHTML=sorted.map(([c,n])=>`<div class="metric-row"><div class="m-label">${c}</div><div class="m-value" style="color:var(--accent)">${n}</div></div>`).join('');}
 
+// ── Warehouse Inventory Matching ──
+async function refreshStock(){
+  const d = await api('whizz-stock');
+  S.cache.stock = d.stock || [];
+  S.cache.stockTotalLines = d.totalProductLines || 0;
+  S.stock = S.cache.stock;
+  renderStockPage(S.stock, S.cache.stockTotalLines);
+}
+function renderStockPage(stock, totalLines) {
+  document.getElementById('stock-total').textContent = `${totalLines || 0} SKUs mapped`;
+  const tbody = document.getElementById('stock-list-body');
+  if(!stock.length) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 32px; color: var(--text3);">No active lines found inside warehouse matrix registry</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = stock.map(i => {
+    let statusClass = 'optimal';
+    if(i.status === 'Liquidation Risk') statusClass = 'liquidation';
+    if(i.status === 'Urgency Alert') statusClass = 'urgency';
+    if(i.status === 'Out of Stock') statusClass = 'empty';
+
+    return `<tr>
+      <td style="font-weight: 600; color: var(--accent);">${i.brand} <span style="font-size:9px; opacity:0.5; color:var(--text); font-weight:normal; margin-left:4px;">[${i.region}]</span></td>
+      <td>
+        <div style="font-weight: 500;">${i.productName}</div>
+        <div style="font-size: 10px; color: var(--text3); margin-top:2px;">Group: ${i.parentGroup} | SKU: ${i.alias}</div>
+      </td>
+      <td style="text-align: right;">
+        <div style="font-family: var(--font-display); font-weight: 700; font-size:14px;">${i.stock}</div>
+        <span class="badge-stock ${statusClass}">${i.status}</span>
+      </td>
+      <td>
+        <button class="t-btn btn-refresh" style="padding:4px 8px; font-size:11px; margin: 0 auto;" onclick="anchorStockPlanner('${i.brand.replace(/'/g, "\\'")}', '${i.productName.replace(/'/g, "\\'")}', ${i.stock})">
+          Plan Promo
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Stock Suggestion Planner Node Logic ──
+function populatePlannerDropdowns() {
+  const el = document.getElementById('planner-tpl');
+  if(!S.templates.length) {
+    el.innerHTML = '<option value="">No templates loaded</option>';
+    return;
+  }
+  el.innerHTML = '<option value="">Select a template component...</option>' + 
+    S.templates.map(t => `<option value="${t.name}">${t.name} [${t.language.toUpperCase()}]</option>`).join('');
+}
+function anchorStockPlanner(brand, productName, stock) {
+  S.plannerProduct = { brand, productName, stock };
+  document.getElementById('planner-sku').textContent = brand + " - " + productName;
+  document.getElementById('planner-meta').textContent = `Current Warehouse Available Units: ${stock}`;
+  
+  document.getElementById('planner-v1').value = productName;
+  document.getElementById('planner-v2').value = stock;
+  updatePlannerPreview();
+}
+function updatePlannerPreview() {
+  const tplName = document.getElementById('planner-tpl').value;
+  const box = document.getElementById('planner-preview');
+  if(!tplName) {
+    box.textContent = 'Select a template structure to look at pre-composition layers.';
+    return;
+  }
+  const tpl = S.templates.find(t => t.name === tplName);
+  if(!tpl) return;
+  
+  let body = tpl.body || '';
+  const v1 = document.getElementById('planner-v1').value || '_____';
+  const v2 = document.getElementById('planner-v2').value || '_____';
+  
+  body = body.replace(/{{1}}/g, v1).replace(/{{2}}/g, v2);
+  box.textContent = body;
+}
+function pushPlannerToCampaign() {
+  const tplName = document.getElementById('planner-tpl').value;
+  if(!tplName || !S.plannerProduct) {
+    showToast('Select an active item line and template context first', 'error');
+    return;
+  }
+  S.selectedTemplate = S.templates.find(t => t.name === tplName);
+  S.activeBrand = S.plannerProduct.brand;
+  
+  navigate('campaigns', document.querySelectorAll('.sidebar-nav .nav-item')[3]);
+  if(typeof applyGroupFilters === 'function') applyGroupFilters();
+  showToast('Planner parameters pushed successfully!', 'success');
+}
+
 // ── Support Conversations Engine ──
-async function refreshConversations(){const d=await api(`whizz-get-conversations?status=${S.convStatus}`);S.cache.conversations=d.conversations||[];renderConvs(S.cache.conversations);}
+function refreshConversations(){const d=await api(`whizz-get-conversations?status=${S.convStatus}`);S.cache.conversations=d.conversations||[];renderConvs(S.cache.conversations);}
 function renderConvs(convs){const el=document.getElementById('conv-list');document.getElementById('conv-count').textContent=`${convs.length} operational records`;if(!convs.length){el.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3);font-size:12px;">No interactions logged under this state filter</div>';return;}el.innerHTML=convs.map(c=>convHtml(c)).join('');}
 function convHtml(c){const init=(c.contact_name||'U')[0].toUpperCase();const cls=c.channel?.includes('whatsapp')?'ch-wa':c.channel?.includes('email')?'ch-em':'ch-wc';const lbl=c.channel?.includes('whatsapp')?'WhatsApp':c.channel?.includes('email')?'Email':'Chat';const time=c.last_activity?new Date(c.last_activity*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';return`<div class="conv-item" onclick="window.open('${CW_URL}/${c.id}','_blank')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top"><div class="c-name">${c.contact_name||'Unknown'}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;}
 function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=>{b.className='t-btn btn-ghost';b.style.cssText='padding:5px 12px;font-size:11px;';});btn.className='t-btn btn-primary';btn.style.cssText='padding:5px 12px;font-size:11px;';S.convStatus=status;if(S.cache.conversations)renderConvs(S.cache.conversations);}
 
 // ── Meta Template Module ──
-async function refreshTemplates(){const d=await api('whizz-get-templates');S.cache.templates=d.templates||[];S.templates=S.cache.templates;renderTplPage(S.cache.templates);renderCampTemplates(S.cache.templates);}
+async function refreshTemplates(){const d=await api('whizz-get-templates');S.cache.templates=d.templates||[];S.templates=S.cache.templates;renderTplPage(S.cache.templates);renderCampTemplates(S.cache.templates);populatePlannerDropdowns();}
 function renderTplPage(templates){const el=document.getElementById('tpl-list');if(!templates.length){el.innerHTML='<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">No approved template records identified inside WABA.</div>';return;}el.innerHTML=`<div class="tpl-grid">${templates.map(t=>`<div class="tpl-card" style="cursor:default;"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span><span class="tpl-approved">APPROVED</span></div><div class="tpl-body">${t.body||'Empty body context'}</div></div>`).join('')}</div>`;}
 function openTplModal(){document.getElementById('tpl-modal').classList.add('open');}
 function closeTplModal(){document.getElementById('tpl-modal').classList.remove('open');}
@@ -943,7 +1123,6 @@ function applyGroupFilters(){
 }
 function renderCampGroups(groups){renderChips(S.platforms,'platform-chips','activePlatform','filterByPlatform');renderChips(S.countries,'country-chips','activeCountry','filterByCountry');renderChips(S.brands,'brand-chips','activeBrand','filterByBrand');renderGroupCards(groups,'camp-groups',true);}
 
-// Render Group Cards supporting Pareto Tail UI flags and Velocity Arrows
 function renderGroupCards(groups,id,selectable){
   const el=document.getElementById(id);
   if(!groups.length){el.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;">Zero pipeline entities intersect selected matrix nodes</div>';return;}
@@ -955,7 +1134,6 @@ function renderGroupCards(groups,id,selectable){
     if(g.trend === 'Trending Up') { arrow = '▲'; trendClass = 'up'; }
     if(g.trend === 'Trending Down') { arrow = '▼'; trendClass = 'down'; }
     
-    // Check selection memory state safely handling special strings
     const groupKey = `${g.platform}||${g.country}||${g.brand}`;
     const isSel = S.selectedGroups.includes(groupKey) ? 'selected' : '';
 
@@ -975,7 +1153,32 @@ function renderCampTemplates(templates){const el=document.getElementById('camp-t
 function toggleGroup(platform,country,brand,el){el.classList.toggle('selected');const key=platform+'||'+country+'||'+brand;const idx=S.selectedGroups.indexOf(key);if(idx===-1)S.selectedGroups.push(key);else S.selectedGroups.splice(idx,1);}
 function toggleAllGroups(cb){S.selectedGroups=[];document.querySelectorAll('#camp-groups .group-card').forEach(c=>{c.classList.toggle('selected',cb.checked);if(cb.checked){const p=c.querySelector('.g-platform').textContent,co=c.querySelector('.g-country').textContent,b=c.querySelector('.g-brand').getAttribute('title');S.selectedGroups.push(p+'||'+co+'||'+b);}});}
 function selectTpl(name,el){document.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');S.selectedTemplate=S.templates.find(t=>t.name===name);}
-function campStep(n){if(n===2&&!S.groups.length){showToast('Synchronize CRM cache boundaries first','error');return;}if(n===3&&!S.selectedTemplate){showToast('Select target template structure context','error');return;}[1,2,3].forEach(i=>{document.getElementById('cs'+i).style.display=i===n?'block':'none';const wz=document.getElementById('wz'+i);wz.className='wz-step'+(i<n?' done':i===n?' active':'');});if(n===3)buildReview();}
+
+// Anti-Fatigue Safeguard Interceptor Validation Rule
+function checkAudienceFatigue() {
+  const warnNode = document.getElementById('fatigue-warning');
+  if(!S.selectedTemplate || !S.history.length) { warnNode.style.display = 'none'; return; }
+  
+  const allGroups = document.getElementById('all-groups').checked || S.selectedGroups.length === 0;
+  const currentAudienceKey = allGroups ? 'All' : S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', ');
+  
+  // Scans history arrays looking for exact duplicates inside an absolute 24-hour time window
+  const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+  const matchedFatigue = S.history.find(h => h.template === S.selectedTemplate.name && h.audience === currentAudienceKey && h.ts > oneDayAgo);
+  
+  warnNode.style.display = matchedFatigue ? 'block' : 'none';
+}
+
+function campStep(n){
+  if(n===2&&!S.groups.length){showToast('Synchronize CRM cache boundaries first','error');return;}
+  if(n===3&&!S.selectedTemplate){showToast('Select target template structure context','error');return;}
+  [1,2,3].forEach(i=>{
+    document.getElementById('cs'+i).style.display=i===n?'block':'none';
+    const wz=document.getElementById('wz'+i);
+    wz.className='wz-step'+(i<n?' done':i===n?' active':'');
+  });
+  if(n===3) { buildReview(); checkAudienceFatigue(); }
+}
 
 function buildReview(){
   const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
@@ -1004,7 +1207,16 @@ async function sendCampaign(){
     document.getElementById('prog-fill').style.width='100%';
     document.getElementById('prog-text').textContent=`Execution terminated. Complete. Sent: ${result.sent}, Failures dropped: ${result.failed}`;
     showToast(`Asynchronous broadcast successful! ${result.sent} elements delivered`,'success');
-    saveHistory({template:S.selectedTemplate.name,audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total,sent:result.sent,failed:result.failed,ts:Date.now()});
+    
+    saveHistory({
+      template: S.selectedTemplate.name,
+      audience: allGroups ? 'All' : S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),
+      total: result.total || result.sent,
+      sent: result.sent,
+      failed: result.failed || 0,
+      ts: Date.now()
+    });
+    
     setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
   }catch(e){clearInterval(interval);showToast('Asynchronous dispatch loop trace break','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}
 }
@@ -1021,7 +1233,6 @@ function renderReports(){
   groups.forEach(g=>{if(!g.isAggregatedTail){cm[g.country]=(cm[g.country]||0)+g.count;}});
   document.getElementById('rep-leads').innerHTML=Object.entries(cm).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<div class="metric-row"><div class="m-label">${c}</div><div class="m-value" style="color:var(--accent)">${n}</div></div>`).join('');
 
-  // Brand Pivot Cross Tab Matrix Render Layout Logic 
   const matEl = document.getElementById('rep-matrix');
   if(!S.crossTabMatrix || !S.crossTabMatrix.length) {
     matEl.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">No Cross Tab items populated.</div>';
