@@ -321,7 +321,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .today-icon{width:28px;height:28px;border-radius:7px;background:var(--green-dim);color:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .today-icon svg{width:13px;height:13px;}
 .stat-card.purple::after{background:#8b5cf6;}
-.status-oom{background:rgba(139,92,246,0.12);color:#8b5cf6;}
+/* Demand Index */
+.demand-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:768px){.demand-cols{grid-template-columns:1fr;}}
+.demand-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.demand-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 13px;margin-bottom:7px;position:relative;overflow:hidden;}
+.demand-item-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.demand-brand{font-size:13px;font-weight:600;color:var(--text);}
+.demand-score-pill{font-family:var(--font-display);font-size:16px;font-weight:700;}
+.demand-bar-track{height:5px;border-radius:3px;background:var(--border2);overflow:hidden;}
+.demand-bar-fill{height:100%;border-radius:3px;transition:width 0.8s cubic-bezier(0.4,0,0.2,1);}
+.demand-meta{display:flex;align-items:center;justify-content:space-between;margin-top:5px;}
+.demand-mentions{font-size:10px;color:var(--text3);}
+.demand-level{font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;}
+.level-high{background:var(--green-dim);color:var(--green);}
+.level-medium{background:var(--amber-dim);color:var(--amber);}
+.level-low{background:var(--red-dim);color:var(--red);}
+.level-dormant{background:var(--bg4);color:var(--text3);}
+.demand-glow-high{box-shadow:0 0 0 1px rgba(34,197,94,0.2);}
+.demand-glow-low{box-shadow:0 0 0 1px rgba(239,68,68,0.15);}
+.demand-insight{background:var(--bg3);border-radius:var(--r-sm);padding:12px 14px;margin-top:14px;border:1px solid var(--border);font-size:12px;color:var(--text2);line-height:1.6;}
+.demand-insight strong{color:var(--text);}
 .ai-thinking{display:flex;align-items:center;gap:8px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.2);border-radius:var(--r-sm);padding:10px 14px;font-size:12px;color:#a78bfa;margin-bottom:10px;}
 .ai-dot{width:7px;height:7px;border-radius:50%;background:#8b5cf6;animation:aiPulse 1s ease-in-out infinite;}
 .ai-dot:nth-child(2){animation-delay:0.2s;}
@@ -740,35 +760,30 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
             <div class="s-sub">Zero inventory</div>
           </div>
           <div class="stat-card" style="border-color:rgba(139,92,246,0.3);">
-            <div class="s-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6;top:16px;right:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="m2 2 20 20"/></svg></div>
-            <div class="s-label">Out of Market</div>
-            <div class="s-value" id="stock-oom" style="color:#8b5cf6;">—</div>
-            <div class="s-sub">Discontinued models</div>
+            <div class="s-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6;top:16px;right:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+            <div class="s-label">Trending Brands</div>
+            <div class="s-value" id="stock-trending" style="color:#8b5cf6;">—</div>
+            <div class="s-sub">High demand this week</div>
           </div>
         </div>
 
-        <!-- Out of Market Alert Card -->
-        <div class="card" id="oom-card" style="display:none;border-color:rgba(139,92,246,0.25);">
-          <div class="card-head" style="border-color:rgba(139,92,246,0.15);">
-            <div class="card-title" style="color:#8b5cf6;">Out of Market Items</div>
+        <!-- Demand Index Card -->
+        <div class="card" id="demand-card">
+          <div class="card-head">
+            <div class="card-title">
+              Market Demand Index
+              <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">· web mentions · last 7 days</span>
+            </div>
             <div style="display:flex;gap:7px;align-items:center;">
-              <span style="font-size:11px;color:var(--text3);" id="oom-count-label"></span>
-              <button class="t-btn" style="padding:4px 10px;font-size:11px;background:rgba(139,92,246,0.1);color:#8b5cf6;border:1px solid rgba(139,92,246,0.2);" onclick="exportOomCSV()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Export CSV
+              <span style="font-size:10px;color:var(--text3);" id="demand-updated"></span>
+              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" id="demand-refresh-btn" onclick="refreshDemandIndex()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" id="demand-refresh-icon"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Fetch Trends
               </button>
             </div>
           </div>
-          <div class="card-body" style="padding:0;">
-            <div style="padding:10px 18px;background:rgba(139,92,246,0.05);border-bottom:1px solid rgba(139,92,246,0.1);font-size:12px;color:#a78bfa;">
-              These are old model numbers no longer in active market. Consider clearance campaigns or supplier returns.
-            </div>
-            <div style="overflow-x:auto;">
-              <table class="stock-table">
-                <thead><tr><th>Product</th><th>SKU</th><th>Brand</th><th>Region</th><th>Model Year</th><th>Stock</th><th>Action</th></tr></thead>
-                <tbody id="oom-rows"></tbody>
-              </table>
-            </div>
+          <div class="card-body" id="demand-body">
+            <div style="text-align:center;color:var(--text3);font-size:12px;padding:32px;">Click <strong>Fetch Trends</strong> to pull live demand data for your brands.</div>
           </div>
         </div>
         <div class="card">
@@ -981,6 +996,13 @@ function loadCache() {
     S.stock = sd.stock || []; S.stockCrossTab = sd.crossTabMatrix || [];
     S.stockBrands = sd.brands || []; S.stockRegions = sd.regions || []; S.stockParentGroups = sd.parentGroups || [];
     renderStockPage(); showBanner('stock');
+  }
+  if (S.cache.demandIndex) {
+    S.demandData = S.cache.demandIndex;
+    renderDemandIndex(S.cache.demandIndex);
+    const high = (S.cache.demandIndex.mostDiscussed||[]).length;
+    const trendEl = document.getElementById('stock-trending');
+    if (trendEl) trendEl.textContent = high;
   }
 }
 function showBanner(p) { const el=document.getElementById(p+'-banner'); if(el)el.classList.add('show'); }
@@ -1298,7 +1320,7 @@ function showToast(msg,type='info'){const el=document.createElement('div');el.cl
 
 // ── Stock Module ──
 async function refreshStock() {
-  const [d] = await Promise.all([api('whizz-stock'), refreshOutOfMarket()]);
+  const d = await api('whizz-stock');
   S.cache.stock = d;
   S.stock = d.stock || [];
   S.stockCrossTab = d.crossTabMatrix || [];
@@ -1442,15 +1464,23 @@ function renderSuggestions() {
       icon:'amber', tag:`${items.length} item${items.length>1?'s':''} low` });
   });
 
-  // Out of Market: clearance / EOL
-  const oomItems = S.cache.outOfMarket || [];
-  uniq(oomItems.map(i=>i.brand||'Unknown')).slice(0,3).forEach(brand => {
-    const items = oomItems.filter(i=>(i.brand||'Unknown')===brand);
-    suggestions.push({ type:'oom', priority:'high', brand,
-      regions: uniq(items.map(i=>i.region||'Global')),
-      title: `Clearance Drive — ${brand} (Discontinued)`,
-      desc: `${items.length} out-of-market model${items.length>1?'s':''} identified. Run a clearance broadcast to existing contacts before these lines are fully retired.`,
-      icon:'purple', tag:`${items.length} EOL model${items.length>1?'s':''}` });
+  // Demand Index: high-demand → strike while hot; dormant → awareness push
+  const demandAll = (S.demandData && S.demandData.all) ? S.demandData.all : [];
+  const demandHigh = demandAll.filter(i=>i.level==='high').slice(0,2);
+  const demandDormant = demandAll.filter(i=>i.level==='dormant'||i.level==='low').slice(0,2);
+  demandHigh.forEach(item => {
+    suggestions.push({ type:'demand-high', priority:'high', brand: item.brand,
+      regions: ['Global'],
+      title: `Strike While Hot — ${item.brand}`,
+      desc: `${item.brand} is trending with ${item.mentions.toLocaleString()} web mentions this week (Demand Index: ${item.demandIndex}/100). Broadcast now while market interest is peaking.`,
+      icon:'green', tag:`Index ${item.demandIndex}/100`, demandIndex: item.demandIndex });
+  });
+  demandDormant.forEach(item => {
+    suggestions.push({ type:'demand-low', priority:'medium', brand: item.brand,
+      regions: ['Global'],
+      title: `Awareness Push — ${item.brand}`,
+      desc: `${item.brand} has low market discussion (Demand Index: ${item.demandIndex}/100, ${item.mentions.toLocaleString()} mentions). A targeted broadcast could capture overlooked demand before competitors do.`,
+      icon:'blue', tag:`Index ${item.demandIndex}/100`, demandIndex: item.demandIndex });
   });
 
   // OOS: restock notification / pre-order intent
@@ -1472,12 +1502,19 @@ function renderSuggestions() {
   const pOrd = {high:0,medium:1,low:2};
   suggestions.sort((a,b)=>pOrd[a.priority]-pOrd[b.priority]);
 
-  const iconCfg = {red:{bg:'var(--red-dim)',c:'var(--red)'},amber:{bg:'var(--amber-dim)',c:'var(--amber)'},blue:{bg:'var(--blue-dim)',c:'var(--blue)'},purple:{bg:'rgba(139,92,246,0.1)',c:'#8b5cf6'}};
+  const iconCfg = {
+    red:   {bg:'var(--red-dim)',c:'var(--red)'},
+    amber: {bg:'var(--amber-dim)',c:'var(--amber)'},
+    blue:  {bg:'var(--blue-dim)',c:'var(--blue)'},
+    green: {bg:'var(--green-dim)',c:'var(--green)'},
+    purple:{bg:'rgba(139,92,246,0.1)',c:'#8b5cf6'}
+  };
   const iconSvg = {
     liquidation:'<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
     urgency:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
     oos:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
-    oom:'<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="m2 2 20 20"/>'
+    'demand-high':'<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
+    'demand-low':'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>'
   };
   const pLabel = {high:'High Priority',medium:'Medium',low:'Low Priority'};
   const pColor = {high:'var(--red)',medium:'var(--amber)',low:'var(--blue)'};
@@ -1550,57 +1587,105 @@ function renderWeekSummary() {
   `;
 }
 
-// ── Out of Market Module ──
-async function refreshOutOfMarket() {
+// ── Market Demand Index Module ──
+async function refreshDemandIndex() {
+  const btn = document.getElementById('demand-refresh-btn');
+  const icon = document.getElementById('demand-refresh-icon');
+  btn.disabled = true; icon.classList.add('spin');
+  document.getElementById('demand-body').innerHTML = '<div class="ai-thinking" style="justify-content:center;"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span style="margin-left:6px;">Fetching web mentions for your brands…</span></div>';
   try {
-    const d = await api('whizz-out-of-market');
-    const items = d.items || [];
-    S.cache.outOfMarket = items;
-    renderOutOfMarket(items);
+    const brands = S.stockBrands.length ? S.stockBrands : (S.cache.stock?.brands || []);
+    const d = await api('whizz-demand-index', 'POST', { brands });
+    S.cache.demandIndex = d;
+    S.demandData = d;
+    renderDemandIndex(d);
+    document.getElementById('demand-updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
+    // Update trending stat
+    const high = (d.mostDiscussed||[]).length;
+    document.getElementById('stock-trending').textContent = high;
+    saveCache();
   } catch(e) {
-    // Endpoint may not exist yet — fail silently
-    console.warn('whizz-out-of-market not configured:', e.message);
+    document.getElementById('demand-body').innerHTML = '<div style="text-align:center;color:var(--red);font-size:12px;padding:24px;">Failed to fetch — ensure <strong>whizz-demand-index</strong> webhook is active in n8n.</div>';
   }
+  btn.disabled = false; icon.classList.remove('spin');
 }
 
-function renderOutOfMarket(items) {
-  const card = document.getElementById('oom-card');
-  const stat = document.getElementById('stock-oom');
-  stat.textContent = items.length || 0;
-  if (!items.length) { card.style.display='none'; return; }
-  card.style.display='block';
-  document.getElementById('oom-count-label').textContent = `${items.length} model${items.length>1?'s':''} detected`;
-  document.getElementById('oom-rows').innerHTML = items.map(i => `<tr>
-    <td class="td-bold" title="${i.productName||''}">${(i.productName||'—').slice(0,45)}</td>
-    <td><span class="stock-sku">${i.alias||'—'}</span></td>
-    <td>${i.brand||'—'}</td>
-    <td>${i.region||'—'}</td>
-    <td><span style="font-size:11px;color:#8b5cf6;font-weight:600;">${i.modelYear||i.year||'—'}</span></td>
-    <td><span class="stock-num">${(i.stock||0).toLocaleString()}</span></td>
-    <td><button class="t-btn" style="padding:3px 9px;font-size:10px;background:rgba(139,92,246,0.1);color:#8b5cf6;border:1px solid rgba(139,92,246,0.2);" onclick="launchOomCampaign('${(i.brand||'').replace(/'/g,"\\'")}','${(i.productName||'').replace(/'/g,"\\'")}')">Campaign</button></td>
-  </tr>`).join('');
-  // Update suggestions badge with OOM count
-  const badge = document.getElementById('suggest-badge');
-  const cur = parseInt(badge.textContent)||0;
-  badge.textContent = cur + items.length;
-  badge.style.display = 'inline';
+function renderDemandIndex(d) {
+  const most = d.mostDiscussed || [];
+  const least = d.leastDiscussed || [];
+  const all = d.all || [];
+
+  if (!most.length && !least.length) {
+    document.getElementById('demand-body').innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:24px;">No data returned. Check your n8n workflow and brand list.</div>';
+    return;
+  }
+
+  const levelCfg = {
+    high:    { cls:'level-high',    glow:'demand-glow-high', bar:'var(--green)',  label:'High Demand' },
+    medium:  { cls:'level-medium',  glow:'',                 bar:'var(--amber)',  label:'Moderate' },
+    low:     { cls:'level-low',     glow:'demand-glow-low',  bar:'var(--red)',    label:'Low Demand' },
+    dormant: { cls:'level-dormant', glow:'',                 bar:'var(--text3)',  label:'Dormant' }
+  };
+
+  const itemHtml = (item, rank) => {
+    const cfg = levelCfg[item.level] || levelCfg.dormant;
+    const scoreColor = item.level === 'high' ? 'var(--green)' : item.level === 'low' || item.level === 'dormant' ? 'var(--red)' : 'var(--amber)';
+    return `<div class="demand-item ${cfg.glow}">
+      <div class="demand-item-top">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:10px;color:var(--text3);font-weight:700;min-width:16px;">#${rank}</span>
+          <span class="demand-brand">${item.brand}</span>
+        </div>
+        <span class="demand-score-pill" style="color:${scoreColor}">${item.demandIndex}</span>
+      </div>
+      <div class="demand-bar-track">
+        <div class="demand-bar-fill" style="width:${item.demandIndex}%;background:${cfg.bar}"></div>
+      </div>
+      <div class="demand-meta">
+        <span class="demand-mentions">${item.mentions.toLocaleString()} mentions</span>
+        <div style="display:flex;gap:5px;align-items:center;">
+          <span class="demand-level ${cfg.cls}">${cfg.label}</span>
+          <button class="t-btn" style="padding:2px 8px;font-size:10px;background:var(--accent-dim);color:var(--accent);border:1px solid rgba(245,158,11,0.2);" onclick="launchDemandCampaign('${item.brand.replace(/'/g,"\\'")}','${item.level}')">Campaign</button>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  // Generate AI insight text
+  const topBrand = most[0]?.brand || '—';
+  const bottomBrand = least[0]?.brand || '—';
+  const highCount = all.filter(i=>i.level==='high').length;
+  const dormantCount = all.filter(i=>i.level==='dormant').length;
+  const insight = `<strong>${topBrand}</strong> leads discussion this week — ideal for riding momentum with a broadcast. <strong>${bottomBrand}</strong> has the lowest online presence${dormantCount > 1 ? ` (${dormantCount} dormant brands total)` : ''} — an awareness campaign could capture overlooked demand. ${highCount > 0 ? `<strong>${highCount}</strong> brand${highCount>1?'s are':' is'} trending — prioritise stock readiness.` : ''}`;
+
+  document.getElementById('demand-body').innerHTML = `
+    <div class="demand-cols">
+      <div>
+        <div class="demand-section-title" style="color:var(--green);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          Most Discussed
+        </div>
+        ${most.map((item,i) => itemHtml(item, i+1)).join('')}
+      </div>
+      <div>
+        <div class="demand-section-title" style="color:var(--red);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+          Least Discussed
+        </div>
+        ${least.map((item,i) => itemHtml(item, (d.all||[]).length - i)).join('')}
+      </div>
+    </div>
+    <div class="demand-insight">💡 <strong>Insight:</strong> ${insight}</div>
+  `;
 }
 
-function launchOomCampaign(brand, product) {
-  // Pre-fill template modal with OOM context and open it
-  document.getElementById('tpl-ai-brand').value = product || brand;
-  document.getElementById('tpl-ai-type').value = 'outofmarket';
+function launchDemandCampaign(brand, level) {
+  const typeMap = { high:'promotional', medium:'promotional', low:'intro', dormant:'intro' };
+  document.getElementById('tpl-ai-brand').value = brand;
+  document.getElementById('tpl-ai-type').value = typeMap[level] || 'promotional';
   document.getElementById('tpl-ai-region').value = 'Global';
   openTplModal();
-  showToast('Context pre-filled — click Generate with AI', 'info');
-}
-
-function exportOomCSV() {
-  const items = S.cache.outOfMarket || [];
-  if (!items.length) { showToast('No out-of-market data', 'error'); return; }
-  const rows = items.map(i => `"${i.productName}","${i.alias}","${i.brand}","${i.region}","${i.modelYear||i.year||''}",${i.stock}`);
-  downloadCSV(['Product,SKU,Brand,Region,ModelYear,Stock',...rows].join('\n'), 'whizz_out_of_market.csv');
-  showToast('Export complete!', 'success');
+  showToast(`Campaign context set for ${brand} — click Generate with AI`, 'info');
 }
 
 // ── AI Template Generation ──
