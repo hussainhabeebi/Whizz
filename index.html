@@ -320,6 +320,61 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .today-sent-card{background:var(--bg3);border:1px solid rgba(34,197,94,0.2);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
 .today-icon{width:28px;height:28px;border-radius:7px;background:var(--green-dim);color:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .today-icon svg{width:13px;height:13px;}
+.stat-card.purple::after{background:#8b5cf6;}
+/* Demand Index */
+.demand-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:768px){.demand-cols{grid-template-columns:1fr;}}
+.demand-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.demand-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 13px;margin-bottom:7px;position:relative;overflow:hidden;}
+.demand-item-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.demand-brand{font-size:13px;font-weight:600;color:var(--text);}
+.demand-score-pill{font-family:var(--font-display);font-size:16px;font-weight:700;}
+.demand-bar-track{height:5px;border-radius:3px;background:var(--border2);overflow:hidden;}
+.demand-bar-fill{height:100%;border-radius:3px;transition:width 0.8s cubic-bezier(0.4,0,0.2,1);}
+.demand-meta{display:flex;align-items:center;justify-content:space-between;margin-top:5px;}
+.demand-mentions{font-size:10px;color:var(--text3);}
+.demand-level{font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;}
+.level-high{background:var(--green-dim);color:var(--green);}
+.level-medium{background:var(--amber-dim);color:var(--amber);}
+.level-low{background:var(--red-dim);color:var(--red);}
+.level-dormant{background:var(--bg4);color:var(--text3);}
+.demand-glow-high{box-shadow:0 0 0 1px rgba(34,197,94,0.2);}
+.demand-glow-low{box-shadow:0 0 0 1px rgba(239,68,68,0.15);}
+.demand-insight{background:var(--bg3);border-radius:var(--r-sm);padding:12px 14px;margin-top:14px;border:1px solid var(--border);font-size:12px;color:var(--text2);line-height:1.6;}
+.demand-insight strong{color:var(--text);}
+/* Contact Discovery */
+.disc-filters{display:grid;grid-template-columns:1fr 1fr 1fr 140px 120px;gap:10px;align-items:end;}
+@media(max-width:900px){.disc-filters{grid-template-columns:1fr 1fr;}}
+@media(max-width:500px){.disc-filters{grid-template-columns:1fr;}}
+.disc-type-group{display:flex;gap:6px;}
+.disc-type-btn{flex:1;padding:8px 4px;border-radius:var(--r-sm);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:12px;font-weight:500;font-family:var(--font);cursor:pointer;text-align:center;transition:all 0.12s;}
+.disc-type-btn.active{background:var(--accent);color:#000;border-color:var(--accent);}
+.disc-type-btn:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+.contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;margin-top:16px;}
+.contact-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px;transition:border-color 0.12s;position:relative;}
+.contact-card:hover{border-color:var(--border2);}
+.contact-card.selected{border-color:var(--accent);background:var(--accent-dim);}
+.contact-card.selected::after{content:'✓';position:absolute;top:10px;right:12px;color:var(--accent);font-weight:700;font-size:14px;}
+.cc-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.cc-avatar{width:38px;height:38px;border-radius:9px;background:var(--bg2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--accent);flex-shrink:0;font-family:var(--font-display);}
+.cc-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:3px;}
+.cc-cat{font-size:10px;padding:1px 7px;border-radius:20px;background:var(--blue-dim);color:var(--blue);font-weight:500;display:inline-block;}
+.cc-rating{font-size:10px;color:var(--amber);margin-left:4px;}
+.cc-detail{font-size:11px;color:var(--text2);display:flex;align-items:flex-start;gap:6px;margin-bottom:5px;line-height:1.4;}
+.cc-detail svg{width:12px;height:12px;flex-shrink:0;margin-top:1px;color:var(--text3);}
+.cc-detail a{color:var(--accent);text-decoration:none;}
+.cc-detail a:hover{text-decoration:underline;}
+.cc-footer{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.disc-stats-row{display:flex;align-items:center;gap:16px;padding:10px 0;font-size:12px;color:var(--text2);}
+.disc-stat{display:flex;align-items:center;gap:5px;}
+.disc-stat strong{color:var(--text);font-weight:600;}
+.disc-empty{text-align:center;padding:52px 20px;color:var(--text3);font-size:12px;}
+.disc-empty svg{width:40px;height:40px;margin:0 auto 12px;display:block;opacity:0.2;}
+.ai-thinking{display:flex;align-items:center;gap:8px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.2);border-radius:var(--r-sm);padding:10px 14px;font-size:12px;color:#a78bfa;margin-bottom:10px;}
+.ai-dot{width:7px;height:7px;border-radius:50%;background:#8b5cf6;animation:aiPulse 1s ease-in-out infinite;}
+.ai-dot:nth-child(2){animation-delay:0.2s;}
+.ai-dot:nth-child(3){animation-delay:0.4s;}
+@keyframes aiPulse{0%,100%{opacity:0.3;transform:scale(0.8);}50%{opacity:1;transform:scale(1.2);}}
 </style>
 </head>
 <body>
@@ -408,6 +463,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
       <div class="nav-item" onclick="navigate('stock',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
         Stock
+      </div>
+      <div class="nav-section">Prospecting</div>
+      <div class="nav-item" onclick="navigate('discovery',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+        Contact Discovery
+        <span class="nav-badge" id="disc-badge" style="display:none;background:var(--green)">0</span>
       </div>
       <div class="nav-section">Inbox</div>
       <a class="nav-ext" href="https://chat.whizzfze.com/app/accounts/1/inbox/1" target="_blank">
@@ -732,6 +793,32 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
             <div class="s-value" id="stock-oos">—</div>
             <div class="s-sub">Zero inventory</div>
           </div>
+          <div class="stat-card" style="border-color:rgba(139,92,246,0.3);">
+            <div class="s-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6;top:16px;right:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+            <div class="s-label">Trending Brands</div>
+            <div class="s-value" id="stock-trending" style="color:#8b5cf6;">—</div>
+            <div class="s-sub">High demand this week</div>
+          </div>
+        </div>
+
+        <!-- Demand Index Card -->
+        <div class="card" id="demand-card">
+          <div class="card-head">
+            <div class="card-title">
+              Market Demand Index
+              <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">· web mentions · last 7 days</span>
+            </div>
+            <div style="display:flex;gap:7px;align-items:center;">
+              <span style="font-size:10px;color:var(--text3);" id="demand-updated"></span>
+              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" id="demand-refresh-btn" onclick="refreshDemandIndex()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" id="demand-refresh-icon"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Fetch Trends
+              </button>
+            </div>
+          </div>
+          <div class="card-body" id="demand-body">
+            <div style="text-align:center;color:var(--text3);font-size:12px;padding:32px;">Click <strong>Fetch Trends</strong> to pull live demand data for your brands.</div>
+          </div>
         </div>
         <div class="card">
           <div class="card-head">
@@ -801,6 +888,86 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         </div>
       </div>
 
+      <!-- Contact Discovery Page -->
+      <div class="page" id="page-discovery">
+
+        <!-- Search Filters -->
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-head">
+            <div class="card-title">Contact Discovery
+              <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">powered by Apify · Google Maps</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="disc-filters">
+              <div class="fg" style="margin:0;">
+                <label class="fl">Location</label>
+                <input class="fi" id="disc-location" placeholder="e.g. Dubai, Mumbai, Riyadh" value="Dubai"/>
+              </div>
+              <div class="fg" style="margin:0;">
+                <label class="fl">Brand / Product</label>
+                <input class="fi" id="disc-brand" placeholder="e.g. HP, Canon, Epson"/>
+              </div>
+              <div class="fg" style="margin:0;">
+                <label class="fl">Category</label>
+                <input class="fi" id="disc-category" placeholder="e.g. printer, scanner, copier" value="printer"/>
+              </div>
+              <div class="fg" style="margin:0;">
+                <label class="fl">Max Results</label>
+                <select class="fs" id="disc-limit">
+                  <option value="10">10 contacts</option>
+                  <option value="20" selected>20 contacts</option>
+                  <option value="40">40 contacts</option>
+                  <option value="60">60 contacts</option>
+                </select>
+              </div>
+              <div class="fg" style="margin:0;">
+                <label class="fl" style="opacity:0;">Run</label>
+                <button class="t-btn btn-primary" id="disc-run-btn" onclick="runDiscovery()" style="width:100%;justify-content:center;gap:6px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" id="disc-run-icon"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  <span id="disc-run-label">Discover</span>
+                </button>
+              </div>
+            </div>
+            <div style="margin-top:12px;">
+              <label class="fl" style="margin-bottom:6px;">Business Type</label>
+              <div class="disc-type-group" id="disc-type-group">
+                <button class="disc-type-btn active" onclick="setDiscType('wholesaler',this)">Wholesaler</button>
+                <button class="disc-type-btn" onclick="setDiscType('retailer',this)">Retailer</button>
+                <button class="disc-type-btn" onclick="setDiscType('distributor',this)">Distributor</button>
+                <button class="disc-type-btn" onclick="setDiscType('supplier',this)">Supplier</button>
+                <button class="disc-type-btn" onclick="setDiscType('',this)">All Types</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results Area -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title" id="disc-results-title">Results</div>
+            <div style="display:flex;gap:7px;align-items:center;" id="disc-actions" style="display:none;">
+              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="selectAllDisc()">Select All</button>
+              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="exportDiscCSV()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+              <button class="t-btn btn-success" style="padding:4px 10px;font-size:11px;" id="disc-save-btn" onclick="saveSelectedContacts()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/><circle cx="16" cy="4" r="3"/></svg>
+                Add Selected to Leads
+              </button>
+            </div>
+          </div>
+          <div class="card-body" id="disc-results-body">
+            <div class="disc-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+              Set your filters above and click <strong>Discover</strong> to pull contacts from Google Maps via Apify.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
     </div>
   </div>
 </div>
@@ -814,8 +981,30 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         <div class="fg"><label class="fl">Language</label><select class="fs" id="tpl-lang"><option value="en">English</option><option value="ar">Arabic</option><option value="zh">Chinese</option><option value="ru">Russian</option></select></div>
         <div class="fg"><label class="fl">Category</label><select class="fs" id="tpl-cat"><option value="MARKETING">Marketing</option><option value="UTILITY">Utility</option></select></div>
       </div>
+      <!-- AI Context Fields -->
+      <div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.2);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:600;color:#8b5cf6;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">AI Generation Context</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div class="fg" style="margin:0"><label class="fl">Brand / Product</label><input class="fi" id="tpl-ai-brand" placeholder="e.g. HP LaserJet Pro"/></div>
+          <div class="fg" style="margin:0"><label class="fl">Campaign Type</label>
+            <select class="fs" id="tpl-ai-type">
+              <option value="promotional">Promotional Offer</option>
+              <option value="liquidation">Clearance / Liquidation</option>
+              <option value="scarcity">Scarcity / Low Stock</option>
+              <option value="restock">Restock Notification</option>
+              <option value="outofmarket">Discontinued / End of Life</option>
+              <option value="intro">New Product Introduction</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg" style="margin:0 0 10px"><label class="fl">Target Audience / Region</label><input class="fi" id="tpl-ai-region" placeholder="e.g. UAE, GCC distributors, India resellers"/></div>
+        <button class="t-btn" id="ai-gen-btn" onclick="generateAiTemplate()" style="width:100%;background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.3);justify-content:center;gap:7px;padding:9px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <span id="ai-gen-label">Generate Template with AI</span>
+        </button>
+      </div>
       <div class="fg"><label class="fl">Header (optional)</label><input class="fi" id="tpl-header" placeholder="Whizz Exim FZE"/></div>
-      <div class="fg"><label class="fl">Body *</label><textarea class="ft" id="tpl-body" placeholder="Hi {{1}}, Whizz Exim FZE is pleased to offer exclusive pricing on {{2}}..."></textarea><div class="fi-hint">Use {{1}}, {{2}} for variables</div></div>
+      <div class="fg"><label class="fl">Body *</label><textarea class="ft" id="tpl-body" placeholder="Hi {{1}}, Whizz Exim FZE is pleased to offer exclusive pricing on {{2}}..." style="min-height:110px;"></textarea><div class="fi-hint">Use {{1}}, {{2}} for variables. AI will generate and fill this.</div></div>
       <div class="fg"><label class="fl">Footer (optional)</label><input class="fi" id="tpl-footer" placeholder="Reply STOP to unsubscribe"/></div>
     </div>
     <div class="modal-foot">
@@ -847,6 +1036,7 @@ let S = {
   activePlatform: 'ALL', activeCountry: 'ALL', activeBrand: 'ALL',
   stock: [], stockCrossTab: [], stockBrands: [], stockRegions: [], stockParentGroups: [],
   activeStockBrand: 'ALL', activeStockRegion: 'ALL', activeStockParentGroup: 'ALL', activeStockStatus: 'ALL',
+  discoveredContacts: [], selectedDiscContacts: new Set(), discType: 'wholesaler',
   cache: {}, notifications: [], history: []
 };
 
@@ -922,6 +1112,13 @@ function loadCache() {
     S.stockBrands = sd.brands || []; S.stockRegions = sd.regions || []; S.stockParentGroups = sd.parentGroups || [];
     renderStockPage(); showBanner('stock');
   }
+  if (S.cache.demandIndex) {
+    S.demandData = S.cache.demandIndex;
+    renderDemandIndex(S.cache.demandIndex);
+    const high = (S.cache.demandIndex.mostDiscussed||[]).length;
+    const trendEl = document.getElementById('stock-trending');
+    if (trendEl) trendEl.textContent = high;
+  }
 }
 function showBanner(p) { const el=document.getElementById(p+'-banner'); if(el)el.classList.add('show'); }
 function hideBanner(p) { const el=document.getElementById(p+'-banner'); if(el)el.classList.remove('show'); }
@@ -994,7 +1191,7 @@ function navigate(page, el) {
   document.querySelectorAll('.nav-item,.nav-ext').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery'};
   document.getElementById('page-title').textContent=titles[page]||page;
   S.page=page; closeSidebar();
   if(page==='campaigns'&&S.cache.groups){S.groups=S.cache.groups;renderCampGroups(S.cache.groups);hideBanner('camp');}
@@ -1005,6 +1202,7 @@ function navigate(page, el) {
   if(page==='reports' && (S.cache.stats || S.cache.crossTabMatrix)){renderReports();hideBanner('rep');}
   if(page==='stock'&&S.cache.stock){renderStockPage();hideBanner('stock');}
   if(page==='suggestions'){refreshSuggestions();}
+  if(page==='discovery'){renderDiscoveryResults(S.discoveredContacts||[]);}
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('show');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show');}
@@ -1024,6 +1222,7 @@ async function refreshPage() {
     else if(p==='history')renderHistoryList();
     else if(p==='stock')await refreshStock();
     else if(p==='suggestions'){await refreshStock();refreshSuggestions();}
+    else if(p==='discovery')runDiscovery();
     saveCache();
     document.getElementById('last-upd').textContent='Updated '+new Date().toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
     hideBanner(p==='dashboard'?'dash':p==='campaigns'?'camp':p);
@@ -1382,6 +1581,25 @@ function renderSuggestions() {
       icon:'amber', tag:`${items.length} item${items.length>1?'s':''} low` });
   });
 
+  // Demand Index: high-demand → strike while hot; dormant → awareness push
+  const demandAll = (S.demandData && S.demandData.all) ? S.demandData.all : [];
+  const demandHigh = demandAll.filter(i=>i.level==='high').slice(0,2);
+  const demandDormant = demandAll.filter(i=>i.level==='dormant'||i.level==='low').slice(0,2);
+  demandHigh.forEach(item => {
+    suggestions.push({ type:'demand-high', priority:'high', brand: item.brand,
+      regions: ['Global'],
+      title: `Strike While Hot — ${item.brand}`,
+      desc: `${item.brand} is trending with ${item.mentions.toLocaleString()} web mentions this week (Demand Index: ${item.demandIndex}/100). Broadcast now while market interest is peaking.`,
+      icon:'green', tag:`Index ${item.demandIndex}/100`, demandIndex: item.demandIndex });
+  });
+  demandDormant.forEach(item => {
+    suggestions.push({ type:'demand-low', priority:'medium', brand: item.brand,
+      regions: ['Global'],
+      title: `Awareness Push — ${item.brand}`,
+      desc: `${item.brand} has low market discussion (Demand Index: ${item.demandIndex}/100, ${item.mentions.toLocaleString()} mentions). A targeted broadcast could capture overlooked demand before competitors do.`,
+      icon:'blue', tag:`Index ${item.demandIndex}/100`, demandIndex: item.demandIndex });
+  });
+
   // OOS: restock notification / pre-order intent
   uniq(oos.map(i=>i.brand)).slice(0,3).forEach(brand => {
     const items = oos.filter(i=>i.brand===brand);
@@ -1401,11 +1619,19 @@ function renderSuggestions() {
   const pOrd = {high:0,medium:1,low:2};
   suggestions.sort((a,b)=>pOrd[a.priority]-pOrd[b.priority]);
 
-  const iconCfg = {red:{bg:'var(--red-dim)',c:'var(--red)'},amber:{bg:'var(--amber-dim)',c:'var(--amber)'},blue:{bg:'var(--blue-dim)',c:'var(--blue)'}};
+  const iconCfg = {
+    red:   {bg:'var(--red-dim)',c:'var(--red)'},
+    amber: {bg:'var(--amber-dim)',c:'var(--amber)'},
+    blue:  {bg:'var(--blue-dim)',c:'var(--blue)'},
+    green: {bg:'var(--green-dim)',c:'var(--green)'},
+    purple:{bg:'rgba(139,92,246,0.1)',c:'#8b5cf6'}
+  };
   const iconSvg = {
     liquidation:'<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
     urgency:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-    oos:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'
+    oos:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+    'demand-high':'<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
+    'demand-low':'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>'
   };
   const pLabel = {high:'High Priority',medium:'Medium',low:'Low Priority'};
   const pColor = {high:'var(--red)',medium:'var(--amber)',low:'var(--blue)'};
@@ -1476,6 +1702,351 @@ function renderWeekSummary() {
     <div style="margin-top:12px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Recent</div>
     ${week.slice(0,6).map(h=>`<div style="font-size:11px;color:var(--text2);padding:5px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;"><span>${new Date(h.ts).toLocaleDateString('en-AE',{weekday:'short',day:'2-digit',month:'short'})} — ${h.template}</span><span style="color:var(--green);font-weight:600">${h.sent}</span></div>`).join('')}
   `;
+}
+
+// ── Contact Discovery (Apify) Module ──
+function setDiscType(type, el) {
+  S.discType = type;
+  document.querySelectorAll('.disc-type-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function runDiscovery() {
+  const location = document.getElementById('disc-location').value.trim();
+  const brand    = document.getElementById('disc-brand').value.trim();
+  const category = document.getElementById('disc-category').value.trim();
+  const limit    = parseInt(document.getElementById('disc-limit').value) || 20;
+  const type     = S.discType;
+
+  if (!location) { showToast('Enter a location to search', 'error'); return; }
+  if (!brand && !category) { showToast('Enter a brand or product category', 'error'); return; }
+
+  const btn   = document.getElementById('disc-run-btn');
+  const icon  = document.getElementById('disc-run-icon');
+  const label = document.getElementById('disc-run-label');
+  btn.disabled = true; icon.classList.add('spin'); label.textContent = 'Searching…';
+
+  const parts = [brand, category, type, location].filter(Boolean);
+  const query = parts.join(' ');
+
+  document.getElementById('disc-results-body').innerHTML = `
+    <div style="padding:40px;text-align:center;">
+      <div class="ai-thinking" style="justify-content:center;display:inline-flex;">
+        <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
+        <span style="margin-left:8px;color:var(--text2);font-size:12px;">Scanning Google Maps for "<strong>${query}</strong>"…</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px;">Apify is crawling — this takes 20–60 seconds</div>
+    </div>`;
+  document.getElementById('disc-results-title').textContent = 'Searching…';
+
+  try {
+    const d = await api('whizz-discover-contacts', 'POST', { query, location, brand, category, type, limit });
+    const contacts = d.contacts || d.items || (Array.isArray(d) ? d : []);
+    S.discoveredContacts = contacts;
+    S.selectedDiscContacts = new Set();
+    renderDiscoveryResults(S.discoveredContacts);
+    if (S.discoveredContacts.length) showToast(`Found ${S.discoveredContacts.length} contacts`, 'success');
+    else showToast('No results — try broader filters', 'info');
+  } catch(e) {
+    document.getElementById('disc-results-body').innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>whizz-discover-contacts</strong> webhook is active in n8n.</div>`;
+    document.getElementById('disc-results-title').textContent = 'Results';
+  }
+  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
+}
+
+function renderDiscoveryResults(contacts) {
+  const body    = document.getElementById('disc-results-body');
+  const title   = document.getElementById('disc-results-title');
+  const actions = document.getElementById('disc-actions');
+
+  if (!contacts || !contacts.length) {
+    title.textContent = 'Results';
+    if (actions) actions.style.display = 'none';
+    body.innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>Set your filters and click <strong>Discover</strong>.</div>`;
+    return;
+  }
+
+  title.textContent = `${contacts.length} Contacts Found`;
+  if (actions) actions.style.display = 'flex';
+
+  const withPhone   = contacts.filter(c=>c.phone||c.phoneNumber).length;
+  const withEmail   = contacts.filter(c=>c.email).length;
+  const withWebsite = contacts.filter(c=>c.website).length;
+  const ratedItems  = contacts.filter(c=>(c.totalScore||c.rating)>0);
+  const avgRating   = ratedItems.length ? (ratedItems.reduce((a,c)=>a+(c.totalScore||c.rating),0)/ratedItems.length).toFixed(1) : '—';
+
+  const statsHtml = `<div class="disc-stats-row">
+    <div class="disc-stat"><strong>${contacts.length}</strong> contacts</div>
+    <div class="disc-stat" style="color:var(--green)">📞 <strong>${withPhone}</strong> phone</div>
+    <div class="disc-stat" style="color:var(--blue)">✉ <strong>${withEmail}</strong> email</div>
+    <div class="disc-stat">🌐 <strong>${withWebsite}</strong> website</div>
+    <div class="disc-stat" style="color:var(--amber)">★ <strong>${avgRating}</strong> avg</div>
+    <div class="disc-stat" style="margin-left:auto;color:var(--accent);" id="disc-sel-count">0 selected</div>
+  </div>`;
+
+  const cardsHtml = contacts.map((c, i) => {
+    const name     = c.name || c.title || 'Unknown Business';
+    const initials = name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const category = c.categoryName || c.category || '';
+    const phone    = c.phone || c.phoneNumber || '';
+    const email    = c.email || '';
+    const website  = c.website || '';
+    const address  = [c.address||'', c.city||''].filter(Boolean).join(', ');
+    const rating   = c.totalScore || c.rating || 0;
+    const stars    = rating ? '★ ' + Number(rating).toFixed(1) : '';
+    const mapsUrl  = c.url || '';
+    const esc      = s => (s||'').replace(/'/g,"\\'");
+
+    return `<div class="contact-card" id="dcard-${i}" onclick="toggleDiscContact(${i},this)">
+      <div class="cc-header">
+        <div class="cc-avatar">${initials}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="cc-name">${name}</div>
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:3px;">
+            ${category?`<span class="cc-cat">${category}</span>`:''}
+            ${stars?`<span class="cc-rating">${stars}</span>`:''}
+          </div>
+        </div>
+      </div>
+      ${phone?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8 19.79 19.79 0 0 1 1.61 1.12 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg><a href="tel:${phone}" onclick="event.stopPropagation()">${phone}</a></div>`:''}
+      ${email?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${email}" onclick="event.stopPropagation()">${email}</a></div>`:''}
+      ${address?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${address}</div>`:''}
+      ${website?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><a href="${website}" target="_blank" onclick="event.stopPropagation()">${website.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
+      <div class="cc-footer">
+        ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">Maps ↗</a>`:''}
+        <button class="t-btn btn-primary" style="padding:4px 9px;font-size:10px;flex:1;justify-content:center;" onclick="event.stopPropagation();saveOneContact(${i})">+ Add to Leads</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = statsHtml + `<div class="contact-grid">${cardsHtml}</div>`;
+  updateDiscSelCount();
+}
+
+function toggleDiscContact(i, el) {
+  if (S.selectedDiscContacts.has(i)) S.selectedDiscContacts.delete(i);
+  else S.selectedDiscContacts.add(i);
+  el.classList.toggle('selected', S.selectedDiscContacts.has(i));
+  updateDiscSelCount();
+}
+
+function selectAllDisc() {
+  const all = S.discoveredContacts.length;
+  if (S.selectedDiscContacts.size === all) {
+    S.selectedDiscContacts.clear();
+    document.querySelectorAll('.contact-card').forEach(c=>c.classList.remove('selected'));
+  } else {
+    S.selectedDiscContacts = new Set(S.discoveredContacts.map((_,i)=>i));
+    document.querySelectorAll('.contact-card').forEach(c=>c.classList.add('selected'));
+  }
+  updateDiscSelCount();
+}
+
+function updateDiscSelCount() {
+  const el = document.getElementById('disc-sel-count');
+  if (el) el.textContent = `${S.selectedDiscContacts.size} selected`;
+  const badge = document.getElementById('disc-badge');
+  if (S.discoveredContacts && S.discoveredContacts.length) { badge.textContent = S.discoveredContacts.length; badge.style.display='inline'; }
+  else badge.style.display = 'none';
+}
+
+async function saveOneContact(i) {
+  const c = S.discoveredContacts[i];
+  if (!c) return;
+  try {
+    await api('whizz-save-contact','POST',{contacts:[formatContactForLeads(c)]});
+    showToast(`${c.name||c.title||'Contact'} added to Leads`,'success');
+  } catch(e){ showToast('Save failed — check whizz-save-contact webhook','error'); }
+}
+
+async function saveSelectedContacts() {
+  const selected = [...S.selectedDiscContacts].map(i=>S.discoveredContacts[i]).filter(Boolean);
+  if (!selected.length) { showToast('Select contacts first (click cards)','error'); return; }
+  const btn = document.getElementById('disc-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    await api('whizz-save-contact','POST',{contacts:selected.map(formatContactForLeads)});
+    showToast(`${selected.length} contact${selected.length>1?'s':''} added to Leads`,'success');
+    addNotif(`${selected.length} discovered contacts saved to leads`);
+    S.selectedDiscContacts.clear();
+    document.querySelectorAll('.contact-card').forEach(c=>c.classList.remove('selected'));
+    updateDiscSelCount();
+  } catch(e){ showToast('Save failed — check whizz-save-contact webhook','error'); }
+  btn.disabled = false;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/><circle cx="16" cy="4" r="3"/></svg> Add Selected to Leads';
+}
+
+function formatContactForLeads(c) {
+  return {
+    contactName: c.name||c.title||'',
+    company: c.name||c.title||'',
+    phone: c.phone||c.phoneNumber||'',
+    email: c.email||'',
+    website: c.website||'',
+    address: [c.address||'',c.city||'',c.countryCode||''].filter(Boolean).join(', '),
+    category: c.categoryName||c.category||'',
+    source: 'Apify Discovery',
+    rating: c.totalScore||c.rating||'',
+    mapsUrl: c.url||''
+  };
+}
+
+function exportDiscCSV() {
+  if (!S.discoveredContacts.length) { showToast('No contacts to export','error'); return; }
+  const rows = S.discoveredContacts.map(c => {
+    const f = formatContactForLeads(c);
+    return `"${f.contactName}","${f.company}","${f.phone}","${f.email}","${f.website}","${f.address}","${f.category}","${f.rating}"`;
+  });
+  downloadCSV(['Name,Company,Phone,Email,Website,Address,Category,Rating',...rows].join('\n'),'whizz_discovered_contacts.csv');
+  showToast('Export complete!','success');
+}
+
+// ── Market Demand Index Module ──
+async function refreshDemandIndex() {
+  const btn = document.getElementById('demand-refresh-btn');
+  const icon = document.getElementById('demand-refresh-icon');
+  btn.disabled = true; icon.classList.add('spin');
+  document.getElementById('demand-body').innerHTML = '<div class="ai-thinking" style="justify-content:center;"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span style="margin-left:6px;">Fetching web mentions for your brands…</span></div>';
+  try {
+    const brands = S.stockBrands.length ? S.stockBrands : (S.cache.stock?.brands || []);
+    const d = await api('whizz-demand-index', 'POST', { brands });
+    S.cache.demandIndex = d;
+    S.demandData = d;
+    renderDemandIndex(d);
+    document.getElementById('demand-updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
+    // Update trending stat
+    const high = (d.mostDiscussed||[]).length;
+    document.getElementById('stock-trending').textContent = high;
+    saveCache();
+  } catch(e) {
+    document.getElementById('demand-body').innerHTML = '<div style="text-align:center;color:var(--red);font-size:12px;padding:24px;">Failed to fetch — ensure <strong>whizz-demand-index</strong> webhook is active in n8n.</div>';
+  }
+  btn.disabled = false; icon.classList.remove('spin');
+}
+
+function renderDemandIndex(d) {
+  const most = d.mostDiscussed || [];
+  const least = d.leastDiscussed || [];
+  const all = d.all || [];
+
+  if (!most.length && !least.length) {
+    document.getElementById('demand-body').innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:24px;">No data returned. Check your n8n workflow and brand list.</div>';
+    return;
+  }
+
+  const levelCfg = {
+    high:    { cls:'level-high',    glow:'demand-glow-high', bar:'var(--green)',  label:'High Demand' },
+    medium:  { cls:'level-medium',  glow:'',                 bar:'var(--amber)',  label:'Moderate' },
+    low:     { cls:'level-low',     glow:'demand-glow-low',  bar:'var(--red)',    label:'Low Demand' },
+    dormant: { cls:'level-dormant', glow:'',                 bar:'var(--text3)',  label:'Dormant' }
+  };
+
+  const itemHtml = (item, rank) => {
+    const cfg = levelCfg[item.level] || levelCfg.dormant;
+    const scoreColor = item.level === 'high' ? 'var(--green)' : item.level === 'low' || item.level === 'dormant' ? 'var(--red)' : 'var(--amber)';
+    return `<div class="demand-item ${cfg.glow}">
+      <div class="demand-item-top">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:10px;color:var(--text3);font-weight:700;min-width:16px;">#${rank}</span>
+          <span class="demand-brand">${item.brand}</span>
+        </div>
+        <span class="demand-score-pill" style="color:${scoreColor}">${item.demandIndex}</span>
+      </div>
+      <div class="demand-bar-track">
+        <div class="demand-bar-fill" style="width:${item.demandIndex}%;background:${cfg.bar}"></div>
+      </div>
+      <div class="demand-meta">
+        <span class="demand-mentions">${item.mentions.toLocaleString()} mentions</span>
+        <div style="display:flex;gap:5px;align-items:center;">
+          <span class="demand-level ${cfg.cls}">${cfg.label}</span>
+          <button class="t-btn" style="padding:2px 8px;font-size:10px;background:var(--accent-dim);color:var(--accent);border:1px solid rgba(245,158,11,0.2);" onclick="launchDemandCampaign('${item.brand.replace(/'/g,"\\'")}','${item.level}')">Campaign</button>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  // Generate AI insight text
+  const topBrand = most[0]?.brand || '—';
+  const bottomBrand = least[0]?.brand || '—';
+  const highCount = all.filter(i=>i.level==='high').length;
+  const dormantCount = all.filter(i=>i.level==='dormant').length;
+  const insight = `<strong>${topBrand}</strong> leads discussion this week — ideal for riding momentum with a broadcast. <strong>${bottomBrand}</strong> has the lowest online presence${dormantCount > 1 ? ` (${dormantCount} dormant brands total)` : ''} — an awareness campaign could capture overlooked demand. ${highCount > 0 ? `<strong>${highCount}</strong> brand${highCount>1?'s are':' is'} trending — prioritise stock readiness.` : ''}`;
+
+  document.getElementById('demand-body').innerHTML = `
+    <div class="demand-cols">
+      <div>
+        <div class="demand-section-title" style="color:var(--green);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          Most Discussed
+        </div>
+        ${most.map((item,i) => itemHtml(item, i+1)).join('')}
+      </div>
+      <div>
+        <div class="demand-section-title" style="color:var(--red);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+          Least Discussed
+        </div>
+        ${least.map((item,i) => itemHtml(item, (d.all||[]).length - i)).join('')}
+      </div>
+    </div>
+    <div class="demand-insight">💡 <strong>Insight:</strong> ${insight}</div>
+  `;
+}
+
+function launchDemandCampaign(brand, level) {
+  const typeMap = { high:'promotional', medium:'promotional', low:'intro', dormant:'intro' };
+  document.getElementById('tpl-ai-brand').value = brand;
+  document.getElementById('tpl-ai-type').value = typeMap[level] || 'promotional';
+  document.getElementById('tpl-ai-region').value = 'Global';
+  openTplModal();
+  showToast(`Campaign context set for ${brand} — click Generate with AI`, 'info');
+}
+
+// ── AI Template Generation ──
+async function generateAiTemplate() {
+  const brand  = document.getElementById('tpl-ai-brand').value.trim();
+  const type   = document.getElementById('tpl-ai-type').value;
+  const region = document.getElementById('tpl-ai-region').value.trim();
+  const lang   = document.getElementById('tpl-lang').value;
+
+  if (!brand) { showToast('Enter a Brand / Product name for AI context', 'error'); return; }
+
+  const btn   = document.getElementById('ai-gen-btn');
+  const label = document.getElementById('ai-gen-label');
+  btn.disabled = true;
+  label.textContent = 'Generating…';
+
+  // Show thinking indicator above body
+  const bodyField = document.getElementById('tpl-body');
+  const hint = bodyField.parentElement.querySelector('.fi-hint');
+  let thinkEl = document.getElementById('ai-thinking-block');
+  if (!thinkEl) {
+    thinkEl = document.createElement('div');
+    thinkEl.id = 'ai-thinking-block';
+    thinkEl.className = 'ai-thinking';
+    thinkEl.innerHTML = '<div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span>AI is crafting your WhatsApp template…</span>';
+    bodyField.parentElement.insertBefore(thinkEl, bodyField);
+  }
+  thinkEl.style.display = 'flex';
+
+  try {
+    const r = await api('whizz-ai-template', 'POST', { brand, type, region, language: lang, company: 'Whizz Exim FZE' });
+    if (r.body) {
+      bodyField.value = r.body;
+      if (r.header) document.getElementById('tpl-header').value = r.header;
+      if (r.footer) document.getElementById('tpl-footer').value = r.footer;
+      if (r.name)   document.getElementById('tpl-name').value = r.name;
+      showToast('Template generated successfully!', 'success');
+    } else {
+      showToast('AI returned empty response — check n8n workflow', 'error');
+    }
+  } catch(e) {
+    showToast('AI generation failed — ensure whizz-ai-template webhook is active', 'error');
+  }
+
+  thinkEl.style.display = 'none';
+  btn.disabled = false;
+  label.textContent = 'Regenerate with AI';
 }
 
 function launchSuggestedCampaign(brand, alreadySent) {
