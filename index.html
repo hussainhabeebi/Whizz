@@ -1453,16 +1453,16 @@ async function fetchStockDemandScores() {
   const btn = document.getElementById('demand-refresh-btn');
   const icon = document.getElementById('demand-refresh-icon');
   if (btn) { btn.disabled = true; icon && icon.classList.add('spin'); }
-  document.getElementById('demand-body').innerHTML = '<div class="ai-thinking" style="justify-content:center;"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span style="margin-left:6px;">Fetching NewsAPI demand scores for your brands…</span></div>';
+  document.getElementById('demand-body').innerHTML = '<div class="ai-thinking" style="justify-content:center;"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span style="margin-left:6px;">Fetching NewsAPI demand scores per product…</span></div>';
   try {
-    const brands = S.stockBrands.length ? S.stockBrands : (S.cache.stock?.brands || []);
-    const d = await api('whizz-demand-index', 'POST', { brands });
+    const items = S.stock.map(i => ({ name: i.productName, alias: i.alias }));
+    const d = await api('whizz-demand-index', 'POST', { items });
     S.cache.demandIndex = d;
     S.demandData = d;
-    // Build brand→score lookup
-    S.demandByBrand = {};
-    (d.all || [...(d.mostDiscussed||[]), ...(d.leastDiscussed||[])]).forEach(item => {
-      S.demandByBrand[item.brand] = item;
+    // Build productName→score lookup
+    S.demandByItem = {};
+    (d.all || [...(d.mostDiscussed||[]), ...(d.leastDiscussed||[])]).forEach(entry => {
+      S.demandByItem[entry.name || entry.productName] = entry;
     });
     renderDemandIndex(d);
     if (document.getElementById('demand-updated'))
@@ -1470,7 +1470,6 @@ async function fetchStockDemandScores() {
     const high = (d.mostDiscussed||[]).length;
     if (document.getElementById('stock-trending')) document.getElementById('stock-trending').textContent = high;
     saveCache();
-    // Re-render table with demand scores now available
     applyStockFilters();
     renderStockMatrix();
   } catch(e) {
@@ -1516,8 +1515,8 @@ function applyStockFilters() {
   renderStockTable(f);
 }
 
-function getDemandBadge(brand) {
-  const d = S.demandByBrand && S.demandByBrand[brand];
+function getDemandBadge(productName) {
+  const d = S.demandByItem && S.demandByItem[productName];
   if (!d) return '<span style="font-size:10px;color:var(--text3);">—</span>';
   const colors = {high:'var(--green)',medium:'var(--amber)',low:'var(--red)',dormant:'var(--text3)'};
   const labels = {high:'🔥 Hot',medium:'~ Mid',low:'↓ Low',dormant:'· Dormant'};
@@ -1541,7 +1540,7 @@ function renderStockTable(items) {
     <td>${i.region}</td>
     <td>${i.parentGroup}</td>
     <td><span class="stock-num">${i.stock.toLocaleString()}</span></td>
-    <td>${getDemandBadge(i.brand)}</td>
+    <td>${getDemandBadge(i.productName)}</td>
     <td><span class="stock-status ${cls[i.status]||''}">${i.status}</span></td>
   </tr>`).join('');
 }
@@ -1552,17 +1551,28 @@ function renderStockMatrix() {
   el.innerHTML = S.stockCrossTab.map(m => {
     const regBlock = Object.entries(m.breakdownByRegion||{}).map(([r,n])=>`<div class="matrix-sub-item">${r}: <span class="matrix-sub-val">${n.toLocaleString()}</span></div>`).join('');
     const grpBlock = Object.entries(m.breakdownByParentGroup||{}).map(([g,n])=>`<div class="matrix-sub-item" style="border-color:rgba(59,130,246,0.2)">${g}: <span class="matrix-sub-val" style="color:var(--blue)">${n.toLocaleString()}</span></div>`).join('');
-    const dem = S.demandByBrand && S.demandByBrand[m.brand];
     const demColors = {high:'var(--green)',medium:'var(--amber)',low:'var(--red)',dormant:'var(--text3)'};
-    const demLabels = {high:'High Demand',medium:'Moderate',low:'Low Demand',dormant:'Dormant'};
-    const demBlock = dem
-      ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:10px;text-transform:uppercase;color:var(--text3);letter-spacing:0.05em;">NewsAPI Demand</span>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <div style="height:4px;width:60px;background:var(--bg3);border-radius:2px;overflow:hidden;"><div style="height:4px;width:${dem.demandIndex}%;background:${demColors[dem.level]||'var(--text3)'};border-radius:2px;"></div></div>
-            <span style="font-size:11px;font-weight:700;color:${demColors[dem.level]||'var(--text3)'};">${dem.demandIndex}</span>
-            <span style="font-size:9px;color:${demColors[dem.level]||'var(--text3)'};background:${demColors[dem.level]||'var(--text3)'}22;padding:1px 5px;border-radius:8px;">${demLabels[dem.level]||'—'}</span>
-          </div>
+    const demLabels = {high:'Hot',medium:'Mid',low:'Low',dormant:'Dormant'};
+    const brandItems = S.demandByItem
+      ? Object.values(S.demandByItem).filter(entry => {
+          const match = S.stock.find(s => s.productName === (entry.name||entry.productName));
+          return match && match.brand === m.brand;
+        }).sort((a,b) => b.demandIndex - a.demandIndex)
+      : [];
+    const demBlock = brandItems.length
+      ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+          <div style="font-size:10px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;letter-spacing:0.05em;">NewsAPI Demand (per item)</div>
+          ${brandItems.slice(0,5).map(entry => {
+            const c = demColors[entry.level]||demColors.dormant;
+            const l = demLabels[entry.level]||'—';
+            const nm = (entry.name||entry.productName||'').slice(0,38);
+            return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+              <div style="flex:1;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;"><div style="height:3px;width:${entry.demandIndex}%;background:${c};border-radius:2px;"></div></div>
+              <span style="font-size:10px;font-weight:700;color:${c};min-width:24px;text-align:right;">${entry.demandIndex}</span>
+              <span style="font-size:9px;color:${c};min-width:40px;">${l}</span>
+              <span style="font-size:9px;color:var(--text3);flex:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nm}</span>
+            </div>`;
+          }).join('')}
         </div>`
       : '';
     return `<div class="matrix-row-item">
@@ -1579,7 +1589,7 @@ function renderStockMatrix() {
 function exportStockCSV() {
   if (!S.stock.length) { showToast('Load stock data first', 'error'); return; }
   const rows = S.stock.map(i => {
-    const dem = S.demandByBrand && S.demandByBrand[i.brand];
+    const dem = S.demandByItem && S.demandByItem[i.productName];
     const score = dem ? dem.demandIndex : '';
     const level = dem ? dem.level : '';
     return `"${i.productName}","${i.alias}","${i.brand}","${i.region}","${i.parentGroup}",${i.stock},${score},"${level}","${i.status}"`;
@@ -1973,13 +1983,13 @@ async function refreshDemandIndex() {
   btn.disabled = true; icon.classList.add('spin');
   document.getElementById('demand-body').innerHTML = '<div class="ai-thinking" style="justify-content:center;"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span style="margin-left:6px;">Fetching web mentions for your brands…</span></div>';
   try {
-    const brands = S.stockBrands.length ? S.stockBrands : (S.cache.stock?.brands || []);
-    const d = await api('whizz-demand-index', 'POST', { brands });
+    const items = S.stock.length ? S.stock.map(i => ({ name: i.productName, alias: i.alias })) : [];
+    const d = await api('whizz-demand-index', 'POST', { items });
     S.cache.demandIndex = d;
     S.demandData = d;
-    S.demandByBrand = {};
-    (d.all || [...(d.mostDiscussed||[]), ...(d.leastDiscussed||[])]).forEach(item => {
-      S.demandByBrand[item.brand] = item;
+    S.demandByItem = {};
+    (d.all || [...(d.mostDiscussed||[]), ...(d.leastDiscussed||[])]).forEach(entry => {
+      S.demandByItem[entry.name || entry.productName] = entry;
     });
     renderDemandIndex(d);
     document.getElementById('demand-updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
@@ -2019,7 +2029,7 @@ function renderDemandIndex(d) {
       <div class="demand-item-top">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:10px;color:var(--text3);font-weight:700;min-width:16px;">#${rank}</span>
-          <span class="demand-brand">${item.brand}</span>
+          <span class="demand-brand">${item.name||item.productName||item.brand||''}</span>
         </div>
         <span class="demand-score-pill" style="color:${scoreColor}">${item.demandIndex}</span>
       </div>
@@ -2030,18 +2040,19 @@ function renderDemandIndex(d) {
         <span class="demand-mentions">${item.mentions.toLocaleString()} mentions</span>
         <div style="display:flex;gap:5px;align-items:center;">
           <span class="demand-level ${cfg.cls}">${cfg.label}</span>
-          <button class="t-btn" style="padding:2px 8px;font-size:10px;background:var(--accent-dim);color:var(--accent);border:1px solid rgba(245,158,11,0.2);" onclick="launchDemandCampaign('${item.brand.replace(/'/g,"\\'")}','${item.level}')">Campaign</button>
+          <button class="t-btn" style="padding:2px 8px;font-size:10px;background:var(--accent-dim);color:var(--accent);border:1px solid rgba(245,158,11,0.2);" onclick="launchDemandCampaign('${(item.name||item.productName||item.brand||'').replace(/'/g,"\\'")}','${item.level}')">Campaign</button>
         </div>
       </div>
     </div>`;
   };
 
   // Generate AI insight text
-  const topBrand = most[0]?.brand || '—';
-  const bottomBrand = least[0]?.brand || '—';
+  const getName = i => i.name||i.productName||i.brand||'—';
+  const topBrand = getName(most[0]||{});
+  const bottomBrand = getName(least[0]||{});
   const highCount = all.filter(i=>i.level==='high').length;
   const dormantCount = all.filter(i=>i.level==='dormant').length;
-  const insight = `<strong>${topBrand}</strong> leads discussion this week — ideal for riding momentum with a broadcast. <strong>${bottomBrand}</strong> has the lowest online presence${dormantCount > 1 ? ` (${dormantCount} dormant brands total)` : ''} — an awareness campaign could capture overlooked demand. ${highCount > 0 ? `<strong>${highCount}</strong> brand${highCount>1?'s are':' is'} trending — prioritise stock readiness.` : ''}`;
+  const insight = `<strong>${topBrand}</strong> leads discussion this week — ideal for riding momentum with a broadcast. <strong>${bottomBrand}</strong> has the lowest online presence${dormantCount > 1 ? ` (${dormantCount} dormant items total)` : ''} — an awareness campaign could capture overlooked demand. ${highCount > 0 ? `<strong>${highCount}</strong> item${highCount>1?'s are':' is'} trending — prioritise stock readiness.` : ''}`;
 
   document.getElementById('demand-body').innerHTML = `
     <div class="demand-cols">
