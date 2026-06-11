@@ -320,6 +320,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .today-sent-card{background:var(--bg3);border:1px solid rgba(34,197,94,0.2);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
 .today-icon{width:28px;height:28px;border-radius:7px;background:var(--green-dim);color:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .today-icon svg{width:13px;height:13px;}
+.stat-card.purple::after{background:#8b5cf6;}
+.status-oom{background:rgba(139,92,246,0.12);color:#8b5cf6;}
+.ai-thinking{display:flex;align-items:center;gap:8px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.2);border-radius:var(--r-sm);padding:10px 14px;font-size:12px;color:#a78bfa;margin-bottom:10px;}
+.ai-dot{width:7px;height:7px;border-radius:50%;background:#8b5cf6;animation:aiPulse 1s ease-in-out infinite;}
+.ai-dot:nth-child(2){animation-delay:0.2s;}
+.ai-dot:nth-child(3){animation-delay:0.4s;}
+@keyframes aiPulse{0%,100%{opacity:0.3;transform:scale(0.8);}50%{opacity:1;transform:scale(1.2);}}
 </style>
 </head>
 <body>
@@ -732,6 +739,37 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
             <div class="s-value" id="stock-oos">—</div>
             <div class="s-sub">Zero inventory</div>
           </div>
+          <div class="stat-card" style="border-color:rgba(139,92,246,0.3);">
+            <div class="s-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6;top:16px;right:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="m2 2 20 20"/></svg></div>
+            <div class="s-label">Out of Market</div>
+            <div class="s-value" id="stock-oom" style="color:#8b5cf6;">—</div>
+            <div class="s-sub">Discontinued models</div>
+          </div>
+        </div>
+
+        <!-- Out of Market Alert Card -->
+        <div class="card" id="oom-card" style="display:none;border-color:rgba(139,92,246,0.25);">
+          <div class="card-head" style="border-color:rgba(139,92,246,0.15);">
+            <div class="card-title" style="color:#8b5cf6;">Out of Market Items</div>
+            <div style="display:flex;gap:7px;align-items:center;">
+              <span style="font-size:11px;color:var(--text3);" id="oom-count-label"></span>
+              <button class="t-btn" style="padding:4px 10px;font-size:11px;background:rgba(139,92,246,0.1);color:#8b5cf6;border:1px solid rgba(139,92,246,0.2);" onclick="exportOomCSV()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+            </div>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div style="padding:10px 18px;background:rgba(139,92,246,0.05);border-bottom:1px solid rgba(139,92,246,0.1);font-size:12px;color:#a78bfa;">
+              These are old model numbers no longer in active market. Consider clearance campaigns or supplier returns.
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="stock-table">
+                <thead><tr><th>Product</th><th>SKU</th><th>Brand</th><th>Region</th><th>Model Year</th><th>Stock</th><th>Action</th></tr></thead>
+                <tbody id="oom-rows"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
         <div class="card">
           <div class="card-head">
@@ -814,8 +852,30 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         <div class="fg"><label class="fl">Language</label><select class="fs" id="tpl-lang"><option value="en">English</option><option value="ar">Arabic</option><option value="zh">Chinese</option><option value="ru">Russian</option></select></div>
         <div class="fg"><label class="fl">Category</label><select class="fs" id="tpl-cat"><option value="MARKETING">Marketing</option><option value="UTILITY">Utility</option></select></div>
       </div>
+      <!-- AI Context Fields -->
+      <div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.2);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:600;color:#8b5cf6;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">AI Generation Context</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div class="fg" style="margin:0"><label class="fl">Brand / Product</label><input class="fi" id="tpl-ai-brand" placeholder="e.g. HP LaserJet Pro"/></div>
+          <div class="fg" style="margin:0"><label class="fl">Campaign Type</label>
+            <select class="fs" id="tpl-ai-type">
+              <option value="promotional">Promotional Offer</option>
+              <option value="liquidation">Clearance / Liquidation</option>
+              <option value="scarcity">Scarcity / Low Stock</option>
+              <option value="restock">Restock Notification</option>
+              <option value="outofmarket">Discontinued / End of Life</option>
+              <option value="intro">New Product Introduction</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg" style="margin:0 0 10px"><label class="fl">Target Audience / Region</label><input class="fi" id="tpl-ai-region" placeholder="e.g. UAE, GCC distributors, India resellers"/></div>
+        <button class="t-btn" id="ai-gen-btn" onclick="generateAiTemplate()" style="width:100%;background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.3);justify-content:center;gap:7px;padding:9px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <span id="ai-gen-label">Generate Template with AI</span>
+        </button>
+      </div>
       <div class="fg"><label class="fl">Header (optional)</label><input class="fi" id="tpl-header" placeholder="Whizz Exim FZE"/></div>
-      <div class="fg"><label class="fl">Body *</label><textarea class="ft" id="tpl-body" placeholder="Hi {{1}}, Whizz Exim FZE is pleased to offer exclusive pricing on {{2}}..."></textarea><div class="fi-hint">Use {{1}}, {{2}} for variables</div></div>
+      <div class="fg"><label class="fl">Body *</label><textarea class="ft" id="tpl-body" placeholder="Hi {{1}}, Whizz Exim FZE is pleased to offer exclusive pricing on {{2}}..." style="min-height:110px;"></textarea><div class="fi-hint">Use {{1}}, {{2}} for variables. AI will generate and fill this.</div></div>
       <div class="fg"><label class="fl">Footer (optional)</label><input class="fi" id="tpl-footer" placeholder="Reply STOP to unsubscribe"/></div>
     </div>
     <div class="modal-foot">
@@ -1238,7 +1298,7 @@ function showToast(msg,type='info'){const el=document.createElement('div');el.cl
 
 // ── Stock Module ──
 async function refreshStock() {
-  const d = await api('whizz-stock');
+  const [d] = await Promise.all([api('whizz-stock'), refreshOutOfMarket()]);
   S.cache.stock = d;
   S.stock = d.stock || [];
   S.stockCrossTab = d.crossTabMatrix || [];
@@ -1382,6 +1442,17 @@ function renderSuggestions() {
       icon:'amber', tag:`${items.length} item${items.length>1?'s':''} low` });
   });
 
+  // Out of Market: clearance / EOL
+  const oomItems = S.cache.outOfMarket || [];
+  uniq(oomItems.map(i=>i.brand||'Unknown')).slice(0,3).forEach(brand => {
+    const items = oomItems.filter(i=>(i.brand||'Unknown')===brand);
+    suggestions.push({ type:'oom', priority:'high', brand,
+      regions: uniq(items.map(i=>i.region||'Global')),
+      title: `Clearance Drive — ${brand} (Discontinued)`,
+      desc: `${items.length} out-of-market model${items.length>1?'s':''} identified. Run a clearance broadcast to existing contacts before these lines are fully retired.`,
+      icon:'purple', tag:`${items.length} EOL model${items.length>1?'s':''}` });
+  });
+
   // OOS: restock notification / pre-order intent
   uniq(oos.map(i=>i.brand)).slice(0,3).forEach(brand => {
     const items = oos.filter(i=>i.brand===brand);
@@ -1401,11 +1472,12 @@ function renderSuggestions() {
   const pOrd = {high:0,medium:1,low:2};
   suggestions.sort((a,b)=>pOrd[a.priority]-pOrd[b.priority]);
 
-  const iconCfg = {red:{bg:'var(--red-dim)',c:'var(--red)'},amber:{bg:'var(--amber-dim)',c:'var(--amber)'},blue:{bg:'var(--blue-dim)',c:'var(--blue)'}};
+  const iconCfg = {red:{bg:'var(--red-dim)',c:'var(--red)'},amber:{bg:'var(--amber-dim)',c:'var(--amber)'},blue:{bg:'var(--blue-dim)',c:'var(--blue)'},purple:{bg:'rgba(139,92,246,0.1)',c:'#8b5cf6'}};
   const iconSvg = {
     liquidation:'<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
     urgency:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-    oos:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'
+    oos:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+    oom:'<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="m2 2 20 20"/>'
   };
   const pLabel = {high:'High Priority',medium:'Medium',low:'Low Priority'};
   const pColor = {high:'var(--red)',medium:'var(--amber)',low:'var(--blue)'};
@@ -1476,6 +1548,106 @@ function renderWeekSummary() {
     <div style="margin-top:12px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Recent</div>
     ${week.slice(0,6).map(h=>`<div style="font-size:11px;color:var(--text2);padding:5px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;"><span>${new Date(h.ts).toLocaleDateString('en-AE',{weekday:'short',day:'2-digit',month:'short'})} — ${h.template}</span><span style="color:var(--green);font-weight:600">${h.sent}</span></div>`).join('')}
   `;
+}
+
+// ── Out of Market Module ──
+async function refreshOutOfMarket() {
+  try {
+    const d = await api('whizz-out-of-market');
+    const items = d.items || [];
+    S.cache.outOfMarket = items;
+    renderOutOfMarket(items);
+  } catch(e) {
+    // Endpoint may not exist yet — fail silently
+    console.warn('whizz-out-of-market not configured:', e.message);
+  }
+}
+
+function renderOutOfMarket(items) {
+  const card = document.getElementById('oom-card');
+  const stat = document.getElementById('stock-oom');
+  stat.textContent = items.length || 0;
+  if (!items.length) { card.style.display='none'; return; }
+  card.style.display='block';
+  document.getElementById('oom-count-label').textContent = `${items.length} model${items.length>1?'s':''} detected`;
+  document.getElementById('oom-rows').innerHTML = items.map(i => `<tr>
+    <td class="td-bold" title="${i.productName||''}">${(i.productName||'—').slice(0,45)}</td>
+    <td><span class="stock-sku">${i.alias||'—'}</span></td>
+    <td>${i.brand||'—'}</td>
+    <td>${i.region||'—'}</td>
+    <td><span style="font-size:11px;color:#8b5cf6;font-weight:600;">${i.modelYear||i.year||'—'}</span></td>
+    <td><span class="stock-num">${(i.stock||0).toLocaleString()}</span></td>
+    <td><button class="t-btn" style="padding:3px 9px;font-size:10px;background:rgba(139,92,246,0.1);color:#8b5cf6;border:1px solid rgba(139,92,246,0.2);" onclick="launchOomCampaign('${(i.brand||'').replace(/'/g,"\\'")}','${(i.productName||'').replace(/'/g,"\\'")}')">Campaign</button></td>
+  </tr>`).join('');
+  // Update suggestions badge with OOM count
+  const badge = document.getElementById('suggest-badge');
+  const cur = parseInt(badge.textContent)||0;
+  badge.textContent = cur + items.length;
+  badge.style.display = 'inline';
+}
+
+function launchOomCampaign(brand, product) {
+  // Pre-fill template modal with OOM context and open it
+  document.getElementById('tpl-ai-brand').value = product || brand;
+  document.getElementById('tpl-ai-type').value = 'outofmarket';
+  document.getElementById('tpl-ai-region').value = 'Global';
+  openTplModal();
+  showToast('Context pre-filled — click Generate with AI', 'info');
+}
+
+function exportOomCSV() {
+  const items = S.cache.outOfMarket || [];
+  if (!items.length) { showToast('No out-of-market data', 'error'); return; }
+  const rows = items.map(i => `"${i.productName}","${i.alias}","${i.brand}","${i.region}","${i.modelYear||i.year||''}",${i.stock}`);
+  downloadCSV(['Product,SKU,Brand,Region,ModelYear,Stock',...rows].join('\n'), 'whizz_out_of_market.csv');
+  showToast('Export complete!', 'success');
+}
+
+// ── AI Template Generation ──
+async function generateAiTemplate() {
+  const brand  = document.getElementById('tpl-ai-brand').value.trim();
+  const type   = document.getElementById('tpl-ai-type').value;
+  const region = document.getElementById('tpl-ai-region').value.trim();
+  const lang   = document.getElementById('tpl-lang').value;
+
+  if (!brand) { showToast('Enter a Brand / Product name for AI context', 'error'); return; }
+
+  const btn   = document.getElementById('ai-gen-btn');
+  const label = document.getElementById('ai-gen-label');
+  btn.disabled = true;
+  label.textContent = 'Generating…';
+
+  // Show thinking indicator above body
+  const bodyField = document.getElementById('tpl-body');
+  const hint = bodyField.parentElement.querySelector('.fi-hint');
+  let thinkEl = document.getElementById('ai-thinking-block');
+  if (!thinkEl) {
+    thinkEl = document.createElement('div');
+    thinkEl.id = 'ai-thinking-block';
+    thinkEl.className = 'ai-thinking';
+    thinkEl.innerHTML = '<div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span>AI is crafting your WhatsApp template…</span>';
+    bodyField.parentElement.insertBefore(thinkEl, bodyField);
+  }
+  thinkEl.style.display = 'flex';
+
+  try {
+    const r = await api('whizz-ai-template', 'POST', { brand, type, region, language: lang, company: 'Whizz Exim FZE' });
+    if (r.body) {
+      bodyField.value = r.body;
+      if (r.header) document.getElementById('tpl-header').value = r.header;
+      if (r.footer) document.getElementById('tpl-footer').value = r.footer;
+      if (r.name)   document.getElementById('tpl-name').value = r.name;
+      showToast('Template generated successfully!', 'success');
+    } else {
+      showToast('AI returned empty response — check n8n workflow', 'error');
+    }
+  } catch(e) {
+    showToast('AI generation failed — ensure whizz-ai-template webhook is active', 'error');
+  }
+
+  thinkEl.style.display = 'none';
+  btn.disabled = false;
+  label.textContent = 'Regenerate with AI';
 }
 
 function launchSuggestedCampaign(brand, alreadySent) {
