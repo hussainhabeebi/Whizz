@@ -290,6 +290,36 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 @media(max-width:768px){.sidebar-overlay.show{display:block;}.sidebar{position:fixed;left:-220px;top:0;bottom:0;z-index:200;transition:left 0.2s;}.sidebar.open{left:0;}}
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+
+/* Stock Page */
+.stock-status{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;display:inline-block;}
+.status-optimal{background:var(--green-dim);color:var(--green);}
+.status-urgency{background:var(--amber-dim);color:var(--amber);}
+.status-liquidation{background:var(--red-dim);color:var(--red);}
+.status-oos{background:var(--bg4);color:var(--text3);border:1px solid var(--border2);}
+.stock-table{width:100%;border-collapse:collapse;font-size:12px;}
+.stock-table th{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;padding:8px 12px;text-align:left;border-bottom:2px solid var(--border);background:var(--bg3);white-space:nowrap;}
+.stock-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;}
+.stock-table td.td-bold{color:var(--text);font-weight:500;}
+.stock-table tr:hover td{background:rgba(255,255,255,0.02);}
+.stock-num{font-family:var(--font-display);font-weight:700;font-size:14px;color:var(--text);}
+.stock-sku{font-size:10px;color:var(--text3);font-family:monospace;}
+
+/* Suggestions Page */
+.suggest-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:14px;transition:border-color 0.12s;}
+.suggest-card:hover{border-color:var(--border2);}
+.suggest-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.suggest-icon svg{width:17px;height:17px;}
+.suggest-body{flex:1;min-width:0;}
+.suggest-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.suggest-desc{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px;}
+.suggest-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.suggest-tag{font-size:10px;padding:2px 8px;border-radius:20px;border:1px solid var(--border2);background:var(--bg2);color:var(--text3);}
+.suggest-warn{font-size:10px;color:var(--amber);background:var(--amber-dim);padding:2px 8px;border-radius:20px;font-weight:500;}
+.suggest-actions{display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0;}
+.today-sent-card{background:var(--bg3);border:1px solid rgba(34,197,94,0.2);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+.today-icon{width:28px;height:28px;border-radius:7px;background:var(--green-dim);color:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.today-icon svg{width:13px;height:13px;}
 </style>
 </head>
 <body>
@@ -346,6 +376,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg>
         Campaigns
       </div>
+      <div class="nav-item" onclick="navigate('suggestions',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Suggestions
+        <span class="nav-badge" id="suggest-badge" style="display:none">0</span>
+      </div>
       <div class="nav-item" onclick="navigate('history',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Campaign History
@@ -369,6 +404,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
       <div class="nav-item" onclick="navigate('leads',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
         Leads
+      </div>
+      <div class="nav-item" onclick="navigate('stock',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        Stock
       </div>
       <div class="nav-section">Inbox</div>
       <a class="nav-ext" href="https://chat.whizzfze.com/app/accounts/1/inbox/1" target="_blank">
@@ -662,6 +701,106 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         </div>
       </div>
 
+      <!-- Stock Page -->
+      <div class="page" id="page-stock">
+        <div class="cache-banner" id="stock-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Cached. Click Refresh to reload stock data.</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card green">
+            <div class="s-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></div>
+            <div class="s-label">Total Product Lines</div>
+            <div class="s-value" id="stock-total">—</div>
+            <div class="s-sub">In catalog</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="s-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+            <div class="s-label">Urgency Alert</div>
+            <div class="s-value" id="stock-urgency">—</div>
+            <div class="s-sub">Stock ≤ 50 units</div>
+          </div>
+          <div class="stat-card red">
+            <div class="s-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+            <div class="s-label">Liquidation Risk</div>
+            <div class="s-value" id="stock-liquidation">—</div>
+            <div class="s-sub">Stock ≥ 500 units</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="s-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
+            <div class="s-label">Out of Stock</div>
+            <div class="s-value" id="stock-oos">—</div>
+            <div class="s-sub">Zero inventory</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Stock Evaluation</div>
+            <div style="display:flex;gap:7px;align-items:center;">
+              <span style="font-size:11px;color:var(--text3);" id="stock-filter-count"></span>
+              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="exportStockCSV()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Brand</div><div class="chips" id="stock-brand-chips"></div></div>
+            <div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Region</div><div class="chips" id="stock-region-chips"></div></div>
+            <div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Category</div><div class="chips" id="stock-group-chips"></div></div>
+            <div style="margin-bottom:12px;"><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Status</div><div class="chips" id="stock-status-chips"></div></div>
+            <div style="overflow-x:auto;">
+              <table class="stock-table">
+                <thead><tr><th>Product</th><th>SKU</th><th>Brand</th><th>Region</th><th>Category</th><th>Stock</th><th>Status</th></tr></thead>
+                <tbody id="stock-rows"><tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3);">Click Refresh to load</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Brand Volume Matrix</div></div>
+          <div class="card-body">
+            <div class="matrix-grid" id="stock-matrix">
+              <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">Load stock data to view brand matrix.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Broadcast Suggestions Page -->
+      <div class="page" id="page-suggestions">
+        <div class="two-col" style="margin-bottom:16px;">
+          <div>
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title">Smart Broadcast Suggestions</div>
+                <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="refreshSuggestions()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  Regenerate
+                </button>
+              </div>
+              <div class="card-body" id="suggestions-list">
+                <div style="text-align:center;color:var(--text3);font-size:12px;padding:32px;">Load stock data first — navigate to Stock page and click Refresh, then come back here.</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-head"><div class="card-title">Today's Campaigns</div></div>
+              <div class="card-body" id="today-sent-list">
+                <div style="text-align:center;color:var(--text3);font-size:12px;">No campaigns sent today.</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div class="card-title">This Week Summary</div></div>
+              <div class="card-body" id="week-summary">
+                <div style="text-align:center;color:var(--text3);font-size:12px;">No history available.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -706,6 +845,8 @@ let S = {
   groups: [], crossTabMatrix: [], templates: [], platforms: [], countries: [], brands: [],
   selectedGroups: [], selectedTemplate: null,
   activePlatform: 'ALL', activeCountry: 'ALL', activeBrand: 'ALL',
+  stock: [], stockCrossTab: [], stockBrands: [], stockRegions: [], stockParentGroups: [],
+  activeStockBrand: 'ALL', activeStockRegion: 'ALL', activeStockParentGroup: 'ALL', activeStockStatus: 'ALL',
   cache: {}, notifications: [], history: []
 };
 
@@ -775,6 +916,12 @@ function loadCache() {
   if (S.cache.templates) { renderTplPage(S.cache.templates); renderCampTemplates(S.cache.templates); showBanner('tpl'); }
   if (S.cache.conversations) { renderConvs(S.cache.conversations); renderDashConvs(S.cache.conversations); showBanner('conv'); }
   if (S.cache.stats || S.cache.crossTabMatrix) { renderReports(); showBanner('rep'); }
+  if (S.cache.stock) {
+    const sd = S.cache.stock;
+    S.stock = sd.stock || []; S.stockCrossTab = sd.crossTabMatrix || [];
+    S.stockBrands = sd.brands || []; S.stockRegions = sd.regions || []; S.stockParentGroups = sd.parentGroups || [];
+    renderStockPage(); showBanner('stock');
+  }
 }
 function showBanner(p) { const el=document.getElementById(p+'-banner'); if(el)el.classList.add('show'); }
 function hideBanner(p) { const el=document.getElementById(p+'-banner'); if(el)el.classList.remove('show'); }
@@ -847,7 +994,7 @@ function navigate(page, el) {
   document.querySelectorAll('.nav-item,.nav-ext').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions'};
   document.getElementById('page-title').textContent=titles[page]||page;
   S.page=page; closeSidebar();
   if(page==='campaigns'&&S.cache.groups){S.groups=S.cache.groups;renderCampGroups(S.cache.groups);hideBanner('camp');}
@@ -856,6 +1003,8 @@ function navigate(page, el) {
   if(page==='conversations'&&S.cache.conversations){renderConvs(S.cache.conversations);hideBanner('conv');}
   if(page==='templates'&&S.cache.templates){renderTplPage(S.cache.templates);hideBanner('tpl');}
   if(page==='reports' && (S.cache.stats || S.cache.crossTabMatrix)){renderReports();hideBanner('rep');}
+  if(page==='stock'&&S.cache.stock){renderStockPage();hideBanner('stock');}
+  if(page==='suggestions'){refreshSuggestions();}
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('show');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show');}
@@ -873,6 +1022,8 @@ async function refreshPage() {
     else if(p==='reports')await refreshReportsPage();
     else if(p==='leads')await refreshLeads();
     else if(p==='history')renderHistoryList();
+    else if(p==='stock')await refreshStock();
+    else if(p==='suggestions'){await refreshStock();refreshSuggestions();}
     saveCache();
     document.getElementById('last-upd').textContent='Updated '+new Date().toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
     hideBanner(p==='dashboard'?'dash':p==='campaigns'?'camp':p);
@@ -987,7 +1138,16 @@ function buildReview(){
   document.getElementById('rv-msg').textContent=S.selectedTemplate?.body||'';
 }
 async function sendCampaign(){
-  const btn=document.getElementById('send-btn');btn.disabled=true;btn.textContent='Executing Dispatch...';
+  const btn=document.getElementById('send-btn');
+  // Duplicate campaign guard — warn if same template already sent today
+  if(S.selectedTemplate){
+    const todayDup=getTodayCampaigns().find(h=>h.template===S.selectedTemplate.name);
+    if(todayDup){
+      const sentTime=new Date(todayDup.ts).toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
+      if(!confirm(`"${S.selectedTemplate.name}" was already sent today at ${sentTime} (${todayDup.sent} contacts). Send again?`))return;
+    }
+  }
+  btn.disabled=true;btn.textContent='Executing Dispatch...';
   document.getElementById('send-progress').style.display='block';
   let prog=0;const interval=setInterval(()=>{prog=Math.min(prog+4,92);document.getElementById('prog-fill').style.width=prog+'%';document.getElementById('prog-text').textContent=`Processing queue arrays... ${prog}%`;},1000);
   try{
@@ -1075,6 +1235,261 @@ function applyLeadsFilter(){
 
 // ── Toast Notifications UI Node ──
 function showToast(msg,type='info'){const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;document.getElementById('toast-wrap').appendChild(el);setTimeout(()=>el.remove(),4000);}
+
+// ── Stock Module ──
+async function refreshStock() {
+  const d = await api('whizz-stock');
+  S.cache.stock = d;
+  S.stock = d.stock || [];
+  S.stockCrossTab = d.crossTabMatrix || [];
+  S.stockBrands = d.brands || [];
+  S.stockRegions = d.regions || [];
+  S.stockParentGroups = d.parentGroups || [];
+  renderStockPage();
+}
+
+function renderStockPage() {
+  const s = S.stock;
+  document.getElementById('stock-total').textContent = s.length;
+  document.getElementById('stock-urgency').textContent = s.filter(i => i.status === 'Urgency Alert').length;
+  document.getElementById('stock-liquidation').textContent = s.filter(i => i.status === 'Liquidation Risk').length;
+  document.getElementById('stock-oos').textContent = s.filter(i => i.status === 'Out of Stock').length;
+  // Brand chips
+  const bEl = document.getElementById('stock-brand-chips');
+  bEl.innerHTML = ['ALL', ...S.stockBrands].map(v => `<div class="chip ${S.activeStockBrand===v?'active':''}" onclick="filterStock('${v.replace(/'/g,"\\'")}',this)">${v}</div>`).join('');
+  // Region chips
+  const rEl = document.getElementById('stock-region-chips');
+  rEl.innerHTML = ['ALL', ...S.stockRegions].map(v => `<div class="chip ${S.activeStockRegion===v?'active':''}" onclick="filterStockRegion('${v.replace(/'/g,"\\'")}',this)">${v}</div>`).join('');
+  // Group chips
+  const gEl = document.getElementById('stock-group-chips');
+  gEl.innerHTML = ['ALL', ...S.stockParentGroups].map(v => `<div class="chip ${S.activeStockParentGroup===v?'active':''}" onclick="filterStockGroup('${v.replace(/'/g,"\\'")}',this)">${v}</div>`).join('');
+  // Status chips
+  const statuses = ['Optimal Allocation','Urgency Alert','Liquidation Risk','Out of Stock'];
+  const stEl = document.getElementById('stock-status-chips');
+  stEl.innerHTML = ['ALL', ...statuses].map(v => `<div class="chip ${S.activeStockStatus===v?'active':''}" onclick="filterStockStatus('${v.replace(/'/g,"\\'")}',this)">${v}</div>`).join('');
+  renderStockMatrix();
+  applyStockFilters();
+}
+
+function filterStock(v,el){document.querySelectorAll('#stock-brand-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activeStockBrand=v;applyStockFilters();}
+function filterStockRegion(v,el){document.querySelectorAll('#stock-region-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activeStockRegion=v;applyStockFilters();}
+function filterStockGroup(v,el){document.querySelectorAll('#stock-group-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activeStockParentGroup=v;applyStockFilters();}
+function filterStockStatus(v,el){document.querySelectorAll('#stock-status-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activeStockStatus=v;applyStockFilters();}
+
+function applyStockFilters() {
+  let f = S.stock;
+  if (S.activeStockBrand !== 'ALL') f = f.filter(i => i.brand === S.activeStockBrand);
+  if (S.activeStockRegion !== 'ALL') f = f.filter(i => i.region === S.activeStockRegion);
+  if (S.activeStockParentGroup !== 'ALL') f = f.filter(i => i.parentGroup === S.activeStockParentGroup);
+  if (S.activeStockStatus !== 'ALL') f = f.filter(i => i.status === S.activeStockStatus);
+  renderStockTable(f);
+}
+
+function renderStockTable(items) {
+  const el = document.getElementById('stock-rows');
+  document.getElementById('stock-filter-count').textContent = `${items.length} items`;
+  if (!items.length) { el.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3);">No items match filters</td></tr>'; return; }
+  const cls = {'Optimal Allocation':'status-optimal','Urgency Alert':'status-urgency','Liquidation Risk':'status-liquidation','Out of Stock':'status-oos'};
+  el.innerHTML = items.map(i => `<tr>
+    <td class="td-bold" title="${i.productName}">${i.productName.length>45?i.productName.slice(0,45)+'…':i.productName}</td>
+    <td><span class="stock-sku">${i.alias}</span></td>
+    <td>${i.brand}</td>
+    <td>${i.region}</td>
+    <td>${i.parentGroup}</td>
+    <td><span class="stock-num">${i.stock.toLocaleString()}</span></td>
+    <td><span class="stock-status ${cls[i.status]||''}">${i.status}</span></td>
+  </tr>`).join('');
+}
+
+function renderStockMatrix() {
+  const el = document.getElementById('stock-matrix');
+  if (!S.stockCrossTab.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">No matrix data.</div>'; return; }
+  el.innerHTML = S.stockCrossTab.map(m => {
+    const regBlock = Object.entries(m.breakdownByRegion||{}).map(([r,n])=>`<div class="matrix-sub-item">${r}: <span class="matrix-sub-val">${n.toLocaleString()}</span></div>`).join('');
+    const grpBlock = Object.entries(m.breakdownByParentGroup||{}).map(([g,n])=>`<div class="matrix-sub-item" style="border-color:rgba(59,130,246,0.2)">${g}: <span class="matrix-sub-val" style="color:var(--blue)">${n.toLocaleString()}</span></div>`).join('');
+    return `<div class="matrix-row-item">
+      <div class="matrix-row-header"><span class="matrix-brand-name">${m.brand}</span><span class="matrix-total-pill">Total Volume: ${(m.totalGlobalVolume||0).toLocaleString()}</span></div>
+      <div style="font-size:10px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;letter-spacing:0.05em;">By Region</div>
+      <div class="matrix-sub-flex" style="margin-bottom:8px;">${regBlock||'<span style="color:var(--text3)">—</span>'}</div>
+      <div style="font-size:10px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;letter-spacing:0.05em;">By Category</div>
+      <div class="matrix-sub-flex">${grpBlock||'<span style="color:var(--text3)">—</span>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function exportStockCSV() {
+  if (!S.stock.length) { showToast('Load stock data first', 'error'); return; }
+  const rows = S.stock.map(i => `"${i.productName}","${i.alias}","${i.brand}","${i.region}","${i.parentGroup}",${i.stock},"${i.status}"`);
+  downloadCSV(['Product,SKU,Brand,Region,Category,Stock,Status', ...rows].join('\n'), 'whizz_stock_evaluation.csv');
+  showToast('Export complete!', 'success');
+}
+
+// ── Broadcast Suggestions Module ──
+function getTodayCampaigns() {
+  const today = new Date().toDateString();
+  return S.history.filter(h => new Date(h.ts).toDateString() === today);
+}
+function getWeekCampaigns() {
+  const cutoff = Date.now() - 7*24*3600*1000;
+  return S.history.filter(h => h.ts > cutoff);
+}
+function wasSentToday(templateName) {
+  return getTodayCampaigns().some(h => h.template === templateName);
+}
+function wasSentRecently(templateName) {
+  const cutoff = Date.now() - 24*3600*1000;
+  return S.history.some(h => h.ts > cutoff && h.template === templateName);
+}
+
+function refreshSuggestions() {
+  renderSuggestions();
+  renderTodaySent();
+  renderWeekSummary();
+}
+
+function renderSuggestions() {
+  const el = document.getElementById('suggestions-list');
+  if (!S.stock.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:32px;">Load stock data first — go to Stock page and click Refresh, then return here.</div>';
+    return;
+  }
+
+  const liquidation = S.stock.filter(i => i.status === 'Liquidation Risk');
+  const urgency     = S.stock.filter(i => i.status === 'Urgency Alert');
+  const oos         = S.stock.filter(i => i.status === 'Out of Stock');
+  const suggestions = [];
+
+  const uniq = arr => [...new Set(arr)];
+
+  // Liquidation: large stock, promotional push needed
+  uniq(liquidation.map(i=>i.brand)).slice(0,4).forEach(brand => {
+    const items = liquidation.filter(i=>i.brand===brand);
+    const total = items.reduce((a,i)=>a+i.stock,0);
+    suggestions.push({ type:'liquidation', priority:'high', brand,
+      regions: uniq(items.map(i=>i.region)),
+      title: `Promotional Push — ${brand}`,
+      desc: `${items.length} product line${items.length>1?'s':''} carrying ${total.toLocaleString()} units at liquidation risk. Send a targeted broadcast to drive immediate sales volume.`,
+      icon:'red', tag:`${total.toLocaleString()} units excess` });
+  });
+
+  // Urgency: low stock, scarcity marketing
+  uniq(urgency.map(i=>i.brand)).slice(0,4).forEach(brand => {
+    const items = urgency.filter(i=>i.brand===brand);
+    suggestions.push({ type:'urgency', priority:'medium', brand,
+      regions: uniq(items.map(i=>i.region)),
+      title: `Scarcity Alert — ${brand}`,
+      desc: `${items.length} item${items.length>1?'s':''} critically low (≤50 units). Use scarcity messaging to trigger immediate purchase decisions before stock runs out.`,
+      icon:'amber', tag:`${items.length} item${items.length>1?'s':''} low` });
+  });
+
+  // OOS: restock notification / pre-order intent
+  uniq(oos.map(i=>i.brand)).slice(0,3).forEach(brand => {
+    const items = oos.filter(i=>i.brand===brand);
+    suggestions.push({ type:'oos', priority:'low', brand,
+      regions: uniq(items.map(i=>i.region)),
+      title: `Restock Alert — ${brand}`,
+      desc: `${items.length} item${items.length>1?'s':''} currently out of stock. Notify warm prospects to capture pre-order intent and prioritise your next order.`,
+      icon:'blue', tag:`${items.length} OOS` });
+  });
+
+  if (!suggestions.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:32px;">All stock within optimal range — no urgent broadcast campaigns required.</div>';
+    document.getElementById('suggest-badge').style.display='none';
+    return;
+  }
+
+  const pOrd = {high:0,medium:1,low:2};
+  suggestions.sort((a,b)=>pOrd[a.priority]-pOrd[b.priority]);
+
+  const iconCfg = {red:{bg:'var(--red-dim)',c:'var(--red)'},amber:{bg:'var(--amber-dim)',c:'var(--amber)'},blue:{bg:'var(--blue-dim)',c:'var(--blue)'}};
+  const iconSvg = {
+    liquidation:'<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
+    urgency:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    oos:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'
+  };
+  const pLabel = {high:'High Priority',medium:'Medium',low:'Low Priority'};
+  const pColor = {high:'var(--red)',medium:'var(--amber)',low:'var(--blue)'};
+
+  el.innerHTML = suggestions.map(s => {
+    const ic = iconCfg[s.icon]||iconCfg.blue;
+    const sentToday = wasSentToday(s.brand);
+    const sentRecent = !sentToday && wasSentRecently(s.brand);
+    const lastSent = S.history.find(h => h.audience && h.audience.toLowerCase().includes(s.brand.toLowerCase()));
+    const lastTxt = lastSent && !sentToday && !sentRecent ? `Last: ${new Date(lastSent.ts).toLocaleDateString('en-AE',{day:'2-digit',month:'short'})}` : '';
+    return `<div class="suggest-card">
+      <div class="suggest-icon" style="background:${ic.bg};color:${ic.c}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${iconSvg[s.type]||iconSvg.oos}</svg>
+      </div>
+      <div class="suggest-body">
+        <div class="suggest-title">${s.title}</div>
+        <div class="suggest-desc">${s.desc}</div>
+        <div class="suggest-meta">
+          <span class="suggest-tag" style="color:${pColor[s.priority]};border-color:${pColor[s.priority]}40">${pLabel[s.priority]}</span>
+          <span class="suggest-tag">${s.tag}</span>
+          ${s.regions.length ? `<span class="suggest-tag">${s.regions.slice(0,3).join(', ')}</span>` : ''}
+          ${sentToday ? '<span class="suggest-warn">⚠ Sent today already</span>' : ''}
+          ${sentRecent ? '<span class="suggest-warn">Sent in last 24h</span>' : ''}
+          ${lastTxt ? `<span style="font-size:10px;color:var(--text3)">${lastTxt}</span>` : ''}
+        </div>
+      </div>
+      <div class="suggest-actions">
+        <button class="t-btn btn-primary" style="padding:5px 10px;font-size:11px;white-space:nowrap;" onclick="launchSuggestedCampaign('${s.brand.replace(/'/g,"\\'")}',${sentToday||sentRecent})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Campaign
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const highCount = suggestions.filter(s=>s.priority==='high').length;
+  const badge = document.getElementById('suggest-badge');
+  if (highCount > 0) { badge.textContent = highCount; badge.style.display='inline'; }
+  else badge.style.display='none';
+}
+
+function renderTodaySent() {
+  const el = document.getElementById('today-sent-list');
+  const today = getTodayCampaigns();
+  if (!today.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;">No campaigns sent today.</div>'; return; }
+  el.innerHTML = today.map(h => `<div class="today-sent-card">
+    <div class="today-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.template}</div>
+      <div style="font-size:10px;color:var(--text3);">${h.audience} · ${h.sent} sent · ${new Date(h.ts).toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--green);flex-shrink:0;">${h.sent}</div>
+  </div>`).join('');
+}
+
+function renderWeekSummary() {
+  const el = document.getElementById('week-summary');
+  const week = getWeekCampaigns();
+  if (!week.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;">No campaigns this week.</div>'; return; }
+  const totalSent = week.reduce((a,h)=>a+(h.sent||0),0);
+  const totalFailed = week.reduce((a,h)=>a+(h.failed||0),0);
+  const tplCount = new Set(week.map(h=>h.template)).size;
+  el.innerHTML = `
+    <div class="metric-row"><div class="m-label">Campaigns Sent</div><div class="m-value" style="color:var(--accent)">${week.length}</div></div>
+    <div class="metric-row"><div class="m-label">Templates Used</div><div class="m-value">${tplCount}</div></div>
+    <div class="metric-row"><div class="m-label">Messages Delivered</div><div class="m-value" style="color:var(--green)">${totalSent.toLocaleString()}</div></div>
+    <div class="metric-row"><div class="m-label">Failed</div><div class="m-value" style="color:var(--text3)">${totalFailed.toLocaleString()}</div></div>
+    <div style="margin-top:12px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Recent</div>
+    ${week.slice(0,6).map(h=>`<div style="font-size:11px;color:var(--text2);padding:5px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;"><span>${new Date(h.ts).toLocaleDateString('en-AE',{weekday:'short',day:'2-digit',month:'short'})} — ${h.template}</span><span style="color:var(--green);font-weight:600">${h.sent}</span></div>`).join('')}
+  `;
+}
+
+function launchSuggestedCampaign(brand, alreadySent) {
+  if (alreadySent) {
+    if (!confirm(`A campaign targeting "${brand}" was already sent recently. Proceed anyway?`)) return;
+  }
+  S.activeBrand = brand;
+  const campNav = document.querySelector('.nav-item[onclick*="\'campaigns\'"]');
+  navigate('campaigns', campNav);
+  setTimeout(() => {
+    const chips = document.querySelectorAll('#brand-chips .chip');
+    chips.forEach(c => { if (c.textContent.trim() === brand) c.click(); });
+  }, 150);
+}
 </script>
 </body>
 </html>
