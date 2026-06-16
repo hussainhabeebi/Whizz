@@ -375,6 +375,33 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .ai-dot:nth-child(2){animation-delay:0.2s;}
 .ai-dot:nth-child(3){animation-delay:0.4s;}
 @keyframes aiPulse{0%,100%{opacity:0.3;transform:scale(0.8);}50%{opacity:1;transform:scale(1.2);}}
+
+/* Lead Score Rankings */
+.score-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.score-row:last-child{border-bottom:none;}
+.score-rank{font-family:var(--font-display);font-size:11px;font-weight:700;color:var(--text3);min-width:22px;}
+.score-bar{height:4px;border-radius:2px;background:var(--border2);overflow:hidden;margin-top:4px;}
+.score-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--green));}
+
+/* Regional Heatmap */
+.heatmap-wrap{overflow-x:auto;}
+.heatmap-tbl{border-collapse:collapse;font-size:11px;min-width:100%;}
+.heatmap-tbl th{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;padding:6px 10px;text-align:center;background:var(--bg3);white-space:nowrap;border:1px solid var(--border);}
+.heatmap-tbl th.row-h{text-align:left;}
+.heatmap-tbl td{padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:600;font-size:11px;white-space:nowrap;min-width:54px;}
+.heatmap-tbl td.row-label{text-align:left;font-weight:700;color:var(--accent);background:var(--bg3);font-size:11px;white-space:nowrap;}
+
+/* Stock × Leads Overlap */
+.overlap-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);}
+.overlap-row:last-child{border-bottom:none;}
+.overlap-brand{font-size:13px;font-weight:600;color:var(--text);flex:1;min-width:0;}
+
+/* Campaign Timing */
+.timing-slot{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.timing-slot:last-child{border-bottom:none;}
+.timing-rank{font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--accent);min-width:22px;}
+.timing-label{font-size:13px;font-weight:500;color:var(--text);flex:1;min-width:0;}
+.timing-rate{font-size:14px;font-weight:700;color:var(--green);min-width:36px;text-align:right;}
 </style>
 </head>
 <body>
@@ -663,16 +690,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
       </div>
 
       <div class="page" id="page-history">
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">Campaign History</div>
-            <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="exportHistoryCSV()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Export CSV
-            </button>
+        <div class="two-col" style="margin-bottom:16px;align-items:start;">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Campaign History</div>
+              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="exportHistoryCSV()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+            </div>
+            <div class="card-body" id="history-list">
+              <div style="text-align:center;color:var(--text3);font-size:12px;padding:32px;">No campaigns yet.</div>
+            </div>
           </div>
-          <div class="card-body" id="history-list">
-            <div style="text-align:center;color:var(--text3);font-size:12px;padding:32px;">No campaigns yet.</div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Best Time to Send</div>
+              <span style="font-size:10px;color:var(--text3);">delivery rate by day &amp; period</span>
+            </div>
+            <div class="card-body" id="timing-list">
+              <div style="text-align:center;color:var(--text3);font-size:12px;">Send campaigns to build timing insights.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -725,12 +763,38 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
           </div>
         </div>
         
-        <div class="card">
+        <div class="card" style="margin-bottom:16px;">
           <div class="card-head"><div class="card-title">Cross-Tabulation Brand Pivot Intelligence</div></div>
           <div class="card-body">
             <div class="matrix-grid" id="rep-matrix">
               <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load matrix distribution layers.</div>
             </div>
+          </div>
+        </div>
+        <div class="two-col" style="margin-bottom:16px;align-items:start;">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Stock × Leads Overlap</div>
+              <span style="font-size:10px;color:var(--text3);">critical stock with active audiences</span>
+            </div>
+            <div class="card-body" id="rep-overlap">
+              <div style="text-align:center;color:var(--text3);font-size:12px;">Load Leads &amp; Stock data first.</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Lead Score Rankings</div>
+              <span style="font-size:10px;color:var(--text3);">velocity × trend × volume</span>
+            </div>
+            <div class="card-body" id="rep-lead-scores">
+              <div style="text-align:center;color:var(--text3);font-size:12px;">Load leads data first.</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Regional Heatmap</div><span style="font-size:10px;color:var(--text3);">brand × country lead volume</span></div>
+          <div class="card-body" id="rep-heatmap">
+            <div style="text-align:center;color:var(--text3);font-size:12px;">Load leads data to view heatmap.</div>
           </div>
         </div>
       </div>
@@ -739,6 +803,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         <div class="cache-banner" id="leads-banner">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>Cached. Click Refresh to reload.</span>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Lead Score Rankings</div>
+            <span style="font-size:10px;color:var(--text3);">velocity × trend × volume</span>
+          </div>
+          <div class="card-body" id="lead-score-list"><div style="text-align:center;color:var(--text3);font-size:12px;">Load leads to view rankings</div></div>
         </div>
         <div class="card">
           <div class="card-head">
@@ -1135,6 +1206,7 @@ function renderHistoryList() {
   const el = document.getElementById('history-list');
   if (!S.history.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:32px;">No campaigns sent yet.</div>'; return; }
   el.innerHTML = S.history.map(h => `<div class="hist-item"><div class="hist-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="hist-info"><div class="hist-name">${h.template} — ${h.audience}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total} contacts</div></div><div class="hist-stats"><div class="hist-sent">${h.sent} sent</div><div class="hist-fail">${h.failed} failed</div></div></div>`).join('');
+  renderCampaignTiming();
 }
 function exportHistoryCSV() {
   if (!S.history.length) { showToast('No history data available', 'error'); return; }
@@ -1380,7 +1452,11 @@ function renderReports(){
   groups.forEach(g=>{if(!g.isAggregatedTail){cm[g.country]=(cm[g.country]||0)+g.count;}});
   document.getElementById('rep-leads').innerHTML=Object.entries(cm).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<div class="metric-row"><div class="m-label">${c}</div><div class="m-value" style="color:var(--accent)">${n}</div></div>`).join('');
 
-  // Brand Pivot Cross Tab Matrix Render Layout Logic 
+  renderStockLeadsOverlap();
+  renderLeadScores(S.cache.groups||[],'rep-lead-scores');
+  renderRegionalHeatmap();
+
+  // Brand Pivot Cross Tab Matrix Render Layout Logic
   const matEl = document.getElementById('rep-matrix');
   if(!S.crossTabMatrix || !S.crossTabMatrix.length) {
     matEl.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">No Cross Tab items populated.</div>';
@@ -1412,6 +1488,7 @@ function renderLeadsPage(groups,total){
   renderChipsFilter(S.countries,'leads-country-chips','filterLeadsByCountry');
   renderChipsFilter(S.brands,'leads-brand-chips','filterLeadsByBrand');
   renderGroupCards(groups,'leads-groups',false);
+  renderLeadScores(groups,'lead-score-list');
 }
 function renderChipsFilter(list,id,fn){
   const el=document.getElementById(id);
@@ -2142,6 +2219,161 @@ function launchSuggestedCampaign(brand, alreadySent) {
     const chips = document.querySelectorAll('#brand-chips .chip');
     chips.forEach(c => { if (c.textContent.trim() === brand) c.click(); });
   }, 150);
+}
+
+// ── Lead Scoring ──
+function computeLeadScore(g) {
+  const trend = g.trend === 'Trending Up' ? 1.2 : g.trend === 'Trending Down' ? 0.8 : 1.0;
+  const vel = Math.max(0, g.velocity30DayPct || 0);
+  return Math.round(g.count * trend * (1 + vel / 200));
+}
+
+function renderLeadScores(groups, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el || !groups || !groups.length) return;
+  const scored = groups
+    .filter(g => !g.isAggregatedTail)
+    .map(g => ({ ...g, score: computeLeadScore(g) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+  if (!scored.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;">No data.</div>'; return; }
+  const maxScore = scored[0].score || 1;
+  el.innerHTML = scored.map((g, i) => {
+    const pct = Math.round(g.score / maxScore * 100);
+    const arrow = g.trend === 'Trending Up' ? '▲' : g.trend === 'Trending Down' ? '▼' : '→';
+    const tc = g.trend === 'Trending Up' ? 'var(--green)' : g.trend === 'Trending Down' ? 'var(--red)' : 'var(--text3)';
+    const bLabel = g.brand.length > 18 ? g.brand.slice(0, 18) + '…' : g.brand;
+    return `<div class="score-row">
+      <span class="score-rank">#${i+1}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;gap:6px;">
+          <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.platform} · ${g.country} · <span style="color:var(--accent)">${bLabel}</span></span>
+          <span style="font-size:11px;font-weight:700;color:${tc};flex-shrink:0;">${arrow} ${g.velocity30DayPct||0}%</span>
+        </div>
+        <div class="score-bar"><div class="score-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div style="text-align:right;min-width:44px;flex-shrink:0;">
+        <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text);line-height:1">${g.count}</div>
+        <div style="font-size:9px;color:var(--text3)">score ${g.score}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Smart Campaign Timing ──
+function renderCampaignTiming() {
+  const el = document.getElementById('timing-list');
+  if (!el) return;
+  if (!S.history.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;">Send campaigns to build timing insights.</div>';
+    return;
+  }
+  const slots = {};
+  S.history.forEach(h => {
+    const d = new Date(h.ts);
+    const day = d.toLocaleDateString('en-AE', { weekday: 'long' });
+    const hr = d.getHours();
+    const period = hr < 6 ? 'Night' : hr < 12 ? 'Morning' : hr < 17 ? 'Afternoon' : hr < 21 ? 'Evening' : 'Night';
+    const key = `${day} ${period}`;
+    if (!slots[key]) slots[key] = { sent: 0, total: 0, count: 0 };
+    slots[key].sent += h.sent || 0;
+    slots[key].total += (h.sent || 0) + (h.failed || 0);
+    slots[key].count++;
+  });
+  const ranked = Object.entries(slots)
+    .filter(([, v]) => v.total > 0)
+    .map(([label, v]) => ({ label, rate: Math.round(v.sent / v.total * 100), sent: v.sent, count: v.count }))
+    .sort((a, b) => b.rate - a.rate)
+    .slice(0, 5);
+  if (!ranked.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;">Not enough data yet.</div>'; return; }
+  el.innerHTML = ranked.map((r, i) => `<div class="timing-slot">
+    <div class="timing-rank">#${i+1}</div>
+    <div class="timing-label">${r.label}
+      <div style="font-size:10px;color:var(--text3);margin-top:1px;">${r.count} campaign${r.count>1?'s':''} · ${r.sent.toLocaleString()} delivered</div>
+    </div>
+    <div class="timing-rate">${r.rate}%</div>
+  </div>`).join('');
+}
+
+// ── Stock × Leads Overlap ──
+function renderStockLeadsOverlap() {
+  const el = document.getElementById('rep-overlap');
+  if (!el) return;
+  const groups = S.cache.groups || [];
+  const stock = S.stock || [];
+  if (!groups.length || !stock.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;">Load both Leads and Stock data first.</div>';
+    return;
+  }
+  const leadBrands = {};
+  groups.filter(g => !g.isAggregatedTail).forEach(g => {
+    if (!leadBrands[g.brand]) leadBrands[g.brand] = { count: 0, countries: new Set() };
+    leadBrands[g.brand].count += g.count;
+    leadBrands[g.brand].countries.add(g.country);
+  });
+  const critStatuses = ['Urgency Alert', 'Liquidation Risk', 'Out of Stock'];
+  const overlaps = [];
+  Object.entries(leadBrands).forEach(([brand, ld]) => {
+    const crit = stock.filter(s => s.brand === brand && critStatuses.includes(s.status));
+    if (!crit.length) return;
+    const byStatus = {};
+    crit.forEach(i => { byStatus[i.status] = (byStatus[i.status] || 0) + 1; });
+    overlaps.push({ brand, leadCount: ld.count, countries: [...ld.countries], byStatus });
+  });
+  overlaps.sort((a, b) => b.leadCount - a.leadCount);
+  if (!overlaps.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--green);font-size:12px;padding:12px;">✓ No critical stock issues overlap with active leads.</div>';
+    return;
+  }
+  const sc = { 'Urgency Alert': 'var(--amber)', 'Liquidation Risk': 'var(--red)', 'Out of Stock': 'var(--blue)' };
+  el.innerHTML = overlaps.slice(0, 8).map(o => `<div class="overlap-row">
+    <div style="flex:1;min-width:0;">
+      <div class="overlap-brand">${o.brand}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">${o.leadCount} leads · ${o.countries.slice(0,3).join(', ')}</div>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">
+      ${Object.entries(o.byStatus).map(([st,n]) => `<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:${sc[st]}20;color:${sc[st]};font-weight:600;white-space:nowrap;">${n}× ${st}</span>`).join('')}
+    </div>
+  </div>`).join('');
+}
+
+// ── Regional Heatmap ──
+function renderRegionalHeatmap() {
+  const el = document.getElementById('rep-heatmap');
+  if (!el) return;
+  const matrix = S.crossTabMatrix || [];
+  if (!matrix.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;">Load leads data to view heatmap.</div>';
+    return;
+  }
+  const allCountries = new Set();
+  matrix.forEach(m => Object.keys(m.breakdownByCountry || {}).forEach(c => allCountries.add(c)));
+  const countries = [...allCountries].sort((a, b) => {
+    const tA = matrix.reduce((s, m) => s + (m.breakdownByCountry?.[a] || 0), 0);
+    const tB = matrix.reduce((s, m) => s + (m.breakdownByCountry?.[b] || 0), 0);
+    return tB - tA;
+  }).slice(0, 12);
+  let gMax = 0;
+  matrix.forEach(m => Object.values(m.breakdownByCountry || {}).forEach(v => { if (v > gMax) gMax = v; }));
+  const heatBg = v => {
+    if (!v || !gMax) return 'transparent';
+    const r = v / gMax;
+    if (r > 0.7) return 'rgba(245,158,11,0.82)';
+    if (r > 0.4) return 'rgba(245,158,11,0.5)';
+    if (r > 0.15) return 'rgba(245,158,11,0.22)';
+    return 'rgba(245,158,11,0.07)';
+  };
+  const heatFg = v => {
+    if (!v || !gMax) return 'var(--text3)';
+    return (v / gMax) > 0.4 ? '#000' : 'var(--text)';
+  };
+  el.innerHTML = `<div class="heatmap-wrap"><table class="heatmap-tbl">
+    <thead><tr><th class="row-h">Brand</th>${countries.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${matrix.map(m => `<tr><td class="row-label">${m.brand}</td>${countries.map(c => {
+      const v = m.breakdownByCountry?.[c] || 0;
+      return `<td style="background:${heatBg(v)};color:${heatFg(v)};">${v || ''}</td>`;
+    }).join('')}</tr>`).join('')}</tbody>
+  </table></div>`;
 }
 </script>
 </body>
