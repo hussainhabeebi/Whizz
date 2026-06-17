@@ -503,6 +503,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         Open Full Inbox
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;margin-left:auto;opacity:0.4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       </a>
+      <div class="nav-section">Settings</div>
+      <div class="nav-item" id="nav-users" style="display:none" onclick="navigate('users',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Users
+      </div>
     </nav>
     <div class="sidebar-footer">
       <div class="user-row">
@@ -819,6 +824,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Export CSV
               </button>
+              <button class="t-btn btn-primary" style="padding:4px 10px;font-size:11px;" onclick="openAddContactModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Contact
+              </button>
               <span style="font-size:11px;color:var(--text3);align-self:center;" id="leads-total"></span>
             </div>
           </div>
@@ -1039,6 +1048,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 
       </div>
 
+      <!-- Users Management Page -->
+      <div class="page" id="page-users">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">User Management</div>
+            <button class="t-btn btn-primary" style="padding:4px 10px;font-size:11px;" onclick="openAddUserModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add User
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div style="overflow-x:auto;">
+              <table class="stock-table" id="users-table">
+                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Brand Access</th><th>Actions</th></tr></thead>
+                <tbody id="users-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -1085,6 +1115,70 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
   </div>
 </div>
 
+<!-- Add Contact Modal -->
+<div class="modal-overlay" id="modal-add-contact">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Add Contact</div><button class="modal-close" onclick="closeModal('modal-add-contact')">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">Contact Name *</label><input class="fi" id="ac-name" placeholder="Full name" required/></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><label class="fl">Company</label><input class="fi" id="ac-company" placeholder="Company name"/></div>
+        <div class="fg"><label class="fl">Phone</label><input class="fi" id="ac-phone" placeholder="+971..."/></div>
+      </div>
+      <div class="fg"><label class="fl">Email</label><input class="fi" type="email" id="ac-email" placeholder="email@example.com"/></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><label class="fl">Platform</label><input class="fi" id="ac-platform" placeholder="e.g. WhatsApp"/></div>
+        <div class="fg"><label class="fl">Country</label><input class="fi" id="ac-country" placeholder="e.g. UAE"/></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><label class="fl">Brand</label><input class="fi" id="ac-brand" placeholder="e.g. HP"/></div>
+        <div class="fg"><label class="fl">Category</label><input class="fi" id="ac-category" placeholder="e.g. printer"/></div>
+      </div>
+      <div class="fg"><label class="fl">Source</label><input class="fi" id="ac-source" value="Manual Entry"/></div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-add-contact')">Cancel</button>
+      <button class="t-btn btn-primary" onclick="submitAddContact()">Add Contact</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal-overlay" id="modal-add-user">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Add User</div><button class="modal-close" onclick="closeModal('modal-add-user')">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">Name *</label><input class="fi" id="au-name" placeholder="Full name"/></div>
+      <div class="fg"><label class="fl">Email *</label><input class="fi" type="email" id="au-email" placeholder="user@whizz.com"/></div>
+      <div class="fg"><label class="fl">Password *</label><input class="fi" type="password" id="au-password" placeholder="Min 6 characters"/></div>
+      <div class="fg"><label class="fl">Role</label><select class="fs" id="au-role"><option value="Sales">Sales</option><option value="Manager">Manager</option><option value="Administrator">Administrator</option></select></div>
+      <div class="fg"><label class="fl">Brand Access</label><div class="fi-hint" style="margin-bottom:6px;">Leave empty for access to ALL brands. Select specific brands to restrict access.</div><select class="fs" id="au-brands" multiple style="min-height:80px;"></select></div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-add-user')">Cancel</button>
+      <button class="t-btn btn-primary" onclick="submitAddUser()">Create User</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal-overlay" id="modal-edit-user">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Edit User</div><button class="modal-close" onclick="closeModal('modal-edit-user')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="eu-email-key"/>
+      <div class="fg"><label class="fl">Name *</label><input class="fi" id="eu-name" placeholder="Full name"/></div>
+      <div class="fg"><label class="fl">New Password</label><input class="fi" type="password" id="eu-password" placeholder="Leave blank to keep current"/></div>
+      <div class="fg"><label class="fl">Role</label><select class="fs" id="eu-role"><option value="Sales">Sales</option><option value="Manager">Manager</option><option value="Administrator">Administrator</option></select></div>
+      <div class="fg"><label class="fl">Brand Access</label><div class="fi-hint" style="margin-bottom:6px;">Leave empty for access to ALL brands.</div><select class="fs" id="eu-brands" multiple style="min-height:80px;"></select></div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-edit-user')">Cancel</button>
+      <button class="t-btn btn-primary" onclick="submitEditUser()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script>
@@ -1094,11 +1188,13 @@ const CACHE_KEY = 'whizz_cache_v2';
 const NOTIF_KEY = 'whizz_notifs';
 const OB_KEY = 'whizz_onboarding';
 
-const USERS = {
-  'admin@whizz.com': { hash: btoa('Whizz@2026'), name: 'Whizz Admin', role: 'Administrator' },
-  'sales@whizz.com': { hash: btoa('Sales@2026'), name: 'Sales Team', role: 'Sales' },
-  'manager@whizz.com': { hash: btoa('Manager@2026'), name: 'Whizz Manager', role: 'Manager' }
+const USERS_DEFAULT = {
+  'admin@whizz.com': { hash: btoa('Whizz@2026'), name: 'Whizz Admin', role: 'Administrator', allowedBrands: [] },
+  'sales@whizz.com': { hash: btoa('Sales@2026'), name: 'Sales Team', role: 'Sales', allowedBrands: [] },
+  'manager@whizz.com': { hash: btoa('Manager@2026'), name: 'Whizz Manager', role: 'Manager', allowedBrands: [] }
 };
+let USERS = (()=>{ const raw=localStorage.getItem('whizz_users_v1'); if(raw){try{return JSON.parse(raw);}catch(e){}} return JSON.parse(JSON.stringify(USERS_DEFAULT)); })();
+function saveUsers(){ localStorage.setItem('whizz_users_v1', JSON.stringify(USERS)); }
 
 let S = {
   page: 'dashboard', convStatus: 'open',
@@ -1141,6 +1237,8 @@ function initApp(session) {
   document.getElementById('u-avatar').textContent = initials;
   document.getElementById('u-name').textContent = session.name;
   document.getElementById('u-role').textContent = session.role;
+  const navUsers = document.getElementById('nav-users');
+  if (navUsers) navUsers.style.display = session.role === 'Administrator' ? 'flex' : 'none';
   loadCache(); loadOnboarding(); loadNotifications();
 }
 
@@ -1263,7 +1361,7 @@ function navigate(page, el) {
   document.querySelectorAll('.nav-item,.nav-ext').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management'};
   document.getElementById('page-title').textContent=titles[page]||page;
   S.page=page; closeSidebar();
   if(page==='campaigns'&&S.cache.groups){S.groups=S.cache.groups;renderCampGroups(S.cache.groups);hideBanner('camp');}
