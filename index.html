@@ -1070,7 +1070,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
           <div class="card-body" style="padding:0;">
             <div style="overflow-x:auto;">
               <table class="stock-table" id="users-table">
-                <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Brand Access</th><th style="text-align:center;">Actions</th></tr></thead>
+                <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Platform Access</th><th>Brand Access</th><th style="text-align:center;">Actions</th></tr></thead>
                 <tbody id="users-tbody"></tbody>
               </table>
             </div>
@@ -1180,9 +1180,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         </div>
       </div>
       <div class="fg">
+        <label class="fl">Platform Access</label>
+        <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific platforms. Leave all unselected for access to all platforms.</div>
+        <div id="au-platform-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);min-height:42px;"></div>
+      </div>
+      <div class="fg">
         <label class="fl">Brand Access</label>
-        <div class="fi-hint" style="margin-bottom:8px;">Select specific brands to restrict this user's Leads view. Leave all unselected for full access to all brands.</div>
-        <div id="au-brand-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);min-height:48px;"></div>
+        <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific brands. Leave all unselected for access to all brands.</div>
+        <div id="au-brand-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);min-height:42px;"></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -1232,9 +1237,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         </div>
       </div>
       <div class="fg">
+        <label class="fl">Platform Access</label>
+        <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific platforms. Leave all unselected for full access.</div>
+        <div id="eu-platform-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);min-height:42px;"></div>
+      </div>
+      <div class="fg">
         <label class="fl">Brand Access</label>
-        <div class="fi-hint" style="margin-bottom:8px;">Select specific brands to restrict Leads view. Leave all unselected for full access.</div>
-        <div id="eu-brand-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);min-height:48px;"></div>
+        <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific brands. Leave all unselected for full access.</div>
+        <div id="eu-brand-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);min-height:42px;"></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -1255,11 +1265,11 @@ const OB_KEY = 'whizz_onboarding';
 
 function safeEncode(str){ try{ return btoa(unescape(encodeURIComponent(str))); }catch(e){ return btoa(str.replace(/[^\x00-\xFF]/g,'')); } }
 const USERS_DEFAULT = {
-  'admin@whizz.com': { hash: safeEncode('Whizz@2026'), name: 'Whizz Admin', role: 'Administrator', allowedBrands: [] },
-  'sales@whizz.com': { hash: safeEncode('Sales@2026'), name: 'Sales Team', role: 'Sales', allowedBrands: [] },
-  'manager@whizz.com': { hash: safeEncode('Manager@2026'), name: 'Whizz Manager', role: 'Manager', allowedBrands: [] }
+  'admin@whizz.com': { hash: safeEncode('Whizz@2026'), name: 'Whizz Admin', role: 'Administrator', allowedBrands: [], allowedPlatforms: [] },
+  'sales@whizz.com': { hash: safeEncode('Sales@2026'), name: 'Sales Team', role: 'Sales', allowedBrands: [], allowedPlatforms: ['Viral'] },
+  'manager@whizz.com': { hash: safeEncode('Manager@2026'), name: 'Whizz Manager', role: 'Manager', allowedBrands: [], allowedPlatforms: [] }
 };
-let USERS = (()=>{ const raw=localStorage.getItem('whizz_users_v1'); if(raw){try{const p=JSON.parse(raw);Object.values(p).forEach(u=>{if(!u.allowedBrands)u.allowedBrands=[];});return p;}catch(e){}} return JSON.parse(JSON.stringify(USERS_DEFAULT)); })();
+let USERS = (()=>{ const raw=localStorage.getItem('whizz_users_v1'); if(raw){try{const p=JSON.parse(raw);Object.entries(p).forEach(([email,u])=>{if(!u.allowedBrands)u.allowedBrands=[];if(!u.allowedPlatforms){u.allowedPlatforms=USERS_DEFAULT[email]?.allowedPlatforms||[];}});return p;}catch(e){}} return JSON.parse(JSON.stringify(USERS_DEFAULT)); })();
 function saveUsers(){ localStorage.setItem('whizz_users_v1', JSON.stringify(USERS)); }
 
 let S = {
@@ -1647,18 +1657,21 @@ function renderReports(){
 
 // ── Leads Data Overview Module ──
 async function refreshLeads(){await refreshLeadData();renderLeadsPage(S.cache.groups,S.cache.leadsTotal);}
-function renderLeadsPage(groups,total){
+function getCurrentUserRestrictions(){
   const sess=localStorage.getItem('whizz_session');
-  let allowedBrands=[];
-  if(sess){try{const se=JSON.parse(sess);const u=USERS[se.email];if(u&&u.allowedBrands&&u.allowedBrands.length>0)allowedBrands=u.allowedBrands;}catch(e){}}
+  let allowedBrands=[],allowedPlatforms=[];
+  if(sess){try{const se=JSON.parse(sess);const u=USERS[se.email];if(u){if(u.allowedBrands&&u.allowedBrands.length>0)allowedBrands=u.allowedBrands;if(u.allowedPlatforms&&u.allowedPlatforms.length>0)allowedPlatforms=u.allowedPlatforms;}}catch(e){}}
+  return{allowedBrands,allowedPlatforms};
+}
+function renderLeadsPage(groups,total){
+  const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
   let filteredGroups=groups||[];
   let filteredBrands=S.brands;
-  if(allowedBrands.length>0){
-    filteredGroups=filteredGroups.filter(g=>allowedBrands.includes(g.brand));
-    filteredBrands=S.brands.filter(b=>allowedBrands.includes(b));
-  }
+  let filteredPlatforms=S.platforms;
+  if(allowedBrands.length>0){filteredGroups=filteredGroups.filter(g=>allowedBrands.includes(g.brand));filteredBrands=S.brands.filter(b=>allowedBrands.includes(b));}
+  if(allowedPlatforms.length>0){filteredGroups=filteredGroups.filter(g=>allowedPlatforms.includes(g.platform));filteredPlatforms=S.platforms.filter(p=>allowedPlatforms.includes(p));}
   document.getElementById('leads-total').textContent=`${total||0} operational records mapped`;
-  renderChipsFilter(S.platforms,'leads-platform-chips','filterLeadsByPlatform');
+  renderChipsFilter(filteredPlatforms,'leads-platform-chips','filterLeadsByPlatform');
   renderChipsFilter(S.countries,'leads-country-chips','filterLeadsByCountry');
   renderChipsFilter(filteredBrands,'leads-brand-chips','filterLeadsByBrand');
   renderGroupCards(filteredGroups,'leads-groups',false);
@@ -1675,11 +1688,10 @@ function applyLeadsFilter(){
   const p=document.querySelector('#leads-platform-chips .chip.active')?.textContent||'ALL';
   const co=document.querySelector('#leads-country-chips .chip.active')?.textContent||'ALL';
   const b=document.querySelector('#leads-brand-chips .chip.active')?.textContent||'ALL';
-  const sess=localStorage.getItem('whizz_session');
-  let allowedBrands=[];
-  if(sess){try{const se=JSON.parse(sess);const u=USERS[se.email];if(u&&u.allowedBrands&&u.allowedBrands.length>0)allowedBrands=u.allowedBrands;}catch(e){}}
+  const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
   let f=S.cache.groups||[];
   if(allowedBrands.length>0) f=f.filter(g=>allowedBrands.includes(g.brand));
+  if(allowedPlatforms.length>0) f=f.filter(g=>allowedPlatforms.includes(g.platform));
   if(p!=='ALL') f=f.filter(g=>g.platform===p);
   if(co!=='ALL') f=f.filter(g=>g.country===co);
   if(b!=='ALL') f=f.filter(g=>g.brand.toLowerCase().includes(b.toLowerCase()));
@@ -1690,7 +1702,16 @@ function applyLeadsFilter(){
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
 // ── Add Contact ──
-function openAddContactModal(){ document.getElementById('modal-add-contact').classList.add('open'); }
+function openAddContactModal(){
+  const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
+  const pfEl=document.getElementById('ac-platform');
+  const brEl=document.getElementById('ac-brand');
+  if(allowedPlatforms.length===1){pfEl.value=allowedPlatforms[0];pfEl.readOnly=true;}
+  else{pfEl.value='';pfEl.readOnly=false;}
+  if(allowedBrands.length===1){brEl.value=allowedBrands[0];brEl.readOnly=true;}
+  else{brEl.value='';brEl.readOnly=false;}
+  document.getElementById('modal-add-contact').classList.add('open');
+}
 async function submitAddContact(){
   const name=document.getElementById('ac-name').value.trim();
   if(!name){showToast('Contact name is required','error');return;}
@@ -1735,11 +1756,9 @@ function renderUsersPage(){
     return;
   }
   const roleStyle={Administrator:'background:var(--green-dim);color:var(--green);',Manager:'background:var(--amber-dim);color:var(--amber);',Sales:'background:var(--blue-dim);color:var(--blue);'};
+  const chipHtml=(arr,color)=>arr&&arr.length>0?arr.map(v=>`<span style="display:inline-block;background:${color}1a;color:${color};border:1px solid ${color}33;border-radius:4px;padding:1px 7px;font-size:10px;font-weight:500;">${v}</span>`).join(' '):`<span style="font-size:11px;color:var(--green);font-weight:500;">All</span>`;
   tbody.innerHTML=entries.map(([email,u])=>{
     const initials=u.name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?';
-    const brandsHtml=u.allowedBrands&&u.allowedBrands.length>0
-      ?u.allowedBrands.map(b=>`<span style="display:inline-block;background:var(--accent-dim);color:var(--accent);border:1px solid rgba(245,158,11,0.2);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:500;">${b}</span>`).join(' ')
-      :`<span style="font-size:11px;color:var(--green);font-weight:500;">All Brands</span>`;
     const isMe=email===currentEmail;
     const esc=s=>(s||'').replace(/'/g,"\\'");
     return `<tr>
@@ -1753,7 +1772,8 @@ function renderUsersPage(){
       </td>
       <td style="color:var(--text2);font-size:12px;">${email}</td>
       <td><span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;${roleStyle[u.role]||''}">${u.role}</span></td>
-      <td><div style="display:flex;flex-wrap:wrap;gap:3px;">${brandsHtml}</div></td>
+      <td><div style="display:flex;flex-wrap:wrap;gap:3px;">${chipHtml(u.allowedPlatforms,'#8b5cf6')}</div></td>
+      <td><div style="display:flex;flex-wrap:wrap;gap:3px;">${chipHtml(u.allowedBrands,'#f59e0b')}</div></td>
       <td>
         <div style="display:flex;gap:5px;justify-content:center;">
           <button class="t-btn btn-ghost" style="padding:5px 10px;font-size:11px;" onclick="openEditUserModal('${esc(email)}')" title="Edit user">
@@ -1770,19 +1790,27 @@ function renderUsersPage(){
   }).join('');
 }
 
-function populateBrandChips(containerId, selectedBrands){
+function populateChips(containerId, options, selectedValues){
   const el=document.getElementById(containerId);
   if(!el)return;
-  const brands=S.brands&&S.brands.length?[...S.brands]:['HP','Canon','Epson','Lexmark','Brother'];
-  el.innerHTML=brands.map(b=>{
-    const sel=(selectedBrands||[]).includes(b);
-    return `<div class="chip ${sel?'active':''}" style="cursor:pointer;font-size:11px;padding:4px 10px;" onclick="toggleBrandChip(this,'${b.replace(/'/g,"\\'")}')">${b}</div>`;
+  if(!options||!options.length){el.innerHTML='<span style="font-size:11px;color:var(--text3);">No options loaded yet — refresh Leads data first.</span>';return;}
+  el.innerHTML=options.map(v=>{
+    const sel=(selectedValues||[]).includes(v);
+    return `<div class="chip ${sel?'active':''}" style="cursor:pointer;font-size:11px;padding:4px 10px;" onclick="this.classList.toggle('active')">${v}</div>`;
   }).join('');
 }
 
-function toggleBrandChip(el, brand){ el.classList.toggle('active'); }
+function populateBrandChips(containerId, selectedBrands){
+  const brands=S.brands&&S.brands.length?[...S.brands]:[];
+  populateChips(containerId, brands, selectedBrands);
+}
 
-function getSelectedBrands(containerId){
+function populatePlatformChips(containerId, selectedPlatforms){
+  const platforms=S.platforms&&S.platforms.length?[...S.platforms]:['Viral'];
+  populateChips(containerId, platforms, selectedPlatforms);
+}
+
+function getSelectedChips(containerId){
   return [...document.querySelectorAll(`#${containerId} .chip.active`)].map(el=>el.textContent.trim());
 }
 
@@ -1807,6 +1835,7 @@ function checkPwdStrength(inputId, barId){
 }
 
 function openAddUserModal(){
+  populatePlatformChips('au-platform-chips',[]);
   populateBrandChips('au-brand-chips',[]);
   ['au-name','au-email','au-password','au-password2'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('au-role').value='Sales';
@@ -1820,13 +1849,14 @@ function submitAddUser(){
   const password=document.getElementById('au-password').value;
   const password2=document.getElementById('au-password2').value;
   const role=document.getElementById('au-role').value;
-  const allowedBrands=getSelectedBrands('au-brand-chips');
+  const allowedPlatforms=getSelectedChips('au-platform-chips');
+  const allowedBrands=getSelectedChips('au-brand-chips');
   if(!name||!email||!password){showToast('Name, email and password are required','error');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Please enter a valid email address','error');return;}
   if(USERS[email]){showToast('A user with this email already exists','error');return;}
   if(password.length<6){showToast('Password must be at least 6 characters','error');return;}
   if(password!==password2){showToast('Passwords do not match','error');return;}
-  USERS[email]={hash:safeEncode(password),name,role,allowedBrands};
+  USERS[email]={hash:safeEncode(password),name,role,allowedBrands,allowedPlatforms};
   saveUsers();
   showToast(`User "${name}" created successfully!`,'success');
   closeModal('modal-add-user');
@@ -1843,6 +1873,7 @@ function openEditUserModal(email){
   document.getElementById('eu-password2').value='';
   document.getElementById('eu-role').value=u.role;
   const bar=document.getElementById('eu-strength');if(bar)bar.style.background='var(--bg4)';
+  populatePlatformChips('eu-platform-chips',u.allowedPlatforms||[]);
   populateBrandChips('eu-brand-chips',u.allowedBrands||[]);
   document.getElementById('modal-edit-user').classList.add('open');
 }
@@ -1855,7 +1886,8 @@ function submitEditUser(){
   const password=document.getElementById('eu-password').value;
   const password2=document.getElementById('eu-password2').value;
   const role=document.getElementById('eu-role').value;
-  const allowedBrands=getSelectedBrands('eu-brand-chips');
+  const allowedPlatforms=getSelectedChips('eu-platform-chips');
+  const allowedBrands=getSelectedChips('eu-brand-chips');
   if(!name){showToast('Name is required','error');return;}
   if(password){
     if(password.length<6){showToast('Password must be at least 6 characters','error');return;}
@@ -1864,6 +1896,7 @@ function submitEditUser(){
   }
   u.name=name;
   u.role=role;
+  u.allowedPlatforms=allowedPlatforms;
   u.allowedBrands=allowedBrands;
   saveUsers();
   showToast(`User "${name}" updated successfully!`,'success');
