@@ -1620,6 +1620,135 @@ function applyLeadsFilter(){
   renderGroupCards(f,'leads-groups',false);
 }
 
+// ── Modal Helpers ──
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ── Add Contact ──
+function openAddContactModal(){ document.getElementById('modal-add-contact').classList.add('open'); }
+async function submitAddContact(){
+  const name=document.getElementById('ac-name').value.trim();
+  if(!name){showToast('Contact name is required','error');return;}
+  const contact={
+    contactName:name,
+    company:document.getElementById('ac-company').value.trim(),
+    phone:document.getElementById('ac-phone').value.trim(),
+    email:document.getElementById('ac-email').value.trim(),
+    platform:document.getElementById('ac-platform').value.trim(),
+    country:document.getElementById('ac-country').value.trim(),
+    brand:document.getElementById('ac-brand').value.trim(),
+    category:document.getElementById('ac-category').value.trim(),
+    source:document.getElementById('ac-source').value.trim()||'Manual Entry'
+  };
+  try{
+    await api('whizz-save-contact','POST',{contacts:[contact]});
+    showToast('Contact added successfully!','success');
+    closeModal('modal-add-contact');
+    ['ac-name','ac-company','ac-phone','ac-email','ac-platform','ac-country','ac-brand','ac-category'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ac-source').value='Manual Entry';
+  }catch(e){showToast('Failed to save contact — check webhook','error');}
+}
+
+// ── Users Management ──
+function renderUsersPage(){
+  const sess=localStorage.getItem('whizz_session');
+  const currentEmail=sess?JSON.parse(sess).email:'';
+  const tbody=document.getElementById('users-tbody');
+  if(!tbody)return;
+  tbody.innerHTML=Object.entries(USERS).map(([email,u])=>{
+    const brands=u.allowedBrands&&u.allowedBrands.length>0?u.allowedBrands.join(', '):'All Brands';
+    const isMe=email===currentEmail;
+    return `<tr>
+      <td class="td-bold">${u.name}</td>
+      <td style="color:var(--text2)">${email}</td>
+      <td><span class="stock-status ${u.role==='Administrator'?'status-optimal':u.role==='Manager'?'status-urgency':'status-oos'}">${u.role}</span></td>
+      <td style="font-size:11px;color:var(--text2)">${brands}</td>
+      <td>
+        <div style="display:flex;gap:5px;">
+          <button class="t-btn btn-ghost" style="padding:4px 8px;font-size:11px;" onclick="openEditUserModal('${email.replace(/'/g,"\\'")}')" title="Edit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          ${!isMe?`<button class="t-btn" style="padding:4px 8px;font-size:11px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteUser('${email.replace(/'/g,"\\'")}')" title="Delete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>`:'<span style="font-size:10px;color:var(--text3);">You</span>'}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function populateBrandSelect(selectId, selectedBrands){
+  const sel=document.getElementById(selectId);
+  const brands=S.brands&&S.brands.length?S.brands:['HP','Canon','Epson','Lexmark','Brother'];
+  sel.innerHTML=brands.map(b=>`<option value="${b}" ${(selectedBrands||[]).includes(b)?'selected':''}>${b}</option>`).join('');
+}
+
+function openAddUserModal(){
+  populateBrandSelect('au-brands',[]);
+  ['au-name','au-email','au-password'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('au-role').value='Sales';
+  document.getElementById('modal-add-user').classList.add('open');
+}
+
+function submitAddUser(){
+  const name=document.getElementById('au-name').value.trim();
+  const email=document.getElementById('au-email').value.trim().toLowerCase();
+  const password=document.getElementById('au-password').value;
+  const role=document.getElementById('au-role').value;
+  const brandsEl=document.getElementById('au-brands');
+  const allowedBrands=[...brandsEl.selectedOptions].map(o=>o.value);
+  if(!name||!email||!password){showToast('Name, email and password are required','error');return;}
+  if(USERS[email]){showToast('A user with this email already exists','error');return;}
+  if(password.length<6){showToast('Password must be at least 6 characters','error');return;}
+  USERS[email]={hash:btoa(password),name,role,allowedBrands};
+  saveUsers();
+  showToast('User created successfully!','success');
+  closeModal('modal-add-user');
+  renderUsersPage();
+}
+
+function openEditUserModal(email){
+  const u=USERS[email];
+  if(!u)return;
+  document.getElementById('eu-email-key').value=email;
+  document.getElementById('eu-name').value=u.name;
+  document.getElementById('eu-password').value='';
+  document.getElementById('eu-role').value=u.role;
+  populateBrandSelect('eu-brands',u.allowedBrands||[]);
+  document.getElementById('modal-edit-user').classList.add('open');
+}
+
+function submitEditUser(){
+  const email=document.getElementById('eu-email-key').value;
+  const u=USERS[email];
+  if(!u)return;
+  const name=document.getElementById('eu-name').value.trim();
+  const password=document.getElementById('eu-password').value;
+  const role=document.getElementById('eu-role').value;
+  const brandsEl=document.getElementById('eu-brands');
+  const allowedBrands=[...brandsEl.selectedOptions].map(o=>o.value);
+  if(!name){showToast('Name is required','error');return;}
+  if(password&&password.length<6){showToast('Password must be at least 6 characters','error');return;}
+  u.name=name;
+  u.role=role;
+  u.allowedBrands=allowedBrands;
+  if(password)u.hash=btoa(password);
+  saveUsers();
+  showToast('User updated successfully!','success');
+  closeModal('modal-edit-user');
+  renderUsersPage();
+  // Update sidebar name/role if editing self
+  const sess=localStorage.getItem('whizz_session');
+  if(sess){const se=JSON.parse(sess);if(se.email===email){se.name=name;se.role=role;localStorage.setItem('whizz_session',JSON.stringify(se));document.getElementById('u-name').textContent=name;document.getElementById('u-role').textContent=role;}}
+}
+
+function deleteUser(email){
+  if(!confirm(`Delete user "${USERS[email]?.name||email}"? This cannot be undone.`))return;
+  delete USERS[email];
+  saveUsers();
+  showToast('User deleted','success');
+  renderUsersPage();
+}
+
 // ── Toast Notifications UI Node ──
 function showToast(msg,type='info'){const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;document.getElementById('toast-wrap').appendChild(el);setTimeout(()=>el.remove(),4000);}
 
