@@ -1373,6 +1373,7 @@ function navigate(page, el) {
   if(page==='stock'&&S.cache.stock){renderStockPage();hideBanner('stock');}
   if(page==='suggestions'){refreshSuggestions();}
   if(page==='discovery'){renderDiscoveryResults(S.discoveredContacts||[]);}
+  if(page==='users'){renderUsersPage();}
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('show');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show');}
@@ -1581,12 +1582,21 @@ function renderReports(){
 // ── Leads Data Overview Module ──
 async function refreshLeads(){await refreshLeadData();renderLeadsPage(S.cache.groups,S.cache.leadsTotal);}
 function renderLeadsPage(groups,total){
+  const sess=localStorage.getItem('whizz_session');
+  let allowedBrands=[];
+  if(sess){try{const se=JSON.parse(sess);const u=USERS[se.email];if(u&&u.allowedBrands&&u.allowedBrands.length>0)allowedBrands=u.allowedBrands;}catch(e){}}
+  let filteredGroups=groups||[];
+  let filteredBrands=S.brands;
+  if(allowedBrands.length>0){
+    filteredGroups=filteredGroups.filter(g=>allowedBrands.includes(g.brand));
+    filteredBrands=S.brands.filter(b=>allowedBrands.includes(b));
+  }
   document.getElementById('leads-total').textContent=`${total||0} operational records mapped`;
   renderChipsFilter(S.platforms,'leads-platform-chips','filterLeadsByPlatform');
   renderChipsFilter(S.countries,'leads-country-chips','filterLeadsByCountry');
-  renderChipsFilter(S.brands,'leads-brand-chips','filterLeadsByBrand');
-  renderGroupCards(groups,'leads-groups',false);
-  renderLeadScores(groups,'lead-score-list');
+  renderChipsFilter(filteredBrands,'leads-brand-chips','filterLeadsByBrand');
+  renderGroupCards(filteredGroups,'leads-groups',false);
+  renderLeadScores(filteredGroups,'lead-score-list');
 }
 function renderChipsFilter(list,id,fn){
   const el=document.getElementById(id);
@@ -1599,8 +1609,11 @@ function applyLeadsFilter(){
   const p=document.querySelector('#leads-platform-chips .chip.active')?.textContent||'ALL';
   const co=document.querySelector('#leads-country-chips .chip.active')?.textContent||'ALL';
   const b=document.querySelector('#leads-brand-chips .chip.active')?.textContent||'ALL';
-  
+  const sess=localStorage.getItem('whizz_session');
+  let allowedBrands=[];
+  if(sess){try{const se=JSON.parse(sess);const u=USERS[se.email];if(u&&u.allowedBrands&&u.allowedBrands.length>0)allowedBrands=u.allowedBrands;}catch(e){}}
   let f=S.cache.groups||[];
+  if(allowedBrands.length>0) f=f.filter(g=>allowedBrands.includes(g.brand));
   if(p!=='ALL') f=f.filter(g=>g.platform===p);
   if(co!=='ALL') f=f.filter(g=>g.country===co);
   if(b!=='ALL') f=f.filter(g=>g.brand.toLowerCase().includes(b.toLowerCase()));
