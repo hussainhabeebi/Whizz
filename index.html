@@ -503,6 +503,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         Open Full Inbox
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;margin-left:auto;opacity:0.4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       </a>
+      <div class="nav-section">Settings</div>
+      <div class="nav-item" id="nav-users" style="display:none" onclick="navigate('users',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Users
+      </div>
     </nav>
     <div class="sidebar-footer">
       <div class="user-row">
@@ -819,6 +824,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Export CSV
               </button>
+              <button class="t-btn btn-primary" style="padding:4px 10px;font-size:11px;" onclick="openAddContactModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Contact
+              </button>
               <span style="font-size:11px;color:var(--text3);align-self:center;" id="leads-total"></span>
             </div>
           </div>
@@ -1037,6 +1046,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
           </div>
         </div>
 
+      </div>
+
+      <!-- Users Management Page -->
+      <div class="page" id="page-users">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">User Management</div>
+            <button class="t-btn btn-primary" style="padding:4px 10px;font-size:11px;" onclick="openAddUserModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add User
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div style="overflow-x:auto;">
+              <table class="stock-table" id="users-table">
+                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Brand Access</th><th>Actions</th></tr></thead>
+                <tbody id="users-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
