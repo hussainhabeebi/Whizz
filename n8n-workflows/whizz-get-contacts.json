@@ -1,0 +1,90 @@
+{
+  "name": "whizz-get-contacts",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whizz-get-contacts",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-get-contacts"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Contacts",
+          "mode": "name"
+        },
+        "options": {
+          "returnRowNumber": true
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000002",
+      "name": "Read All Contacts",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [480, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const platform = $('Webhook').first().json.query.platform || '';\nconst country  = $('Webhook').first().json.query.country  || '';\nconst brand    = $('Webhook').first().json.query.brand    || '';\n\nconst allRows = $input.all();\n\nconst filtered = allRows.filter(item => {\n  const r = item.json;\n  const matchPlatform = !platform || (r.platform || '').toLowerCase() === platform.toLowerCase();\n  const matchCountry  = !country  || (r.country  || '').toLowerCase() === country.toLowerCase();\n  const matchBrand    = !brand    || (r.brand     || '').toLowerCase() === brand.toLowerCase();\n  return matchPlatform && matchCountry && matchBrand;\n});\n\nconst contacts = filtered.map(item => ({\n  id:          String(item.json.row_number || item.json.id || ''),\n  contactName: item.json.contactName || item.json.name || '',\n  company:     item.json.company     || '',\n  phone:       item.json.phone       || '',\n  email:       item.json.email       || '',\n  category:    item.json.category    || '',\n  source:      item.json.source      || '',\n  platform:    item.json.platform    || '',\n  country:     item.json.country     || '',\n  brand:       item.json.brand       || ''\n}));\n\nreturn [{ json: { contacts } }];"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000003",
+      "name": "Filter & Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000004",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Read All Contacts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read All Contacts": {
+      "main": [
+        [{ "node": "Filter & Format", "type": "main", "index": 0 }]
+      ]
+    },
+    "Filter & Format": {
+      "main": [
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}
