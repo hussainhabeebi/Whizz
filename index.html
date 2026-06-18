@@ -1662,11 +1662,24 @@ async function refreshLeadData(){
   S.countries=S.cache.countries;
   S.brands=S.cache.brands;
   
-  document.getElementById('stat-leads').textContent=S.cache.leadsTotal;
-  document.getElementById('stat-platforms').textContent=(S.cache.platforms||[]).length;
-  renderDashCountries(S.cache.groups);
+  // Apply user restrictions to dashboard stats
+  const{allowedBrands:_ab,allowedPlatforms:_ap}=getCurrentUserRestrictions();
+  let _filtG=S.cache.groups||[];
+  if(_ab.length>0)_filtG=_filtG.filter(g=>_ab.includes(g.brand));
+  if(_ap.length>0)_filtG=_filtG.filter(g=>_ap.includes(g.platform));
+  const _filtTotal=_filtG.reduce((sum,g)=>sum+g.count,0);
+  const _filtPlatforms=[...new Set(_filtG.map(g=>g.platform))];
+  document.getElementById('stat-leads').textContent=_filtTotal||S.cache.leadsTotal;
+  document.getElementById('stat-platforms').textContent=_filtPlatforms.length||(S.cache.platforms||[]).length;
+  renderDashCountries(_filtG);
 }
-function renderDashCountries(groups){const el=document.getElementById('dash-countries');const cm={};groups.forEach(g=>{if(!g.isAggregatedTail){cm[g.country]=(cm[g.country]||0)+g.count;}});const sorted=Object.entries(cm).sort((a,b)=>b[1]-a[1]).slice(0,8);el.innerHTML=sorted.map(([c,n])=>`<div class="metric-row"><div class="m-label">${c}</div><div class="m-value" style="color:var(--accent)">${n}</div></div>`).join('');}
+function renderDashCountries(groups){
+  const el=document.getElementById('dash-countries');
+  const cm={};
+  groups.forEach(g=>{if(!g.isAggregatedTail){cm[g.country]=(cm[g.country]||0)+g.count;}});
+  const sorted=Object.entries(cm).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  el.innerHTML=sorted.map(([c,n])=>`<div class="metric-row"><div class="m-label">${c}</div><div class="m-value" style="color:var(--accent)">${n}</div></div>`).join('');
+}
 
 // ── Support Conversations Engine ──
 async function refreshConversations(){const d=await api(`whizz-get-conversations?status=${S.convStatus}`);S.cache.conversations=d.conversations||[];renderConvs(S.cache.conversations);}
@@ -1778,38 +1791,54 @@ function resetCampaign(){S.selectedGroups=[];S.selectedTemplate=null;campStep(1)
 // ── Reports Tab Optimization ──
 async function refreshReportsPage(){await Promise.all([refreshStats(),refreshLeadData()]);renderReports();}
 function renderReports(){
+  const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
   const d=S.cache.stats||{};
-  document.getElementById('rep-conv').innerHTML=`<div class="metric-row"><div class="m-label">Open / Action Required</div><div class="m-value" style="color:var(--accent)">${d.open||0}</div></div><div class="metric-row"><div class="m-label">Resolved Contexts</div><div class="m-value">${d.resolved||0}</div></div><div class="metric-row"><div class="m-label">Awaiting Internal Node State (Pending)</div><div class="m-value" style="color:var(--amber)">${d.pending||0}</div></div><div class="metric-row"><div class="m-label">Campaign Iterations Dispatched</div><div class="m-value" style="color:var(--green)">${S.history.length}</div></div>`;
-  
-  const groups=S.cache.groups||[];
+
+  // Filter groups and matrix by user restrictions
+  let groups=S.cache.groups||[];
+  let matrix=S.crossTabMatrix||[];
+  if(allowedBrands.length>0){groups=groups.filter(g=>allowedBrands.includes(g.brand));matrix=matrix.filter(m=>allowedBrands.includes(m.brand));}
+  if(allowedPlatforms.length>0){
+    groups=groups.filter(g=>allowedPlatforms.includes(g.platform));
+    matrix=matrix.map(m=>{
+      const filteredPlatforms=Object.fromEntries(Object.entries(m.breakdownByPlatform||{}).filter(([pl])=>allowedPlatforms.includes(pl)));
+      const filteredTotal=Object.values(filteredPlatforms).reduce((s,v)=>s+v,0);
+      return{...m,breakdownByPlatform:filteredPlatforms,totalGlobalCount:filteredTotal||m.totalGlobalCount};
+    });
+  }
+
+  // Conversation stats (global — platform filter doesn't apply here as backend owns these)
+  document.getElementById('rep-conv').innerHTML=`
+    <div class="metric-row"><div class="m-label">Open / Action Required</div><div class="m-value" style="color:var(--accent)">${d.open||0}</div></div>
+    <div class="metric-row"><div class="m-label">Resolved Contexts</div><div class="m-value">${d.resolved||0}</div></div>
+    <div class="metric-row"><div class="m-label">Awaiting Internal Node State (Pending)</div><div class="m-value" style="color:var(--amber)">${d.pending||0}</div></div>
+    <div class="metric-row"><div class="m-label">Campaign Iterations Dispatched</div><div class="m-value" style="color:var(--green)">${S.history.length}</div></div>`;
+
+  // Regional distribution (filtered)
   const cm={};
   groups.forEach(g=>{if(!g.isAggregatedTail){cm[g.country]=(cm[g.country]||0)+g.count;}});
-  document.getElementById('rep-leads').innerHTML=Object.entries(cm).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<div class="metric-row"><div class="m-label">${c}</div><div class="m-value" style="color:var(--accent)">${n}</div></div>`).join('');
+  document.getElementById('rep-leads').innerHTML=Object.entries(cm).sort((a,b)=>b[1]-a[1])
+    .map(([c,n])=>`<div class="metric-row"><div class="m-label">${c}</div><div class="m-value" style="color:var(--accent)">${n}</div></div>`).join('');
 
-  renderStockLeadsOverlap();
-  renderLeadScores(S.cache.groups||[],'rep-lead-scores');
-  renderRegionalHeatmap();
+  renderStockLeadsOverlap(allowedBrands,allowedPlatforms);
+  renderLeadScores(groups,'rep-lead-scores');
+  renderRegionalHeatmap(groups);
 
-  // Brand Pivot Cross Tab Matrix Render Layout Logic
-  const matEl = document.getElementById('rep-matrix');
-  if(!S.crossTabMatrix || !S.crossTabMatrix.length) {
-    matEl.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">No Cross Tab items populated.</div>';
-    return;
-  }
-  
-  matEl.innerHTML = S.crossTabMatrix.map(m => {
-    const countriesBlock = Object.entries(m.breakdownByCountry || {}).map(([co, cnt]) => `<div class="matrix-sub-item">${co}: <span class="matrix-sub-val">${cnt}</span></div>`).join('');
-    const platformsBlock = Object.entries(m.breakdownByPlatform || {}).map(([pl, cnt]) => `<div class="matrix-sub-item" style="border-color:rgba(59,130,246,0.2)">${pl}: <span class="matrix-sub-val" style="color:var(--blue)">${cnt}</span></div>`).join('');
-    
-    return `<div class="matrix-row-item">
+  // Brand Pivot Cross Tab Matrix (filtered)
+  const matEl=document.getElementById('rep-matrix');
+  if(!matrix.length){matEl.innerHTML='<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">No Cross Tab items for your access level.</div>';return;}
+  matEl.innerHTML=matrix.map(m=>{
+    const countriesBlock=Object.entries(m.breakdownByCountry||{}).map(([co,cnt])=>`<div class="matrix-sub-item">${co}: <span class="matrix-sub-val">${cnt}</span></div>`).join('');
+    const platformsBlock=Object.entries(m.breakdownByPlatform||{}).map(([pl,cnt])=>`<div class="matrix-sub-item" style="border-color:rgba(59,130,246,0.2)">${pl}: <span class="matrix-sub-val" style="color:var(--blue)">${cnt}</span></div>`).join('');
+    return`<div class="matrix-row-item">
       <div class="matrix-row-header">
         <span class="matrix-brand-name">${m.brand}</span>
         <span class="matrix-total-pill">Global Allocation Weight: ${m.totalGlobalCount}</span>
       </div>
-      <div style="font-size:10px; text-transform:uppercase; color:var(--text3); margin-bottom:4px; letter-spacing:0.05em;">Country Distribution Trace</div>
-      <div class="matrix-sub-flex" style="margin-bottom:8px;">${countriesBlock || '<span style="color:var(--text3)">None</span>'}</div>
-      <div style="font-size:10px; text-transform:uppercase; color:var(--text3); margin-bottom:4px; letter-spacing:0.05em;">Source Channel Breakdown</div>
-      <div class="matrix-sub-flex">${platformsBlock || '<span style="color:var(--text3)">None</span>'}</div>
+      <div style="font-size:10px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;letter-spacing:0.05em;">Country Distribution Trace</div>
+      <div class="matrix-sub-flex" style="margin-bottom:8px;">${countriesBlock||'<span style="color:var(--text3)">None</span>'}</div>
+      <div style="font-size:10px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;letter-spacing:0.05em;">Source Channel Breakdown</div>
+      <div class="matrix-sub-flex">${platformsBlock||'<span style="color:var(--text3)">None</span>'}</div>
     </div>`;
   }).join('');
 }
@@ -1858,14 +1887,12 @@ function applyLeadsFilter(){
 }
 
 // ── Dark / Light Mode ──
-// dark theme applied immediately via class on body, icons updated after DOMContentLoaded
-if(localStorage.getItem('whizz_theme')==='dark')document.body.classList.add('dark');
-document.addEventListener('DOMContentLoaded',()=>{
-  if(document.body.classList.contains('dark')){
-    const d=document.getElementById('theme-icon-dark'),l=document.getElementById('theme-icon-light');
-    if(d)d.style.display='none'; if(l)l.style.display='block';
-  }
-});
+// Apply saved theme on load (script is at bottom of body so DOM is ready)
+if(localStorage.getItem('whizz_theme')==='dark'){
+  document.body.classList.add('dark');
+  const d=document.getElementById('theme-icon-dark'),l=document.getElementById('theme-icon-light');
+  if(d)d.style.display='none'; if(l)l.style.display='block';
+}
 function toggleTheme(){
   const dark=document.body.classList.toggle('dark');
   localStorage.setItem('whizz_theme',dark?'dark':'light');
@@ -1882,16 +1909,22 @@ const PIPE_STAGES=['new','contacted','interested','closed'];
 const PIPE_LABELS={new:'New',contacted:'Contacted',interested:'Interested',closed:'Closed'};
 
 function renderPipelinePage(){
-  const data=pipelineLoad();
-  PIPE_STAGES.forEach(stage=>{
-    const cards=data.filter(c=>c.stage===stage);
-    document.getElementById('pipe-cnt-'+stage).textContent=cards.length;
-    const el=document.getElementById('pipe-cards-'+stage);
-    if(!cards.length){el.innerHTML=`<div class="pipe-empty">No contacts</div>`;return;}
-    el.innerHTML=cards.map(c=>pipeCardHtml(c)).join('');
-  });
-  const total=data.length;
-  document.getElementById('pipe-total').textContent=total?`${total} contact${total>1?'s':''}  in pipeline`:'';
+  try{
+    const data=pipelineLoad();
+    PIPE_STAGES.forEach(stage=>{
+      const cards=data.filter(c=>c.stage===stage);
+      const cntEl=document.getElementById('pipe-cnt-'+stage);
+      const cardsEl=document.getElementById('pipe-cards-'+stage);
+      if(!cntEl||!cardsEl)return;
+      cntEl.textContent=cards.length;
+      cardsEl.innerHTML=cards.length
+        ?cards.map(c=>pipeCardHtml(c)).join('')
+        :`<div class="pipe-empty">No contacts</div>`;
+    });
+    const total=data.length;
+    const totEl=document.getElementById('pipe-total');
+    if(totEl)totEl.textContent=total?`${total} contact${total>1?'s':''} in pipeline`:'';
+  }catch(e){console.error('Pipeline render error:',e);}
 }
 
 function pipeCardHtml(c){
@@ -3028,11 +3061,14 @@ function renderCampaignTiming() {
 }
 
 // ── Stock × Leads Overlap ──
-function renderStockLeadsOverlap() {
+function renderStockLeadsOverlap(allowedBrands,allowedPlatforms) {
   const el = document.getElementById('rep-overlap');
   if (!el) return;
-  const groups = S.cache.groups || [];
+  let groups = S.cache.groups || [];
   const stock = S.stock || [];
+  if(!allowedBrands)({allowedBrands,allowedPlatforms}=getCurrentUserRestrictions());
+  if(allowedBrands.length>0) groups=groups.filter(g=>allowedBrands.includes(g.brand));
+  if(allowedPlatforms.length>0) groups=groups.filter(g=>allowedPlatforms.includes(g.platform));
   if (!groups.length || !stock.length) {
     el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;">Load both Leads and Stock data first.</div>';
     return;
@@ -3070,10 +3106,33 @@ function renderStockLeadsOverlap() {
 }
 
 // ── Regional Heatmap ──
-function renderRegionalHeatmap() {
+function renderRegionalHeatmap(filteredGroups) {
   const el = document.getElementById('rep-heatmap');
   if (!el) return;
-  const matrix = S.crossTabMatrix || [];
+  // Build matrix from filtered groups if provided, otherwise use cached with restrictions
+  let matrix;
+  if(filteredGroups){
+    // Rebuild a lightweight matrix from filtered groups
+    const bm={};
+    filteredGroups.filter(g=>!g.isAggregatedTail).forEach(g=>{
+      if(!bm[g.brand])bm[g.brand]={brand:g.brand,breakdownByCountry:{},totalGlobalCount:0};
+      bm[g.brand].breakdownByCountry[g.country]=(bm[g.brand].breakdownByCountry[g.country]||0)+g.count;
+      bm[g.brand].totalGlobalCount+=g.count;
+    });
+    matrix=Object.values(bm);
+  } else {
+    const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
+    let groups=S.cache.groups||[];
+    if(allowedBrands.length>0) groups=groups.filter(g=>allowedBrands.includes(g.brand));
+    if(allowedPlatforms.length>0) groups=groups.filter(g=>allowedPlatforms.includes(g.platform));
+    const bm={};
+    groups.filter(g=>!g.isAggregatedTail).forEach(g=>{
+      if(!bm[g.brand])bm[g.brand]={brand:g.brand,breakdownByCountry:{},totalGlobalCount:0};
+      bm[g.brand].breakdownByCountry[g.country]=(bm[g.brand].breakdownByCountry[g.country]||0)+g.count;
+      bm[g.brand].totalGlobalCount+=g.count;
+    });
+    matrix=Object.values(bm);
+  }
   if (!matrix.length) {
     el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;">Load leads data to view heatmap.</div>';
     return;
