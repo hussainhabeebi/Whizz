@@ -1126,28 +1126,39 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 
 <!-- Add Contact Modal -->
 <div class="modal-overlay" id="modal-add-contact">
-  <div class="modal">
-    <div class="modal-head"><div class="modal-title">Add Contact</div><button class="modal-close" onclick="closeModal('modal-add-contact')">✕</button></div>
-    <div class="modal-body">
-      <div class="fg"><label class="fl">Contact Name *</label><input class="fi" id="ac-name" placeholder="Full name" required/></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="fg"><label class="fl">Company</label><input class="fi" id="ac-company" placeholder="Company name"/></div>
-        <div class="fg"><label class="fl">Phone</label><input class="fi" id="ac-phone" placeholder="+971..."/></div>
+  <div class="modal" style="width:min(96vw,1100px);max-height:90vh;">
+    <div class="modal-head">
+      <div class="modal-title">Add Contacts</div>
+      <button class="modal-close" onclick="closeModal('modal-add-contact')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:14px 18px;">
+      <!-- Shared fields row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div class="fg" style="margin:0;"><label class="fl">Platform</label><input class="fi" id="ac-shared-platform" placeholder="e.g. WhatsApp"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Country</label><input class="fi" id="ac-shared-country" placeholder="e.g. UAE"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Brand</label><input class="fi" id="ac-shared-brand" placeholder="e.g. HP"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Category</label><input class="fi" id="ac-shared-category" placeholder="e.g. Printer"/></div>
       </div>
-      <div class="fg"><label class="fl">Email</label><input class="fi" type="email" id="ac-email" placeholder="email@example.com"/></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="fg"><label class="fl">Platform</label><input class="fi" id="ac-platform" placeholder="e.g. WhatsApp"/></div>
-        <div class="fg"><label class="fl">Country</label><input class="fi" id="ac-country" placeholder="e.g. UAE"/></div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:10px;">Platform, Country, Brand &amp; Category apply to all rows unless overridden per row below.</div>
+      <!-- Table header -->
+      <div style="display:grid;grid-template-columns:1fr 130px 150px 130px 28px;gap:6px;margin-bottom:4px;padding:0 4px;">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Company / Contact Name *</div>
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Mobile</div>
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Email</div>
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Source</div>
+        <div></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="fg"><label class="fl">Brand</label><input class="fi" id="ac-brand" placeholder="e.g. HP"/></div>
-        <div class="fg"><label class="fl">Category</label><input class="fi" id="ac-category" placeholder="e.g. printer"/></div>
-      </div>
-      <div class="fg"><label class="fl">Source</label><input class="fi" id="ac-source" value="Manual Entry"/></div>
+      <!-- Rows container -->
+      <div id="ac-rows" style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;padding-right:2px;"></div>
+      <!-- Add row button -->
+      <button class="t-btn btn-ghost" onclick="acAddRow()" style="margin-top:10px;width:100%;padding:7px;font-size:12px;border-style:dashed;">
+        + Add Row
+      </button>
     </div>
     <div class="modal-foot">
+      <span id="ac-row-count" style="font-size:11px;color:var(--text3);margin-right:auto;align-self:center;"></span>
       <button class="t-btn btn-ghost" onclick="closeModal('modal-add-contact')">Cancel</button>
-      <button class="t-btn btn-primary" onclick="submitAddContact()">Add Contact</button>
+      <button class="t-btn btn-primary" onclick="submitAddContact()">Save All Contacts</button>
     </div>
   </div>
 </div>
@@ -1701,39 +1712,77 @@ function applyLeadsFilter(){
 // ── Modal Helpers ──
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
-// ── Add Contact ──
+// ── Add Contact (multi-row) ──
+let _acRowId=0;
+function acAddRow(){
+  const id=++_acRowId;
+  const row=document.createElement('div');
+  row.id=`ac-row-${id}`;
+  row.style.cssText='display:grid;grid-template-columns:1fr 130px 150px 130px 28px;gap:6px;align-items:center;';
+  row.innerHTML=`
+    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="Company or Contact Name *" data-field="name"/>
+    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="+971..." data-field="phone"/>
+    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="email@example.com" data-field="email"/>
+    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="Manual Entry" data-field="source"/>
+    <button onclick="acRemoveRow(${id})" style="width:26px;height:26px;border-radius:6px;background:var(--red-dim);border:1px solid rgba(220,38,38,0.2);color:var(--red);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Remove">✕</button>
+  `;
+  document.getElementById('ac-rows').appendChild(row);
+  acUpdateCount();
+  row.querySelector('[data-field="name"]').focus();
+}
+function acRemoveRow(id){
+  document.getElementById(`ac-row-${id}`)?.remove();
+  acUpdateCount();
+}
+function acUpdateCount(){
+  const n=document.getElementById('ac-rows').children.length;
+  document.getElementById('ac-row-count').textContent=n?`${n} contact${n>1?'s':''}  to save`:'';
+}
 function openAddContactModal(){
   const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
-  const pfEl=document.getElementById('ac-platform');
-  const brEl=document.getElementById('ac-brand');
+  const pfEl=document.getElementById('ac-shared-platform');
+  const brEl=document.getElementById('ac-shared-brand');
   if(allowedPlatforms.length===1){pfEl.value=allowedPlatforms[0];pfEl.readOnly=true;}
   else{pfEl.value='';pfEl.readOnly=false;}
   if(allowedBrands.length===1){brEl.value=allowedBrands[0];brEl.readOnly=true;}
   else{brEl.value='';brEl.readOnly=false;}
+  document.getElementById('ac-rows').innerHTML='';
+  _acRowId=0;
+  acAddRow();
   document.getElementById('modal-add-contact').classList.add('open');
 }
 async function submitAddContact(){
-  const name=document.getElementById('ac-name').value.trim();
-  if(!name){showToast('Contact name is required','error');return;}
-  const contact={
-    contactName:name,
-    company:document.getElementById('ac-company').value.trim(),
-    phone:document.getElementById('ac-phone').value.trim(),
-    email:document.getElementById('ac-email').value.trim(),
-    platform:document.getElementById('ac-platform').value.trim(),
-    country:document.getElementById('ac-country').value.trim(),
-    brand:document.getElementById('ac-brand').value.trim(),
-    category:document.getElementById('ac-category').value.trim(),
-    source:document.getElementById('ac-source').value.trim()||'Manual Entry'
-  };
+  const sharedPlatform=document.getElementById('ac-shared-platform').value.trim();
+  const sharedCountry=document.getElementById('ac-shared-country').value.trim();
+  const sharedBrand=document.getElementById('ac-shared-brand').value.trim();
+  const sharedCategory=document.getElementById('ac-shared-category').value.trim();
+  const rows=document.getElementById('ac-rows').querySelectorAll('[id^="ac-row-"]');
+  const contacts=[];
+  let hasError=false;
+  rows.forEach(row=>{
+    const name=row.querySelector('[data-field="name"]').value.trim();
+    if(!name){row.querySelector('[data-field="name"]').style.borderColor='var(--red)';hasError=true;return;}
+    row.querySelector('[data-field="name"]').style.borderColor='';
+    contacts.push({
+      contactName:name,
+      company:name,
+      phone:row.querySelector('[data-field="phone"]').value.trim(),
+      email:row.querySelector('[data-field="email"]').value.trim(),
+      source:row.querySelector('[data-field="source"]').value.trim()||'Manual Entry',
+      platform:sharedPlatform,
+      country:sharedCountry,
+      brand:sharedBrand,
+      category:sharedCategory
+    });
+  });
+  if(hasError){showToast('Contact name is required for all rows','error');return;}
+  if(!contacts.length){showToast('Add at least one contact row','error');return;}
   try{
-    await api('whizz-save-contact','POST',{contacts:[contact]});
-    showToast('Contact added successfully!','success');
+    await api('whizz-save-contact','POST',{contacts});
+    showToast(`${contacts.length} contact${contacts.length>1?'s':''} saved!`,'success');
     closeModal('modal-add-contact');
-    ['ac-name','ac-company','ac-phone','ac-email','ac-platform','ac-country','ac-brand','ac-category'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('ac-source').value='Manual Entry';
     refreshLeads();
-  }catch(e){showToast('Failed to save contact — check webhook','error');}
+  }catch(e){showToast('Failed to save contacts — check webhook','error');}
 }
 
 // ── Users Management ──
