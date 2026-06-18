@@ -201,6 +201,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .g-trend.up{background:var(--green-dim);color:var(--green);}
 .g-trend.down{background:var(--red-dim);color:var(--red);}
 .g-trend.stable{background:var(--bg4);color:var(--text2);}
+.lead-contacts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;}
+.lc-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;transition:border-color 0.12s;}
+.lc-card:hover{border-color:var(--border2);}
+.lc-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.lc-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#ef4444);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;}
+.lc-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:3px;}
 .g-tail-flag{border:1px dashed rgba(245,158,11,0.3);background:rgba(245,158,11,0.02);}
 
 /* Matrix Tab Elements */
@@ -884,6 +890,25 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
             </div>
           </div>
         </div>
+        <!-- Group Contacts Panel -->
+        <div class="card" id="leads-contacts-panel" style="display:none;margin-top:16px;">
+          <div class="card-head">
+            <div>
+              <div class="card-title" id="leads-contacts-title">Group Contacts</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px;" id="leads-contacts-subtitle"></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span style="font-size:11px;color:var(--text3);" id="leads-contacts-count"></span>
+              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="closeGroupContacts()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Close
+              </button>
+            </div>
+          </div>
+          <div class="card-body" id="leads-contacts-body">
+            <div style="text-align:center;padding:32px;color:var(--text3);font-size:12px;">Select a group above to view contacts</div>
+          </div>
+        </div>
       </div>
 
       <!-- Stock Page -->
@@ -1275,6 +1300,33 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
       <span id="ac-row-count" style="font-size:11px;color:var(--text3);margin-right:auto;align-self:center;"></span>
       <button class="t-btn btn-ghost" onclick="closeModal('modal-add-contact')">Cancel</button>
       <button class="t-btn btn-primary" onclick="submitAddContact()">Save All Contacts</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Lead Contact Modal -->
+<div class="modal-overlay" id="modal-edit-contact">
+  <div class="modal" style="width:min(96vw,520px);">
+    <div class="modal-head">
+      <div class="modal-title">Edit Contact</div>
+      <button class="modal-close" onclick="closeModal('modal-edit-contact')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ec-id"/>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="fg" style="margin:0;grid-column:1/-1;"><label class="fl">Contact / Company Name *</label><input class="fi" id="ec-name" placeholder="e.g. John Smith"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Phone</label><input class="fi" id="ec-phone" placeholder="+971 50 123 4567"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Email</label><input class="fi" id="ec-email" placeholder="contact@example.com"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Category</label><input class="fi" id="ec-category" placeholder="e.g. Distributor"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Source</label><input class="fi" id="ec-source" placeholder="e.g. Manual Entry"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Platform</label><input class="fi" id="ec-platform"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Country</label><input class="fi" id="ec-country"/></div>
+        <div class="fg" style="margin:0;grid-column:1/-1;"><label class="fl">Brand</label><input class="fi" id="ec-brand"/></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-edit-contact')">Cancel</button>
+      <button class="t-btn btn-primary" onclick="submitEditLeadContact()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -1713,22 +1765,22 @@ function applyGroupFilters(){
 function renderCampGroups(groups){renderChips(S.platforms,'platform-chips','activePlatform','filterByPlatform');renderChips(S.countries,'country-chips','activeCountry','filterByCountry');renderChips(S.brands,'brand-chips','activeBrand','filterByBrand');renderGroupCards(groups,'camp-groups',true);}
 
 // Render Group Cards supporting Pareto Tail UI flags and Velocity Arrows
-function renderGroupCards(groups,id,selectable){
+function renderGroupCards(groups,id,selectable,clickFn){
   const el=document.getElementById(id);
   if(!groups.length){el.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;">Zero pipeline entities intersect selected matrix nodes</div>';return;}
-  
+
   el.innerHTML=groups.map(g=>{
     const isTail = g.isAggregatedTail ? 'g-tail-flag' : '';
     let arrow = '➔';
     let trendClass = 'stable';
     if(g.trend === 'Trending Up') { arrow = '▲'; trendClass = 'up'; }
     if(g.trend === 'Trending Down') { arrow = '▼'; trendClass = 'down'; }
-    
-    // Check selection memory state safely handling special strings
+
     const groupKey = `${g.platform}||${g.country}||${g.brand}`;
     const isSel = S.selectedGroups.includes(groupKey) ? 'selected' : '';
+    const fn = clickFn || 'toggleGroup';
 
-    return `<div class="group-card ${isTail} ${isSel}" ${selectable?`onclick="toggleGroup('${g.platform.replace(/'/g, "\\'")}', '${g.country.replace(/'/g, "\\'")}', '${g.brand.replace(/'/g, "\\'")}', this)"`:'style="cursor:default;"'}>
+    return `<div class="group-card ${isTail} ${isSel}" ${selectable?`onclick="${fn}('${g.platform.replace(/'/g, "\\'")}', '${g.country.replace(/'/g, "\\'")}', '${g.brand.replace(/'/g, "\\'")}', this)"`:'style="cursor:default;"'}>
       <div class="g-platform">${g.platform}</div>
       <div class="g-country">${g.country}</div>
       <div class="g-brand" title="${g.brand}">${g.brand}</div>
@@ -1862,7 +1914,7 @@ function renderLeadsPage(groups,total){
   renderChipsFilter(filteredPlatforms,'leads-platform-chips','filterLeadsByPlatform');
   renderChipsFilter(S.countries,'leads-country-chips','filterLeadsByCountry');
   renderChipsFilter(filteredBrands,'leads-brand-chips','filterLeadsByBrand');
-  renderGroupCards(filteredGroups,'leads-groups',false);
+  renderGroupCards(filteredGroups,'leads-groups',true,'selectLeadsGroup');
   renderLeadScores(filteredGroups,'lead-score-list');
 }
 function renderChipsFilter(list,id,fn){
@@ -1883,7 +1935,130 @@ function applyLeadsFilter(){
   if(p!=='ALL') f=f.filter(g=>g.platform===p);
   if(co!=='ALL') f=f.filter(g=>g.country===co);
   if(b!=='ALL') f=f.filter(g=>g.brand.toLowerCase().includes(b.toLowerCase()));
-  renderGroupCards(f,'leads-groups',false);
+  renderGroupCards(f,'leads-groups',true,'selectLeadsGroup');
+  closeGroupContacts();
+}
+
+// ── Lead Group Contacts ──
+let _currentLeadsGroup=null;
+let _currentLeadsContacts=[];
+
+function selectLeadsGroup(platform,country,brand,el){
+  document.querySelectorAll('#leads-groups .group-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  _currentLeadsGroup={platform,country,brand};
+  openGroupContacts(platform,country,brand);
+}
+
+function closeGroupContacts(){
+  document.getElementById('leads-contacts-panel').style.display='none';
+  document.querySelectorAll('#leads-groups .group-card').forEach(c=>c.classList.remove('selected'));
+  _currentLeadsGroup=null;
+  _currentLeadsContacts=[];
+}
+
+async function openGroupContacts(platform,country,brand){
+  const panel=document.getElementById('leads-contacts-panel');
+  panel.style.display='block';
+  setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
+  document.getElementById('leads-contacts-title').textContent=`${platform} · ${country} · ${brand}`;
+  document.getElementById('leads-contacts-subtitle').textContent='Loading contacts...';
+  document.getElementById('leads-contacts-count').textContent='';
+  document.getElementById('leads-contacts-body').innerHTML='<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px;">Fetching contacts...</div>';
+  try{
+    const d=await api(`whizz-get-contacts?platform=${encodeURIComponent(platform)}&country=${encodeURIComponent(country)}&brand=${encodeURIComponent(brand)}`);
+    const contacts=d.contacts||d||[];
+    _currentLeadsContacts=Array.isArray(contacts)?contacts:[];
+    document.getElementById('leads-contacts-subtitle').textContent=`${platform} / ${country} / ${brand}`;
+    document.getElementById('leads-contacts-count').textContent=`${_currentLeadsContacts.length} contact${_currentLeadsContacts.length!==1?'s':''}`;
+    renderLeadContacts(_currentLeadsContacts);
+  }catch(e){
+    document.getElementById('leads-contacts-subtitle').textContent='';
+    document.getElementById('leads-contacts-body').innerHTML='<div style="text-align:center;padding:32px;color:var(--red);font-size:12px;">Failed to load contacts — ensure <strong>whizz-get-contacts</strong> webhook is active in n8n.</div>';
+  }
+}
+
+function renderLeadContacts(contacts){
+  const body=document.getElementById('leads-contacts-body');
+  if(!contacts.length){body.innerHTML='<div style="text-align:center;padding:32px;color:var(--text3);font-size:12px;">No contacts in this group yet. Use <strong>Add Contact</strong> above to add some.</div>';return;}
+  body.innerHTML=`<div class="lead-contacts-grid">${contacts.map((c,i)=>{
+    const name=c.contactName||c.company||c.name||'Unknown';
+    const initials=name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?';
+    return `<div class="lc-card">
+      <div class="lc-header">
+        <div class="lc-avatar">${initials}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="lc-name">${name}</div>
+          ${c.category?`<span class="cc-cat">${c.category}</span>`:''}
+        </div>
+        <div style="display:flex;gap:5px;flex-shrink:0;">
+          <button class="t-btn btn-ghost" style="padding:4px 8px;font-size:10px;" onclick="openEditLeadContact(${i})" title="Edit contact">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit
+          </button>
+          <button class="t-btn" style="padding:4px 8px;font-size:10px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteLeadContact(${i})" title="Delete contact">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
+        </div>
+      </div>
+      ${c.phone?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8 19.79 19.79 0 0 1 1.61 1.12 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg><a href="tel:${c.phone}" onclick="event.stopPropagation()">${c.phone}</a></div>`:''}
+      ${c.email?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${c.email}" onclick="event.stopPropagation()">${c.email}</a></div>`:''}
+      ${c.source?`<div class="cc-detail" style="font-size:10px;color:var(--text3);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${c.source}</div>`:''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function openEditLeadContact(i){
+  const c=_currentLeadsContacts[i];
+  if(!c)return;
+  document.getElementById('ec-id').value=c.id||'';
+  document.getElementById('ec-name').value=c.contactName||c.company||c.name||'';
+  document.getElementById('ec-phone').value=c.phone||c.phoneNumber||'';
+  document.getElementById('ec-email').value=c.email||'';
+  document.getElementById('ec-category').value=c.category||'';
+  document.getElementById('ec-source').value=c.source||'';
+  document.getElementById('ec-platform').value=c.platform||'';
+  document.getElementById('ec-country').value=c.country||'';
+  document.getElementById('ec-brand').value=c.brand||'';
+  document.getElementById('modal-edit-contact').classList.add('open');
+}
+
+async function submitEditLeadContact(){
+  const name=document.getElementById('ec-name').value.trim();
+  if(!name){showToast('Contact name is required','error');return;}
+  const contact={
+    id:document.getElementById('ec-id').value,
+    contactName:name,
+    company:name,
+    phone:document.getElementById('ec-phone').value.trim(),
+    email:document.getElementById('ec-email').value.trim(),
+    category:document.getElementById('ec-category').value.trim(),
+    source:document.getElementById('ec-source').value.trim(),
+    platform:document.getElementById('ec-platform').value.trim(),
+    country:document.getElementById('ec-country').value.trim(),
+    brand:document.getElementById('ec-brand').value.trim()
+  };
+  try{
+    await api('whizz-update-contact','POST',contact);
+    showToast('Contact updated!','success');
+    closeModal('modal-edit-contact');
+    if(_currentLeadsGroup)openGroupContacts(_currentLeadsGroup.platform,_currentLeadsGroup.country,_currentLeadsGroup.brand);
+  }catch(e){showToast('Failed to update — ensure whizz-update-contact webhook is active','error');}
+}
+
+async function deleteLeadContact(i){
+  const c=_currentLeadsContacts[i];
+  if(!c)return;
+  const name=c.contactName||c.company||c.name||'this contact';
+  if(!confirm(`Delete "${name}"? This cannot be undone.`))return;
+  try{
+    await api('whizz-delete-contact','POST',{id:c.id});
+    showToast(`${name} deleted`,'success');
+    if(_currentLeadsGroup){
+      openGroupContacts(_currentLeadsGroup.platform,_currentLeadsGroup.country,_currentLeadsGroup.brand);
+      refreshLeads();
+    }
+  }catch(e){showToast('Failed to delete — ensure whizz-delete-contact webhook is active','error');}
 }
 
 // ── Dark / Light Mode ──
