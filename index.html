@@ -1478,7 +1478,7 @@ async function refreshPage() {
 }
 
 // ── API Gateway Base Call ──
-async function api(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`${N8N}/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);return r.json();}
+async function api(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`${N8N}/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);const txt=await r.text();try{return txt?JSON.parse(txt):{success:true};}catch{return{success:true};}}
 
 // ── Dashboard Core logic ──
 async function refreshDashboard(){await Promise.all([refreshStats(),refreshDashConvData(),refreshLeadData()]);}
@@ -1732,6 +1732,7 @@ async function submitAddContact(){
     closeModal('modal-add-contact');
     ['ac-name','ac-company','ac-phone','ac-email','ac-platform','ac-country','ac-brand','ac-category'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('ac-source').value='Manual Entry';
+    refreshLeads();
   }catch(e){showToast('Failed to save contact — check webhook','error');}
 }
 
