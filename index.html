@@ -1887,14 +1887,12 @@ function applyLeadsFilter(){
 }
 
 // ── Dark / Light Mode ──
-// dark theme applied immediately via class on body, icons updated after DOMContentLoaded
-if(localStorage.getItem('whizz_theme')==='dark')document.body.classList.add('dark');
-document.addEventListener('DOMContentLoaded',()=>{
-  if(document.body.classList.contains('dark')){
-    const d=document.getElementById('theme-icon-dark'),l=document.getElementById('theme-icon-light');
-    if(d)d.style.display='none'; if(l)l.style.display='block';
-  }
-});
+// Apply saved theme on load (script is at bottom of body so DOM is ready)
+if(localStorage.getItem('whizz_theme')==='dark'){
+  document.body.classList.add('dark');
+  const d=document.getElementById('theme-icon-dark'),l=document.getElementById('theme-icon-light');
+  if(d)d.style.display='none'; if(l)l.style.display='block';
+}
 function toggleTheme(){
   const dark=document.body.classList.toggle('dark');
   localStorage.setItem('whizz_theme',dark?'dark':'light');
@@ -1911,16 +1909,22 @@ const PIPE_STAGES=['new','contacted','interested','closed'];
 const PIPE_LABELS={new:'New',contacted:'Contacted',interested:'Interested',closed:'Closed'};
 
 function renderPipelinePage(){
-  const data=pipelineLoad();
-  PIPE_STAGES.forEach(stage=>{
-    const cards=data.filter(c=>c.stage===stage);
-    document.getElementById('pipe-cnt-'+stage).textContent=cards.length;
-    const el=document.getElementById('pipe-cards-'+stage);
-    if(!cards.length){el.innerHTML=`<div class="pipe-empty">No contacts</div>`;return;}
-    el.innerHTML=cards.map(c=>pipeCardHtml(c)).join('');
-  });
-  const total=data.length;
-  document.getElementById('pipe-total').textContent=total?`${total} contact${total>1?'s':''}  in pipeline`:'';
+  try{
+    const data=pipelineLoad();
+    PIPE_STAGES.forEach(stage=>{
+      const cards=data.filter(c=>c.stage===stage);
+      const cntEl=document.getElementById('pipe-cnt-'+stage);
+      const cardsEl=document.getElementById('pipe-cards-'+stage);
+      if(!cntEl||!cardsEl)return;
+      cntEl.textContent=cards.length;
+      cardsEl.innerHTML=cards.length
+        ?cards.map(c=>pipeCardHtml(c)).join('')
+        :`<div class="pipe-empty">No contacts</div>`;
+    });
+    const total=data.length;
+    const totEl=document.getElementById('pipe-total');
+    if(totEl)totEl.textContent=total?`${total} contact${total>1?'s':''} in pipeline`:'';
+  }catch(e){console.error('Pipeline render error:',e);}
 }
 
 function pipeCardHtml(c){
