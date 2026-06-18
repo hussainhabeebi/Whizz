@@ -18,6 +18,38 @@
   --shadow:0 4px 24px rgba(0,0,0,0.08);--r:12px;--r-sm:8px;
   --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;
 }
+body.dark{
+  --bg:#0f172a;--bg2:#1e293b;--bg3:#1a2540;--bg4:#263352;
+  --accent:#f59e0b;--accent2:#d97706;--accent-dim:rgba(245,158,11,0.15);--accent-light:rgba(245,158,11,0.2);
+  --green:#22c55e;--green-dim:rgba(34,197,94,0.15);
+  --amber:#f59e0b;--amber-dim:rgba(245,158,11,0.15);
+  --red:#f87171;--red-dim:rgba(248,113,113,0.15);
+  --blue:#60a5fa;--blue-dim:rgba(96,165,250,0.15);
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#475569;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.11);
+  --shadow:0 4px 24px rgba(0,0,0,0.4);
+}
+/* Sparklines */
+.spark-wrap{margin-top:10px;height:32px;opacity:0.7;}
+.spark-wrap svg{width:100%;height:32px;overflow:visible;}
+/* Pipeline */
+.pipeline-board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media(max-width:900px){.pipeline-board{grid-template-columns:1fr 1fr;}}
+@media(max-width:560px){.pipeline-board{grid-template-columns:1fr;}}
+.pipe-col{background:var(--bg3);border-radius:var(--r);padding:12px;min-height:320px;transition:background 0.15s;}
+.pipe-col.drag-over{background:var(--accent-dim);outline:2px dashed var(--accent);}
+.pipe-col-head{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;padding-bottom:10px;margin-bottom:10px;border-bottom:2px solid;}
+.pipe-card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r-sm);padding:11px 12px;margin-bottom:8px;cursor:grab;transition:box-shadow 0.12s,opacity 0.12s;}
+.pipe-card:hover{box-shadow:var(--shadow);}
+.pipe-card.dragging{opacity:0.4;cursor:grabbing;}
+.pipe-card-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.pipe-card-meta{font-size:11px;color:var(--text3);}
+.pipe-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+.pipe-card-brand{display:inline-block;font-size:10px;font-weight:600;background:var(--accent-dim);color:var(--accent);border-radius:4px;padding:1px 7px;}
+.pipe-move-btns{display:flex;gap:4px;}
+.pipe-move-btns button{width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.pipe-move-btns button:hover{background:var(--accent-dim);color:var(--accent);border-color:var(--accent);}
+.pipe-empty{text-align:center;color:var(--text3);font-size:12px;padding:32px 8px;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;}
 
@@ -491,6 +523,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
         Stock
       </div>
+      <div class="nav-item" onclick="navigate('pipeline',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="4" height="18" rx="1"/><rect x="10" y="3" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="10" rx="1"/></svg>
+        Pipeline
+      </div>
       <div class="nav-section">Prospecting</div>
       <div class="nav-item" onclick="navigate('discovery',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
@@ -533,6 +569,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
       </div>
       <div class="topbar-right">
         <span class="last-upd" id="last-upd"></span>
+        <button id="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode" style="width:32px;height:32px;border-radius:8px;background:var(--bg3);border:1px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);flex-shrink:0;">
+          <svg id="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg id="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
         <div class="notif-btn" onclick="toggleNotif()" id="notif-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <div class="notif-dot" id="notif-dot"></div>
@@ -565,24 +605,28 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
             <div class="s-label">Open Conversations</div>
             <div class="s-value" id="stat-open">—</div>
             <div class="s-sub">Active now</div>
+            <div class="spark-wrap" id="spark-open"></div>
           </div>
           <div class="stat-card green">
             <div class="s-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
             <div class="s-label">Resolved</div>
             <div class="s-value" id="stat-resolved">—</div>
             <div class="s-sub">This month</div>
+            <div class="spark-wrap" id="spark-resolved"></div>
           </div>
           <div class="stat-card blue">
             <div class="s-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
             <div class="s-label">Total Leads</div>
             <div class="s-value" id="stat-leads">—</div>
             <div class="s-sub">Database Total</div>
+            <div class="spark-wrap" id="spark-leads"></div>
           </div>
           <div class="stat-card red">
             <div class="s-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
             <div class="s-label">Unique Platforms</div>
             <div class="s-value" id="stat-platforms">—</div>
             <div class="s-sub">Source channels</div>
+            <div class="spark-wrap" id="spark-platforms"></div>
           </div>
         </div>
         <div class="two-col">
@@ -1078,6 +1122,78 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         </div>
       </div>
 
+      <!-- Pipeline Page -->
+      <div class="page" id="page-pipeline">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Lead Pipeline</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span id="pipe-total" style="font-size:11px;color:var(--text3);"></span>
+              <button class="t-btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="openAddPipelineModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Contact
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="pipeline-board">
+          <div class="pipe-col" id="pipe-col-new" ondragover="event.preventDefault()" ondrop="pipelineDrop(event,'new')">
+            <div class="pipe-col-head" style="color:var(--blue);border-color:var(--blue);">
+              <span>New</span><span id="pipe-cnt-new" style="font-size:10px;background:var(--blue-dim);color:var(--blue);padding:1px 7px;border-radius:10px;">0</span>
+            </div>
+            <div id="pipe-cards-new"></div>
+          </div>
+          <div class="pipe-col" id="pipe-col-contacted" ondragover="event.preventDefault()" ondrop="pipelineDrop(event,'contacted')">
+            <div class="pipe-col-head" style="color:var(--amber);border-color:var(--amber);">
+              <span>Contacted</span><span id="pipe-cnt-contacted" style="font-size:10px;background:var(--amber-dim);color:var(--amber);padding:1px 7px;border-radius:10px;">0</span>
+            </div>
+            <div id="pipe-cards-contacted"></div>
+          </div>
+          <div class="pipe-col" id="pipe-col-interested" ondragover="event.preventDefault()" ondrop="pipelineDrop(event,'interested')">
+            <div class="pipe-col-head" style="color:#8b5cf6;border-color:#8b5cf6;">
+              <span>Interested</span><span id="pipe-cnt-interested" style="font-size:10px;background:rgba(139,92,246,0.1);color:#8b5cf6;padding:1px 7px;border-radius:10px;">0</span>
+            </div>
+            <div id="pipe-cards-interested"></div>
+          </div>
+          <div class="pipe-col" id="pipe-col-closed" ondragover="event.preventDefault()" ondrop="pipelineDrop(event,'closed')">
+            <div class="pipe-col-head" style="color:var(--green);border-color:var(--green);">
+              <span>Closed</span><span id="pipe-cnt-closed" style="font-size:10px;background:var(--green-dim);color:var(--green);padding:1px 7px;border-radius:10px;">0</span>
+            </div>
+            <div id="pipe-cards-closed"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Add Pipeline Contact Modal -->
+<div class="modal-overlay" id="modal-add-pipeline">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Add to Pipeline</div><button class="modal-close" onclick="closeModal('modal-add-pipeline')">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">Company / Contact Name *</label><input class="fi" id="ap-name" placeholder="Company or contact name"/></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><label class="fl">Phone</label><input class="fi" id="ap-phone" placeholder="+971..."/></div>
+        <div class="fg"><label class="fl">Email</label><input class="fi" id="ap-email" placeholder="email@example.com"/></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><label class="fl">Brand</label><input class="fi" id="ap-brand" placeholder="e.g. HP"/></div>
+        <div class="fg"><label class="fl">Stage</label>
+          <select class="fs" id="ap-stage">
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="interested">Interested</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Notes</label><textarea class="ft" id="ap-notes" placeholder="Any notes…" style="min-height:60px;"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-add-pipeline')">Cancel</button>
+      <button class="t-btn btn-primary" onclick="submitAddPipeline()">Add to Pipeline</button>
     </div>
   </div>
 </div>
@@ -1448,7 +1564,7 @@ function navigate(page, el) {
   document.querySelectorAll('.nav-item,.nav-ext').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline'};
   document.getElementById('page-title').textContent=titles[page]||page;
   S.page=page; closeSidebar();
   if(page==='campaigns'&&S.cache.groups){S.groups=S.cache.groups;renderCampGroups(S.cache.groups);hideBanner('camp');}
@@ -1461,6 +1577,7 @@ function navigate(page, el) {
   if(page==='suggestions'){refreshSuggestions();}
   if(page==='discovery'){renderDiscoveryResults(S.discoveredContacts||[]);}
   if(page==='users'){renderUsersPage();}
+  if(page==='pipeline'){renderPipelinePage();}
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('show');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show');}
@@ -1494,7 +1611,38 @@ async function api(path,method='GET',body=null){const opts={method,headers:{'Con
 // ── Dashboard Core logic ──
 async function refreshDashboard(){await Promise.all([refreshStats(),refreshDashConvData(),refreshLeadData()]);}
 async function refreshStats(){const d=await api('whizz-get-stats');S.cache.stats=d;renderStats(d);const cnt=d.open||0;if(cnt>0){document.getElementById('open-count').textContent=cnt;document.getElementById('open-count').style.display='inline';addNotif(`${cnt} operational conversations pending response`);}}
-function renderStats(d){document.getElementById('stat-open').textContent=d.open??'—';document.getElementById('stat-resolved').textContent=d.resolved??'—';}
+function renderStats(d){
+  document.getElementById('stat-open').textContent=d.open??'—';
+  document.getElementById('stat-resolved').textContent=d.resolved??'—';
+  // Sparkline history
+  const SHKEY='whizz_stat_history';
+  let hist=[];try{hist=JSON.parse(localStorage.getItem(SHKEY)||'[]');}catch{}
+  hist.push({open:d.open||0,resolved:d.resolved||0,leads:S.cache.leadsTotal||0,platforms:(S.cache.platforms||[]).length,ts:Date.now()});
+  if(hist.length>10)hist=hist.slice(-10);
+  localStorage.setItem(SHKEY,JSON.stringify(hist));
+  const sparkColor={open:'var(--amber)',resolved:'var(--green)',leads:'var(--blue)',platforms:'var(--red)'};
+  ['open','resolved','leads','platforms'].forEach(k=>{
+    const el=document.getElementById('spark-'+k);
+    if(!el)return;
+    const vals=hist.map(h=>h[k]||0);
+    el.innerHTML=makeSpark(vals,sparkColor[k]);
+  });
+}
+function makeSpark(vals,color){
+  if(vals.length<2)return'';
+  const w=100,h=28,pad=2;
+  const min=Math.min(...vals),max=Math.max(...vals);
+  const range=max-min||1;
+  const pts=vals.map((v,i)=>{
+    const x=pad+(i/(vals.length-1))*(w-pad*2);
+    const y=h-pad-(v-min)/range*(h-pad*2);
+    return`${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const last=vals[vals.length-1],prev=vals[vals.length-2];
+  const dot=pts.split(' ').pop().split(',');
+  const trend=last>=prev?color:'var(--red)';
+  return`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${dot[0]}" cy="${dot[1]}" r="2.5" fill="${trend}"/></svg>`;
+}
 async function refreshDashConvData(){const d=await api('whizz-get-conversations?status=open');S.cache.conversations=d.conversations||[];renderDashConvs(S.cache.conversations);}
 function renderDashConvs(convs){const el=document.getElementById('dash-convs');if(!convs.length){el.innerHTML='<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px;">No open interaction items found</div>';return;}el.innerHTML=convs.slice(0,5).map(c=>convHtml(c)).join('');}
 
@@ -1707,6 +1855,133 @@ function applyLeadsFilter(){
   if(co!=='ALL') f=f.filter(g=>g.country===co);
   if(b!=='ALL') f=f.filter(g=>g.brand.toLowerCase().includes(b.toLowerCase()));
   renderGroupCards(f,'leads-groups',false);
+}
+
+// ── Dark / Light Mode ──
+// dark theme applied immediately via class on body, icons updated after DOMContentLoaded
+if(localStorage.getItem('whizz_theme')==='dark')document.body.classList.add('dark');
+document.addEventListener('DOMContentLoaded',()=>{
+  if(document.body.classList.contains('dark')){
+    const d=document.getElementById('theme-icon-dark'),l=document.getElementById('theme-icon-light');
+    if(d)d.style.display='none'; if(l)l.style.display='block';
+  }
+});
+function toggleTheme(){
+  const dark=document.body.classList.toggle('dark');
+  localStorage.setItem('whizz_theme',dark?'dark':'light');
+  document.getElementById('theme-icon-dark').style.display=dark?'none':'block';
+  document.getElementById('theme-icon-light').style.display=dark?'block':'none';
+}
+
+// ── Lead Pipeline ──
+const PIPE_KEY='whizz_pipeline_v1';
+let _pipeId=0;
+function pipelineLoad(){try{return JSON.parse(localStorage.getItem(PIPE_KEY)||'[]');}catch{return[];}}
+function pipelineSave(data){localStorage.setItem(PIPE_KEY,JSON.stringify(data));}
+const PIPE_STAGES=['new','contacted','interested','closed'];
+const PIPE_LABELS={new:'New',contacted:'Contacted',interested:'Interested',closed:'Closed'};
+
+function renderPipelinePage(){
+  const data=pipelineLoad();
+  PIPE_STAGES.forEach(stage=>{
+    const cards=data.filter(c=>c.stage===stage);
+    document.getElementById('pipe-cnt-'+stage).textContent=cards.length;
+    const el=document.getElementById('pipe-cards-'+stage);
+    if(!cards.length){el.innerHTML=`<div class="pipe-empty">No contacts</div>`;return;}
+    el.innerHTML=cards.map(c=>pipeCardHtml(c)).join('');
+  });
+  const total=data.length;
+  document.getElementById('pipe-total').textContent=total?`${total} contact${total>1?'s':''}  in pipeline`:'';
+}
+
+function pipeCardHtml(c){
+  const stageIdx=PIPE_STAGES.indexOf(c.stage);
+  const canLeft=stageIdx>0,canRight=stageIdx<PIPE_STAGES.length-1;
+  const dateStr=c.addedAt?new Date(c.addedAt).toLocaleDateString([],{month:'short',day:'numeric'}):'';
+  return`<div class="pipe-card" draggable="true" ondragstart="pipelineDragStart(event,'${c.id}')" id="pcard-${c.id}">
+    <div class="pipe-card-name">${c.name}</div>
+    ${c.phone?`<div class="pipe-card-meta">${c.phone}</div>`:''}
+    ${c.email?`<div class="pipe-card-meta">${c.email}</div>`:''}
+    ${c.notes?`<div class="pipe-card-meta" style="margin-top:4px;font-style:italic;">${c.notes}</div>`:''}
+    <div class="pipe-card-foot">
+      <span class="pipe-card-brand">${c.brand||'—'}</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="font-size:10px;color:var(--text3);">${dateStr}</span>
+        <div class="pipe-move-btns">
+          ${canLeft?`<button title="Move left" onclick="pipelineMove('${c.id}',-1)">←</button>`:'<button style="opacity:0.2;cursor:default;" disabled>←</button>'}
+          ${canRight?`<button title="Move right" onclick="pipelineMove('${c.id}',1)">→</button>`:'<button style="opacity:0.2;cursor:default;" disabled>→</button>'}
+          <button title="Delete" onclick="pipelineDelete('${c.id}')" style="color:var(--red);">✕</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function pipelineMove(id,dir){
+  const data=pipelineLoad();
+  const c=data.find(x=>x.id===id);
+  if(!c)return;
+  const idx=PIPE_STAGES.indexOf(c.stage);
+  const next=PIPE_STAGES[idx+dir];
+  if(next){c.stage=next;pipelineSave(data);renderPipelinePage();}
+}
+
+function pipelineDelete(id){
+  if(!confirm('Remove this contact from the pipeline?'))return;
+  const data=pipelineLoad().filter(x=>x.id!==id);
+  pipelineSave(data);renderPipelinePage();
+}
+
+let _dragId=null;
+function pipelineDragStart(event,id){
+  _dragId=id;
+  event.dataTransfer.effectAllowed='move';
+  document.getElementById('pcard-'+id)?.classList.add('dragging');
+}
+function pipelineDrop(event,stage){
+  event.preventDefault();
+  document.querySelectorAll('.pipe-col').forEach(c=>c.classList.remove('drag-over'));
+  if(!_dragId)return;
+  const data=pipelineLoad();
+  const c=data.find(x=>x.id===_dragId);
+  if(c){c.stage=stage;pipelineSave(data);renderPipelinePage();}
+  _dragId=null;
+}
+document.addEventListener('dragover',()=>{});
+document.addEventListener('dragend',()=>{
+  _dragId=null;
+  document.querySelectorAll('.pipe-card').forEach(c=>c.classList.remove('dragging'));
+});
+
+function openAddPipelineModal(prefill){
+  ['ap-name','ap-phone','ap-email','ap-brand','ap-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ap-stage').value='new';
+  if(prefill){
+    document.getElementById('ap-name').value=prefill.name||'';
+    document.getElementById('ap-phone').value=prefill.phone||'';
+    document.getElementById('ap-email').value=prefill.email||'';
+    document.getElementById('ap-brand').value=prefill.brand||'';
+  }
+  document.getElementById('modal-add-pipeline').classList.add('open');
+}
+function submitAddPipeline(){
+  const name=document.getElementById('ap-name').value.trim();
+  if(!name){showToast('Name is required','error');return;}
+  const data=pipelineLoad();
+  data.push({
+    id:'p'+(++_pipeId)+Date.now(),
+    name,
+    phone:document.getElementById('ap-phone').value.trim(),
+    email:document.getElementById('ap-email').value.trim(),
+    brand:document.getElementById('ap-brand').value.trim(),
+    notes:document.getElementById('ap-notes').value.trim(),
+    stage:document.getElementById('ap-stage').value,
+    addedAt:Date.now()
+  });
+  pipelineSave(data);
+  closeModal('modal-add-pipeline');
+  showToast('Added to pipeline','success');
+  if(S.page==='pipeline')renderPipelinePage();
 }
 
 // ── Modal Helpers ──
