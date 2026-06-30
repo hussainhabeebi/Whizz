@@ -17,5 +17,6 @@ let S = {
   stock: [], stockCrossTab: [], stockBrands: [], stockRegions: [], stockParentGroups: [],
   activeStockBrand: 'ALL', activeStockRegion: 'ALL', activeStockParentGroup: 'ALL', activeStockStatus: 'ALL',
   discoveredContacts: [], selectedDiscContacts: new Set(), discType: 'wholesaler',
-  cache: {}, notifications: [], history: []
+  cache: {}, notifications: [], history: [],
+  selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}
 };

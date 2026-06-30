@@ -14,8 +14,9 @@
   --blue:#2563eb;--blue-dim:rgba(37,99,235,0.1);
   --text:#0f172a;--text2:#475569;--text3:#94a3b8;
   --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.12);
-  --shadow:0 4px 24px rgba(0,0,0,0.08);--r:12px;--r-sm:8px;
+  --shadow:0 4px 24px rgba(0,0,0,0.08);--shadow-sm:0 2px 8px rgba(0,0,0,0.06);--shadow-lift:0 8px 28px rgba(0,0,0,0.1);--r:12px;--r-sm:8px;
   --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;
+  --ease:cubic-bezier(0.4,0,0.2,1);
 }
 body.dark{
   --bg:#0f172a;--bg2:#1e293b;--bg3:#1a2540;--bg4:#263352;
@@ -92,7 +93,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .s-logo-sub{font-size:10px;color:var(--text3);}
 .sidebar-nav{flex:1;padding:12px 10px;overflow-y:auto;}
 .nav-section{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;padding:10px 8px 5px;}
-.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;color:var(--text2);font-size:13px;transition:all 0.12s;margin-bottom:1px;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;color:var(--text2);font-size:13px;transition:all 0.15s var(--ease);margin-bottom:1px;}
 .nav-item:hover{background:var(--bg3);color:var(--text);}
 .nav-item.active{background:var(--accent-dim);color:var(--accent);font-weight:500;}
 .nav-item svg{width:15px;height:15px;flex-shrink:0;}
@@ -119,13 +120,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .menu-btn svg{width:18px;height:18px;}
 .page-title{font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text);}
 .topbar-right{display:flex;align-items:center;gap:8px;}
-.t-btn{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r-sm);font-size:12px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.12s;}
+.t-btn{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r-sm);font-size:12px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s var(--ease);}
 .t-btn svg{width:14px;height:14px;}
 .t-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.t-btn:active:not(:disabled){transform:scale(0.97);}
 .btn-primary{background:var(--accent);color:#000;}
-.btn-primary:hover{background:var(--accent2);}
+.btn-primary:hover{background:var(--accent2);box-shadow:0 2px 10px rgba(245,158,11,0.3);}
 .btn-ghost{background:none;border:1px solid var(--border2);color:var(--text2);}
-.btn-ghost:hover{background:var(--bg3);color:var(--text);}
+.btn-ghost:hover{background:var(--bg3);color:var(--text);border-color:var(--accent);}
 .btn-success{background:var(--green);color:#fff;}
 .btn-success:hover{background:#16a34a;}
 .btn-refresh{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(245,158,11,0.2);}
@@ -178,7 +180,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .s-icon svg{width:17px;height:17px;}
 
 /* Card */
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow-sm);transition:box-shadow 0.2s var(--ease);}
 .card-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .card-title{font-size:13px;font-weight:600;color:var(--text);}
 .card-body{padding:18px;}
@@ -267,6 +269,31 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .open-cw{margin-left:auto;color:var(--accent);font-size:10px;font-weight:500;display:flex;align-items:center;gap:3px;opacity:0;transition:opacity 0.1s;}
 .conv-item:hover .open-cw{opacity:1;}
 .open-cw svg{width:11px;height:11px;}
+.conv-item.selected{background:var(--accent-dim);}
+.conv-item.selected .c-name{color:var(--accent2);}
+
+/* Live Sync Toggle */
+.live-toggle{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:var(--text2);cursor:pointer;padding:5px 10px;border-radius:20px;border:1px solid var(--border2);background:var(--bg3);transition:all 0.15s;user-select:none;}
+.live-toggle:hover{border-color:var(--accent);color:var(--text);}
+.live-toggle .sync-dot{margin-left:0;}
+
+/* Conversation Split Layout */
+.conv-split{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start;height:calc(100vh - 230px);min-height:420px;}
+@media(max-width:900px){.conv-split{grid-template-columns:1fr;height:auto;}}
+.conv-list-card{height:100%;overflow-y:auto;margin-bottom:0;}
+.conv-thread-card{height:100%;display:flex;flex-direction:column;margin-bottom:0;}
+.conv-thread-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;}
+.thread-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.conv-thread-body{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;background:var(--bg);}
+.thread-empty{margin:auto;text-align:center;color:var(--text3);font-size:12px;line-height:1.7;padding:24px;}
+.t-bubble-row{display:flex;flex-direction:column;max-width:72%;animation:bubbleIn 0.2s ease;}
+.t-bubble-row.t-in{align-items:flex-start;align-self:flex-start;}
+.t-bubble-row.t-out{align-items:flex-end;align-self:flex-end;}
+.t-bubble{padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.5;color:var(--text);background:var(--bg2);border:1px solid var(--border);word-break:break-word;}
+.t-bubble-row.t-out .t-bubble{background:var(--accent);color:#000;border-color:var(--accent);border-bottom-right-radius:4px;}
+.t-bubble-row.t-in .t-bubble{border-bottom-left-radius:4px;}
+.t-bubble-time{font-size:10px;color:var(--text3);margin-top:3px;padding:0 4px;}
+@keyframes bubbleIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 
 /* Form */
 .fg{margin-bottom:14px;}
@@ -329,6 +356,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 @keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
 .spin{animation:spinning 0.8s linear infinite;}
 @keyframes spinning{to{transform:rotate(360deg);}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:199;}
 @media(max-width:768px){.sidebar-overlay.show{display:block;}.sidebar{position:fixed;left:-220px;top:0;bottom:0;z-index:200;transition:left 0.2s;}.sidebar.open{left:0;}}
 ::-webkit-scrollbar{width:4px;}
@@ -818,15 +846,46 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         </div>
         <div class="card" style="margin-bottom:14px;">
           <div class="card-body" style="padding:10px 16px;">
-            <div style="display:flex;gap:7px;align-items:center;">
+            <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
               <button class="t-btn btn-primary" id="f-open" onclick="filterConv('open',this)" style="padding:5px 12px;font-size:11px;">Open</button>
               <button class="t-btn btn-ghost" id="f-resolved" onclick="filterConv('resolved',this)" style="padding:5px 12px;font-size:11px;">Resolved</button>
               <button class="t-btn btn-ghost" id="f-pending" onclick="filterConv('pending',this)" style="padding:5px 12px;font-size:11px;">Pending</button>
-              <div style="margin-left:auto;font-size:11px;color:var(--text3);" id="conv-count"></div>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+                <div class="live-toggle" id="live-toggle" onclick="toggleLiveSync()" title="Auto-refresh conversations">
+                  <span class="sync-dot sync-idle" id="live-dot"></span>
+                  <span id="live-label">Live Sync Off</span>
+                </div>
+                <div style="font-size:11px;color:var(--text3);" id="conv-count"></div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="card"><div id="conv-list"><div style="padding:40px;text-align:center;color:var(--text3);font-size:12px;">Click Refresh to load</div></div></div>
+        <div class="conv-split">
+          <div class="card conv-list-card">
+            <div id="conv-list"><div style="padding:40px;text-align:center;color:var(--text3);font-size:12px;">Click Refresh to load</div></div>
+          </div>
+          <div class="card conv-thread-card">
+            <div class="conv-thread-head">
+              <div>
+                <div class="card-title" id="thread-contact-name">Select a conversation</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:2px;" id="thread-sub"></div>
+              </div>
+              <div class="thread-actions">
+                <button class="t-btn btn-ghost" id="replay-btn" onclick="replayThread()" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Replay
+                </button>
+                <a class="t-btn btn-ghost" id="open-cw-link" target="_blank" style="opacity:0.4;pointer-events:none;text-decoration:none;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  Open in Chatwoot
+                </a>
+              </div>
+            </div>
+            <div id="thread-body" class="conv-thread-body">
+              <div class="thread-empty">Select a conversation to view the message thread.</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="page" id="page-reports">
@@ -1489,7 +1548,8 @@ let S = {
   stock: [], stockCrossTab: [], stockBrands: [], stockRegions: [], stockParentGroups: [],
   activeStockBrand: 'ALL', activeStockRegion: 'ALL', activeStockParentGroup: 'ALL', activeStockStatus: 'ALL',
   discoveredContacts: [], selectedDiscContacts: new Set(), discType: 'wholesaler',
-  cache: {}, notifications: [], history: []
+  cache: {}, notifications: [], history: [],
+  selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}
 };
 
 // ── Auth ──
@@ -1644,6 +1704,7 @@ function navigate(page, el) {
   document.querySelectorAll('.nav-item,.nav-ext').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
+  if(page!=='conversations' && S.liveSync) stopLiveSync();
   const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline'};
   document.getElementById('page-title').textContent=titles[page]||page;
   S.page=page; closeSidebar();
@@ -1787,9 +1848,137 @@ function renderDashCountries(groups){
 }
 
 // ── Support Conversations Engine ──
-function renderConvs(convs){const el=document.getElementById('conv-list');document.getElementById('conv-count').textContent=`${convs.length} operational records`;if(!convs.length){el.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3);font-size:12px;">No interactions logged under this state filter</div>';return;}el.innerHTML=convs.map(c=>convHtml(c)).join('');}
-function convHtml(c){const init=(c.contact_name||'U')[0].toUpperCase();const cls=c.channel?.includes('whatsapp')?'ch-wa':c.channel?.includes('email')?'ch-em':'ch-wc';const lbl=c.channel?.includes('whatsapp')?'WhatsApp':c.channel?.includes('email')?'Email':'Chat';const time=c.last_activity?new Date(c.last_activity*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';return`<div class="conv-item" onclick="window.open('${CW_URL}/${c.id}','_blank')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top"><div class="c-name">${c.contact_name||'Unknown'}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;}
-function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=>{b.className='t-btn btn-ghost';b.style.cssText='padding:5px 12px;font-size:11px;';});btn.className='t-btn btn-primary';btn.style.cssText='padding:5px 12px;font-size:11px;';S.convStatus=status;if(S.cache.conversations)renderConvs(S.cache.conversations);}
+function renderConvs(convs){
+  const el=document.getElementById('conv-list');
+  document.getElementById('conv-count').textContent=`${convs.length} operational records`;
+  if(!convs.length){el.innerHTML='<div class="thread-empty">No interactions logged under this state filter</div>';return;}
+  el.innerHTML=convs.map(c=>convHtml(c)).join('');
+  if(S.selectedConvId && !convs.some(c=>String(c.id)===String(S.selectedConvId))){
+    S.selectedConvId=null; renderThreadEmpty();
+  }
+}
+function convHtml(c){
+  const init=(c.contact_name||'U')[0].toUpperCase();
+  const cls=c.channel?.includes('whatsapp')?'ch-wa':c.channel?.includes('email')?'ch-em':'ch-wc';
+  const lbl=c.channel?.includes('whatsapp')?'WhatsApp':c.channel?.includes('email')?'Email':'Chat';
+  const time=c.last_activity?new Date(c.last_activity*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+  const sel=String(c.id)===String(S.selectedConvId)?' selected':'';
+  return`<div class="conv-item${sel}" onclick="selectConv('${c.id}')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top"><div class="c-name">${c.contact_name||'Unknown'}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
+}
+function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=>{b.className='t-btn btn-ghost';b.style.cssText='padding:5px 12px;font-size:11px;';});btn.className='t-btn btn-primary';btn.style.cssText='padding:5px 12px;font-size:11px;';S.convStatus=status;if(S.cache.conversations)renderConvs(S.cache.conversations);refreshConversations();}
+
+// ── Conversation Thread Panel ──
+function findConv(id){return (S.cache.conversations||[]).find(c=>String(c.id)===String(id));}
+
+function renderThreadEmpty(){
+  document.getElementById('thread-contact-name').textContent='Select a conversation';
+  document.getElementById('thread-sub').textContent='';
+  document.getElementById('thread-body').innerHTML='<div class="thread-empty">Select a conversation to view the message thread.</div>';
+  document.getElementById('replay-btn').disabled=true;
+  document.getElementById('open-cw-link').removeAttribute('href');
+  document.getElementById('open-cw-link').style.opacity=0.4;
+  document.getElementById('open-cw-link').style.pointerEvents='none';
+}
+
+async function selectConv(id){
+  S.selectedConvId=id;
+  if(S.cache.conversations)renderConvs(S.cache.conversations);
+  const c=findConv(id);
+  if(!c)return;
+  document.getElementById('thread-contact-name').textContent=c.contact_name||'Unknown';
+  document.getElementById('thread-sub').textContent=`${c.channel||'chat'} · ${c.status||''}`;
+  const link=document.getElementById('open-cw-link');
+  link.href=`${CW_URL}/${id}`;
+  link.style.opacity=1;
+  link.style.pointerEvents='auto';
+  document.getElementById('replay-btn').disabled=false;
+  await loadThread(c,{silent:false});
+}
+
+async function loadThread(c,{silent}={}){
+  const body=document.getElementById('thread-body');
+  if(!silent)body.innerHTML='<div class="thread-empty">Loading thread…</div>';
+  let messages=null;
+  try{
+    const d=await api(`whizz-get-conversation-messages?id=${c.id}`);
+    messages=d.messages||d.payload||null;
+  }catch(e){messages=null;}
+  if(Array.isArray(messages)&&messages.length){
+    S.convMessages[c.id]=messages;
+    renderThread(messages);
+  }else{
+    S.convMessages[c.id]=[{content:c.last_message||'No messages logged',sender:'them',created_at:c.last_activity}];
+    body.innerHTML=`<div class="thread-empty">Full message thread unavailable from this view — showing latest message only.<br>Use "Open in Chatwoot" for complete history.</div>${threadBubbleHtml(S.convMessages[c.id][0])}`;
+  }
+}
+
+function normalizeMsg(m){
+  const outgoing=m.message_type===1||m.sender_type==='agent'||m.sender==='me'||m.outgoing===true;
+  return{
+    text:m.content||m.body||m.text||'',
+    outgoing,
+    time:m.created_at?new Date((m.created_at>1e12?m.created_at:m.created_at*1000)).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''
+  };
+}
+function threadBubbleHtml(raw){
+  const m=normalizeMsg(raw);
+  return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}"><div class="t-bubble">${m.text}</div><div class="t-bubble-time">${m.time}</div></div>`;
+}
+function renderThread(messages){
+  document.getElementById('thread-body').innerHTML=messages.map(threadBubbleHtml).join('');
+  const body=document.getElementById('thread-body');
+  body.scrollTop=body.scrollHeight;
+}
+
+// ── Replay ──
+async function replayThread(){
+  const id=S.selectedConvId;
+  if(!id)return;
+  const messages=S.convMessages[id];
+  if(!messages||!messages.length)return;
+  const btn=document.getElementById('replay-btn');
+  btn.disabled=true;btn.textContent='Replaying…';
+  const body=document.getElementById('thread-body');
+  body.innerHTML='';
+  for(let i=0;i<messages.length;i++){
+    body.insertAdjacentHTML('beforeend',threadBubbleHtml(messages[i]));
+    body.scrollTop=body.scrollHeight;
+    await new Promise(r=>setTimeout(r,messages.length>12?180:550));
+  }
+  btn.disabled=false;btn.textContent='Replay';
+}
+
+// ── Live Sync ──
+function toggleLiveSync(){
+  S.liveSync=!S.liveSync;
+  const dot=document.getElementById('live-dot'),label=document.getElementById('live-label');
+  if(S.liveSync){
+    dot.className='sync-dot sync-ok';
+    label.textContent='Live Sync On';
+    S.liveSyncTimer=setInterval(liveSyncTick,12000);
+    showToast('Live sync enabled — conversations refresh every 12s','success');
+  }else{
+    stopLiveSync();
+  }
+}
+function stopLiveSync(){
+  S.liveSync=false;
+  if(S.liveSyncTimer){clearInterval(S.liveSyncTimer);S.liveSyncTimer=null;}
+  const dot=document.getElementById('live-dot'),label=document.getElementById('live-label');
+  if(dot){dot.className='sync-dot sync-idle';label.textContent='Live Sync Off';}
+}
+async function liveSyncTick(){
+  const dot=document.getElementById('live-dot');
+  if(dot)dot.className='sync-dot sync-syncing';
+  try{
+    await refreshConversations();
+    if(S.selectedConvId){
+      const c=findConv(S.selectedConvId);
+      if(c)await loadThread(c,{silent:true});
+    }
+  }catch(e){}
+  if(dot)dot.className=S.liveSync?'sync-dot sync-ok':'sync-dot sync-idle';
+}
 
 // ── Meta Template Module ──
 function renderTplPage(templates){const el=document.getElementById('tpl-list');if(!templates.length){el.innerHTML='<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">No approved template records identified inside WABA.</div>';return;}el.innerHTML=`<div class="tpl-grid">${templates.map(t=>`<div class="tpl-card" style="cursor:default;"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span><span class="tpl-approved">APPROVED</span></div><div class="tpl-body">${t.body||'Empty body context'}</div></div>`).join('')}</div>`;}

@@ -4,6 +4,7 @@ function navigate(page, el) {
   document.querySelectorAll('.nav-item,.nav-ext').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
+  if(page!=='conversations' && S.liveSync) stopLiveSync();
   const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline'};
   document.getElementById('page-title').textContent=titles[page]||page;
   S.page=page; closeSidebar();
