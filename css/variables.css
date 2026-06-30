@@ -7,8 +7,9 @@
   --blue:#2563eb;--blue-dim:rgba(37,99,235,0.1);
   --text:#0f172a;--text2:#475569;--text3:#94a3b8;
   --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.12);
-  --shadow:0 4px 24px rgba(0,0,0,0.08);--r:12px;--r-sm:8px;
+  --shadow:0 4px 24px rgba(0,0,0,0.08);--shadow-sm:0 2px 8px rgba(0,0,0,0.06);--shadow-lift:0 8px 28px rgba(0,0,0,0.1);--r:12px;--r-sm:8px;
   --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;
+  --ease:cubic-bezier(0.4,0,0.2,1);
 }
 body.dark{
   --bg:#0f172a;--bg2:#1e293b;--bg3:#1a2540;--bg4:#263352;
