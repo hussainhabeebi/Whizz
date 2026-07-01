@@ -641,6 +641,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>Cached data from <strong id="dash-cache-time">—</strong>. Click Refresh for live data.</span>
         </div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+          <button class="t-btn btn-primary" id="download-report-btn" onclick="downloadDashboardReport()" title="Download an overall performance report">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Report
+          </button>
+        </div>
         <div class="stats-grid">
           <div class="stat-card amber">
             <div class="s-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
@@ -1662,6 +1668,123 @@ function exportHistoryCSV() {
   showToast('Export complete!', 'success');
 }
 function downloadCSV(content, filename) { const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(content);a.download=filename;a.click(); }
+function downloadHTML(content, filename){const blob=new Blob([content],{type:'text/html'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+
+// ── Downloadable Dashboard Report ──
+function reportBarRow(label,value,max,color){
+  const pct=max>0?Math.max(4,Math.round(value/max*100)):0;
+  return`<div class="bar-row"><div class="bar-label">${label}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div><div class="bar-value">${value.toLocaleString()}</div></div>`;
+}
+function buildDashboardReportHtml(d){
+  const maxPlatform=d.topPlatforms[0]?.[1]||1;
+  const maxCountry=d.topCountries[0]?.[1]||1;
+  const platformRows=d.topPlatforms.map(([k,v])=>reportBarRow(k,v,maxPlatform,'#f59e0b')).join('')||'<div class="muted">No platform data available</div>';
+  const countryRows=d.topCountries.map(([k,v])=>reportBarRow(k,v,maxCountry,'#2563eb')).join('')||'<div class="muted">No country data available</div>';
+  const campaignRows=d.campaigns.length?d.campaigns.map(h=>`<tr><td>${new Date(h.ts).toLocaleDateString()}</td><td>${h.template||'—'}</td><td>${h.audience||'—'}</td><td>${h.sent||0}</td><td>${h.failed||0}</td><td>${h.total||0}</td></tr>`).join(''):`<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px;">No campaigns recorded for ${d.periodLabel}</td></tr>`;
+  return`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Whizz Dashboard Report — ${d.periodLabel}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',Arial,sans-serif;background:#f1f3f7;color:#0f172a;padding:32px;}
+.page{max-width:900px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,0.08);padding:40px;}
+.report-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #f1f3f7;padding-bottom:20px;margin-bottom:28px;}
+.brand{font-family:Georgia,serif;font-weight:800;font-size:26px;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.header-meta{text-align:right;font-size:13px;}
+.header-meta .title{font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px;}
+.muted{color:#94a3b8;font-size:12px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;}
+.kpi-card{border-radius:12px;padding:18px;border:1px solid #e8ecf2;}
+.kpi-card.amber{background:rgba(245,158,11,0.08);}
+.kpi-card.green{background:rgba(22,163,74,0.08);}
+.kpi-card.blue{background:rgba(37,99,235,0.08);}
+.kpi-label{font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+.kpi-value{font-size:30px;font-weight:800;line-height:1;margin-bottom:6px;}
+.kpi-card.amber .kpi-value{color:#d97706;}
+.kpi-card.green .kpi-value{color:#16a34a;}
+.kpi-card.blue .kpi-value{color:#2563eb;}
+.kpi-sub{font-size:11px;color:#94a3b8;}
+.section{margin-bottom:28px;}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#0f172a;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e8ecf2;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#475569;padding:8px 10px;border-bottom:2px solid #e8ecf2;}
+td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
+.two-col-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+.bar-row{display:grid;grid-template-columns:100px 1fr 50px;align-items:center;gap:10px;margin-bottom:10px;}
+.bar-label{font-size:12px;color:#475569;}
+.bar-track{height:8px;border-radius:4px;background:#f1f3f7;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;}
+.bar-value{font-size:12px;font-weight:700;text-align:right;}
+.print-btn{display:block;margin:0 auto 20px;padding:10px 20px;background:#f59e0b;color:#000;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;}
+.report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #e8ecf2;}
+@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;padding:0;}}
+</style></head>
+<body>
+<div class="page">
+  <div class="report-header">
+    <div class="brand">Whizz.</div>
+    <div class="header-meta">
+      <div class="title">Dashboard Performance Report</div>
+      <div class="muted">Generated ${d.generatedAt.toLocaleString()}</div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card amber">
+      <div class="kpi-label">Overall Leads Added</div>
+      <div class="kpi-value">${d.leadsTotal.toLocaleString()}</div>
+      <div class="kpi-sub">All-time database total</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Marketing Messages Sent</div>
+      <div class="kpi-value">${d.messagesSentLastMonth.toLocaleString()}</div>
+      <div class="kpi-sub">${d.periodLabel}</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total Replies</div>
+      <div class="kpi-value">${d.totalReplies.toLocaleString()}</div>
+      <div class="kpi-sub">Open + resolved conversations, all-time</div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Campaign Activity — ${d.periodLabel}</div>
+    <table>
+      <thead><tr><th>Date</th><th>Template</th><th>Audience</th><th>Delivered</th><th>Failed</th><th>Total</th></tr></thead>
+      <tbody>${campaignRows}</tbody>
+    </table>
+  </div>
+  <div class="two-col-section section">
+    <div>
+      <div class="section-title">Leads by Platform</div>
+      ${platformRows}
+    </div>
+    <div>
+      <div class="section-title">Leads by Country</div>
+      ${countryRows}
+    </div>
+  </div>
+  <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+  <div class="report-footer">Whizz Marketing Console — Overall Performance Snapshot</div>
+</div>
+</body></html>`;
+}
+function downloadDashboardReport(){
+  const stats=S.cache.stats||{};
+  const leadsTotal=S.cache.leadsTotal||0;
+  const totalReplies=(stats.open||0)+(stats.resolved||0);
+  const now=new Date();
+  const periodStart=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const periodEnd=new Date(now.getFullYear(),now.getMonth(),1);
+  const periodLabel=periodStart.toLocaleString('default',{month:'long',year:'numeric'});
+  const campaigns=(S.history||[]).filter(h=>h.ts>=periodStart.getTime()&&h.ts<periodEnd.getTime()).sort((a,b)=>a.ts-b.ts);
+  const messagesSentLastMonth=campaigns.reduce((sum,h)=>sum+(h.sent||0),0);
+  const groups=S.cache.groups||[];
+  const platformMap={},countryMap={};
+  groups.forEach(g=>{if(g.isAggregatedTail)return;platformMap[g.platform]=(platformMap[g.platform]||0)+g.count;countryMap[g.country]=(countryMap[g.country]||0)+g.count;});
+  const topPlatforms=Object.entries(platformMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const topCountries=Object.entries(countryMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const html=buildDashboardReportHtml({generatedAt:now,periodLabel,leadsTotal,messagesSentLastMonth,totalReplies,campaigns,topPlatforms,topCountries});
+  downloadHTML(html,`Whizz-Dashboard-Report-${now.toISOString().slice(0,10)}.html`);
+  showToast('Report downloaded!','success');
+}
 
 // ── Notifications ──
 function loadNotifications() { const raw=localStorage.getItem(NOTIF_KEY);S.notifications=raw?JSON.parse(raw):[];renderNotifs(); }
