@@ -1,0 +1,90 @@
+{
+  "name": "whizz-get-enquiries",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whizz-get-enquiries",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-get-enquiries"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Memory",
+          "mode": "name"
+        },
+        "options": {
+          "returnRowNumber": true
+        }
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000002",
+      "name": "Read Memory Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [480, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// The Memory tab is the chatbot's conversation buffer: Phone | Name | History.\n// A new row is appended on every message, so History grows for the same phone number\n// over several rows. We collapse that down to one enquiry per phone number, derive\n// Country from the phone's calling code, and derive Product Interest from the chat log.\n\nconst rows = $input.all().map(item => item.json);\n\nconst CALLING_CODES = [\n  ['971','United Arab Emirates'], ['966','Saudi Arabia'], ['968','Oman'],\n  ['973','Bahrain'], ['974','Qatar'], ['965','Kuwait'], ['962','Jordan'],\n  ['961','Lebanon'], ['92','Pakistan'], ['91','India'], ['880','Bangladesh'],\n  ['94','Sri Lanka'], ['20','Egypt'], ['234','Nigeria'], ['254','Kenya'],\n  ['27','South Africa'], ['1','United States / Canada'], ['44','United Kingdom'],\n  ['86','China'], ['852','Hong Kong'], ['65','Singapore'], ['55','Brazil'],\n  ['52','Mexico'], ['62','Indonesia'], ['60','Malaysia'], ['63','Philippines'],\n  ['84','Vietnam'], ['98','Iran'], ['90','Turkey'], ['61','Australia'],\n  ['64','New Zealand'], ['81','Japan'], ['82','South Korea'], ['49','Germany'],\n  ['33','France'], ['39','Italy'], ['34','Spain'], ['31','Netherlands'], ['7','Russia / Kazakhstan']\n].sort((a, b) => b[0].length - a[0].length);\n\nfunction countryFromPhone(phone) {\n  const digits = (phone || '').replace(/\\D/g, '');\n  const hit = CALLING_CODES.find(([code]) => digits.startsWith(code));\n  return hit ? hit[1] : '';\n}\n\nfunction productInterestFromHistory(history) {\n  if (!history) return '';\n  let m = history.match(/we have the ([^\\n]+?) in stock/i);\n  if (m) return m[1].trim();\n  m = history.match(/we have (?:several|some|many|a few) ([^\\n]+?) (?:items?|units?) in stock/i);\n  if (m) return m[1].trim();\n  const customerLine = history.split('\\n').map(l => l.trim()).find(l => /^customer:/i.test(l));\n  return customerLine ? customerLine.replace(/^customer:\\s*/i, '').trim() : '';\n}\n\n// Keep the row with the longest History per phone number — History only ever grows,\n// so the longest snapshot is the most complete/most recent one for that contact.\nconst byPhone = {};\nfor (const r of rows) {\n  const phone = String(r.Phone || r.phone || '').trim();\n  if (!phone) continue;\n  const history = String(r.History || r.history || '');\n  const existing = byPhone[phone];\n  if (!existing || history.length >= existing.history.length) {\n    byPhone[phone] = { phone, name: r.Name || r.name || '', history };\n  }\n}\n\nconst enquiries = Object.values(byPhone).map(e => ({\n  name: e.name || 'Unknown',\n  productInterest: productInterestFromHistory(e.history) || '—',\n  country: countryFromPhone(e.phone) || '—',\n  phone: e.phone.startsWith('+') ? e.phone : '+' + e.phone\n}));\n\nreturn [{ json: { enquiries } }];"
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000003",
+      "name": "Parse & Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000004",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Read Memory Sheet", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read Memory Sheet": {
+      "main": [
+        [{ "node": "Parse & Format", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse & Format": {
+      "main": [
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}
