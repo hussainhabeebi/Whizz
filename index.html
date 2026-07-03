@@ -550,6 +550,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         Conversations
         <span class="nav-badge" id="open-count" style="display:none">0</span>
       </div>
+      <div class="nav-item" onclick="navigate('enquiries',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>
+        Enquiries
+      </div>
       <div class="nav-section">Analytics</div>
       <div class="nav-item" onclick="navigate('reports',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -889,6 +893,40 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
             </div>
             <div id="thread-body" class="conv-thread-body">
               <div class="thread-empty">Select a conversation to view the message thread.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-enquiries">
+        <div class="cache-banner" id="enquiries-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Cached. Click Refresh to reload.</span>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Enquiries</div>
+            <div style="display:flex;gap:7px;align-items:center;">
+              <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="exportEnquiriesCSV()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+              <span style="font-size:11px;color:var(--text3);" id="enq-total"></span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="fg" style="max-width:320px;">
+              <input class="fi" id="enq-search" placeholder="Search by customer name..." oninput="applyEnqFilter()"/>
+            </div>
+            <div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Platform</div><div class="chips" id="enq-platform-chips"></div></div>
+            <div style="margin-bottom:12px;"><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Country</div><div class="chips" id="enq-country-chips"></div></div>
+            <div style="overflow-x:auto;">
+              <table class="stock-table">
+                <thead><tr><th>Customer Name</th><th>Product Interest</th><th>Country</th><th>Mobile Number</th></tr></thead>
+                <tbody id="enq-table-body">
+                  <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">Click Refresh to load</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1629,6 +1667,7 @@ function loadCache() {
   if (S.cache.groups) { renderDashCountries(S.cache.groups); renderCampGroups(S.cache.groups); renderLeadsPage(S.cache.groups, S.cache.leadsTotal); showBanner('camp'); showBanner('leads'); }
   if (S.cache.templates) { renderTplPage(S.cache.templates); renderCampTemplates(S.cache.templates); showBanner('tpl'); }
   if (S.cache.conversations) { renderConvs(S.cache.conversations); renderDashConvs(S.cache.conversations); showBanner('conv'); }
+  if (S.cache.enquiries) { renderEnquiriesPage(S.cache.enquiries); showBanner('enquiries'); }
   if (S.cache.stats || S.cache.crossTabMatrix) { renderReports(); showBanner('rep'); }
   if (S.cache.stock) {
     const sd = S.cache.stock;
@@ -1828,13 +1867,14 @@ function navigate(page, el) {
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
   if(page!=='conversations' && S.liveSync) stopLiveSync();
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline'};
   document.getElementById('page-title').textContent=titles[page]||page;
   S.page=page; closeSidebar();
   if(page==='campaigns'&&S.cache.groups){S.groups=S.cache.groups;renderCampGroups(S.cache.groups);hideBanner('camp');}
   if(page==='campaigns'&&S.cache.templates){S.templates=S.cache.templates;renderCampTemplates(S.cache.templates);}
   if(page==='leads'&&S.cache.groups){renderLeadsPage(S.cache.groups,S.cache.leadsTotal);hideBanner('leads');}
   if(page==='conversations'&&S.cache.conversations){renderConvs(S.cache.conversations);hideBanner('conv');}
+  if(page==='enquiries'&&S.cache.enquiries){renderEnquiriesPage(S.cache.enquiries);hideBanner('enquiries');}
   if(page==='templates'&&S.cache.templates){renderTplPage(S.cache.templates);hideBanner('tpl');}
   if(page==='reports' && (S.cache.stats || S.cache.crossTabMatrix)){renderReports();hideBanner('rep');}
   if(page==='stock'&&S.cache.stock){renderStockPage();hideBanner('stock');}
@@ -1883,6 +1923,7 @@ async function refreshPage() {
     else if(p==='campaigns')await refreshCampaign();
     else if(p==='templates')await refreshTemplates();
     else if(p==='conversations')await refreshConversations();
+    else if(p==='enquiries')await refreshEnquiries();
     else if(p==='reports')await refreshReportsPage();
     else if(p==='leads')await refreshLeads();
     else if(p==='history')renderHistoryList();
@@ -2101,6 +2142,50 @@ async function liveSyncTick(){
     }
   }catch(e){}
   if(dot)dot.className=S.liveSync?'sync-dot sync-ok':'sync-dot sync-idle';
+}
+
+// ── Enquiries Module ──
+async function refreshEnquiries(){
+  const d=await api('whizz-get-contacts');
+  const contacts=d.contacts||d||[];
+  S.cache.enquiries=Array.isArray(contacts)?contacts:[];
+  renderEnquiriesPage(S.cache.enquiries);
+}
+function renderEnquiriesPage(contacts){
+  contacts=contacts||[];
+  const platforms=[...new Set(contacts.map(c=>c.platform).filter(Boolean))];
+  const countries=[...new Set(contacts.map(c=>c.country).filter(Boolean))];
+  renderChipsFilter(platforms,'enq-platform-chips','filterEnqByPlatform');
+  renderChipsFilter(countries,'enq-country-chips','filterEnqByCountry');
+  document.getElementById('enq-total').textContent=`${contacts.length} enquir${contacts.length===1?'y':'ies'}`;
+  applyEnqFilter();
+}
+function filterEnqByPlatform(v,el){document.querySelectorAll('#enq-platform-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyEnqFilter();}
+function filterEnqByCountry(v,el){document.querySelectorAll('#enq-country-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyEnqFilter();}
+function enqProductInterest(c){return c.productInterest||c.brand||c.category||'—';}
+function applyEnqFilter(){
+  const p=document.querySelector('#enq-platform-chips .chip.active')?.textContent||'ALL';
+  const co=document.querySelector('#enq-country-chips .chip.active')?.textContent||'ALL';
+  const q=(document.getElementById('enq-search')?.value||'').trim().toLowerCase();
+  let f=S.cache.enquiries||[];
+  if(p!=='ALL') f=f.filter(c=>c.platform===p);
+  if(co!=='ALL') f=f.filter(c=>c.country===co);
+  if(q) f=f.filter(c=>(c.contactName||c.company||c.name||'').toLowerCase().includes(q));
+  renderEnqTable(f);
+}
+function renderEnqTable(contacts){
+  const body=document.getElementById('enq-table-body');
+  if(!contacts.length){body.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">No enquiries found</td></tr>';return;}
+  body.innerHTML=contacts.map(c=>{
+    const name=c.contactName||c.company||c.name||'Unknown';
+    return `<tr><td class="td-bold">${name}</td><td>${enqProductInterest(c)}</td><td>${c.country||'—'}</td><td>${c.phone||'—'}</td></tr>`;
+  }).join('');
+}
+function exportEnquiriesCSV(){
+  if(!S.cache.enquiries||!S.cache.enquiries.length){showToast('Load enquiries first','error');return;}
+  const rows=S.cache.enquiries.map(c=>`"${(c.contactName||c.company||c.name||'').replace(/"/g,'""')}","${enqProductInterest(c).replace(/"/g,'""')}","${(c.country||'').replace(/"/g,'""')}","${(c.phone||'').replace(/"/g,'""')}"`);
+  downloadCSV(['Customer Name,Product Interest,Country,Mobile Number', ...rows].join('\n'), 'whizz_enquiries.csv');
+  showToast('Export complete!','success');
 }
 
 // ── Meta Template Module ──
