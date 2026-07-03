@@ -927,6 +927,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
                 </tbody>
               </table>
             </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
+              <span style="font-size:11px;color:var(--text3);" id="enq-page-info"></span>
+              <div style="display:flex;gap:6px;">
+                <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" id="enq-prev-btn" onclick="enqChangePage(-1)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="15 18 9 12 15 6"/></svg>
+                  Prev
+                </button>
+                <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:11px;" id="enq-next-btn" onclick="enqChangePage(1)">
+                  Next
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2144,6 +2157,7 @@ async function liveSyncTick(){
 }
 
 // ── Enquiries Module (sourced from the Memory tab / chatbot conversation log) ──
+const ENQ_PAGE_SIZE=20;
 async function refreshEnquiries(){
   const d=await api('whizz-get-enquiries');
   const enquiries=d.enquiries||d||[];
@@ -2161,17 +2175,40 @@ function filterEnqByCountry(v,el){document.querySelectorAll('#enq-country-chips 
 function applyEnqFilter(){
   const co=document.querySelector('#enq-country-chips .chip.active')?.textContent||'ALL';
   const q=(document.getElementById('enq-search')?.value||'').trim().toLowerCase();
+  // S.cache.enquiries already arrives in "last listed in the sheet first" order — filter()
+  // preserves that relative order, so no re-sorting happens here.
   let f=S.cache.enquiries||[];
   if(co!=='ALL') f=f.filter(e=>e.country===co);
   if(q) f=f.filter(e=>(e.name||'').toLowerCase().includes(q));
-  renderEnqTable(f);
+  S.enqFiltered=f;
+  S.enqPage=1;
+  renderEnqTable();
 }
-function renderEnqTable(enquiries){
+function enqChangePage(delta){
+  const totalPages=Math.max(1,Math.ceil((S.enqFiltered||[]).length/ENQ_PAGE_SIZE));
+  S.enqPage=Math.min(totalPages,Math.max(1,(S.enqPage||1)+delta));
+  renderEnqTable();
+}
+function renderEnqTable(){
+  const enquiries=S.enqFiltered||[];
   const body=document.getElementById('enq-table-body');
-  if(!enquiries.length){body.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">No enquiries found</td></tr>';return;}
-  body.innerHTML=enquiries.map(e=>
-    `<tr><td class="td-bold">${e.name||'Unknown'}</td><td>${e.productInterest||'—'}</td><td>${e.country||'—'}</td><td>${e.phone||'—'}</td></tr>`
-  ).join('');
+  const totalPages=Math.max(1,Math.ceil(enquiries.length/ENQ_PAGE_SIZE));
+  const page=Math.min(S.enqPage||1,totalPages);
+  S.enqPage=page;
+  if(!enquiries.length){
+    body.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">No enquiries found</td></tr>';
+  }else{
+    const start=(page-1)*ENQ_PAGE_SIZE;
+    const pageItems=enquiries.slice(start,start+ENQ_PAGE_SIZE);
+    body.innerHTML=pageItems.map(e=>
+      `<tr><td class="td-bold">${e.name||'Unknown'}</td><td>${e.productInterest||'—'}</td><td>${e.country||'—'}</td><td>${e.phone||'—'}</td></tr>`
+    ).join('');
+  }
+  const pageInfo=document.getElementById('enq-page-info');
+  if(pageInfo)pageInfo.textContent=enquiries.length?`Page ${page} of ${totalPages}`:'';
+  const prevBtn=document.getElementById('enq-prev-btn'),nextBtn=document.getElementById('enq-next-btn');
+  if(prevBtn)prevBtn.disabled=page<=1;
+  if(nextBtn)nextBtn.disabled=page>=totalPages;
 }
 function exportEnquiriesCSV(){
   if(!S.cache.enquiries||!S.cache.enquiries.length){showToast('Load enquiries first','error');return;}
