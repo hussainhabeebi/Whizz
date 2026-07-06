@@ -857,9 +857,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         <div class="card" style="margin-bottom:14px;">
           <div class="card-body" style="padding:10px 16px;">
             <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
-              <button class="t-btn btn-primary" id="f-open" onclick="filterConv('open',this)" style="padding:5px 12px;font-size:11px;">Open</button>
-              <button class="t-btn btn-ghost" id="f-resolved" onclick="filterConv('resolved',this)" style="padding:5px 12px;font-size:11px;">Resolved</button>
+              <button class="t-btn btn-primary" id="f-all" onclick="filterConv('all',this)" style="padding:5px 12px;font-size:11px;">All</button>
+              <button class="t-btn btn-ghost" id="f-open" onclick="filterConv('open',this)" style="padding:5px 12px;font-size:11px;">Open</button>
               <button class="t-btn btn-ghost" id="f-pending" onclick="filterConv('pending',this)" style="padding:5px 12px;font-size:11px;">Pending</button>
+              <button class="t-btn btn-ghost" id="f-resolved" onclick="filterConv('resolved',this)" style="padding:5px 12px;font-size:11px;">Resolved</button>
               <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
                 <div class="live-toggle" id="live-toggle" onclick="toggleLiveSync()" title="Auto-refresh conversations">
                   <span class="sync-dot sync-idle" id="live-dot"></span>
@@ -1597,7 +1598,7 @@ let USERS = (()=>{ const raw=localStorage.getItem('whizz_users_v1'); if(raw){try
 function saveUsers(){ localStorage.setItem('whizz_users_v1', JSON.stringify(USERS)); }
 
 let S = {
-  page: 'dashboard', convStatus: 'open',
+  page: 'dashboard', convStatus: 'all',
   groups: [], crossTabMatrix: [], templates: [], platforms: [], countries: [], brands: [],
   selectedGroups: [], selectedTemplate: null,
   activePlatform: 'ALL', activeCountry: 'ALL', activeBrand: 'ALL',
@@ -1975,7 +1976,17 @@ async function refreshLeadData(){
   document.getElementById('stat-platforms').textContent=_filtPlatforms.length||(S.cache.platforms||[]).length;
   renderDashCountries(_filtG);
 }
-async function refreshConversations(){const d=await api(`whizz-get-conversations?status=${S.convStatus}`);S.cache.conversations=d.conversations||[];renderConvs(S.cache.conversations);}
+async function refreshConversations(){
+  const[o,p,r]=await Promise.all([
+    api('whizz-get-conversations?status=open').catch(()=>({conversations:[]})),
+    api('whizz-get-conversations?status=pending').catch(()=>({conversations:[]})),
+    api('whizz-get-conversations?status=resolved').catch(()=>({conversations:[]}))
+  ]);
+  const merged=[...(o.conversations||[]),...(p.conversations||[]),...(r.conversations||[])];
+  merged.sort((a,b)=>(b.last_activity||0)-(a.last_activity||0));
+  S.cache.conversations=merged;
+  renderConvs(merged);
+}
 async function refreshCampaign(){await Promise.all([refreshLeadData(),refreshTemplates()]);}
 async function refreshTemplates(){const d=await api('whizz-get-templates');S.cache.templates=d.templates||[];S.templates=S.cache.templates;renderTplPage(S.cache.templates);renderCampTemplates(S.cache.templates);}
 async function refreshLeads(){await refreshLeadData();renderLeadsPage(S.cache.groups,S.cache.leadsTotal);}
@@ -2024,12 +2035,17 @@ function renderDashCountries(groups){
 }
 
 // ── Support Conversations Engine ──
+// Open, pending and resolved conversations are fetched together and shown in one
+// unified list; the All/Open/Pending/Resolved buttons just filter what's already
+// loaded, they never trigger a re-fetch.
 function renderConvs(convs){
+  convs=convs||[];
   const el=document.getElementById('conv-list');
-  document.getElementById('conv-count').textContent=`${convs.length} operational records`;
-  if(!convs.length){el.innerHTML='<div class="thread-empty">No interactions logged under this state filter</div>';return;}
-  el.innerHTML=convs.map(c=>convHtml(c)).join('');
-  if(S.selectedConvId && !convs.some(c=>String(c.id)===String(S.selectedConvId))){
+  const filtered=(S.convStatus&&S.convStatus!=='all')?convs.filter(c=>c.status===S.convStatus):convs;
+  document.getElementById('conv-count').textContent=`${filtered.length} operational records`;
+  if(!filtered.length){el.innerHTML='<div class="thread-empty">No interactions logged under this state filter</div>';return;}
+  el.innerHTML=filtered.map(c=>convHtml(c)).join('');
+  if(S.selectedConvId && !filtered.some(c=>String(c.id)===String(S.selectedConvId))){
     S.selectedConvId=null; renderThreadEmpty();
   }
 }
@@ -2041,7 +2057,7 @@ function convHtml(c){
   const sel=String(c.id)===String(S.selectedConvId)?' selected':'';
   return`<div class="conv-item${sel}" onclick="selectConv('${c.id}')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top"><div class="c-name">${c.contact_name||'Unknown'}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
 }
-function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=>{b.className='t-btn btn-ghost';b.style.cssText='padding:5px 12px;font-size:11px;';});btn.className='t-btn btn-primary';btn.style.cssText='padding:5px 12px;font-size:11px;';S.convStatus=status;if(S.cache.conversations)renderConvs(S.cache.conversations);refreshConversations();}
+function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=>{b.className='t-btn btn-ghost';b.style.cssText='padding:5px 12px;font-size:11px;';});btn.className='t-btn btn-primary';btn.style.cssText='padding:5px 12px;font-size:11px;';S.convStatus=status;renderConvs(S.cache.conversations||[]);}
 
 // ── Conversation Thread Panel ──
 function findConv(id){return (S.cache.conversations||[]).find(c=>String(c.id)===String(id));}
@@ -2071,6 +2087,7 @@ async function selectConv(id){
   await loadThread(c,{silent:false});
 }
 
+const THREAD_PREVIEW_COUNT=5;
 async function loadThread(c,{silent}={}){
   const body=document.getElementById('thread-body');
   if(!silent)body.innerHTML='<div class="thread-empty">Loading thread…</div>';
@@ -2080,8 +2097,9 @@ async function loadThread(c,{silent}={}){
     messages=d.messages||d.payload||null;
   }catch(e){messages=null;}
   if(Array.isArray(messages)&&messages.length){
-    S.convMessages[c.id]=messages;
-    renderThread(messages);
+    const recent=messages.slice(-THREAD_PREVIEW_COUNT);
+    S.convMessages[c.id]=recent;
+    renderThread(recent,messages.length>recent.length);
   }else{
     S.convMessages[c.id]=[{content:c.last_message||'No messages logged',sender:'them',created_at:c.last_activity}];
     body.innerHTML=`<div class="thread-empty">Full message thread unavailable from this view — showing latest message only.<br>Use "Open in Chatwoot" for complete history.</div>${threadBubbleHtml(S.convMessages[c.id][0])}`;
@@ -2100,9 +2118,10 @@ function threadBubbleHtml(raw){
   const m=normalizeMsg(raw);
   return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}"><div class="t-bubble">${m.text}</div><div class="t-bubble-time">${m.time}</div></div>`;
 }
-function renderThread(messages){
-  document.getElementById('thread-body').innerHTML=messages.map(threadBubbleHtml).join('');
+function renderThread(messages,truncated){
+  const note=truncated?'<div style="text-align:center;color:var(--text3);font-size:11px;padding-bottom:4px;">Showing last 5 messages — use "Open in Chatwoot" for full history.</div>':'';
   const body=document.getElementById('thread-body');
+  body.innerHTML=note+messages.map(threadBubbleHtml).join('');
   body.scrollTop=body.scrollHeight;
 }
 
