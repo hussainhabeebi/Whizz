@@ -1,0 +1,81 @@
+{
+  "name": "whizz-get-conversation-messages",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whizz-get-conversation-messages",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e5f6a7b8-0005-0005-0005-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-get-conversation-messages"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://chat.whizzfze.com/api/v1/accounts/1/conversations/{{ $json.query.id }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "e5f6a7b8-0005-0005-0005-000000000002",
+      "name": "Fetch Messages (Chatwoot)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_CHATWOOT_CREDENTIAL_ID",
+          "name": "Chatwoot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// The old version of this workflow (whatever it was doing) only ever surfaced a\n// single message per conversation. Chatwoot's actual conversation-show endpoint only\n// exposes `last_non_activity_message` — a single message — which is almost certainly\n// what was wired up before. The real message list lives on a dedicated endpoint:\n// GET /api/v1/accounts/{account_id}/conversations/{id}/messages, which is what the\n// previous \"Fetch Messages (Chatwoot)\" HTTP Request node now calls. That endpoint\n// returns { payload: [...] } (Chatwoot's default page of recent messages, newest\n// activity first). We normalize each message to the shape the frontend already\n// expects (content / message_type / created_at) and sort ascending by time so the\n// thread renders oldest-to-newest, exactly like a real chat.\n\nconst resp = $input.first().json;\nconst payload = Array.isArray(resp.payload) ? resp.payload : (Array.isArray(resp) ? resp : []);\n\nconst messages = payload\n  .map(m => ({\n    content: m.content || '',\n    message_type: m.message_type,\n    sender_type: m.sender_type || (m.sender && m.sender.type) || '',\n    created_at: m.created_at\n  }))\n  .sort((a, b) => (a.created_at || 0) - (b.created_at || 0));\n\nreturn [{ json: { messages } }];"
+      },
+      "id": "e5f6a7b8-0005-0005-0005-000000000003",
+      "name": "Normalize & Sort",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "e5f6a7b8-0005-0005-0005-000000000004",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Fetch Messages (Chatwoot)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Messages (Chatwoot)": {
+      "main": [
+        [{ "node": "Normalize & Sort", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize & Sort": {
+      "main": [
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}
