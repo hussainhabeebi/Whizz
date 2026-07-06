@@ -2049,13 +2049,22 @@ function renderConvs(convs){
     S.selectedConvId=null; renderThreadEmpty();
   }
 }
+// Chatwoot conversation payloads vary in how the contact's phone number is named
+// (and whichever workflow builds whizz-get-conversations may already flatten it
+// differently), so check every plausible spot before giving up on it.
+function convPhone(c){
+  return c.phone||c.phone_number||c.contact_phone||c.contact_phone_number||c.mobile||c.mobile_number||
+    (c.meta&&c.meta.sender&&c.meta.sender.phone_number)||
+    (c.sender&&c.sender.phone_number)||'';
+}
 function convHtml(c){
   const init=(c.contact_name||'U')[0].toUpperCase();
+  const phone=convPhone(c);
   const cls=c.channel?.includes('whatsapp')?'ch-wa':c.channel?.includes('email')?'ch-em':'ch-wc';
   const lbl=c.channel?.includes('whatsapp')?'WhatsApp':c.channel?.includes('email')?'Email':'Chat';
   const time=c.last_activity?new Date(c.last_activity*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
   const sel=String(c.id)===String(S.selectedConvId)?' selected':'';
-  return`<div class="conv-item${sel}" onclick="selectConv('${c.id}')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top"><div class="c-name">${c.contact_name||'Unknown'}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
+  return`<div class="conv-item${sel}" onclick="selectConv('${c.id}')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
 }
 function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=>{b.className='t-btn btn-ghost';b.style.cssText='padding:5px 12px;font-size:11px;';});btn.className='t-btn btn-primary';btn.style.cssText='padding:5px 12px;font-size:11px;';S.convStatus=status;renderConvs(S.cache.conversations||[]);}
 
@@ -2077,7 +2086,8 @@ async function selectConv(id){
   if(S.cache.conversations)renderConvs(S.cache.conversations);
   const c=findConv(id);
   if(!c)return;
-  document.getElementById('thread-contact-name').textContent=c.contact_name||'Unknown';
+  const phone=convPhone(c);
+  document.getElementById('thread-contact-name').innerHTML=`${c.contact_name||'Unknown'}${phone?`<span style="font-weight:400;color:var(--text3);font-size:11px;margin-left:8px;">${phone}</span>`:''}`;
   document.getElementById('thread-sub').textContent=`${c.channel||'chat'} · ${c.status||''}`;
   const link=document.getElementById('open-cw-link');
   link.href=`${CW_URL}/${id}`;
