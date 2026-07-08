@@ -1,0 +1,88 @@
+{
+  "name": "whizz-get-integration-status",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whizz-get-integration-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e5f6a7b8-0005-0005-0005-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-get-integration-status"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Integrations",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "e5f6a7b8-0005-0005-0005-000000000002",
+      "name": "Read Integrations",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [460, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Only ever return a connected/not-connected flag plus non-secret fields ──\n// The frontend must never see a stored apiKey or appPassword again after it's saved.\nconst rows = $input.all();\n\nfunction findService(name) {\n  const row = rows.find(r => (r.json.service || '').toLowerCase() === name);\n  if (!row) return null;\n  try {\n    return JSON.parse(row.json.data || '{}');\n  } catch (e) {\n    return null;\n  }\n}\n\nconst brevo = findService('brevo');\nconst wordpress = findService('wordpress');\n\nreturn [{\n  json: {\n    brevo: {\n      connected: !!(brevo && brevo.apiKey),\n      listId: (brevo && brevo.listId) || ''\n    },\n    wordpress: {\n      connected: !!(wordpress && wordpress.siteUrl && wordpress.username && wordpress.appPassword),\n      siteUrl: (wordpress && wordpress.siteUrl) || ''\n    }\n  }\n}];"
+      },
+      "id": "e5f6a7b8-0005-0005-0005-000000000003",
+      "name": "Build Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "e5f6a7b8-0005-0005-0005-000000000004",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Read Integrations", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read Integrations": {
+      "main": [
+        [{ "node": "Build Status", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Status": {
+      "main": [
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}

@@ -1,0 +1,174 @@
+{
+  "name": "whizz-get-brevo-stats",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whizz-get-brevo-stats",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-get-brevo-stats"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Integrations",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000002",
+      "name": "Read Integrations",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [460, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\nconst row = rows.find(r => (r.json.service || '').toLowerCase() === 'brevo');\nlet cfg = {};\ntry { cfg = row ? JSON.parse(row.json.data || '{}') : {}; } catch (e) { cfg = {}; }\n\nreturn [{ json: { apiKey: cfg.apiKey || '', skip: !cfg.apiKey } }];"
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000003",
+      "name": "Get Brevo Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000004",
+      "name": "Skip Fetch?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.brevo.com/v3/emailCampaigns",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "statistics", "value": "globalStats" },
+            { "name": "limit", "value": "10" },
+            { "name": "sort", "value": "desc" },
+            { "name": "status", "value": "sent" }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "api-key", "value": "={{ $json.apiKey }}" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000005",
+      "name": "Fetch Brevo Campaigns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Normalize Brevo's campaign list + globalStats into the shape the Reports page expects ──\nconst body = $input.first().json;\nconst campaigns = (body.campaigns || []).map(c => {\n  const stats = c.statistics && c.statistics.globalStats ? c.statistics.globalStats : {};\n  return {\n    name: c.name || c.subject || 'Untitled Campaign',\n    sentDate: c.sentDate || c.scheduledAt || null,\n    sent: stats.sent || 0,\n    delivered: stats.delivered || 0,\n    opens: stats.uniqueViews || stats.opens || 0,\n    clicks: stats.uniqueClicks || stats.clicks || 0,\n    bounces: (stats.softBounces || 0) + (stats.hardBounces || 0)\n  };\n});\n\nreturn [{ json: { campaigns } }];"
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000006",
+      "name": "Normalize Campaigns",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000007",
+      "name": "Respond - Stats",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"campaigns\": [] }",
+        "options": {}
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000008",
+      "name": "Respond - Empty",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Read Integrations", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read Integrations": {
+      "main": [
+        [{ "node": "Get Brevo Key", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Brevo Key": {
+      "main": [
+        [{ "node": "Skip Fetch?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Skip Fetch?": {
+      "main": [
+        [{ "node": "Respond - Empty", "type": "main", "index": 0 }],
+        [{ "node": "Fetch Brevo Campaigns", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Brevo Campaigns": {
+      "main": [
+        [{ "node": "Normalize Campaigns", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize Campaigns": {
+      "main": [
+        [{ "node": "Respond - Stats", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}
