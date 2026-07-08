@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ── Collect every WordPress site that has a Jetpack Site ID configured ──\n// Requires Jetpack active + connected to WordPress.com on that site (see the\n// hint in the Whizz Integrations page for how to find the numeric ID).\n// Always emits exactly one item — an empty \"sites\" array is a valid, expected\n// result (nothing configured yet), not an error.\nconst rows = $input.all();\nconst sites = rows\n  .filter(r => (r.json.service || '').toLowerCase().startsWith('wordpress:'))\n  .map(r => { try { return JSON.parse(r.json.data || '{}'); } catch (e) { return null; } })\n  .filter(d => d && d.jetpackSiteId)\n  .map(d => ({ id: d.id, label: d.label || d.siteUrl, jetpackSiteId: d.jetpackSiteId }));\n\nreturn [{ json: { hasSites: sites.length > 0, sites } }];"
+        "jsCode": "// ── Collect every WordPress site that has a Jetpack Site ID configured ──\n// Requires Jetpack active + connected to WordPress.com on that site (see the\n// hint in the Whizz Integrations page for how to find the numeric ID).\n// Always emits exactly one item — an empty \"sites\" array is a valid, expected\n// result (nothing configured yet), not an error.\n//\n// \"period\" comes from the Whizz Reports page's month selector: \"all\" (default —\n// last 7 days) or \"YYYY-MM\" (that whole calendar month, one bucket per day).\n// Jetpack's stats/visits endpoint takes unit + quantity + an anchor \"date\".\nconst query = $('Webhook').first().json.query || {};\nconst period = query.period;\n\nlet unit = 'day', quantity = '7', date = new Date().toISOString().slice(0, 10);\nif (period && period !== 'all') {\n  const [y, m] = period.split('-').map(Number);\n  const lastDay = new Date(y, m, 0);\n  unit = 'day';\n  quantity = String(lastDay.getDate());\n  date = `${y}-${String(m).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;\n}\n\nconst rows = $input.all();\nconst sites = rows\n  .filter(r => (r.json.service || '').toLowerCase().startsWith('wordpress:'))\n  .map(r => { try { return JSON.parse(r.json.data || '{}'); } catch (e) { return null; } })\n  .filter(d => d && d.jetpackSiteId)\n  .map(d => ({ id: d.id, label: d.label || d.siteUrl, jetpackSiteId: d.jetpackSiteId, unit, quantity, date }));\n\nreturn [{ json: { hasSites: sites.length > 0, sites } }];"
       },
       "id": "c9d0e1f2-0009-0009-0009-000000000003",
       "name": "Check Sites Configured",
@@ -92,8 +92,9 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "unit", "value": "day" },
-            { "name": "quantity", "value": "7" }
+            { "name": "unit", "value": "={{ $json.unit }}" },
+            { "name": "quantity", "value": "={{ $json.quantity }}" },
+            { "name": "date", "value": "={{ $json.date }}" }
           ]
         },
         "options": { "response": { "response": { "neverError": true } } }

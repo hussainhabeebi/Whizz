@@ -999,7 +999,11 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>Cached. Click Refresh to reload.</span>
         </div>
-        <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <select class="fs" id="rep-period-select" style="width:auto;padding:6px 12px;font-size:12px;" onchange="onReportsPeriodChange()"></select>
+            <span style="font-size:10.5px;color:var(--text3);">Leads, Inquiries &amp; Heatmap are always all-time — no date is stored for them yet</span>
+          </div>
           <button class="t-btn btn-primary" id="download-reports-page-btn" onclick="downloadReportsPageReport()" title="Download a presentable analytics report">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Download Report
@@ -2104,11 +2108,12 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
   <div class="report-header">
     <div class="brand">Whizz.</div>
     <div class="header-meta">
-      <div class="title">Analytics Report</div>
+      <div class="title">Analytics Report — ${d.periodLabel}</div>
       <div class="muted">Generated ${d.generatedAt.toLocaleString()}</div>
     </div>
   </div>
-  <div class="section-title">Performance Summary</div>
+  <div class="section-title">Performance Summary${d.periodLabel!=='All Time'?` — ${d.periodLabel}`:''}</div>
+  <div class="muted" style="margin-bottom:12px;margin-top:-8px;">Email &amp; WhatsApp sends reflect the period above. Leads, Inquiries and the Heatmap below are always all-time totals.</div>
   <div class="kpi-grid-4">
     <div class="kpi-card green">
       <div class="kpi-label">Emails Sent</div>
@@ -2184,7 +2189,8 @@ function downloadReportsPageReport(){
   const emailOpens=brevoCampaigns.reduce((sum,c)=>sum+(c.opens||0),0);
   const emailOpenRate=emailDelivered?Math.round((emailOpens/emailDelivered)*100):0;
 
-  const history=S.history||[];
+  const period=S.reportsPeriod||'all';
+  const history=(S.history||[]).filter(h=>reportsPeriodMatchesTs(h.ts,period));
   const waSent=history.reduce((sum,h)=>sum+(h.sent||0),0);
   const waFailed=history.reduce((sum,h)=>sum+(h.failed||0),0);
   const waDeliveryRate=(waSent+waFailed)?Math.round((waSent/(waSent+waFailed))*100):0;
@@ -2204,8 +2210,10 @@ function downloadReportsPageReport(){
   }).slice(0,12);
 
   const now=new Date();
+  const periodLabel=reportsPeriodLabel();
   const html=buildReportsPageReportHtml({
     generatedAt:now,
+    periodLabel,
     open:stats.open||0,
     resolved:stats.resolved||0,
     leadsTotal:S.cache.leadsTotal||0,
@@ -2218,7 +2226,7 @@ function downloadReportsPageReport(){
     wpTrafficSites:S.cache.wpTrafficSites||[],
     heatmap:{matrix:heatmapMatrix,countries:heatmapCountries}
   });
-  downloadHTML(html,`Whizz-Analytics-Report-${now.toISOString().slice(0,10)}.html`);
+  downloadHTML(html,`Whizz-Analytics-Report-${period}-${now.toISOString().slice(0,10)}.html`);
   showToast('Report downloaded!','success');
 }
 
@@ -2406,16 +2414,59 @@ async function refreshConversations(){
 async function refreshCampaign(){await Promise.all([refreshLeadData(),refreshTemplates()]);}
 async function refreshTemplates(){const d=await api('whizz-get-templates');S.cache.templates=d.templates||[];S.templates=S.cache.templates;renderTplPage(S.cache.templates);renderCampTemplates(S.cache.templates);}
 async function refreshLeads(){await refreshLeadData();renderLeadsPage(S.cache.groups,S.cache.leadsTotal);}
-async function refreshReportsPage(){
-  await Promise.all([refreshStats(),refreshLeadData()]);
+// ── Reports Period Selector ──
+// Only Email/WhatsApp sends and WordPress traffic carry real dates today, so only
+// those are period-scoped. Leads, Inquiries and the Heatmap have no created-date
+// field in the sheet yet, so they stay all-time regardless of the selected period.
+function populateReportsPeriodSelect(){
+  const sel=document.getElementById('rep-period-select');
+  if(!sel||sel.dataset.populated)return;
+  const now=new Date();
+  let html='<option value="all">All Time</option>';
+  for(let i=0;i<12;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label=d.toLocaleString('default',{month:'long',year:'numeric'});
+    html+=`<option value="${value}">${label}</option>`;
+  }
+  sel.innerHTML=html;
+  sel.dataset.populated='1';
+  S.reportsPeriod='all';
+}
+function reportsPeriodLabel(){
+  const sel=document.getElementById('rep-period-select');
+  const period=sel?sel.value:'all';
+  if(period==='all')return'All Time';
+  const opt=sel.querySelector(`option[value="${period}"]`);
+  return opt?opt.textContent:period;
+}
+async function onReportsPeriodChange(){
+  S.reportsPeriod=document.getElementById('rep-period-select').value;
+  const btn=document.getElementById('refresh-btn'),icon=document.getElementById('refresh-icon');
+  btn.disabled=true;icon.classList.add('spin');
   try{
-    const d=await api('whizz-get-brevo-stats');
+    await Promise.all([loadBrevoStatsForPeriod(),loadWpTrafficForPeriod()]);
+    renderReports();
+  }catch(e){showToast('Failed to load that period','error');}
+  btn.disabled=false;icon.classList.remove('spin');
+}
+async function loadBrevoStatsForPeriod(){
+  try{
+    const period=S.reportsPeriod||'all';
+    const d=await api(`whizz-get-brevo-stats?period=${encodeURIComponent(period)}`);
     S.cache.brevoCampaigns=d.campaigns||[];
   }catch(e){S.cache.brevoCampaigns=S.cache.brevoCampaigns||[];}
+}
+async function loadWpTrafficForPeriod(){
   try{
-    const d=await api('whizz-get-wp-traffic-stats');
+    const period=S.reportsPeriod||'all';
+    const d=await api(`whizz-get-wp-traffic-stats?period=${encodeURIComponent(period)}`);
     S.cache.wpTrafficSites=d.sites||[];
   }catch(e){S.cache.wpTrafficSites=S.cache.wpTrafficSites||[];}
+}
+async function refreshReportsPage(){
+  populateReportsPeriodSelect();
+  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod()]);
   try{
     const d=await api('whizz-get-enquiries');
     const enquiries=d.enquiries||d||[];
@@ -3305,7 +3356,14 @@ function submitAddPipeline(){
 }
 
 // ── Reports Tab Optimization ──
+function reportsPeriodMatchesTs(ts,period){
+  if(!period||period==='all')return true;
+  const d=new Date(ts);
+  const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  return key===period;
+}
 function renderSummaryStats(){
+  const period=S.reportsPeriod||'all';
   const campaigns=S.cache.brevoCampaigns||[];
   const totalEmailSent=campaigns.reduce((sum,c)=>sum+(c.sent||0),0);
   const totalEmailDelivered=campaigns.reduce((sum,c)=>sum+(c.delivered||0),0);
@@ -3314,7 +3372,7 @@ function renderSummaryStats(){
   document.getElementById('rep-sum-email-sent').textContent=totalEmailSent.toLocaleString();
   document.getElementById('rep-sum-email-sub').textContent=campaigns.length?`${avgOpenRate}% avg open rate`:'Connect Brevo to see this';
 
-  const history=S.history||[];
+  const history=(S.history||[]).filter(h=>reportsPeriodMatchesTs(h.ts,period));
   const totalWaSent=history.reduce((sum,h)=>sum+(h.sent||0),0);
   const totalWaFailed=history.reduce((sum,h)=>sum+(h.failed||0),0);
   const waDeliveryRate=(totalWaSent+totalWaFailed)?Math.round((totalWaSent/(totalWaSent+totalWaFailed))*100):0;
