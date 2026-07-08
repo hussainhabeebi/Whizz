@@ -1005,6 +1005,33 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
             Download Report
           </button>
         </div>
+        <div class="eyebrow">Performance Summary</div>
+        <div class="stats-grid" id="rep-summary-grid">
+          <div class="stat-card green">
+            <div class="s-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+            <div class="s-label">Emails Sent</div>
+            <div class="s-value" id="rep-sum-email-sent">—</div>
+            <div class="s-sub" id="rep-sum-email-sub">Connect Brevo to see this</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="s-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg></div>
+            <div class="s-label">WhatsApp Sent</div>
+            <div class="s-value" id="rep-sum-wa-sent">—</div>
+            <div class="s-sub" id="rep-sum-wa-sub">All-time</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="s-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+            <div class="s-label">Total Leads</div>
+            <div class="s-value" id="rep-sum-leads">—</div>
+            <div class="s-sub">All-time database total</div>
+          </div>
+          <div class="stat-card red">
+            <div class="s-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg></div>
+            <div class="s-label">Total Inquiries</div>
+            <div class="s-value" id="rep-sum-enquiries">—</div>
+            <div class="s-sub">All-time received</div>
+          </div>
+        </div>
         <div class="two-col" style="margin-bottom: 16px;">
           <div class="card">
             <div class="card-head"><div class="card-title">Conversation Status Metrics</div></div>
@@ -2020,6 +2047,18 @@ function buildReportsPageReportHtml(d){
     </div>`;
   }).join(''):'<div class="muted">No WordPress sites with traffic stats configured</div>';
 
+  const heatmapCountries=d.heatmap.countries||[];
+  const heatmapMatrix=d.heatmap.matrix||[];
+  const heatmapMax=Math.max(1,...heatmapMatrix.flatMap(m=>Object.values(m.breakdownByCountry||{})));
+  const heatmapTable=heatmapMatrix.length&&heatmapCountries.length?`<table>
+    <thead><tr><th>Brand</th>${heatmapCountries.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${heatmapMatrix.map(m=>`<tr><td><strong>${m.brand}</strong></td>${heatmapCountries.map(c=>{
+      const v=m.breakdownByCountry?.[c]||0;
+      const alpha=v?Math.max(0.08,v/heatmapMax):0;
+      return `<td style="background:rgba(245,158,11,${alpha});text-align:center;font-weight:${v?700:400};">${v||''}</td>`;
+    }).join('')}</tr>`).join('')}</tbody>
+  </table>`:'<div class="muted">No lead distribution data available</div>';
+
   return`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Whizz Analytics Report — ${d.generatedAt.toLocaleDateString()}</title>
 <style>
@@ -2053,6 +2092,9 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
 .bar-track{height:8px;border-radius:4px;background:#f1f3f7;overflow:hidden;}
 .bar-fill{height:100%;border-radius:4px;}
 .bar-value{font-size:12px;font-weight:700;text-align:right;}
+.kpi-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;}
+.kpi-card.red{background:rgba(220,38,38,0.08);}
+.kpi-card.red .kpi-value{color:#dc2626;}
 .print-btn{display:block;margin:0 auto 20px;padding:10px 20px;background:#f59e0b;color:#000;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;}
 .report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #e8ecf2;}
 @media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;padding:0;}}
@@ -2066,12 +2108,30 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
       <div class="muted">Generated ${d.generatedAt.toLocaleString()}</div>
     </div>
   </div>
-  <div class="kpi-grid">
+  <div class="section-title">Performance Summary</div>
+  <div class="kpi-grid-4">
+    <div class="kpi-card green">
+      <div class="kpi-label">Emails Sent</div>
+      <div class="kpi-value">${d.emailSent.toLocaleString()}</div>
+      <div class="kpi-sub">${d.brevoCampaigns.length?`${d.emailOpenRate}% avg open rate`:'Brevo not connected'}</div>
+    </div>
     <div class="kpi-card amber">
+      <div class="kpi-label">WhatsApp Sent</div>
+      <div class="kpi-value">${d.waSent.toLocaleString()}</div>
+      <div class="kpi-sub">${d.waCampaignCount?`${d.waDeliveryRate}% delivery rate`:'No campaigns sent yet'}</div>
+    </div>
+    <div class="kpi-card blue">
       <div class="kpi-label">Total Leads</div>
       <div class="kpi-value">${d.leadsTotal.toLocaleString()}</div>
       <div class="kpi-sub">All-time database total</div>
     </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Total Inquiries</div>
+      <div class="kpi-value">${d.enquiriesTotal.toLocaleString()}</div>
+      <div class="kpi-sub">All-time received</div>
+    </div>
+  </div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);">
     <div class="kpi-card green">
       <div class="kpi-label">Open Conversations</div>
       <div class="kpi-value">${d.open.toLocaleString()}</div>
@@ -2094,6 +2154,10 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
     </div>
   </div>
   <div class="section">
+    <div class="section-title">Regional Heatmap — Brand × Country Lead Volume</div>
+    ${heatmapTable}
+  </div>
+  <div class="section">
     <div class="section-title">Brevo Email Campaigns</div>
     <table>
       <thead><tr><th>Campaign</th><th>Sent Date</th><th>Sent</th><th>Delivered</th><th>Open Rate</th><th>Click Rate</th><th>Bounces</th></tr></thead>
@@ -2113,16 +2177,46 @@ function downloadReportsPageReport(){
   groups.forEach(g=>{if(g.isAggregatedTail)return;platformMap[g.platform]=(platformMap[g.platform]||0)+g.count;countryMap[g.country]=(countryMap[g.country]||0)+g.count;});
   const topPlatforms=Object.entries(platformMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const topCountries=Object.entries(countryMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+  const brevoCampaigns=S.cache.brevoCampaigns||[];
+  const emailSent=brevoCampaigns.reduce((sum,c)=>sum+(c.sent||0),0);
+  const emailDelivered=brevoCampaigns.reduce((sum,c)=>sum+(c.delivered||0),0);
+  const emailOpens=brevoCampaigns.reduce((sum,c)=>sum+(c.opens||0),0);
+  const emailOpenRate=emailDelivered?Math.round((emailOpens/emailDelivered)*100):0;
+
+  const history=S.history||[];
+  const waSent=history.reduce((sum,h)=>sum+(h.sent||0),0);
+  const waFailed=history.reduce((sum,h)=>sum+(h.failed||0),0);
+  const waDeliveryRate=(waSent+waFailed)?Math.round((waSent/(waSent+waFailed))*100):0;
+
+  const bm={};
+  groups.filter(g=>!g.isAggregatedTail).forEach(g=>{
+    if(!bm[g.brand])bm[g.brand]={brand:g.brand,breakdownByCountry:{}};
+    bm[g.brand].breakdownByCountry[g.country]=(bm[g.brand].breakdownByCountry[g.country]||0)+g.count;
+  });
+  const heatmapMatrix=Object.values(bm);
+  const allCountries=new Set();
+  heatmapMatrix.forEach(m=>Object.keys(m.breakdownByCountry||{}).forEach(c=>allCountries.add(c)));
+  const heatmapCountries=[...allCountries].sort((a,b)=>{
+    const tA=heatmapMatrix.reduce((s,m)=>s+(m.breakdownByCountry?.[a]||0),0);
+    const tB=heatmapMatrix.reduce((s,m)=>s+(m.breakdownByCountry?.[b]||0),0);
+    return tB-tA;
+  }).slice(0,12);
+
   const now=new Date();
   const html=buildReportsPageReportHtml({
     generatedAt:now,
     open:stats.open||0,
     resolved:stats.resolved||0,
     leadsTotal:S.cache.leadsTotal||0,
+    enquiriesTotal:(S.cache.enquiries||[]).length,
+    emailSent,emailOpenRate,
+    waSent,waDeliveryRate,waCampaignCount:history.length,
     topPlatforms,
     topCountries,
-    brevoCampaigns:S.cache.brevoCampaigns||[],
-    wpTrafficSites:S.cache.wpTrafficSites||[]
+    brevoCampaigns,
+    wpTrafficSites:S.cache.wpTrafficSites||[],
+    heatmap:{matrix:heatmapMatrix,countries:heatmapCountries}
   });
   downloadHTML(html,`Whizz-Analytics-Report-${now.toISOString().slice(0,10)}.html`);
   showToast('Report downloaded!','success');
@@ -2322,6 +2416,11 @@ async function refreshReportsPage(){
     const d=await api('whizz-get-wp-traffic-stats');
     S.cache.wpTrafficSites=d.sites||[];
   }catch(e){S.cache.wpTrafficSites=S.cache.wpTrafficSites||[];}
+  try{
+    const d=await api('whizz-get-enquiries');
+    const enquiries=d.enquiries||d||[];
+    S.cache.enquiries=Array.isArray(enquiries)?enquiries:[];
+  }catch(e){S.cache.enquiries=S.cache.enquiries||[];}
   renderReports();
 }
 
@@ -3206,9 +3305,30 @@ function submitAddPipeline(){
 }
 
 // ── Reports Tab Optimization ──
+function renderSummaryStats(){
+  const campaigns=S.cache.brevoCampaigns||[];
+  const totalEmailSent=campaigns.reduce((sum,c)=>sum+(c.sent||0),0);
+  const totalEmailDelivered=campaigns.reduce((sum,c)=>sum+(c.delivered||0),0);
+  const totalEmailOpens=campaigns.reduce((sum,c)=>sum+(c.opens||0),0);
+  const avgOpenRate=totalEmailDelivered?Math.round((totalEmailOpens/totalEmailDelivered)*100):0;
+  document.getElementById('rep-sum-email-sent').textContent=totalEmailSent.toLocaleString();
+  document.getElementById('rep-sum-email-sub').textContent=campaigns.length?`${avgOpenRate}% avg open rate`:'Connect Brevo to see this';
+
+  const history=S.history||[];
+  const totalWaSent=history.reduce((sum,h)=>sum+(h.sent||0),0);
+  const totalWaFailed=history.reduce((sum,h)=>sum+(h.failed||0),0);
+  const waDeliveryRate=(totalWaSent+totalWaFailed)?Math.round((totalWaSent/(totalWaSent+totalWaFailed))*100):0;
+  document.getElementById('rep-sum-wa-sent').textContent=totalWaSent.toLocaleString();
+  document.getElementById('rep-sum-wa-sub').textContent=history.length?`${waDeliveryRate}% delivery rate`:'No campaigns sent yet';
+
+  document.getElementById('rep-sum-leads').textContent=(S.cache.leadsTotal||0).toLocaleString();
+  document.getElementById('rep-sum-enquiries').textContent=((S.cache.enquiries||[]).length).toLocaleString();
+}
 function renderReports(){
   const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
   const d=S.cache.stats||{};
+
+  renderSummaryStats();
 
   let groups=S.cache.groups||[];
   let matrix=S.crossTabMatrix||[];
