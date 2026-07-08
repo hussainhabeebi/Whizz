@@ -1,0 +1,98 @@
+{
+  "name": "whizz-save-integration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whizz-save-integration",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-save-integration"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Stores whatever fields were submitted for a given integration (e.g. 'brevo', 'wordpress') ──\n// as a single JSON blob per service, so this workflow doesn't need to change when a new\n// integration is added — only the Integrations settings page + the workflow that reads it do.\nconst b = $input.first().json.body || {};\nconst service = (b.service || '').toLowerCase();\nif (!service) {\n  throw new Error('Missing \"service\" field — expected e.g. \"brevo\" or \"wordpress\"');\n}\nreturn [{\n  json: {\n    service,\n    data: JSON.stringify(b),\n    updatedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000002",
+      "name": "Build Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Integrations",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "service": "={{ $json.service }}",
+            "data": "={{ $json.data }}",
+            "updatedAt": "={{ $json.updatedAt }}"
+          },
+          "matchingColumns": ["service"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000003",
+      "name": "Upsert Integration",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }",
+        "options": {}
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000004",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Build Row", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Row": {
+      "main": [
+        [{ "node": "Upsert Integration", "type": "main", "index": 0 }]
+      ]
+    },
+    "Upsert Integration": {
+      "main": [
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}
