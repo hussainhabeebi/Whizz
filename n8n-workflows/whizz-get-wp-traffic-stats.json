@@ -1,0 +1,189 @@
+{
+  "name": "whizz-get-wp-traffic-stats",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whizz-get-wp-traffic-stats",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c9d0e1f2-0009-0009-0009-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-get-wp-traffic-stats"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Integrations",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "c9d0e1f2-0009-0009-0009-000000000002",
+      "name": "Read Integrations",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [460, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Collect every WordPress site that has a Jetpack Site ID configured ──\n// Requires Jetpack active + connected to WordPress.com on that site (see the\n// hint in the Whizz Integrations page for how to find the numeric ID).\n// Always emits exactly one item — an empty \"sites\" array is a valid, expected\n// result (nothing configured yet), not an error.\nconst rows = $input.all();\nconst sites = rows\n  .filter(r => (r.json.service || '').toLowerCase().startsWith('wordpress:'))\n  .map(r => { try { return JSON.parse(r.json.data || '{}'); } catch (e) { return null; } })\n  .filter(d => d && d.jetpackSiteId)\n  .map(d => ({ id: d.id, label: d.label || d.siteUrl, jetpackSiteId: d.jetpackSiteId }));\n\nreturn [{ json: { hasSites: sites.length > 0, sites } }];"
+      },
+      "id": "c9d0e1f2-0009-0009-0009-000000000003",
+      "name": "Check Sites Configured",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.hasSites }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c9d0e1f2-0009-0009-0009-000000000004",
+      "name": "Has Sites?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fan the single \"sites\" list out into one n8n item per site, so the HTTP\n// Request node below runs once per site automatically.\nconst item = $input.first().json;\nreturn (item.sites || []).map(s => ({ json: s }));"
+      },
+      "id": "c9d0e1f2-0009-0009-0009-000000000005",
+      "name": "Split Sites",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 220]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://public-api.wordpress.com/rest/v1.1/sites/{{ $json.jetpackSiteId }}/stats/visits",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "unit", "value": "day" },
+            { "name": "quantity", "value": "7" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "c9d0e1f2-0009-0009-0009-000000000006",
+      "name": "Fetch Jetpack Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 220],
+      "credentials": {
+        "oAuth2Api": {
+          "id": "YOUR_WORDPRESS_OAUTH_CREDENTIAL_ID",
+          "name": "WordPress.com OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Normalize each site's Jetpack \"visits\" response into a simple summary ──\n// \"Split Sites\" -> \"Fetch Jetpack Stats\" is a straight, unfiltered chain, so\n// item order/count lines up 1:1 — we zip the two lists by index to recover\n// each response's site id/label (the HTTP Request node replaces $json with\n// the raw API response, so the site metadata has to be looked up this way).\nconst sitesMeta = $('Split Sites').all();\nconst responses = $input.all();\n\nconst sites = sitesMeta.map((metaItem, i) => {\n  const meta = metaItem.json;\n  const resp = (responses[i] && responses[i].json) || {};\n  const fields = resp.fields || [];\n  const rows = resp.data || [];\n  const viewsIdx = fields.indexOf('views');\n  const visitorsIdx = fields.indexOf('visitors');\n  const periodIdx = fields.indexOf('period');\n\n  const daily = rows.map(r => ({\n    date: periodIdx >= 0 ? r[periodIdx] : null,\n    views: viewsIdx >= 0 ? (r[viewsIdx] || 0) : 0,\n    visitors: visitorsIdx >= 0 ? (r[visitorsIdx] || 0) : 0\n  }));\n\n  return {\n    id: meta.id,\n    label: meta.label,\n    views: daily.reduce((sum, d) => sum + d.views, 0),\n    visitors: daily.reduce((sum, d) => sum + d.visitors, 0),\n    daily,\n    error: resp.error ? (resp.message || resp.error) : null\n  };\n});\n\nreturn [{ json: { sites } }];"
+      },
+      "id": "c9d0e1f2-0009-0009-0009-000000000007",
+      "name": "Normalize Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "c9d0e1f2-0009-0009-0009-000000000008",
+      "name": "Respond - Stats",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"sites\": [] }",
+        "options": {}
+      },
+      "id": "c9d0e1f2-0009-0009-0009-000000000009",
+      "name": "Respond - No Sites",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 420]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Read Integrations", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read Integrations": {
+      "main": [
+        [{ "node": "Check Sites Configured", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Sites Configured": {
+      "main": [
+        [{ "node": "Has Sites?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has Sites?": {
+      "main": [
+        [{ "node": "Split Sites", "type": "main", "index": 0 }],
+        [{ "node": "Respond - No Sites", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split Sites": {
+      "main": [
+        [{ "node": "Fetch Jetpack Stats", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Jetpack Stats": {
+      "main": [
+        [{ "node": "Normalize Stats", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize Stats": {
+      "main": [
+        [{ "node": "Respond - Stats", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}

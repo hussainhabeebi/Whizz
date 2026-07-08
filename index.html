@@ -999,6 +999,12 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>Cached. Click Refresh to reload.</span>
         </div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+          <button class="t-btn btn-primary" id="download-reports-page-btn" onclick="downloadReportsPageReport()" title="Download a presentable analytics report">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Report
+          </button>
+        </div>
         <div class="two-col" style="margin-bottom: 16px;">
           <div class="card">
             <div class="card-head"><div class="card-title">Conversation Status Metrics</div></div>
@@ -1048,6 +1054,15 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           <div class="card-head"><div class="card-title">Brevo Email Campaigns</div><span style="font-size:10px;color:var(--text3);">opens, clicks &amp; delivery across your recent campaigns</span></div>
           <div class="card-body" id="rep-brevo">
             <div class="empty-state">Connect Brevo under Settings → Integrations, then Refresh to load campaign stats.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">WordPress Traffic</div>
+            <select class="fs" id="rep-wp-site-select" style="width:auto;padding:5px 10px;font-size:11px;display:none;" onchange="renderWpTrafficForSelectedSite()"></select>
+          </div>
+          <div class="card-body" id="rep-wp-traffic">
+            <div class="empty-state">Connect a WordPress site with a Jetpack Site ID under Settings → Integrations, then Refresh to load traffic stats.</div>
           </div>
         </div>
       </div>
@@ -1401,6 +1416,11 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
               <label class="fl">Application Password</label>
               <input class="fi" id="wp-site-pass" type="password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"/>
               <div class="fi-hint" id="wp-site-pass-hint">Your WP user profile → Application Passwords (needs WordPress 5.6+). Stored server-side only.</div>
+            </div>
+            <div class="fg">
+              <label class="fl">Jetpack Site ID <span style="color:var(--text3);font-weight:400;text-transform:none;">(optional — for traffic stats)</span></label>
+              <input class="fi" id="wp-site-jetpack-id" placeholder="e.g. 123456789"/>
+              <div class="fi-hint">Needs Jetpack active &amp; connected to WordPress.com on this site. Find the numeric ID by visiting public-api.wordpress.com/rest/v1.1/sites/yourdomain.com while logged into WordPress.com.</div>
             </div>
           </div>
           <div class="modal-foot">
@@ -1971,6 +1991,143 @@ function downloadDashboardReport(){
   showToast('Report downloaded!','success');
 }
 
+// ── Downloadable Analytics (Reports Page) Report ──
+function buildReportsPageReportHtml(d){
+  const maxPlatform=d.topPlatforms[0]?.[1]||1;
+  const maxCountry=d.topCountries[0]?.[1]||1;
+  const platformRows=d.topPlatforms.map(([k,v])=>reportBarRow(k,v,maxPlatform,'#f59e0b')).join('')||'<div class="muted">No platform data available</div>';
+  const countryRows=d.topCountries.map(([k,v])=>reportBarRow(k,v,maxCountry,'#2563eb')).join('')||'<div class="muted">No country data available</div>';
+
+  const brevoRows=d.brevoCampaigns.length?d.brevoCampaigns.map(c=>{
+    const openRate=c.delivered?Math.round((c.opens/c.delivered)*100):0;
+    const clickRate=c.delivered?Math.round((c.clicks/c.delivered)*100):0;
+    return `<tr><td>${c.name||'Untitled'}</td><td>${c.sentDate?new Date(c.sentDate).toLocaleDateString():'—'}</td><td>${(c.sent||0).toLocaleString()}</td><td>${(c.delivered||0).toLocaleString()}</td><td>${openRate}%</td><td>${clickRate}%</td><td>${c.bounces||0}</td></tr>`;
+  }).join(''):'<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px;">No Brevo campaigns available</td></tr>';
+
+  const wpSections=d.wpTrafficSites.length?d.wpTrafficSites.map(s=>{
+    if(s.error){
+      return `<div class="kpi-card" style="border:1px solid #e8ecf2;margin-bottom:12px;"><div class="kpi-label">${s.label}</div><div class="muted">Couldn't load stats: ${s.error}</div></div>`;
+    }
+    const maxViews=Math.max(1,...(s.daily||[]).map(x=>x.views||0));
+    const bars=(s.daily||[]).map(x=>reportBarRow(x.date?new Date(x.date).toLocaleDateString('default',{day:'2-digit',month:'short'}):'',x.views||0,maxViews,'#2563eb')).join('');
+    return `<div class="section">
+      <div class="section-title">${s.label} — Last 7 Days</div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px;">
+        <div class="kpi-card blue"><div class="kpi-label">Views</div><div class="kpi-value">${(s.views||0).toLocaleString()}</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Visitors</div><div class="kpi-value">${(s.visitors||0).toLocaleString()}</div></div>
+      </div>
+      ${bars||'<div class="muted">No daily data available</div>'}
+    </div>`;
+  }).join(''):'<div class="muted">No WordPress sites with traffic stats configured</div>';
+
+  return`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Whizz Analytics Report — ${d.generatedAt.toLocaleDateString()}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',Arial,sans-serif;background:#f1f3f7;color:#0f172a;padding:32px;}
+.page{max-width:900px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,0.08);padding:40px;}
+.report-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #f1f3f7;padding-bottom:20px;margin-bottom:28px;}
+.brand{font-family:Georgia,serif;font-weight:800;font-size:26px;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.header-meta{text-align:right;font-size:13px;}
+.header-meta .title{font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px;}
+.muted{color:#94a3b8;font-size:12px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;}
+.kpi-card{border-radius:12px;padding:18px;border:1px solid #e8ecf2;}
+.kpi-card.amber{background:rgba(245,158,11,0.08);}
+.kpi-card.green{background:rgba(22,163,74,0.08);}
+.kpi-card.blue{background:rgba(37,99,235,0.08);}
+.kpi-label{font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+.kpi-value{font-size:30px;font-weight:800;line-height:1;margin-bottom:6px;}
+.kpi-card.amber .kpi-value{color:#d97706;}
+.kpi-card.green .kpi-value{color:#16a34a;}
+.kpi-card.blue .kpi-value{color:#2563eb;}
+.kpi-sub{font-size:11px;color:#94a3b8;}
+.section{margin-bottom:28px;}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#0f172a;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e8ecf2;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#475569;padding:8px 10px;border-bottom:2px solid #e8ecf2;}
+td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
+.two-col-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+.bar-row{display:grid;grid-template-columns:100px 1fr 50px;align-items:center;gap:10px;margin-bottom:10px;}
+.bar-label{font-size:12px;color:#475569;}
+.bar-track{height:8px;border-radius:4px;background:#f1f3f7;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;}
+.bar-value{font-size:12px;font-weight:700;text-align:right;}
+.print-btn{display:block;margin:0 auto 20px;padding:10px 20px;background:#f59e0b;color:#000;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;}
+.report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #e8ecf2;}
+@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;padding:0;}}
+</style></head>
+<body>
+<div class="page">
+  <div class="report-header">
+    <div class="brand">Whizz.</div>
+    <div class="header-meta">
+      <div class="title">Analytics Report</div>
+      <div class="muted">Generated ${d.generatedAt.toLocaleString()}</div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card amber">
+      <div class="kpi-label">Total Leads</div>
+      <div class="kpi-value">${d.leadsTotal.toLocaleString()}</div>
+      <div class="kpi-sub">All-time database total</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Open Conversations</div>
+      <div class="kpi-value">${d.open.toLocaleString()}</div>
+      <div class="kpi-sub">Awaiting a response</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Resolved Conversations</div>
+      <div class="kpi-value">${d.resolved.toLocaleString()}</div>
+      <div class="kpi-sub">All-time</div>
+    </div>
+  </div>
+  <div class="two-col-section section">
+    <div>
+      <div class="section-title">Leads by Platform</div>
+      ${platformRows}
+    </div>
+    <div>
+      <div class="section-title">Leads by Country</div>
+      ${countryRows}
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Brevo Email Campaigns</div>
+    <table>
+      <thead><tr><th>Campaign</th><th>Sent Date</th><th>Sent</th><th>Delivered</th><th>Open Rate</th><th>Click Rate</th><th>Bounces</th></tr></thead>
+      <tbody>${brevoRows}</tbody>
+    </table>
+  </div>
+  ${wpSections}
+  <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+  <div class="report-footer">Whizz Marketing Console — Analytics Snapshot</div>
+</div>
+</body></html>`;
+}
+function downloadReportsPageReport(){
+  const stats=S.cache.stats||{};
+  const groups=S.cache.groups||[];
+  const platformMap={},countryMap={};
+  groups.forEach(g=>{if(g.isAggregatedTail)return;platformMap[g.platform]=(platformMap[g.platform]||0)+g.count;countryMap[g.country]=(countryMap[g.country]||0)+g.count;});
+  const topPlatforms=Object.entries(platformMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const topCountries=Object.entries(countryMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const now=new Date();
+  const html=buildReportsPageReportHtml({
+    generatedAt:now,
+    open:stats.open||0,
+    resolved:stats.resolved||0,
+    leadsTotal:S.cache.leadsTotal||0,
+    topPlatforms,
+    topCountries,
+    brevoCampaigns:S.cache.brevoCampaigns||[],
+    wpTrafficSites:S.cache.wpTrafficSites||[]
+  });
+  downloadHTML(html,`Whizz-Analytics-Report-${now.toISOString().slice(0,10)}.html`);
+  showToast('Report downloaded!','success');
+}
+
 // ── Notifications ──
 function loadNotifications() { const raw=localStorage.getItem(NOTIF_KEY);S.notifications=raw?JSON.parse(raw):[];renderNotifs(); }
 function addNotif(text) {
@@ -2161,6 +2318,10 @@ async function refreshReportsPage(){
     const d=await api('whizz-get-brevo-stats');
     S.cache.brevoCampaigns=d.campaigns||[];
   }catch(e){S.cache.brevoCampaigns=S.cache.brevoCampaigns||[];}
+  try{
+    const d=await api('whizz-get-wp-traffic-stats');
+    S.cache.wpTrafficSites=d.sites||[];
+  }catch(e){S.cache.wpTrafficSites=S.cache.wpTrafficSites||[];}
   renderReports();
 }
 
@@ -3076,6 +3237,7 @@ function renderReports(){
   renderLeadScores(groups,'rep-lead-scores');
   renderRegionalHeatmap(groups);
   renderBrevoStats(S.cache.brevoCampaigns||[]);
+  renderWpTraffic(S.cache.wpTrafficSites||[]);
 
   const matEl=document.getElementById('rep-matrix');
   if(!matrix.length){matEl.innerHTML='<div class="empty-state">No Cross Tab items for your access level.</div>';return;}
@@ -3223,6 +3385,48 @@ function renderBrevoStats(campaigns){
       </div>
     </div>`;
   }).join('');
+}
+
+function renderWpTraffic(sites){
+  S.cache.wpTrafficSites=sites;
+  const selectEl=document.getElementById('rep-wp-site-select');
+  const bodyEl=document.getElementById('rep-wp-traffic');
+  if(!sites||!sites.length){
+    selectEl.style.display='none';
+    selectEl.innerHTML='';
+    bodyEl.innerHTML='<div class="empty-state">Connect a WordPress site with a Jetpack Site ID under Settings → Integrations, then Refresh to load traffic stats.</div>';
+    return;
+  }
+  selectEl.style.display='';
+  const prevValue=selectEl.value;
+  selectEl.innerHTML=sites.map(s=>`<option value="${s.id}">${s.label}</option>`).join('');
+  if(sites.some(s=>s.id===prevValue))selectEl.value=prevValue;
+  renderWpTrafficForSelectedSite();
+}
+function renderWpTrafficForSelectedSite(){
+  const sites=S.cache.wpTrafficSites||[];
+  const selectEl=document.getElementById('rep-wp-site-select');
+  const bodyEl=document.getElementById('rep-wp-traffic');
+  const site=sites.find(s=>s.id===selectEl.value)||sites[0];
+  if(!site){bodyEl.innerHTML='<div class="empty-state">No site selected.</div>';return;}
+  if(site.error){
+    bodyEl.innerHTML=`<div class="empty-state">Couldn't load stats for <strong>${site.label}</strong>: ${site.error}</div>`;
+    return;
+  }
+  const daily=site.daily||[];
+  const maxViews=Math.max(1,...daily.map(d=>d.views||0));
+  const dailyRows=daily.map(d=>{
+    const pct=Math.round((d.views||0)/maxViews*100);
+    const dateLabel=d.date?new Date(d.date).toLocaleDateString('en-AE',{day:'2-digit',month:'short'}):'';
+    return `<div class="metric-row"><div class="m-label" style="width:60px;flex-shrink:0;">${dateLabel}</div><div style="flex:1;margin:0 12px;"><div class="prog-wrap"><div class="prog-fill" style="width:${pct}%"></div></div></div><div class="m-value" style="white-space:nowrap;">${(d.views||0).toLocaleString()} views</div></div>`;
+  }).join('');
+  bodyEl.innerHTML=`
+    <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px;">
+      <div class="stat-card blue"><div class="s-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="s-label">Views (7 days)</div><div class="s-value">${(site.views||0).toLocaleString()}</div><div class="s-sub">${site.label}</div></div>
+      <div class="stat-card green"><div class="s-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div class="s-label">Visitors (7 days)</div><div class="s-value">${(site.visitors||0).toLocaleString()}</div><div class="s-sub">${site.label}</div></div>
+    </div>
+    ${dailyRows||'<div class="empty-state">No daily data returned.</div>'}
+  `;
 }
 
 // ── Smart Campaign Timing ──
@@ -3469,7 +3673,7 @@ function renderWpSitesList(sites){
       <div class="hist-icon" style="background:var(--blue-dim);color:var(--blue);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg></div>
       <div class="hist-info">
         <div class="hist-name">${s.label||s.siteUrl||'Untitled site'}</div>
-        <div class="hist-meta">${s.siteUrl||''} · <span style="color:var(--green)">Connected</span></div>
+        <div class="hist-meta">${s.siteUrl||''} · <span style="color:var(--green)">Connected</span> · ${s.jetpackSiteId?'<span style="color:var(--blue)">Stats enabled</span>':'<span style="color:var(--text3)">No stats configured</span>'}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
         <button class="t-btn btn-ghost t-btn-sm" onclick="openEditWpSiteModal('${s.id}')">Edit</button>
@@ -3485,6 +3689,7 @@ function openAddWpSiteModal(){
   document.getElementById('wp-site-url').value='';
   document.getElementById('wp-site-user').value='';
   document.getElementById('wp-site-pass').value='';
+  document.getElementById('wp-site-jetpack-id').value='';
   document.getElementById('wp-site-pass-hint').textContent='Your WP user profile → Application Passwords (needs WordPress 5.6+). Stored server-side only.';
   document.getElementById('modal-wp-site').classList.add('open');
 }
@@ -3497,6 +3702,7 @@ function openEditWpSiteModal(id){
   document.getElementById('wp-site-url').value=s.siteUrl||'';
   document.getElementById('wp-site-user').value=s.username||'';
   document.getElementById('wp-site-pass').value='';
+  document.getElementById('wp-site-jetpack-id').value=s.jetpackSiteId||'';
   document.getElementById('wp-site-pass-hint').textContent='Leave blank to keep the current saved password.';
   document.getElementById('modal-wp-site').classList.add('open');
 }
@@ -3506,12 +3712,14 @@ async function submitWpSite(){
   const siteUrl=document.getElementById('wp-site-url').value.trim();
   const username=document.getElementById('wp-site-user').value.trim();
   const appPassword=document.getElementById('wp-site-pass').value.trim();
+  const jetpackSiteId=document.getElementById('wp-site-jetpack-id').value.trim();
   if(!siteUrl||!username){showToast('Site URL and username are required','error');return;}
   const isNew=!idField;
   if(isNew&&!appPassword){showToast('Application password is required for a new site','error');return;}
   const id=idField||`wp_${Date.now().toString(36)}${Math.random().toString(36).slice(2,7)}`;
   const payload={service:`wordpress:${id}`,id,label:label||siteUrl,siteUrl,username};
   if(appPassword)payload.appPassword=appPassword;
+  if(jetpackSiteId)payload.jetpackSiteId=jetpackSiteId;
   try{
     await api('whizz-save-integration','POST',payload);
     showToast(`${payload.label} connected!`,'success');
