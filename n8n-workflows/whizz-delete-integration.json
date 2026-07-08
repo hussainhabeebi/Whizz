@@ -1,0 +1,168 @@
+{
+  "name": "whizz-delete-integration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whizz-delete-integration",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b8c9d0e1-0008-0008-0008-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-delete-integration"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Integrations",
+          "mode": "name"
+        },
+        "options": {
+          "returnRowNumber": true
+        }
+      },
+      "id": "b8c9d0e1-0008-0008-0008-000000000002",
+      "name": "Read Integrations",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [460, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Look up the sheet row number for the given \"service\" key (e.g. \"wordpress:wp_abc123\") ──\n// Deleting by matching-column isn't supported for Google Sheets delete, so we resolve the\n// row number ourselves first.\nconst service = (($('Webhook').first().json.body || {}).service || '').toLowerCase();\nconst rows = $input.all();\nconst row = rows.find(r => (r.json.service || '').toLowerCase() === service);\n\nreturn [{\n  json: {\n    found: !!row,\n    rowNumber: row ? row.json.row_number : null\n  }\n}];"
+      },
+      "id": "b8c9d0e1-0008-0008-0008-000000000003",
+      "name": "Find Row Number",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.found }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b8c9d0e1-0008-0008-0008-000000000004",
+      "name": "Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Integrations",
+          "mode": "name"
+        },
+        "toDelete": {
+          "rows": [
+            {
+              "rowNumber": "={{ Number($json.rowNumber) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b8c9d0e1-0008-0008-0008-000000000005",
+      "name": "Delete Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1120, 220],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }",
+        "options": {}
+      },
+      "id": "b8c9d0e1-0008-0008-0008-000000000006",
+      "name": "Respond - Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"deleted\": false }",
+        "options": {}
+      },
+      "id": "b8c9d0e1-0008-0008-0008-000000000007",
+      "name": "Respond - Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 420]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Read Integrations", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read Integrations": {
+      "main": [
+        [{ "node": "Find Row Number", "type": "main", "index": 0 }]
+      ]
+    },
+    "Find Row Number": {
+      "main": [
+        [{ "node": "Found?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Found?": {
+      "main": [
+        [{ "node": "Delete Row", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Not Found", "type": "main", "index": 0 }]
+      ]
+    },
+    "Delete Row": {
+      "main": [
+        [{ "node": "Respond - Deleted", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}

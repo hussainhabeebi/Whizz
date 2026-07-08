@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all();\nconst row = rows.find(r => (r.json.service || '').toLowerCase() === 'brevo');\nlet cfg = {};\ntry { cfg = row ? JSON.parse(row.json.data || '{}') : {}; } catch (e) { cfg = {}; }\n\nreturn [{ json: { apiKey: cfg.apiKey || '', skip: !cfg.apiKey } }];"
+        "jsCode": "// ── Look up the Brevo API key and build the campaigns-list query string ──\n// \"period\" comes from the Whizz Reports page's month selector: either \"all\"\n// (default — most recent 10 sent campaigns) or \"YYYY-MM\" (that calendar\n// month's campaigns via Brevo's startDate/endDate filters).\nconst rows = $input.all();\nconst row = rows.find(r => (r.json.service || '').toLowerCase() === 'brevo');\nlet cfg = {};\ntry { cfg = row ? JSON.parse(row.json.data || '{}') : {}; } catch (e) { cfg = {}; }\n\nconst query = $('Webhook').first().json.query || {};\nconst period = query.period;\n\nconst params = new URLSearchParams();\nparams.set('statistics', 'globalStats');\nparams.set('sort', 'desc');\nparams.set('status', 'sent');\n\nif (period && period !== 'all') {\n  const [y, m] = period.split('-').map(Number);\n  const start = new Date(y, m - 1, 1);\n  const end = new Date(y, m, 0);\n  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;\n  params.set('startDate', fmt(start));\n  params.set('endDate', fmt(end));\n  params.set('limit', '50');\n} else {\n  params.set('limit', '10');\n}\n\nreturn [{ json: { apiKey: cfg.apiKey || '', skip: !cfg.apiKey, queryString: params.toString() } }];"
       },
       "id": "a7b8c9d0-0007-0007-0007-000000000003",
       "name": "Get Brevo Key",
@@ -76,16 +76,8 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "https://api.brevo.com/v3/emailCampaigns",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            { "name": "statistics", "value": "globalStats" },
-            { "name": "limit", "value": "10" },
-            { "name": "sort", "value": "desc" },
-            { "name": "status", "value": "sent" }
-          ]
-        },
+        "url": "=https://api.brevo.com/v3/emailCampaigns?{{ $json.queryString }}",
+        "sendQuery": false,
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
