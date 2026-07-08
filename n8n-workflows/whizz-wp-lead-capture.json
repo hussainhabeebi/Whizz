@@ -1,0 +1,190 @@
+{
+  "name": "whizz-wp-lead-capture",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whizz-wp-lead-capture",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c3d4e5f6-0003-0003-0003-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-wp-lead-capture"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Normalize an incoming WordPress form submission into the Whizz Contacts schema ──\n// Point your WordPress form's webhook (CF7 + \"Webhook for Contact Form 7\", WPForms Pro's\n// built-in Webhooks connection, or the Gravity Forms Webhooks Add-On) at this endpoint.\n// Whatever plugin you use, try to send clean keys: name, email, phone, message, form.\n// The fallbacks below also catch Contact Form 7's raw field names out of the box.\n\n// Edit these two defaults to match your site:\nconst DEFAULT_BRAND = 'Website Leads';\nconst DEFAULT_COUNTRY = '';\n\nconst b = $input.first().json.body || $input.first().json || {};\n\nconst name = b.name || b['your-name'] || b.full_name || b.contactName || '';\nconst email = b.email || b['your-email'] || '';\nconst phoneRaw = b.phone || b['your-phone'] || b['tel-843'] || b.mobile || '';\nconst message = b.message || b['your-message'] || '';\nconst formName = b.form || b.form_name || b.formName || 'WordPress Form';\n\n// Same normalization as the Whizz frontend: digits only, strip leading trunk 0,\n// compare the trailing 9 digits so +971501234567 / 971501234567 / 0501234567 match.\nfunction normalizePhone(phone) {\n  if (!phone) return '';\n  let digits = String(phone).replace(/\\D/g, '');\n  digits = digits.replace(/^0+/, '');\n  if (digits.length < 7) return digits;\n  return digits.slice(-9);\n}\n\nreturn [{\n  json: {\n    contactName: name || email || 'Website Lead',\n    company: name || '',\n    phone: phoneRaw,\n    phoneKey: normalizePhone(phoneRaw),\n    email: email,\n    category: message ? message.slice(0, 120) : '',\n    source: formName,\n    platform: 'Website',\n    country: DEFAULT_COUNTRY,\n    brand: DEFAULT_BRAND\n  }\n}];"
+      },
+      "id": "c3d4e5f6-0003-0003-0003-000000000002",
+      "name": "Normalize Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Contacts",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "c3d4e5f6-0003-0003-0003-000000000003",
+      "name": "Read All Contacts",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Duplicate check against every existing contact's phone number ──\nfunction normalizePhone(phone) {\n  if (!phone) return '';\n  let digits = String(phone).replace(/\\D/g, '');\n  digits = digits.replace(/^0+/, '');\n  if (digits.length < 7) return digits;\n  return digits.slice(-9);\n}\n\nconst lead = $('Normalize Lead').first().json;\nconst existingRows = $input.all();\n\nlet isDuplicate = false;\nlet duplicateName = '';\n\nif (lead.phoneKey) {\n  for (const row of existingRows) {\n    const existingPhone = row.json.phone || row.json.whatsapp || row.json['WhatsApp'] || row.json.mobile || '';\n    if (normalizePhone(existingPhone) === lead.phoneKey) {\n      isDuplicate = true;\n      duplicateName = row.json.contactName || row.json.company || row.json.name || 'an existing contact';\n      break;\n    }\n  }\n}\n\nreturn [{ json: { ...lead, isDuplicate, duplicateName } }];"
+      },
+      "id": "c3d4e5f6-0003-0003-0003-000000000004",
+      "name": "Check Duplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.isDuplicate }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c3d4e5f6-0003-0003-0003-000000000005",
+      "name": "Is Duplicate?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Contacts",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contactName": "={{ $json.contactName }}",
+            "company": "={{ $json.company }}",
+            "phone": "={{ $json.phone }}",
+            "email": "={{ $json.email }}",
+            "category": "={{ $json.category }}",
+            "source": "={{ $json.source }}",
+            "platform": "={{ $json.platform }}",
+            "country": "={{ $json.country }}",
+            "brand": "={{ $json.brand }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "c3d4e5f6-0003-0003-0003-000000000006",
+      "name": "Append New Lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1340, 220],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"duplicate\": false }",
+        "options": {}
+      },
+      "id": "c3d4e5f6-0003-0003-0003-000000000007",
+      "name": "Respond - Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"duplicate\": true, \"message\": \"Lead already exists\" }",
+        "options": {}
+      },
+      "id": "c3d4e5f6-0003-0003-0003-000000000008",
+      "name": "Respond - Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Normalize Lead", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize Lead": {
+      "main": [
+        [{ "node": "Read All Contacts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read All Contacts": {
+      "main": [
+        [{ "node": "Check Duplicate", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Duplicate": {
+      "main": [
+        [{ "node": "Is Duplicate?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Is Duplicate?": {
+      "main": [
+        [{ "node": "Respond - Duplicate", "type": "main", "index": 0 }],
+        [{ "node": "Append New Lead", "type": "main", "index": 0 }]
+      ]
+    },
+    "Append New Lead": {
+      "main": [
+        [{ "node": "Respond - Created", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}
