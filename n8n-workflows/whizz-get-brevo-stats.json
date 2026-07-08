@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ── Look up the Brevo API key and build the campaigns-list query string ──\n// \"period\" comes from the Whizz Reports page's month selector: either \"all\"\n// (default — most recent 10 sent campaigns) or \"YYYY-MM\" (that calendar\n// month's campaigns via Brevo's startDate/endDate filters).\n//\n// Brevo requires startDate/endDate as full ISO-8601 UTC date-TIMEs\n// (YYYY-MM-DDTHH:mm:ss.SSSZ), not plain dates — a plain YYYY-MM-DD is\n// silently ignored, which is why the date filter previously had no effect.\n// endDate also must never be in the future, which matters for the current\n// (in-progress) month, so it's clamped to \"now\" when the month isn't over yet.\nconst rows = $input.all();\nconst row = rows.find(r => (r.json.service || '').toLowerCase() === 'brevo');\nlet cfg = {};\ntry { cfg = row ? JSON.parse(row.json.data || '{}') : {}; } catch (e) { cfg = {}; }\n\nconst query = $('Webhook').first().json.query || {};\nconst period = query.period;\n\nconst params = new URLSearchParams();\nparams.set('statistics', 'globalStats');\nparams.set('sort', 'desc');\nparams.set('status', 'sent');\n\nif (period && period !== 'all') {\n  const [y, m] = period.split('-').map(Number);\n  const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));\n  let end = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));\n  const now = new Date();\n  if (end > now) end = now;\n  if (start > now) {\n    // Selected month hasn't started yet (shouldn't happen from the UI's own\n    // month list, but guard against it rather than send an invalid range).\n    params.set('limit', '0');\n  } else {\n    params.set('startDate', start.toISOString());\n    params.set('endDate', end.toISOString());\n    params.set('limit', '50');\n  }\n} else {\n  params.set('limit', '10');\n}\n\nreturn [{ json: { apiKey: cfg.apiKey || '', skip: !cfg.apiKey, queryString: params.toString() } }];"
+        "jsCode": "// ── Look up the Brevo API key and build the campaigns-list query string ──\n// \"period\" comes from the Whizz Reports page's month selector: either \"all\"\n// (default — most recent 10 sent campaigns) or \"YYYY-MM\" (that calendar\n// month's campaigns via Brevo's startDate/endDate filters).\n//\n// Brevo requires startDate/endDate as full ISO-8601 UTC date-TIMEs\n// (YYYY-MM-DDTHH:mm:ss.SSSZ), not plain dates — a plain YYYY-MM-DD is\n// silently ignored, which is why the date filter previously had no effect.\n// endDate also must never be in the future, which matters for the current\n// (in-progress) month, so it's clamped to \"now\" when the month isn't over yet.\nconst rows = $input.all();\nconst row = rows.find(r => (r.json.service || '').toLowerCase() === 'brevo');\nlet cfg = {};\ntry { cfg = row ? JSON.parse(row.json.data || '{}') : {}; } catch (e) { cfg = {}; }\n\nconst query = $('Webhook').first().json.query || {};\nconst period = query.period;\n\nconst params = new URLSearchParams();\nparams.set('statistics', 'globalStats');\nparams.set('sort', 'desc');\nparams.set('status', 'sent');\n\nif (period && period !== 'all') {\n  const [y, m] = period.split('-').map(Number);\n  const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));\n  let end = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));\n  const now = new Date();\n  if (end > now) end = now;\n  if (start > now) {\n    // Selected month hasn't started yet (shouldn't happen from the UI's own\n    // month list, but guard against it rather than send an invalid range).\n    params.set('limit', '0');\n  } else {\n    params.set('startDate', start.toISOString());\n    params.set('endDate', end.toISOString());\n    params.set('limit', '50');\n  }\n} else {\n  params.set('limit', '10');\n}\n\nreturn [{ json: { apiKey: cfg.apiKey || '', listId: cfg.listId || '', skip: !cfg.apiKey, queryString: params.toString() } }];"
       },
       "id": "a7b8c9d0-0007-0007-0007-000000000003",
       "name": "Get Brevo Key",
@@ -94,13 +94,38 @@
     },
     {
       "parameters": {
-        "jsCode": "// ── Normalize Brevo's campaign list + globalStats into the shape the Reports page expects ──\nconst body = $input.first().json;\nconst campaigns = (body.campaigns || []).map(c => {\n  const stats = c.statistics && c.statistics.globalStats ? c.statistics.globalStats : {};\n  return {\n    name: c.name || c.subject || 'Untitled Campaign',\n    sentDate: c.sentDate || c.scheduledAt || null,\n    sent: stats.sent || 0,\n    delivered: stats.delivered || 0,\n    opens: stats.uniqueViews || stats.opens || 0,\n    clicks: stats.uniqueClicks || stats.clicks || 0,\n    bounces: (stats.softBounces || 0) + (stats.hardBounces || 0)\n  };\n});\n\nreturn [{ json: { campaigns } }];"
+        "method": "GET",
+        "url": "=https://api.brevo.com/v3/contacts/lists/{{ $('Get Brevo Key').first().json.listId }}/contacts",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "limit", "value": "1" },
+            { "name": "offset", "value": "0" }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "api-key", "value": "={{ $('Get Brevo Key').first().json.apiKey }}" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000009",
+      "name": "Fetch Brevo List Count",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Normalize Brevo's campaign list + globalStats, plus the total contact count for the ──\n// configured list, into the shape the Reports page expects.\n// \"Total Email Leads\" = Brevo's own count of contacts in your configured list (all-time,\n// not period-scoped — a contact list doesn't have a clean \"added this month\" concept here).\n// The list-count call degrades to 0 rather than erroring if no list is configured, or if\n// Brevo returns something unexpected (e.g. \"count\" missing) — never block the campaigns data.\nconst campaignsResp = $('Fetch Brevo Campaigns').first().json;\nconst campaigns = (campaignsResp.campaigns || []).map(c => {\n  const stats = c.statistics && c.statistics.globalStats ? c.statistics.globalStats : {};\n  return {\n    name: c.name || c.subject || 'Untitled Campaign',\n    sentDate: c.sentDate || c.scheduledAt || null,\n    sent: stats.sent || 0,\n    delivered: stats.delivered || 0,\n    opens: stats.uniqueViews || stats.opens || 0,\n    clicks: stats.uniqueClicks || stats.clicks || 0,\n    bounces: (stats.softBounces || 0) + (stats.hardBounces || 0)\n  };\n});\n\nconst listResp = $input.first().json;\nconst totalEmailLeads = typeof listResp.count === 'number' ? listResp.count : 0;\n\nreturn [{ json: { campaigns, totalEmailLeads } }];"
       },
       "id": "a7b8c9d0-0007-0007-0007-000000000006",
       "name": "Normalize Campaigns",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 220]
+      "position": [1560, 220]
     },
     {
       "parameters": {
@@ -112,12 +137,12 @@
       "name": "Respond - Stats",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1560, 220]
+      "position": [1780, 220]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={ \"campaigns\": [] }",
+        "responseBody": "={ \"campaigns\": [], \"totalEmailLeads\": null }",
         "options": {}
       },
       "id": "a7b8c9d0-0007-0007-0007-000000000008",
@@ -150,6 +175,11 @@
       ]
     },
     "Fetch Brevo Campaigns": {
+      "main": [
+        [{ "node": "Fetch Brevo List Count", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Brevo List Count": {
       "main": [
         [{ "node": "Normalize Campaigns", "type": "main", "index": 0 }]
       ]
