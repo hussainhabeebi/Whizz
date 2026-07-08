@@ -1373,23 +1373,39 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         </div>
         <div class="card">
           <div class="card-head">
-            <div class="card-title">WordPress</div>
-            <span class="eyebrow" id="int-wp-status" style="margin-bottom:0;">Checking…</span>
+            <div class="card-title">WordPress Sites</div>
+            <button class="t-btn btn-primary t-btn-sm" onclick="openAddWpSiteModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Site
+            </button>
           </div>
-          <div class="card-body">
-            <div class="two-col">
-              <div class="fg"><label class="fl">Site URL</label><input class="fi" id="int-wp-url" placeholder="https://yoursite.com"/></div>
-              <div class="fg"><label class="fl">Username</label><input class="fi" id="int-wp-user" placeholder="admin"/></div>
-            </div>
+          <div class="card-body" id="wp-sites-list" style="padding:6px 20px;">
+            <div class="empty-state">Checking…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WordPress Site Modal -->
+      <div class="modal-overlay" id="modal-wp-site">
+        <div class="modal" style="width:min(96vw,480px);">
+          <div class="modal-head">
+            <div class="modal-title" id="wp-site-modal-title">Add WordPress Site</div>
+            <button class="modal-close" onclick="closeModal('modal-wp-site')">✕</button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="wp-site-id"/>
+            <div class="fg"><label class="fl">Label</label><input class="fi" id="wp-site-label" placeholder="e.g. Main Store"/></div>
+            <div class="fg"><label class="fl">Site URL</label><input class="fi" id="wp-site-url" placeholder="https://yoursite.com"/></div>
+            <div class="fg"><label class="fl">Username</label><input class="fi" id="wp-site-user" placeholder="admin"/></div>
             <div class="fg">
               <label class="fl">Application Password</label>
-              <input class="fi" id="int-wp-pass" type="password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"/>
-              <div class="fi-hint">Your WP user profile → Application Passwords (needs WordPress 5.6+). Stored server-side only.</div>
+              <input class="fi" id="wp-site-pass" type="password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"/>
+              <div class="fi-hint" id="wp-site-pass-hint">Your WP user profile → Application Passwords (needs WordPress 5.6+). Stored server-side only.</div>
             </div>
-            <button class="t-btn btn-primary" onclick="saveWordPressIntegration()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
-              Save WordPress Connection
-            </button>
+          </div>
+          <div class="modal-foot">
+            <button class="t-btn btn-ghost" onclick="closeModal('modal-wp-site')">Cancel</button>
+            <button class="t-btn btn-primary" onclick="submitWpSite()">Save Site</button>
           </div>
         </div>
       </div>
@@ -3427,21 +3443,91 @@ function deleteUser(email){
 // ── Integrations (Brevo / WordPress) ──
 // Credentials are only ever POSTed to n8n, which stores them server-side.
 // The frontend never reads a saved key/password back — only a connected/not-connected status.
+let _wpSites=[];
 async function loadIntegrationsStatus(){
   const brevoEl=document.getElementById('int-brevo-status');
-  const wpEl=document.getElementById('int-wp-status');
-  brevoEl.textContent='Checking…';wpEl.textContent='Checking…';
+  const wpListEl=document.getElementById('wp-sites-list');
+  brevoEl.textContent='Checking…';
+  wpListEl.innerHTML='<div class="empty-state">Checking…</div>';
   try{
     const d=await api('whizz-get-integration-status');
     brevoEl.textContent=d.brevo&&d.brevo.connected?'Connected':'Not connected';
     brevoEl.style.color=d.brevo&&d.brevo.connected?'var(--green)':'var(--text3)';
     if(d.brevo&&d.brevo.connected&&d.brevo.listId)document.getElementById('int-brevo-list').placeholder=`Current: ${d.brevo.listId}`;
-    wpEl.textContent=d.wordpress&&d.wordpress.connected?'Connected':'Not connected';
-    wpEl.style.color=d.wordpress&&d.wordpress.connected?'var(--green)':'var(--text3)';
-    if(d.wordpress&&d.wordpress.connected&&d.wordpress.siteUrl)document.getElementById('int-wp-url').placeholder=`Current: ${d.wordpress.siteUrl}`;
+    _wpSites=d.wordpressSites||[];
+    renderWpSitesList(_wpSites);
   }catch(e){
-    brevoEl.textContent='Status unavailable';wpEl.textContent='Status unavailable';
+    brevoEl.textContent='Status unavailable';
+    wpListEl.innerHTML='<div class="empty-state">Status unavailable</div>';
   }
+}
+function renderWpSitesList(sites){
+  const el=document.getElementById('wp-sites-list');
+  if(!sites.length){el.innerHTML='<div class="empty-state">No WordPress sites connected yet. Click <strong>Add Site</strong> to connect one.</div>';return;}
+  el.innerHTML=sites.map(s=>`
+    <div class="hist-item">
+      <div class="hist-icon" style="background:var(--blue-dim);color:var(--blue);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg></div>
+      <div class="hist-info">
+        <div class="hist-name">${s.label||s.siteUrl||'Untitled site'}</div>
+        <div class="hist-meta">${s.siteUrl||''} · <span style="color:var(--green)">Connected</span></div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="t-btn btn-ghost t-btn-sm" onclick="openEditWpSiteModal('${s.id}')">Edit</button>
+        <button class="t-btn t-btn-sm" style="background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteWpSite('${s.id}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+function openAddWpSiteModal(){
+  document.getElementById('wp-site-modal-title').textContent='Add WordPress Site';
+  document.getElementById('wp-site-id').value='';
+  document.getElementById('wp-site-label').value='';
+  document.getElementById('wp-site-url').value='';
+  document.getElementById('wp-site-user').value='';
+  document.getElementById('wp-site-pass').value='';
+  document.getElementById('wp-site-pass-hint').textContent='Your WP user profile → Application Passwords (needs WordPress 5.6+). Stored server-side only.';
+  document.getElementById('modal-wp-site').classList.add('open');
+}
+function openEditWpSiteModal(id){
+  const s=_wpSites.find(x=>x.id===id);
+  if(!s)return;
+  document.getElementById('wp-site-modal-title').textContent='Edit WordPress Site';
+  document.getElementById('wp-site-id').value=s.id;
+  document.getElementById('wp-site-label').value=s.label||'';
+  document.getElementById('wp-site-url').value=s.siteUrl||'';
+  document.getElementById('wp-site-user').value=s.username||'';
+  document.getElementById('wp-site-pass').value='';
+  document.getElementById('wp-site-pass-hint').textContent='Leave blank to keep the current saved password.';
+  document.getElementById('modal-wp-site').classList.add('open');
+}
+async function submitWpSite(){
+  const idField=document.getElementById('wp-site-id').value.trim();
+  const label=document.getElementById('wp-site-label').value.trim();
+  const siteUrl=document.getElementById('wp-site-url').value.trim();
+  const username=document.getElementById('wp-site-user').value.trim();
+  const appPassword=document.getElementById('wp-site-pass').value.trim();
+  if(!siteUrl||!username){showToast('Site URL and username are required','error');return;}
+  const isNew=!idField;
+  if(isNew&&!appPassword){showToast('Application password is required for a new site','error');return;}
+  const id=idField||`wp_${Date.now().toString(36)}${Math.random().toString(36).slice(2,7)}`;
+  const payload={service:`wordpress:${id}`,id,label:label||siteUrl,siteUrl,username};
+  if(appPassword)payload.appPassword=appPassword;
+  try{
+    await api('whizz-save-integration','POST',payload);
+    showToast(`${payload.label} connected!`,'success');
+    closeModal('modal-wp-site');
+    loadIntegrationsStatus();
+  }catch(e){showToast('Failed to save — ensure whizz-save-integration webhook is active','error');}
+}
+async function deleteWpSite(id){
+  const s=_wpSites.find(x=>x.id===id);
+  if(!s)return;
+  if(!confirm(`Disconnect "${s.label||s.siteUrl}"? This cannot be undone.`))return;
+  try{
+    await api('whizz-delete-integration','POST',{service:`wordpress:${id}`});
+    showToast('Site disconnected','success');
+    loadIntegrationsStatus();
+  }catch(e){showToast('Failed to delete — ensure whizz-delete-integration webhook is active','error');}
 }
 async function saveBrevoIntegration(){
   const apiKey=document.getElementById('int-brevo-key').value.trim();
@@ -3451,18 +3537,6 @@ async function saveBrevoIntegration(){
     await api('whizz-save-integration','POST',{service:'brevo',apiKey,listId});
     showToast('Brevo connected!','success');
     document.getElementById('int-brevo-key').value='';
-    loadIntegrationsStatus();
-  }catch(e){showToast('Failed to save — ensure whizz-save-integration webhook is active','error');}
-}
-async function saveWordPressIntegration(){
-  const siteUrl=document.getElementById('int-wp-url').value.trim();
-  const username=document.getElementById('int-wp-user').value.trim();
-  const appPassword=document.getElementById('int-wp-pass').value.trim();
-  if(!siteUrl||!username||!appPassword){showToast('Site URL, username and application password are all required','error');return;}
-  try{
-    await api('whizz-save-integration','POST',{service:'wordpress',siteUrl,username,appPassword});
-    showToast('WordPress connected!','success');
-    document.getElementById('int-wp-pass').value='';
     loadIntegrationsStatus();
   }catch(e){showToast('Failed to save — ensure whizz-save-integration webhook is active','error');}
 }
