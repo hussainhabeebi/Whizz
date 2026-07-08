@@ -337,22 +337,47 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .ob-desc{font-size:12px;color:var(--text2);line-height:1.5;}
 
 /* Modal */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:100;align-items:center;justify-content:center;}
 .modal-overlay.open{display:flex;}
-.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);width:500px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow);}
-.modal-head{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-.modal-title{font-size:15px;font-weight:600;font-family:var(--font-display);}
-.modal-close{width:28px;height:28px;border-radius:6px;background:var(--bg3);border:none;cursor:pointer;color:var(--text2);font-size:15px;display:flex;align-items:center;justify-content:center;}
-.modal-close:hover{background:var(--red-dim);color:var(--red);}
-.modal-body{padding:18px 22px;}
-.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:16px;width:500px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 60px -12px rgba(15,23,42,0.25),0 4px 16px rgba(15,23,42,0.08);}
+body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,0,0,0.35);}
+.modal-head{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;background:var(--bg3);border-radius:16px 16px 0 0;}
+.modal-title{font-size:15px;font-weight:700;font-family:var(--font-display);color:var(--text);}
+.modal-subtitle{font-size:11.5px;color:var(--text3);margin-top:3px;line-height:1.5;max-width:460px;}
+.modal-icon{width:34px;height:34px;border-radius:10px;background:var(--accent-dim);color:var(--accent2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.modal-close{width:28px;height:28px;border-radius:8px;background:var(--bg2);border:1px solid var(--border);cursor:pointer;color:var(--text2);font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s var(--ease);flex-shrink:0;}
+.modal-close:hover{background:var(--red-dim);color:var(--red);border-color:rgba(220,38,38,0.25);}
+.modal-body{padding:20px 24px;}
+.modal-foot{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:var(--bg3);border-radius:0 0 16px 16px;}
+
+/* Add Contact Modal */
+.ac-shared-panel{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:16px;}
+.ac-shared-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;}
+.ac-table-head{display:grid;grid-template-columns:1fr 130px 150px 130px 28px;gap:6px;margin-bottom:6px;padding:0 8px;}
+.ac-table-head div{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;}
+.ac-table-rows{display:flex;flex-direction:column;gap:4px;max-height:340px;overflow-y:auto;padding-right:2px;}
+.ac-row{display:grid;grid-template-columns:1fr 130px 150px 130px 28px;gap:6px;align-items:center;padding:5px 8px;border-radius:8px;transition:background 0.12s;}
+.ac-row:hover{background:var(--bg3);}
+.ac-row .fi{padding:7px 9px;font-size:12px;}
+.ac-remove-btn{width:26px;height:26px;border-radius:7px;background:var(--red-dim);border:1px solid rgba(220,38,38,0.2);color:var(--red);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s var(--ease);}
+.ac-remove-btn:hover{background:var(--red);color:#fff;}
+.ac-add-row-btn{margin-top:12px;width:100%;padding:9px;font-size:12px;border:1.5px dashed var(--border2);justify-content:center;border-radius:var(--r-sm);}
+.ac-add-row-btn:hover{border-color:var(--accent);color:var(--accent2);}
 
 /* Toast */
-.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:1000;display:flex;flex-direction:column;gap:8px;}
-.toast{padding:10px 16px;border-radius:var(--r-sm);font-size:12px;font-weight:500;color:#fff;box-shadow:var(--shadow);animation:slideIn 0.2s ease;max-width:300px;}
-.toast.success{background:var(--green);color:#000;}
-.toast.error{background:var(--red);}
-.toast.info{background:var(--accent);color:#000;}
+.toast-wrap{position:fixed;top:20px;right:20px;z-index:1000;display:flex;flex-direction:column;gap:10px;}
+.toast{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:11px;font-size:12.5px;font-weight:500;color:var(--text);background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);box-shadow:var(--shadow-lift);animation:slideIn 0.25s var(--ease);max-width:340px;line-height:1.45;}
+.toast.out{animation:slideOut 0.2s ease forwards;}
+.toast-icon{flex-shrink:0;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.toast-icon svg{width:12px;height:12px;}
+.toast-msg{flex:1;padding-top:1px;}
+.toast.success{border-left-color:var(--green);}
+.toast.success .toast-icon{background:var(--green-dim);color:var(--green);}
+.toast.error{border-left-color:var(--red);}
+.toast.error .toast-icon{background:var(--red-dim);color:var(--red);}
+.toast.info{border-left-color:var(--blue);}
+.toast.info .toast-icon{background:var(--blue-dim);color:var(--blue);}
+@keyframes slideOut{to{transform:translateX(24px);opacity:0;}}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
 .spin{animation:spinning 0.8s linear infinite;}
 @keyframes spinning{to{transform:rotate(360deg);}}
@@ -1412,31 +1437,42 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 <div class="modal-overlay" id="modal-add-contact">
   <div class="modal" style="width:min(96vw,1100px);max-height:90vh;">
     <div class="modal-head">
-      <div class="modal-title">Add Contacts</div>
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+        </div>
+        <div>
+          <div class="modal-title">Add Contacts</div>
+          <div class="modal-subtitle">Add one or more leads to your pipeline. Duplicate mobile numbers are detected automatically, with or without a country code or "+".</div>
+        </div>
+      </div>
       <button class="modal-close" onclick="closeModal('modal-add-contact')">✕</button>
     </div>
-    <div class="modal-body" style="padding:14px 18px;">
+    <div class="modal-body" style="padding:16px 22px;">
       <!-- Shared fields row -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
-        <div class="fg" style="margin:0;"><label class="fl">Platform</label><input class="fi" id="ac-shared-platform" placeholder="e.g. WhatsApp"/></div>
-        <div class="fg" style="margin:0;"><label class="fl">Country</label><input class="fi" id="ac-shared-country" placeholder="e.g. UAE"/></div>
-        <div class="fg" style="margin:0;"><label class="fl">Brand</label><input class="fi" id="ac-shared-brand" placeholder="e.g. HP"/></div>
-        <div class="fg" style="margin:0;"><label class="fl">Category</label><input class="fi" id="ac-shared-category" placeholder="e.g. Printer"/></div>
+      <div class="ac-shared-panel">
+        <div class="ac-shared-label">Applies to all rows below</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+          <div class="fg" style="margin:0;"><label class="fl">Platform</label><input class="fi" id="ac-shared-platform" placeholder="e.g. WhatsApp"/></div>
+          <div class="fg" style="margin:0;"><label class="fl">Country</label><input class="fi" id="ac-shared-country" placeholder="e.g. UAE"/></div>
+          <div class="fg" style="margin:0;"><label class="fl">Brand</label><input class="fi" id="ac-shared-brand" placeholder="e.g. HP"/></div>
+          <div class="fg" style="margin:0;"><label class="fl">Category</label><input class="fi" id="ac-shared-category" placeholder="e.g. Printer"/></div>
+        </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);margin-bottom:10px;">Platform, Country, Brand &amp; Category apply to all rows unless overridden per row below.</div>
       <!-- Table header -->
-      <div style="display:grid;grid-template-columns:1fr 130px 150px 130px 28px;gap:6px;margin-bottom:4px;padding:0 4px;">
-        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Company / Contact Name *</div>
-        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Mobile</div>
-        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Email</div>
-        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Source</div>
+      <div class="ac-table-head">
+        <div>Company / Contact Name *</div>
+        <div>Mobile</div>
+        <div>Email</div>
+        <div>Source</div>
         <div></div>
       </div>
       <!-- Rows container -->
-      <div id="ac-rows" style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;padding-right:2px;"></div>
+      <div id="ac-rows" class="ac-table-rows"></div>
       <!-- Add row button -->
-      <button class="t-btn btn-ghost" onclick="acAddRow()" style="margin-top:10px;width:100%;padding:7px;font-size:12px;border-style:dashed;">
-        + Add Row
+      <button class="t-btn btn-ghost ac-add-row-btn" onclick="acAddRow()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Row
       </button>
     </div>
     <div class="modal-foot">
@@ -1901,7 +1937,36 @@ function toggleSidebar(){document.getElementById('sidebar').classList.toggle('op
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show');}
 
 // ── Toast Notifications UI Node ──
-function showToast(msg,type='info'){const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;document.getElementById('toast-wrap').appendChild(el);setTimeout(()=>el.remove(),4000);}
+const TOAST_ICONS={
+  success:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
+  error:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+};
+function showToast(msg,type='info'){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  const icon=document.createElement('span');
+  icon.className='toast-icon';
+  icon.innerHTML=TOAST_ICONS[type]||TOAST_ICONS.info;
+  const text=document.createElement('span');
+  text.className='toast-msg';
+  text.textContent=msg;
+  el.appendChild(icon);el.appendChild(text);
+  document.getElementById('toast-wrap').appendChild(el);
+  setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),200);},4000);
+}
+
+// ── Phone normalization (for duplicate detection) ──
+// Strips everything but digits, drops a leading trunk "0", and compares
+// the trailing 9 digits so "+971501234567", "971501234567" and
+// "0501234567" are all recognized as the same mobile number.
+function normalizePhone(phone){
+  if(!phone)return'';
+  let digits=String(phone).replace(/\D/g,'');
+  digits=digits.replace(/^0+/,'');
+  if(digits.length<7)return digits;
+  return digits.slice(-9);
+}
 
 // ── Dark / Light Mode ──
 function toggleTheme(){
@@ -2585,13 +2650,13 @@ function acAddRow(){
   const id=++_acRowId;
   const row=document.createElement('div');
   row.id=`ac-row-${id}`;
-  row.style.cssText='display:grid;grid-template-columns:1fr 130px 150px 130px 28px;gap:6px;align-items:center;';
+  row.className='ac-row';
   row.innerHTML=`
-    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="Company or Contact Name *" data-field="name"/>
-    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="+971..." data-field="phone"/>
-    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="email@example.com" data-field="email"/>
-    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="Manual Entry" data-field="source"/>
-    <button onclick="acRemoveRow(${id})" style="width:26px;height:26px;border-radius:6px;background:var(--red-dim);border:1px solid rgba(220,38,38,0.2);color:var(--red);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Remove">✕</button>
+    <input class="fi" placeholder="Company or Contact Name *" data-field="name"/>
+    <input class="fi" placeholder="+971..." data-field="phone" oninput="acClearDupFlag(this)"/>
+    <input class="fi" placeholder="email@example.com" data-field="email"/>
+    <input class="fi" placeholder="Manual Entry" data-field="source"/>
+    <button class="ac-remove-btn" onclick="acRemoveRow(${id})" title="Remove">✕</button>
   `;
   document.getElementById('ac-rows').appendChild(row);
   acUpdateCount();
@@ -2604,6 +2669,31 @@ function acRemoveRow(id){
 function acUpdateCount(){
   const n=document.getElementById('ac-rows').children.length;
   document.getElementById('ac-row-count').textContent=n?`${n} contact${n>1?'s':''}  to save`:'';
+}
+function acClearDupFlag(input){
+  input.style.borderColor='';
+  input.title='';
+}
+// Builds a map of normalized-phone -> contact name for everyone already
+// saved in the target platform/country/brand group, so we can flag
+// duplicate mobile numbers before they're written to the sheet.
+async function acLoadExistingPhoneMap(platform,country,brand){
+  const map=new Map();
+  let existing=[];
+  if(_currentLeadsGroup&&_currentLeadsGroup.platform===platform&&_currentLeadsGroup.country===country&&_currentLeadsGroup.brand===brand&&_currentLeadsContacts.length){
+    existing=_currentLeadsContacts;
+  }else if(platform&&country&&brand){
+    try{
+      const d=await api(`whizz-get-contacts?platform=${encodeURIComponent(platform)}&country=${encodeURIComponent(country)}&brand=${encodeURIComponent(brand)}`);
+      const c=d.contacts||d||[];
+      existing=Array.isArray(c)?c:[];
+    }catch(e){existing=[];}
+  }
+  existing.forEach(c=>{
+    const key=normalizePhone(c.phone||c.phoneNumber);
+    if(key)map.set(key,c.contactName||c.company||c.name||'Unknown');
+  });
+  return map;
 }
 function openAddContactModal(){
   const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
@@ -2625,15 +2715,20 @@ async function submitAddContact(){
   const sharedCategory=document.getElementById('ac-shared-category').value.trim();
   const rows=document.getElementById('ac-rows').querySelectorAll('[id^="ac-row-"]');
   const contacts=[];
+  const rowMeta=[];
   let hasError=false;
   rows.forEach(row=>{
-    const name=row.querySelector('[data-field="name"]').value.trim();
-    if(!name){row.querySelector('[data-field="name"]').style.borderColor='var(--red)';hasError=true;return;}
-    row.querySelector('[data-field="name"]').style.borderColor='';
+    const nameEl=row.querySelector('[data-field="name"]');
+    const phoneEl=row.querySelector('[data-field="phone"]');
+    const name=nameEl.value.trim();
+    if(!name){nameEl.style.borderColor='var(--red)';hasError=true;return;}
+    nameEl.style.borderColor='';
+    acClearDupFlag(phoneEl);
+    const phone=phoneEl.value.trim();
     contacts.push({
       contactName:name,
       company:name,
-      phone:row.querySelector('[data-field="phone"]').value.trim(),
+      phone,
       email:row.querySelector('[data-field="email"]').value.trim(),
       source:row.querySelector('[data-field="source"]').value.trim()||'Manual Entry',
       platform:sharedPlatform,
@@ -2641,9 +2736,35 @@ async function submitAddContact(){
       brand:sharedBrand,
       category:sharedCategory
     });
+    rowMeta.push({name,phoneEl,phone});
   });
   if(hasError){showToast('Contact name is required for all rows','error');return;}
   if(!contacts.length){showToast('Add at least one contact row','error');return;}
+
+  // ── Duplicate mobile number detection (ignores +, country code, leading 0) ──
+  const existingMap=await acLoadExistingPhoneMap(sharedPlatform,sharedCountry,sharedBrand);
+  const seenInBatch=new Map();
+  const dupMessages=[];
+  rowMeta.forEach(({name,phoneEl,phone})=>{
+    const key=normalizePhone(phone);
+    if(!key)return;
+    const dupWith=existingMap.get(key)||seenInBatch.get(key);
+    if(dupWith){
+      phoneEl.style.borderColor='var(--red)';
+      phoneEl.title=`Duplicate: ${phone} already used by ${dupWith}`;
+      dupMessages.push(`${phone} (already used by ${dupWith})`);
+      hasError=true;
+    }else{
+      seenInBatch.set(key,name);
+    }
+  });
+  if(hasError){
+    const extra=dupMessages.length>1?` (+${dupMessages.length-1} more)`:'';
+    showToast(`Duplicate mobile number: ${dupMessages[0]}${extra}`,'error');
+    addNotif(`Duplicate lead blocked — ${dupMessages.join('; ')}`);
+    return;
+  }
+
   try{
     await api('whizz-save-contact','POST',{contacts});
     showToast(`${contacts.length} contact${contacts.length>1?'s':''} saved!`,'success');
