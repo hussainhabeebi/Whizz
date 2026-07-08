@@ -169,13 +169,13 @@ function acAddRow(){
   const id=++_acRowId;
   const row=document.createElement('div');
   row.id=`ac-row-${id}`;
-  row.style.cssText='display:grid;grid-template-columns:1fr 130px 150px 130px 28px;gap:6px;align-items:center;';
+  row.className='ac-row';
   row.innerHTML=`
-    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="Company or Contact Name *" data-field="name"/>
-    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="+971..." data-field="phone"/>
-    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="email@example.com" data-field="email"/>
-    <input class="fi" style="padding:7px 9px;font-size:12px;" placeholder="Manual Entry" data-field="source"/>
-    <button onclick="acRemoveRow(${id})" style="width:26px;height:26px;border-radius:6px;background:var(--red-dim);border:1px solid rgba(220,38,38,0.2);color:var(--red);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Remove">✕</button>
+    <input class="fi" placeholder="Company or Contact Name *" data-field="name"/>
+    <input class="fi" placeholder="+971..." data-field="phone" oninput="acClearDupFlag(this)"/>
+    <input class="fi" placeholder="email@example.com" data-field="email"/>
+    <input class="fi" placeholder="Manual Entry" data-field="source"/>
+    <button class="ac-remove-btn" onclick="acRemoveRow(${id})" title="Remove">✕</button>
   `;
   document.getElementById('ac-rows').appendChild(row);
   acUpdateCount();
@@ -202,6 +202,33 @@ function openAddContactModal(){
   acAddRow();
   document.getElementById('modal-add-contact').classList.add('open');
 }
+// Builds a map of normalized-phone -> contact name for everyone already
+// saved in the target platform/country/brand group, so we can flag
+// duplicate mobile numbers before they're written to the sheet.
+async function acLoadExistingPhoneMap(platform,country,brand){
+  const map=new Map();
+  let existing=[];
+  if(_currentLeadsGroup&&_currentLeadsGroup.platform===platform&&_currentLeadsGroup.country===country&&_currentLeadsGroup.brand===brand&&_currentLeadsContacts.length){
+    existing=_currentLeadsContacts;
+  }else if(platform&&country&&brand){
+    try{
+      const d=await api(`whizz-get-contacts?platform=${encodeURIComponent(platform)}&country=${encodeURIComponent(country)}&brand=${encodeURIComponent(brand)}`);
+      const c=d.contacts||d||[];
+      existing=Array.isArray(c)?c:[];
+    }catch(e){existing=[];}
+  }
+  existing.forEach(c=>{
+    const key=normalizePhone(c.phone||c.phoneNumber);
+    if(key)map.set(key,c.contactName||c.company||c.name||'Unknown');
+  });
+  return map;
+}
+
+function acClearDupFlag(input){
+  input.style.borderColor='';
+  input.title='';
+}
+
 async function submitAddContact(){
   const sharedPlatform=document.getElementById('ac-shared-platform').value.trim();
   const sharedCountry=document.getElementById('ac-shared-country').value.trim();
@@ -209,15 +236,20 @@ async function submitAddContact(){
   const sharedCategory=document.getElementById('ac-shared-category').value.trim();
   const rows=document.getElementById('ac-rows').querySelectorAll('[id^="ac-row-"]');
   const contacts=[];
+  const rowMeta=[];
   let hasError=false;
   rows.forEach(row=>{
-    const name=row.querySelector('[data-field="name"]').value.trim();
-    if(!name){row.querySelector('[data-field="name"]').style.borderColor='var(--red)';hasError=true;return;}
-    row.querySelector('[data-field="name"]').style.borderColor='';
+    const nameEl=row.querySelector('[data-field="name"]');
+    const phoneEl=row.querySelector('[data-field="phone"]');
+    const name=nameEl.value.trim();
+    if(!name){nameEl.style.borderColor='var(--red)';hasError=true;return;}
+    nameEl.style.borderColor='';
+    acClearDupFlag(phoneEl);
+    const phone=phoneEl.value.trim();
     contacts.push({
       contactName:name,
       company:name,
-      phone:row.querySelector('[data-field="phone"]').value.trim(),
+      phone,
       email:row.querySelector('[data-field="email"]').value.trim(),
       source:row.querySelector('[data-field="source"]').value.trim()||'Manual Entry',
       platform:sharedPlatform,
@@ -225,9 +257,35 @@ async function submitAddContact(){
       brand:sharedBrand,
       category:sharedCategory
     });
+    rowMeta.push({name,phoneEl,phone});
   });
   if(hasError){showToast('Contact name is required for all rows','error');return;}
   if(!contacts.length){showToast('Add at least one contact row','error');return;}
+
+  // ── Duplicate mobile number detection (ignores +, country code, leading 0) ──
+  const existingMap=await acLoadExistingPhoneMap(sharedPlatform,sharedCountry,sharedBrand);
+  const seenInBatch=new Map();
+  const dupMessages=[];
+  rowMeta.forEach(({name,phoneEl,phone})=>{
+    const key=normalizePhone(phone);
+    if(!key)return;
+    const dupWith=existingMap.get(key)||seenInBatch.get(key);
+    if(dupWith){
+      phoneEl.style.borderColor='var(--red)';
+      phoneEl.title=`Duplicate: ${phone} already used by ${dupWith}`;
+      dupMessages.push(`${phone} (already used by ${dupWith})`);
+      hasError=true;
+    }else{
+      seenInBatch.set(key,name);
+    }
+  });
+  if(hasError){
+    const extra=dupMessages.length>1?` (+${dupMessages.length-1} more)`:'';
+    showToast(`Duplicate mobile number: ${dupMessages[0]}${extra}`,'error');
+    addNotif(`Duplicate lead blocked — ${dupMessages.join('; ')}`);
+    return;
+  }
+
   try{
     await api('whizz-save-contact','POST',{contacts});
     showToast(`${contacts.length} contact${contacts.length>1?'s':''} saved!`,'success');
