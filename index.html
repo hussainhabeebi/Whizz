@@ -1020,7 +1020,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           </div>
           <div class="stat-card green">
             <div class="s-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-            <div class="s-label">Total Email Leads</div>
+            <div class="s-label">New Leads</div>
             <div class="s-value" id="rep-sum-brevo-leads">—</div>
             <div class="s-sub" id="rep-sum-brevo-leads-sub">Connect Brevo to see this</div>
           </div>
@@ -2130,7 +2130,7 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
       <div class="kpi-sub">${d.brevoCampaigns.length?`${d.emailOpenRate}% avg open rate`:'Brevo not connected'}</div>
     </div>
     <div class="kpi-card green">
-      <div class="kpi-label">Total Email Leads</div>
+      <div class="kpi-label">New Leads</div>
       <div class="kpi-value">${(d.brevoTotalLeads===null||d.brevoTotalLeads===undefined)?'—':d.brevoTotalLeads.toLocaleString()}</div>
       <div class="kpi-sub">${(d.brevoTotalLeads===null||d.brevoTotalLeads===undefined)?'Brevo not connected':'All-time contacts in your list'}</div>
     </div>
