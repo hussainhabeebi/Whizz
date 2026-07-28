@@ -2110,150 +2110,204 @@ function buildReportsPageReportHtml(d){
     return `<tr><td>${c.name||'Untitled'}</td><td>${c.sentDate?new Date(c.sentDate).toLocaleDateString():'—'}</td><td>${(c.sent||0).toLocaleString()}</td><td>${(c.delivered||0).toLocaleString()}</td><td>${openRate}%</td><td>${clickRate}%</td><td>${c.bounces||0}</td></tr>`;
   }).join(''):'<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px;">No Brevo campaigns available</td></tr>';
 
+  const sitesOk=d.wpTrafficSites.filter(s=>!s.error);
+  const totalViews=sitesOk.reduce((s,x)=>s+(x.views||0),0);
+  const totalVisitors=sitesOk.reduce((s,x)=>s+(x.visitors||0),0);
+  const siteRows=d.wpTrafficSites.length?d.wpTrafficSites.map(s=>{
+    if(s.error) return `<div class="site-row"><div class="site-name">${s.label}</div><div class="muted">Couldn't load stats: ${s.error}</div></div>`;
+    return `<div class="site-row"><div class="site-name">${s.label}</div><div class="site-stats"><span><strong>${(s.views||0).toLocaleString()}</strong> views</span><span><strong>${(s.visitors||0).toLocaleString()}</strong> visitors</span></div></div>`;
+  }).join(''):'';
+
   const wpSections=d.wpTrafficSites.length?d.wpTrafficSites.map(s=>{
-    if(s.error){
-      return `<div class="kpi-card" style="border:1px solid #e8ecf2;margin-bottom:12px;"><div class="kpi-label">${s.label}</div><div class="muted">Couldn't load stats: ${s.error}</div></div>`;
-    }
+    if(s.error) return '';
     const maxViews=Math.max(1,...(s.daily||[]).map(x=>x.views||0));
     const bars=(s.daily||[]).map(x=>reportBarRow(x.date?new Date(x.date).toLocaleDateString('default',{day:'2-digit',month:'short'}):'',x.views||0,maxViews,'#2563eb')).join('');
-    return `<div class="section">
-      <div class="section-title">${s.label} — Last 7 Days</div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px;">
-        <div class="kpi-card blue"><div class="kpi-label">Views</div><div class="kpi-value">${(s.views||0).toLocaleString()}</div></div>
-        <div class="kpi-card green"><div class="kpi-label">Visitors</div><div class="kpi-value">${(s.visitors||0).toLocaleString()}</div></div>
-      </div>
+    return `<div class="sub-block">
+      <div class="sub-title">${s.label} — Daily Views, Last 7 Days</div>
       ${bars||'<div class="muted">No daily data available</div>'}
     </div>`;
-  }).join(''):'<div class="muted">No WordPress sites with traffic stats configured</div>';
+  }).join(''):'';
 
-  const heatmapCountries=d.heatmap.countries||[];
-  const heatmapMatrix=d.heatmap.matrix||[];
-  const heatmapMax=Math.max(1,...heatmapMatrix.flatMap(m=>Object.values(m.breakdownByCountry||{})));
-  const heatmapTable=heatmapMatrix.length&&heatmapCountries.length?`<table>
-    <thead><tr><th>Brand</th>${heatmapCountries.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
-    <tbody>${heatmapMatrix.map(m=>`<tr><td><strong>${m.brand}</strong></td>${heatmapCountries.map(c=>{
-      const v=m.breakdownByCountry?.[c]||0;
-      const alpha=v?Math.max(0.08,v/heatmapMax):0;
-      return `<td style="background:rgba(245,158,11,${alpha});text-align:center;font-weight:${v?700:400};">${v||''}</td>`;
-    }).join('')}</tr>`).join('')}</tbody>
-  </table>`:'<div class="muted">No lead distribution data available</div>';
+  const eventCardHtml=t=>{
+    const dLabel=new Date(t.date+'T00:00:00').toLocaleDateString('en-AE',{weekday:'short',day:'2-digit',month:'short'});
+    const isToday=t.date===todayStr();
+    return `<div class="task-card" style="border-left-color:#2563eb;">
+      <div class="task-card-top">
+        <div class="task-card-icon" style="background:rgba(37,99,235,0.1);color:#2563eb;">${taskReportIconSvg('event')}</div>
+        <div class="task-card-main">
+          <div class="task-card-title">${t.title}</div>
+          <div class="task-card-tags">
+            <span class="tag-pill">${dLabel}</span>
+            ${t.time?`<span class="tag-pill">🕒 ${t.time}</span>`:''}
+            ${t.location?`<span class="tag-pill">📍 ${t.location}</span>`:''}
+          </div>
+        </div>
+        ${isToday?'<span class="status-pill" style="color:#2563eb;background:rgba(37,99,235,0.1);border-color:rgba(37,99,235,0.25);">Today</span>':''}
+      </div>
+      ${t.notes?`<div class="task-card-notes">${t.notes}</div>`:''}
+    </div>`;
+  };
+
+  const taskCards=d.taskList.length?d.taskList.map(taskReportCardHtml).join(''):'<div class="empty-note">No open tasks — nice work.</div>';
+  const eventCards=d.upcomingEvents.length?d.upcomingEvents.map(eventCardHtml).join(''):'<div class="empty-note">No upcoming events scheduled.</div>';
 
   return`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Whizz Analytics Report — ${d.generatedAt.toLocaleDateString()}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'DM Sans',Arial,sans-serif;background:#f1f3f7;color:#0f172a;padding:32px;}
-.page{max-width:900px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,0.08);padding:40px;}
-.report-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #f1f3f7;padding-bottom:20px;margin-bottom:28px;}
-.brand{font-family:Georgia,serif;font-weight:800;font-size:26px;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;background-clip:text;color:transparent;}
-.header-meta{text-align:right;font-size:13px;}
-.header-meta .title{font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px;}
-.muted{color:#94a3b8;font-size:12px;}
-.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;}
-.kpi-card{border-radius:12px;padding:18px;border:1px solid #e8ecf2;}
-.kpi-card.amber{background:rgba(245,158,11,0.08);}
-.kpi-card.green{background:rgba(22,163,74,0.08);}
-.kpi-card.blue{background:rgba(37,99,235,0.08);}
-.kpi-label{font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
-.kpi-value{font-size:30px;font-weight:800;line-height:1;margin-bottom:6px;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}
+body{font-family:'DM Sans',Arial,sans-serif;background:#eef1f6;color:#0f172a;padding:32px;}
+.page{max-width:920px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 10px 40px rgba(15,23,42,0.12);overflow:hidden;}
+.hero{background:linear-gradient(135deg,#f59e0b,#ea580c 55%,#dc2626);color:#fff;padding:40px 40px 30px;position:relative;overflow:hidden;}
+.hero::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 85% 15%,rgba(255,255,255,0.18),transparent 55%);}
+.brand{font-family:'Syne',Georgia,serif;font-weight:800;font-size:22px;letter-spacing:0.02em;position:relative;}
+.hero-title{font-family:'Syne',Georgia,serif;font-weight:800;font-size:28px;margin-top:16px;position:relative;}
+.hero-sub{font-size:13px;opacity:0.92;margin-top:6px;font-weight:600;position:relative;}
+.hero-gen{font-size:11px;opacity:0.75;margin-top:2px;position:relative;}
+.body-pad{padding:8px 40px 40px;}
+.section{margin-bottom:8px;}
+.section-title{font-family:'Syne',Georgia,serif;font-size:16px;font-weight:700;color:#0f172a;margin:30px 0 14px;display:flex;align-items:center;gap:8px;}
+.section-title::before{content:'';display:inline-block;width:5px;height:16px;border-radius:3px;background:linear-gradient(180deg,#f59e0b,#dc2626);}
+.section-note{color:#94a3b8;font-size:11px;margin:-8px 0 14px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#475569;padding:8px 10px;border-bottom:2px solid #eef0f4;}
+td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
+.two-col-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+.bar-row{display:grid;grid-template-columns:100px 1fr 54px;align-items:center;gap:10px;margin-bottom:10px;}
+.bar-label{font-size:12px;color:#475569;}
+.bar-track{height:9px;border-radius:20px;background:#f1f3f7;overflow:hidden;}
+.bar-fill{height:100%;border-radius:20px;}
+.bar-value{font-size:12px;font-weight:700;text-align:right;}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.kpi-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.kpi-grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+.kpi-card{border-radius:14px;padding:16px;border:1px solid #eef0f4;border-left:4px solid transparent;background:#fcfcfd;}
+.kpi-card.amber{border-left-color:#f59e0b;}
+.kpi-card.green{border-left-color:#16a34a;}
+.kpi-card.blue{border-left-color:#2563eb;}
+.kpi-card.red{border-left-color:#dc2626;}
+.kpi-label{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+.kpi-value{font-size:26px;font-weight:800;line-height:1;margin-bottom:6px;}
+.kpi-grid-5 .kpi-value{font-size:22px;}
 .kpi-card.amber .kpi-value{color:#d97706;}
 .kpi-card.green .kpi-value{color:#16a34a;}
 .kpi-card.blue .kpi-value{color:#2563eb;}
-.kpi-sub{font-size:11px;color:#94a3b8;}
-.section{margin-bottom:28px;}
-.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#0f172a;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e8ecf2;}
-table{width:100%;border-collapse:collapse;font-size:13px;}
-th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#475569;padding:8px 10px;border-bottom:2px solid #e8ecf2;}
-td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
-.two-col-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
-.bar-row{display:grid;grid-template-columns:100px 1fr 50px;align-items:center;gap:10px;margin-bottom:10px;}
-.bar-label{font-size:12px;color:#475569;}
-.bar-track{height:8px;border-radius:4px;background:#f1f3f7;overflow:hidden;}
-.bar-fill{height:100%;border-radius:4px;}
-.bar-value{font-size:12px;font-weight:700;text-align:right;}
-.kpi-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;}
-.kpi-grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
-.kpi-grid-5 .kpi-value{font-size:24px;}
-.kpi-card.red{background:rgba(220,38,38,0.08);}
 .kpi-card.red .kpi-value{color:#dc2626;}
-.print-btn{display:block;margin:0 auto 20px;padding:10px 20px;background:#f59e0b;color:#000;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;}
-.report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #e8ecf2;}
-@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;padding:0;}}
+.kpi-sub{font-size:11px;color:#94a3b8;}
+.muted{color:#94a3b8;font-size:12px;}
+.site-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#fcfcfd;border:1px solid #eef0f4;border-radius:10px;margin-bottom:8px;font-size:12px;}
+.site-name{font-weight:700;color:#0f172a;}
+.site-stats{display:flex;gap:16px;color:#475569;}
+.sub-block{margin-top:18px;}
+.sub-title{font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;}
+.task-card{border:1px solid #eef0f4;border-left:4px solid #ea580c;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#fcfcfd;page-break-inside:avoid;}
+.task-card-top{display:flex;align-items:flex-start;gap:12px;}
+.task-card-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.task-card-icon svg{width:16px;height:16px;}
+.task-card-main{flex:1;min-width:0;}
+.task-card-title{font-weight:700;font-size:14px;color:#0f172a;margin-bottom:6px;}
+.task-card-tags{display:flex;flex-wrap:wrap;gap:6px;}
+.tag-pill{font-size:11px;color:#475569;background:#f1f3f7;border-radius:20px;padding:2px 9px;}
+.status-pill{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border:1px solid;border-radius:20px;padding:3px 10px;flex-shrink:0;}
+.task-card-notes{margin-top:10px;padding:9px 12px;background:#f8fafc;border-radius:8px;font-size:12px;color:#475569;font-style:italic;line-height:1.5;}
+.empty-note{text-align:center;color:#94a3b8;font-size:13px;padding:20px;background:#fcfcfd;border:1px dashed #e2e8f0;border-radius:12px;}
+.print-btn{display:block;margin:26px auto 20px;padding:11px 22px;background:linear-gradient(135deg,#f59e0b,#dc2626);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(234,88,12,0.3);}
+.report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #eef0f4;}
+@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;border-radius:0;}}
 </style></head>
 <body>
 <div class="page">
-  <div class="report-header">
+  <div class="hero">
     <div class="brand">Whizz.</div>
-    <div class="header-meta">
-      <div class="title">Analytics Report — ${d.periodLabel}</div>
-      <div class="muted">Generated ${d.generatedAt.toLocaleString()}</div>
-    </div>
+    <div class="hero-title">Analytics Report</div>
+    <div class="hero-sub">${d.periodLabel}</div>
+    <div class="hero-gen">Generated ${d.generatedAt.toLocaleString()}</div>
   </div>
-  <div class="section-title">Performance Summary${d.periodLabel!=='All Time'?` — ${d.periodLabel}`:''}</div>
-  <div class="muted" style="margin-bottom:12px;margin-top:-8px;">Email &amp; WhatsApp sends reflect the period above. Leads, Inquiries and the Heatmap below are always all-time totals.</div>
-  <div class="kpi-grid-5">
-    <div class="kpi-card green">
-      <div class="kpi-label">Emails Sent</div>
-      <div class="kpi-value">${d.emailSent.toLocaleString()}</div>
-      <div class="kpi-sub">${d.brevoCampaigns.length?`${d.emailOpenRate}% avg open rate`:'Brevo not connected'}</div>
+  <div class="body-pad">
+    <div class="section-title">Website Visits — Last 7 Days</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px;">
+      <div class="kpi-card blue"><div class="kpi-label">Total Views</div><div class="kpi-value">${totalViews.toLocaleString()}</div><div class="kpi-sub">${sitesOk.length} site${sitesOk.length===1?'':'s'} tracked</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Total Visitors</div><div class="kpi-value">${totalVisitors.toLocaleString()}</div><div class="kpi-sub">Across all connected sites</div></div>
+      <div class="kpi-card amber"><div class="kpi-label">Avg. Views / Visitor</div><div class="kpi-value">${totalVisitors?(totalViews/totalVisitors).toFixed(1):'—'}</div><div class="kpi-sub">Engagement ratio</div></div>
     </div>
-    <div class="kpi-card green">
-      <div class="kpi-label">New Leads</div>
-      <div class="kpi-value">${(d.brevoTotalLeads===null||d.brevoTotalLeads===undefined)?'—':d.brevoTotalLeads.toLocaleString()}</div>
-      <div class="kpi-sub">${(d.brevoTotalLeads===null||d.brevoTotalLeads===undefined)?'Brevo not connected':'All-time contacts in your list'}</div>
+    ${siteRows?`<div>${siteRows}</div>`:'<div class="empty-note">No WordPress sites with traffic stats configured</div>'}
+
+    <div class="section-title">Performance Summary${d.periodLabel!=='All Time'?` — ${d.periodLabel}`:''}</div>
+    <div class="section-note">Email &amp; WhatsApp sends reflect the period above. Leads, Inquiries, Tasks and Events are always all-time / current.</div>
+    <div class="kpi-grid-5">
+      <div class="kpi-card green">
+        <div class="kpi-label">Emails Sent</div>
+        <div class="kpi-value">${d.emailSent.toLocaleString()}</div>
+        <div class="kpi-sub">${d.brevoCampaigns.length?`${d.emailOpenRate}% avg open rate`:'Brevo not connected'}</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">New Leads</div>
+        <div class="kpi-value">${(d.brevoTotalLeads===null||d.brevoTotalLeads===undefined)?'—':d.brevoTotalLeads.toLocaleString()}</div>
+        <div class="kpi-sub">${(d.brevoTotalLeads===null||d.brevoTotalLeads===undefined)?'Brevo not connected':'All-time contacts in your list'}</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">WhatsApp Sent</div>
+        <div class="kpi-value">${d.waSent.toLocaleString()}</div>
+        <div class="kpi-sub">${d.waCampaignCount?`${d.waDeliveryRate}% delivery rate`:'No campaigns sent yet'}</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Total Leads</div>
+        <div class="kpi-value">${d.leadsTotal.toLocaleString()}</div>
+        <div class="kpi-sub">All-time database total</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-label">Total Inquiries</div>
+        <div class="kpi-value">${d.enquiriesTotal.toLocaleString()}</div>
+        <div class="kpi-sub">All-time received</div>
+      </div>
     </div>
-    <div class="kpi-card amber">
-      <div class="kpi-label">WhatsApp Sent</div>
-      <div class="kpi-value">${d.waSent.toLocaleString()}</div>
-      <div class="kpi-sub">${d.waCampaignCount?`${d.waDeliveryRate}% delivery rate`:'No campaigns sent yet'}</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-top:14px;">
+      <div class="kpi-card green">
+        <div class="kpi-label">Open Conversations</div>
+        <div class="kpi-value">${d.open.toLocaleString()}</div>
+        <div class="kpi-sub">Awaiting a response</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Resolved Conversations</div>
+        <div class="kpi-value">${d.resolved.toLocaleString()}</div>
+        <div class="kpi-sub">All-time</div>
+      </div>
     </div>
-    <div class="kpi-card blue">
-      <div class="kpi-label">Total Leads</div>
-      <div class="kpi-value">${d.leadsTotal.toLocaleString()}</div>
-      <div class="kpi-sub">All-time database total</div>
+
+    <div class="two-col-section" style="margin-top:30px;">
+      <div>
+        <div class="section-title" style="margin-top:0;">Leads by Platform</div>
+        ${platformRows}
+      </div>
+      <div>
+        <div class="section-title" style="margin-top:0;">Leads by Country</div>
+        ${countryRows}
+      </div>
     </div>
-    <div class="kpi-card red">
-      <div class="kpi-label">Total Inquiries</div>
-      <div class="kpi-value">${d.enquiriesTotal.toLocaleString()}</div>
-      <div class="kpi-sub">All-time received</div>
+
+    <div class="section-title">Task Overview</div>
+    <div class="kpi-grid-4" style="margin-bottom:14px;">
+      <div class="kpi-card blue"><div class="kpi-label">Total Tasks</div><div class="kpi-value">${d.taskStats.total}</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Done</div><div class="kpi-value">${d.taskStats.done}</div></div>
+      <div class="kpi-card amber"><div class="kpi-label">Pending</div><div class="kpi-value">${d.taskStats.pending}</div></div>
+      <div class="kpi-card red"><div class="kpi-label">Overdue</div><div class="kpi-value">${d.taskStats.overdue}</div></div>
     </div>
-  </div>
-  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);">
-    <div class="kpi-card green">
-      <div class="kpi-label">Open Conversations</div>
-      <div class="kpi-value">${d.open.toLocaleString()}</div>
-      <div class="kpi-sub">Awaiting a response</div>
-    </div>
-    <div class="kpi-card blue">
-      <div class="kpi-label">Resolved Conversations</div>
-      <div class="kpi-value">${d.resolved.toLocaleString()}</div>
-      <div class="kpi-sub">All-time</div>
-    </div>
-  </div>
-  <div class="two-col-section section">
-    <div>
-      <div class="section-title">Leads by Platform</div>
-      ${platformRows}
-    </div>
-    <div>
-      <div class="section-title">Leads by Country</div>
-      ${countryRows}
-    </div>
-  </div>
-  <div class="section">
-    <div class="section-title">Regional Heatmap — Brand × Country Lead Volume</div>
-    ${heatmapTable}
-  </div>
-  <div class="section">
+    <div class="sub-title">Open Tasks — Full Detail</div>
+    ${taskCards}
+
+    <div class="section-title">Upcoming Events</div>
+    ${eventCards}
+
     <div class="section-title">Brevo Email Campaigns</div>
     <table>
       <thead><tr><th>Campaign</th><th>Sent Date</th><th>Sent</th><th>Delivered</th><th>Open Rate</th><th>Click Rate</th><th>Bounces</th></tr></thead>
       <tbody>${brevoRows}</tbody>
     </table>
+    ${wpSections}
+    <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+    <div class="report-footer">Whizz Marketing Console — Analytics Snapshot</div>
   </div>
-  ${wpSections}
-  <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
-  <div class="report-footer">Whizz Marketing Console — Analytics Snapshot</div>
 </div>
 </body></html>`;
 }
@@ -2277,19 +2331,22 @@ function downloadReportsPageReport(){
   const waFailed=history.reduce((sum,h)=>sum+(h.failed||0),0);
   const waDeliveryRate=(waSent+waFailed)?Math.round((waSent/(waSent+waFailed))*100):0;
 
-  const bm={};
-  groups.filter(g=>!g.isAggregatedTail).forEach(g=>{
-    if(!bm[g.brand])bm[g.brand]={brand:g.brand,breakdownByCountry:{}};
-    bm[g.brand].breakdownByCountry[g.country]=(bm[g.brand].breakdownByCountry[g.country]||0)+g.count;
-  });
-  const heatmapMatrix=Object.values(bm);
-  const allCountries=new Set();
-  heatmapMatrix.forEach(m=>Object.keys(m.breakdownByCountry||{}).forEach(c=>allCountries.add(c)));
-  const heatmapCountries=[...allCountries].sort((a,b)=>{
-    const tA=heatmapMatrix.reduce((s,m)=>s+(m.breakdownByCountry?.[a]||0),0);
-    const tB=heatmapMatrix.reduce((s,m)=>s+(m.breakdownByCountry?.[b]||0),0);
-    return tB-tA;
-  }).slice(0,12);
+  const today=todayStr();
+  const allTasks=loadTasks();
+  const taskStats={
+    total:allTasks.length,
+    done:allTasks.filter(t=>t.status==='done').length,
+    pending:allTasks.filter(t=>t.status==='pending'&&t.date>=today).length,
+    overdue:allTasks.filter(t=>t.status==='pending'&&t.date<today).length
+  };
+  const taskList=allTasks
+    .filter(t=>t.status==='pending')
+    .map(t=>({...t,status:t.date<today?'overdue':'pending'}))
+    .sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+  const upcomingEvents=allTasks
+    .filter(t=>t.type==='event'&&t.date>=today)
+    .sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')))
+    .slice(0,15);
 
   const now=new Date();
   const periodLabel=reportsPeriodLabel();
@@ -2307,7 +2364,7 @@ function downloadReportsPageReport(){
     topCountries,
     brevoCampaigns,
     wpTrafficSites:S.cache.wpTrafficSites||[],
-    heatmap:{matrix:heatmapMatrix,countries:heatmapCountries}
+    taskStats,taskList,upcomingEvents
   });
   downloadHTML(html,`Whizz-Analytics-Report-${period}-${now.toISOString().slice(0,10)}.html`);
   showToast('Report downloaded!','success');
