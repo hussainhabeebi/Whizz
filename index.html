@@ -382,6 +382,22 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .ac-add-row-btn{margin-top:12px;width:100%;padding:9px;font-size:12px;border:1.5px dashed var(--border2);justify-content:center;border-radius:var(--r-sm);}
 .ac-add-row-btn:hover{border-color:var(--accent);color:var(--accent2);}
 
+/* Import Leads CSV Modal */
+.csv-drop-zone{border:1.5px dashed var(--border2);border-radius:var(--r);padding:26px 16px;text-align:center;cursor:pointer;transition:all 0.15s var(--ease);background:var(--bg3);}
+.csv-drop-zone:hover,.csv-drop-zone.dragover{border-color:var(--accent);background:var(--accent-dim);}
+.csv-drop-zone svg{width:26px;height:26px;color:var(--text3);margin-bottom:8px;}
+.csv-drop-zone .cdz-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.csv-drop-zone .cdz-sub{font-size:11px;color:var(--text3);}
+.csv-file-info{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);margin-top:10px;}
+.csv-file-info svg{width:16px;height:16px;color:var(--accent2);flex-shrink:0;}
+.csv-file-name{flex:1;font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.csv-summary-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.csv-summary-pill{font-size:11px;font-weight:600;padding:4px 11px;border-radius:20px;}
+.csv-preview-wrap{margin-top:12px;max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:var(--r-sm);}
+.csv-preview-wrap table{width:100%;border-collapse:collapse;font-size:11.5px;}
+.csv-preview-wrap th{position:sticky;top:0;background:var(--bg3);text-align:left;padding:7px 9px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);border-bottom:1px solid var(--border);}
+.csv-preview-wrap td{padding:7px 9px;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;}
+
 /* Toast */
 .toast-wrap{position:fixed;top:20px;right:20px;z-index:1000;display:flex;flex-direction:column;gap:10px;}
 .toast{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:11px;font-size:12.5px;font-weight:500;color:var(--text);background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);box-shadow:var(--shadow-lift);animation:slideIn 0.25s var(--ease);max-width:340px;line-height:1.45;}
@@ -1131,6 +1147,10 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Export CSV
               </button>
+              <button class="t-btn btn-ghost t-btn-sm" onclick="openImportLeadsModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Import CSV
+              </button>
               <button class="t-btn btn-primary t-btn-sm" onclick="openAddContactModal()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Add Contact
@@ -1698,6 +1718,59 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
       <span id="ac-row-count" style="font-size:11px;color:var(--text3);margin-right:auto;align-self:center;"></span>
       <button class="t-btn btn-ghost" onclick="closeModal('modal-add-contact')">Cancel</button>
       <button class="t-btn btn-primary" onclick="submitAddContact()">Save All Contacts</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Leads CSV Modal -->
+<div class="modal-overlay" id="modal-import-leads">
+  <div class="modal" style="width:min(96vw,720px);max-height:90vh;">
+    <div class="modal-head">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div>
+          <div class="modal-title">Import Leads from CSV</div>
+          <div class="modal-subtitle">Upload a CSV of leads. Columns like Name, Phone, Email, Platform, Country &amp; Brand are auto-detected; duplicate mobile numbers are skipped automatically.</div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeImportLeadsModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px 22px;">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+        <button class="t-btn btn-ghost t-btn-sm" onclick="downloadLeadsCsvTemplate()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Download Sample Template
+        </button>
+      </div>
+      <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none;" onchange="handleCsvFileSelect(this)"/>
+      <div class="csv-drop-zone" id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')"
+           ondrop="handleCsvDrop(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="cdz-title">Click to upload or drag &amp; drop a CSV file</div>
+        <div class="cdz-sub">.csv only — first row must be column headers</div>
+      </div>
+      <div id="csv-file-info-wrap"></div>
+      <div id="csv-summary-wrap"></div>
+      <div id="csv-preview-wrap"></div>
+      <!-- Shared fallback fields -->
+      <div class="ac-shared-panel" style="margin-top:16px;margin-bottom:0;">
+        <div class="ac-shared-label">Used to fill in blanks (CSV columns take priority if present)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+          <div class="fg" style="margin:0;"><label class="fl">Platform</label><input class="fi" id="imp-shared-platform" placeholder="e.g. WhatsApp"/></div>
+          <div class="fg" style="margin:0;"><label class="fl">Country</label><input class="fi" id="imp-shared-country" placeholder="e.g. UAE"/></div>
+          <div class="fg" style="margin:0;"><label class="fl">Brand</label><input class="fi" id="imp-shared-brand" placeholder="e.g. HP"/></div>
+          <div class="fg" style="margin:0;"><label class="fl">Category</label><input class="fi" id="imp-shared-category" placeholder="e.g. Printer"/></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span id="csv-row-count" style="font-size:11px;color:var(--text3);margin-right:auto;align-self:center;"></span>
+      <button class="t-btn btn-ghost" onclick="closeImportLeadsModal()">Cancel</button>
+      <button class="t-btn btn-primary" id="csv-import-btn" onclick="submitCsvImport()" disabled>Import Contacts</button>
     </div>
   </div>
 </div>
@@ -3339,6 +3412,217 @@ function exportLeadsCSV() {
   const rows = S.cache.groups.map(g => `"${g.platform}","${g.country}","${g.brand}",${g.count},"${g.trend||'Stable'}"`);
   downloadCSV(['Platform,Country,Brand,Count,TrendVelocity', ...rows].join('\n'), 'whizz_leads_distribution.csv');
   showToast('Export complete!', 'success');
+}
+
+// ── Import Leads from CSV ──
+const CSV_HEADER_ALIASES = {
+  name: ['name','contact name','contactname','company','company / contact name','company/contact name','full name','lead name'],
+  phone: ['phone','mobile','phone number','mobile number','whatsapp','contact number','number','tel'],
+  email: ['email','e-mail','email address'],
+  source: ['source','lead source'],
+  platform: ['platform','channel'],
+  country: ['country','region'],
+  brand: ['brand'],
+  category: ['category','product category']
+};
+let _csvParsedRows = [];
+
+function parseCSVText(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') { if (text[i+1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else if (c === '\r') { /* skip — \n handles the row break */ }
+      else field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(f => f.trim() !== ''));
+}
+function mapCsvHeaders(headerRow) {
+  return headerRow.map(h => {
+    const norm = h.trim().toLowerCase();
+    for (const key in CSV_HEADER_ALIASES) {
+      if (CSV_HEADER_ALIASES[key].includes(norm)) return key;
+    }
+    return null;
+  });
+}
+function downloadLeadsCsvTemplate() {
+  const sample = 'Name,Phone,Email,Source,Platform,Country,Brand,Category\n"ABC Trading FZE","+971501234567","contact@abctrading.com","Trade Show","WhatsApp","UAE","HP","Printers"\n';
+  downloadCSV(sample, 'whizz_leads_import_template.csv');
+}
+function openImportLeadsModal() {
+  _csvParsedRows = [];
+  document.getElementById('csv-file-input').value = '';
+  document.getElementById('csv-file-info-wrap').innerHTML = '';
+  document.getElementById('csv-summary-wrap').innerHTML = '';
+  document.getElementById('csv-preview-wrap').innerHTML = '';
+  document.getElementById('csv-row-count').textContent = '';
+  document.getElementById('csv-import-btn').disabled = true;
+  ['imp-shared-platform','imp-shared-country','imp-shared-brand','imp-shared-category'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('modal-import-leads').classList.add('open');
+}
+function closeImportLeadsModal() { closeModal('modal-import-leads'); }
+function handleCsvDrop(event) {
+  event.preventDefault();
+  document.getElementById('csv-drop-zone').classList.remove('dragover');
+  const file = event.dataTransfer.files[0];
+  if (file) processCsvFile(file);
+}
+function handleCsvFileSelect(input) {
+  const file = input.files[0];
+  if (file) processCsvFile(file);
+}
+function processCsvFile(file) {
+  if (!/\.csv$/i.test(file.name) && file.type !== 'text/csv') {
+    showToast('Please select a .csv file', 'error');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => parseAndPreviewCsv(file.name, String(e.target.result || ''));
+  reader.onerror = () => showToast('Could not read that file', 'error');
+  reader.readAsText(file);
+}
+function parseAndPreviewCsv(fileName, text) {
+  const rows = parseCSVText(text);
+  const infoEl = document.getElementById('csv-file-info-wrap');
+  const summaryEl = document.getElementById('csv-summary-wrap');
+  const previewEl = document.getElementById('csv-preview-wrap');
+  const importBtn = document.getElementById('csv-import-btn');
+  const rowCountEl = document.getElementById('csv-row-count');
+  infoEl.innerHTML = `<div class="csv-file-info">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <div class="csv-file-name">${fileName}</div>
+    <button class="t-btn btn-ghost t-btn-sm" style="padding:3px 9px;font-size:11px;" onclick="openImportLeadsModal()">Change File</button>
+  </div>`;
+
+  if (rows.length < 2) {
+    _csvParsedRows = [];
+    summaryEl.innerHTML = `<div class="csv-summary-row"><span class="csv-summary-pill" style="background:var(--red-dim);color:var(--red);">No data rows found</span></div>`;
+    previewEl.innerHTML = '';
+    importBtn.disabled = true;
+    rowCountEl.textContent = '';
+    return;
+  }
+
+  const fieldMap = mapCsvHeaders(rows[0]);
+  if (!fieldMap.includes('name')) {
+    _csvParsedRows = [];
+    summaryEl.innerHTML = `<div class="csv-summary-row"><span class="csv-summary-pill" style="background:var(--red-dim);color:var(--red);">No Name / Company column recognized — check your headers</span></div>`;
+    previewEl.innerHTML = '';
+    importBtn.disabled = true;
+    rowCountEl.textContent = '';
+    return;
+  }
+
+  _csvParsedRows = rows.slice(1).map(r => {
+    const obj = {};
+    fieldMap.forEach((key, i) => { if (key) obj[key] = (r[i] || '').trim(); });
+    return obj;
+  });
+  const withName = _csvParsedRows.filter(r => r.name);
+  const noName = _csvParsedRows.length - withName.length;
+
+  summaryEl.innerHTML = `<div class="csv-summary-row">
+    <span class="csv-summary-pill" style="background:var(--green-dim);color:var(--green);">${withName.length} ready to import</span>
+    ${noName ? `<span class="csv-summary-pill" style="background:var(--amber-dim);color:var(--amber);">${noName} missing a name — will be skipped</span>` : ''}
+  </div>`;
+
+  const previewRows = _csvParsedRows.slice(0, 8);
+  previewEl.innerHTML = `<div class="csv-preview-wrap"><table>
+    <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Platform</th><th>Country</th><th>Brand</th></tr></thead>
+    <tbody>${previewRows.map(r => `<tr><td>${r.name||'—'}</td><td>${r.phone||'—'}</td><td>${r.email||'—'}</td><td>${r.platform||'—'}</td><td>${r.country||'—'}</td><td>${r.brand||'—'}</td></tr>`).join('')}</tbody>
+  </table></div>${_csvParsedRows.length > previewRows.length ? `<div style="text-align:center;font-size:11px;color:var(--text3);padding:6px;">+ ${_csvParsedRows.length - previewRows.length} more row(s)</div>` : ''}`;
+
+  rowCountEl.textContent = `${_csvParsedRows.length} row${_csvParsedRows.length>1?'s':''} parsed`;
+  importBtn.disabled = withName.length === 0;
+}
+async function submitCsvImport() {
+  if (!_csvParsedRows.length) { showToast('Upload a CSV file first', 'error'); return; }
+  const sharedPlatform = document.getElementById('imp-shared-platform').value.trim();
+  const sharedCountry = document.getElementById('imp-shared-country').value.trim();
+  const sharedBrand = document.getElementById('imp-shared-brand').value.trim();
+  const sharedCategory = document.getElementById('imp-shared-category').value.trim();
+
+  let skippedNoName = 0;
+  const built = _csvParsedRows.map(r => {
+    const name = (r.name || '').trim();
+    return {
+      contactName: name,
+      company: name,
+      phone: (r.phone || '').trim(),
+      email: (r.email || '').trim(),
+      source: (r.source || '').trim() || 'CSV Import',
+      platform: (r.platform || '').trim() || sharedPlatform,
+      country: (r.country || '').trim() || sharedCountry,
+      brand: (r.brand || '').trim() || sharedBrand,
+      category: (r.category || '').trim() || sharedCategory
+    };
+  }).filter(c => { if (!c.contactName) { skippedNoName++; return false; } return true; });
+
+  if (!built.length) { showToast('No valid rows to import — every row is missing a name', 'error'); return; }
+
+  const importBtn = document.getElementById('csv-import-btn');
+  importBtn.disabled = true;
+  importBtn.textContent = 'Checking for duplicates…';
+
+  const groups = {};
+  built.forEach(c => { const key = `${c.platform}||${c.country}||${c.brand}`; (groups[key] = groups[key] || []).push(c); });
+  const toImport = [];
+  let dupCount = 0;
+  for (const key in groups) {
+    const [platform, country, brand] = key.split('||');
+    const existingMap = await acLoadExistingPhoneMap(platform, country, brand);
+    const seen = new Map();
+    groups[key].forEach(c => {
+      const pk = normalizePhone(c.phone);
+      if (pk) {
+        if (existingMap.has(pk) || seen.has(pk)) { dupCount++; return; }
+        seen.set(pk, c.contactName);
+      }
+      toImport.push(c);
+    });
+  }
+
+  if (!toImport.length) {
+    importBtn.disabled = false; importBtn.textContent = 'Import Contacts';
+    showToast('Nothing to import — all rows were duplicates', 'error');
+    return;
+  }
+
+  const BATCH = 150;
+  let imported = 0;
+  try {
+    for (let i = 0; i < toImport.length; i += BATCH) {
+      const batch = toImport.slice(i, i + BATCH);
+      importBtn.textContent = `Importing ${imported}/${toImport.length}…`;
+      await api('whizz-save-contact', 'POST', { contacts: batch });
+      imported += batch.length;
+    }
+  } catch (e) {
+    showToast(`Import stopped after ${imported} contact${imported===1?'':'s'} — check webhook`, 'error');
+  }
+
+  importBtn.disabled = false; importBtn.textContent = 'Import Contacts';
+
+  if (imported) {
+    const extras = [];
+    if (dupCount) extras.push(`${dupCount} duplicate${dupCount>1?'s':''} skipped`);
+    if (skippedNoName) extras.push(`${skippedNoName} missing a name`);
+    showToast(`Imported ${imported} lead${imported>1?'s':''}${extras.length?` — ${extras.join(', ')}`:''}`, 'success');
+    addNotif(`Imported ${imported} lead${imported>1?'s':''} from CSV${extras.length?` (${extras.join(', ')})`:''}`);
+    closeImportLeadsModal();
+    refreshLeads();
+    syncContactsToBrevo(toImport.slice(0, imported));
+  }
 }
 
 // ── Lead Scoring ──
