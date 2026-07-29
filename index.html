@@ -1732,7 +1732,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         </div>
         <div>
           <div class="modal-title">Import Leads from CSV</div>
-          <div class="modal-subtitle">Upload a CSV of leads. Columns like Name, Phone, Email, Platform, Country &amp; Brand are auto-detected; duplicate mobile numbers are skipped automatically.</div>
+          <div class="modal-subtitle">Upload a CSV of leads. Columns like Name, Phone, Email, Platform, Country &amp; Brand are auto-detected; duplicate mobile numbers are skipped automatically. Tip: format the Phone column as <strong>Text</strong> in Excel/Sheets before entering numbers, so it doesn't get rewritten as "9.71501E+11".</div>
         </div>
       </div>
       <button class="modal-close" onclick="closeImportLeadsModal()">✕</button>
@@ -3427,6 +3427,12 @@ const CSV_HEADER_ALIASES = {
 };
 let _csvParsedRows = [];
 
+// Excel/Google Sheets silently rounds long digit strings (like phone numbers) into
+// scientific notation (e.g. "9.71501E+11") when a column isn't formatted as Text.
+// Once that happens the original digits are gone — we can only detect and flag it.
+function looksLikeScientificNotation(val) {
+  return /^-?\d+(\.\d+)?e\+?\d+$/i.test(String(val || '').trim());
+}
 function parseCSVText(text) {
   const rows = [];
   let row = [], field = '', inQuotes = false;
@@ -3526,20 +3532,24 @@ function parseAndPreviewCsv(fileName, text) {
   _csvParsedRows = rows.slice(1).map(r => {
     const obj = {};
     fieldMap.forEach((key, i) => { if (key) obj[key] = (r[i] || '').trim(); });
+    obj._badPhone = !!obj.phone && looksLikeScientificNotation(obj.phone);
     return obj;
   });
   const withName = _csvParsedRows.filter(r => r.name);
   const noName = _csvParsedRows.length - withName.length;
+  const badPhoneCount = _csvParsedRows.filter(r => r._badPhone).length;
 
   summaryEl.innerHTML = `<div class="csv-summary-row">
     <span class="csv-summary-pill" style="background:var(--green-dim);color:var(--green);">${withName.length} ready to import</span>
     ${noName ? `<span class="csv-summary-pill" style="background:var(--amber-dim);color:var(--amber);">${noName} missing a name — will be skipped</span>` : ''}
-  </div>`;
+    ${badPhoneCount ? `<span class="csv-summary-pill" style="background:var(--red-dim);color:var(--red);">${badPhoneCount} phone number${badPhoneCount>1?'s':''} corrupted by spreadsheet number formatting</span>` : ''}
+  </div>
+  ${badPhoneCount ? `<div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">⚠ These phone numbers were auto-converted to scientific notation (e.g. "9.71501E+11") by Excel/Google Sheets before export — the original digits can't be recovered from this file. They'll be imported with the phone left blank. To prevent this: format the Phone column as <strong>Text</strong> (Google Sheets: Format → Number → Plain text) before entering numbers, then re-export and re-upload.</div>` : ''}`;
 
   const previewRows = _csvParsedRows.slice(0, 8);
   previewEl.innerHTML = `<div class="csv-preview-wrap"><table>
     <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Platform</th><th>Country</th><th>Brand</th></tr></thead>
-    <tbody>${previewRows.map(r => `<tr><td>${r.name||'—'}</td><td>${r.phone||'—'}</td><td>${r.email||'—'}</td><td>${r.platform||'—'}</td><td>${r.country||'—'}</td><td>${r.brand||'—'}</td></tr>`).join('')}</tbody>
+    <tbody>${previewRows.map(r => `<tr><td>${r.name||'—'}</td><td${r._badPhone?' style="color:var(--red);font-weight:600;" title="Corrupted by scientific notation — will be cleared"':''}>${r._badPhone?'⚠ '+r.phone:(r.phone||'—')}</td><td>${r.email||'—'}</td><td>${r.platform||'—'}</td><td>${r.country||'—'}</td><td>${r.brand||'—'}</td></tr>`).join('')}</tbody>
   </table></div>${_csvParsedRows.length > previewRows.length ? `<div style="text-align:center;font-size:11px;color:var(--text3);padding:6px;">+ ${_csvParsedRows.length - previewRows.length} more row(s)</div>` : ''}`;
 
   rowCountEl.textContent = `${_csvParsedRows.length} row${_csvParsedRows.length>1?'s':''} parsed`;
@@ -3553,12 +3563,16 @@ async function submitCsvImport() {
   const sharedCategory = document.getElementById('imp-shared-category').value.trim();
 
   let skippedNoName = 0;
+  let clearedBadPhone = 0;
   const built = _csvParsedRows.map(r => {
     const name = (r.name || '').trim();
+    const rawPhone = (r.phone || '').trim();
+    const badPhone = !!rawPhone && looksLikeScientificNotation(rawPhone);
+    if (badPhone) clearedBadPhone++;
     return {
       contactName: name,
       company: name,
-      phone: (r.phone || '').trim(),
+      phone: badPhone ? '' : rawPhone,
       email: (r.email || '').trim(),
       source: (r.source || '').trim() || 'CSV Import',
       platform: (r.platform || '').trim() || sharedPlatform,
@@ -3617,6 +3631,7 @@ async function submitCsvImport() {
     const extras = [];
     if (dupCount) extras.push(`${dupCount} duplicate${dupCount>1?'s':''} skipped`);
     if (skippedNoName) extras.push(`${skippedNoName} missing a name`);
+    if (clearedBadPhone) extras.push(`${clearedBadPhone} phone${clearedBadPhone>1?'s':''} cleared — corrupted by spreadsheet formatting`);
     showToast(`Imported ${imported} lead${imported>1?'s':''}${extras.length?` — ${extras.join(', ')}`:''}`, 'success');
     addNotif(`Imported ${imported} lead${imported>1?'s':''} from CSV${extras.length?` (${extras.join(', ')})`:''}`);
     closeImportLeadsModal();
