@@ -1,6 +1,4 @@
-import { readSheet } from '../lib/googleSheets.js';
-
-// Port of the n8n "whizz-get-contacts" workflow: read the Contacts sheet,
+// Port of the n8n "whizz-get-contacts" workflow: read the Contacts table,
 // filter by platform/country/brand, return the same shape the frontend expects.
 export async function handleGetContacts(request, env) {
   const url = new URL(request.url);
@@ -8,27 +6,25 @@ export async function handleGetContacts(request, env) {
   const country = url.searchParams.get('country') || '';
   const brand = url.searchParams.get('brand') || '';
 
-  const rows = await readSheet(env, 'Contacts');
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM contacts
+     WHERE (?1 = '' OR LOWER(platform) = LOWER(?1))
+       AND (?2 = '' OR LOWER(country) = LOWER(?2))
+       AND (?3 = '' OR LOWER(brand) = LOWER(?3))`
+  ).bind(platform, country, brand).all();
 
-  const filtered = rows.filter(r => {
-    const matchPlatform = !platform || (r.platform || '').toLowerCase() === platform.toLowerCase();
-    const matchCountry = !country || (r.country || '').toLowerCase() === country.toLowerCase();
-    const matchBrand = !brand || (r.brand || '').toLowerCase() === brand.toLowerCase();
-    return matchPlatform && matchCountry && matchBrand;
-  });
-
-  const contacts = filtered.map(r => ({
-    id: String(r.row_number || r.id || ''),
-    contactName: r.contactName || r.name || '',
+  const contacts = results.map(r => ({
+    id: String(r.id),
+    contactName: r.contactName || '',
     company: r.company || '',
-    phone: r.phone || r.whatsapp || r['WhatsApp'] || r.mobile || '',
+    phone: r.phone || '',
     email: r.email || '',
     category: r.category || '',
     source: r.source || '',
     platform: r.platform || '',
     country: r.country || '',
     brand: r.brand || '',
-    productInterest: r.productInterest || r['Product Interest'] || '',
+    productInterest: r.productInterest || '',
   }));
 
   return Response.json({ contacts });

@@ -2656,7 +2656,7 @@ async function refreshReportsPage(){
   populateReportsPeriodSelect();
   await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod()]);
   try{
-    const d=await api('whizz-get-enquiries');
+    const d=await apiW('whizz-get-enquiries');
     const enquiries=d.enquiries||d||[];
     S.cache.enquiries=Array.isArray(enquiries)?enquiries:[];
   }catch(e){S.cache.enquiries=S.cache.enquiries||[];}
@@ -2859,7 +2859,7 @@ async function liveSyncTick(){
 // ── Enquiries Module (sourced from the Memory tab / chatbot conversation log) ──
 const ENQ_PAGE_SIZE=20;
 async function refreshEnquiries(){
-  const d=await api('whizz-get-enquiries');
+  const d=await apiW('whizz-get-enquiries');
   const enquiries=d.enquiries||d||[];
   S.cache.enquiries=Array.isArray(enquiries)?enquiries:[];
   renderEnquiriesPage(S.cache.enquiries);
