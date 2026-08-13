@@ -9,4 +9,4 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "whizz-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "028d5b86-352e-4809-87d1-02e2bfc34a69"
