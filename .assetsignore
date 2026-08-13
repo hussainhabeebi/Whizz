@@ -1,0 +1,9 @@
+wrangler.toml
+worker/
+package.json
+package-lock.json
+Dockerfile
+n8n-workflows/
+node_modules/
+.git/
+.github/
