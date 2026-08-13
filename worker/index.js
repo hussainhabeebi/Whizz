@@ -1,6 +1,10 @@
 import { handleGetContacts } from './routes/getContacts.js';
 import { handleGetEnquiries } from './routes/getEnquiries.js';
 import { handleAppendMemory } from './routes/appendMemory.js';
+import { handleGetUsers } from './routes/getUsers.js';
+import { handleAddUser } from './routes/addUser.js';
+import { handleUpdateUser } from './routes/updateUser.js';
+import { handleDeleteUser } from './routes/deleteUser.js';
 
 // Routes migrated off n8n live here, one at a time. Anything not matched
 // falls through to the static site assets (index.html, css/, js/) exactly
@@ -9,6 +13,10 @@ const routes = [
   { method: 'GET', path: '/whizz-get-contacts', handler: handleGetContacts },
   { method: 'GET', path: '/whizz-get-enquiries', handler: handleGetEnquiries },
   { method: 'POST', path: '/whizz-append-memory', handler: handleAppendMemory },
+  { method: 'GET', path: '/whizz-get-users', handler: handleGetUsers },
+  { method: 'POST', path: '/whizz-add-user', handler: handleAddUser },
+  { method: 'POST', path: '/whizz-update-user', handler: handleUpdateUser },
+  { method: 'POST', path: '/whizz-delete-user', handler: handleDeleteUser },
 ];
 
 export default {

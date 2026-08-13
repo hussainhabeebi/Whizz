@@ -1803,7 +1803,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <div class="fg"><label class="fl">Role *</label><select class="fs" id="au-role"><option value="Sales">Sales</option><option value="Manager">Manager</option><option value="Administrator">Administrator</option></select></div>
       </div>
       <div class="fg"><label class="fl">Email Address *</label><input class="fi" type="email" id="au-email" placeholder="user@whizz.com"/></div>
-      <div class="fi-hint" style="margin:-4px 0 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:10px 12px;">Adding a user here only sets their role and access inside Whizz. They also need an Allow policy for their email in the Cloudflare Access application protecting tiarafzco.com, or they won't be able to sign in at all.</div>
+      <div class="fi-hint" style="margin:-4px 0 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:10px 12px;">Adding a user here also grants them Cloudflare Access automatically — they'll be able to sign in with this email right away.</div>
       <div class="fg">
         <label class="fl">Platform Access</label>
         <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific platforms. Leave all unselected for access to all platforms.</div>
@@ -1870,16 +1870,15 @@ const OB_KEY = 'whizz_onboarding';
 const SCHEDULE_KEY = 'whizz_scheduled_v1';
 const TASKS_KEY = 'whizz_tasks_v1';
 
-const USERS_DEFAULT = {
-  'hussain@whizzfze.com': { name: 'Hussain',       role: 'Administrator', allowedBrands: [], allowedPlatforms: [] },
-  'admin@whizz.com':      { name: 'Whizz Admin',   role: 'Administrator', allowedBrands: [], allowedPlatforms: [] },
-  'sales@whizz.com':      { name: 'Sales Team',    role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Viral'] },
-  'manager@whizz.com':    { name: 'Whizz Manager', role: 'Manager',       allowedBrands: [], allowedPlatforms: [] },
-  'mohsin@whizz.com':     { name: 'Mohsin',        role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Mohsin'] },
-  'waqas@whizz.com':      { name: 'Waqas',         role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Waqas'] }
-};
-let USERS = (()=>{ const raw=localStorage.getItem('whizz_users_v1'); if(raw){try{const p=JSON.parse(raw);Object.entries(p).forEach(([email,u])=>{if(!u.allowedBrands)u.allowedBrands=[];if(!u.allowedPlatforms){u.allowedPlatforms=USERS_DEFAULT[email]?.allowedPlatforms||[];}});return p;}catch(e){}} return JSON.parse(JSON.stringify(USERS_DEFAULT)); })();
-function saveUsers(){ localStorage.setItem('whizz_users_v1', JSON.stringify(USERS)); }
+// Users live in D1 (shared across every admin/device) instead of localStorage, since
+// whizz-add-user/whizz-delete-user also sync this list to the Cloudflare Access policy
+// that gates who can reach the app. This is just an in-memory cache of the last fetch.
+let USERS = {};
+async function loadUsers(){
+  const d = await apiW('whizz-get-users');
+  USERS = {};
+  (d.users||[]).forEach(u=>{ USERS[u.email] = u; });
+}
 
 let S = {
   page: 'dashboard', convStatus: 'all',
@@ -1921,6 +1920,7 @@ async function bootAuth() {
     return;
   }
   const email = identity.email.trim().toLowerCase();
+  await loadUsers();
   const user = USERS[email];
   if (!user) {
     showLoginError(`${email} is authenticated but not provisioned in Whizz. Ask an Administrator to add you under Users.`);
@@ -2470,7 +2470,7 @@ function navigate(page, el) {
   if(page==='stock'&&S.cache.stock){renderStockPage();hideBanner('stock');}
   if(page==='suggestions'){refreshSuggestions();}
   if(page==='discovery'){renderDiscoveryResults(S.discoveredContacts||[]);}
-  if(page==='users'){renderUsersPage();}
+  if(page==='users'){loadUsers().then(renderUsersPage);}
   if(page==='pipeline'){renderPipelinePage();}
   if(page==='history'){renderScheduledList();}
   if(page==='integrations'){loadIntegrationsStatus();}
@@ -4146,7 +4146,7 @@ function openAddUserModal(){
   document.getElementById('modal-add-user').classList.add('open');
 }
 
-function submitAddUser(){
+async function submitAddUser(){
   const name=document.getElementById('au-name').value.trim();
   const email=document.getElementById('au-email').value.trim().toLowerCase();
   const role=document.getElementById('au-role').value;
@@ -4155,11 +4155,14 @@ function submitAddUser(){
   if(!name||!email){showToast('Name and email are required','error');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Please enter a valid email address','error');return;}
   if(USERS[email]){showToast('A user with this email already exists','error');return;}
-  USERS[email]={name,role,allowedBrands,allowedPlatforms};
-  saveUsers();
-  showToast(`User "${name}" added. Remember to also add ${email} to the Cloudflare Access policy.`,'success');
-  closeModal('modal-add-user');
-  renderUsersPage();
+  try{
+    const d=await apiW('whizz-add-user','POST',{email,name,role,allowedPlatforms,allowedBrands});
+    if(d.warning)showToast(d.warning,'error');
+    else showToast(`User "${name}" added and granted Cloudflare Access.`,'success');
+    closeModal('modal-add-user');
+    await loadUsers();
+    renderUsersPage();
+  }catch(e){showToast('Failed to add user — please try again','error');}
 }
 
 function openEditUserModal(email){
@@ -4174,7 +4177,7 @@ function openEditUserModal(email){
   document.getElementById('modal-edit-user').classList.add('open');
 }
 
-function submitEditUser(){
+async function submitEditUser(){
   const email=document.getElementById('eu-email-key').value;
   const u=USERS[email];
   if(!u){showToast('User not found','error');return;}
@@ -4183,26 +4186,28 @@ function submitEditUser(){
   const allowedPlatforms=getSelectedChips('eu-platform-chips');
   const allowedBrands=getSelectedChips('eu-brand-chips');
   if(!name){showToast('Name is required','error');return;}
-  u.name=name;
-  u.role=role;
-  u.allowedPlatforms=allowedPlatforms;
-  u.allowedBrands=allowedBrands;
-  saveUsers();
-  showToast(`User "${name}" updated successfully!`,'success');
-  closeModal('modal-edit-user');
-  renderUsersPage();
-  const sess=localStorage.getItem('whizz_session');
-  if(sess){const se=JSON.parse(sess);if(se.email===email){se.name=name;se.role=role;localStorage.setItem('whizz_session',JSON.stringify(se));document.getElementById('u-name').textContent=name;document.getElementById('u-role').textContent=role;const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase();document.getElementById('u-avatar').textContent=initials;}}
+  try{
+    await apiW('whizz-update-user','POST',{email,name,role,allowedPlatforms,allowedBrands});
+    showToast(`User "${name}" updated successfully!`,'success');
+    closeModal('modal-edit-user');
+    await loadUsers();
+    renderUsersPage();
+    const sess=localStorage.getItem('whizz_session');
+    if(sess){const se=JSON.parse(sess);if(se.email===email){se.name=name;se.role=role;localStorage.setItem('whizz_session',JSON.stringify(se));document.getElementById('u-name').textContent=name;document.getElementById('u-role').textContent=role;const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase();document.getElementById('u-avatar').textContent=initials;}}
+  }catch(e){showToast('Failed to update user — please try again','error');}
 }
 
-function deleteUser(email){
+async function deleteUser(email){
   const u=USERS[email];
   if(!u)return;
   if(!confirm(`Delete "${u.name}" (${email})?\n\nThis cannot be undone.`))return;
-  delete USERS[email];
-  saveUsers();
-  showToast(`User "${u.name}" deleted. Remember to also remove ${email} from the Cloudflare Access policy.`,'success');
-  renderUsersPage();
+  try{
+    const d=await apiW('whizz-delete-user','POST',{email});
+    if(d.warning)showToast(d.warning,'error');
+    else showToast(`User "${u.name}" deleted and their Cloudflare Access revoked.`,'success');
+    await loadUsers();
+    renderUsersPage();
+  }catch(e){showToast('Failed to delete user — please try again','error');}
 }
 
 // ── Integrations (Brevo / WordPress) ──

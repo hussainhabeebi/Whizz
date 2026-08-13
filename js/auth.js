@@ -26,6 +26,7 @@ async function bootAuth() {
     return;
   }
   const email = identity.email.trim().toLowerCase();
+  await loadUsers();
   const user = USERS[email];
   if (!user) {
     showLoginError(`${email} is authenticated but not provisioned in Whizz. Ask an Administrator to add you under Users.`);

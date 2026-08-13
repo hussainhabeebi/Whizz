@@ -84,7 +84,7 @@ function openAddUserModal(){
   document.getElementById('modal-add-user').classList.add('open');
 }
 
-function submitAddUser(){
+async function submitAddUser(){
   const name=document.getElementById('au-name').value.trim();
   const email=document.getElementById('au-email').value.trim().toLowerCase();
   const role=document.getElementById('au-role').value;
@@ -93,11 +93,14 @@ function submitAddUser(){
   if(!name||!email){showToast('Name and email are required','error');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Please enter a valid email address','error');return;}
   if(USERS[email]){showToast('A user with this email already exists','error');return;}
-  USERS[email]={name,role,allowedBrands,allowedPlatforms};
-  saveUsers();
-  showToast(`User "${name}" added. Remember to also add ${email} to the Cloudflare Access policy.`,'success');
-  closeModal('modal-add-user');
-  renderUsersPage();
+  try{
+    const d=await apiW('whizz-add-user','POST',{email,name,role,allowedPlatforms,allowedBrands});
+    if(d.warning)showToast(d.warning,'error');
+    else showToast(`User "${name}" added and granted Cloudflare Access.`,'success');
+    closeModal('modal-add-user');
+    await loadUsers();
+    renderUsersPage();
+  }catch(e){showToast('Failed to add user — please try again','error');}
 }
 
 function openEditUserModal(email){
@@ -112,7 +115,7 @@ function openEditUserModal(email){
   document.getElementById('modal-edit-user').classList.add('open');
 }
 
-function submitEditUser(){
+async function submitEditUser(){
   const email=document.getElementById('eu-email-key').value;
   const u=USERS[email];
   if(!u){showToast('User not found','error');return;}
@@ -121,24 +124,26 @@ function submitEditUser(){
   const allowedPlatforms=getSelectedChips('eu-platform-chips');
   const allowedBrands=getSelectedChips('eu-brand-chips');
   if(!name){showToast('Name is required','error');return;}
-  u.name=name;
-  u.role=role;
-  u.allowedPlatforms=allowedPlatforms;
-  u.allowedBrands=allowedBrands;
-  saveUsers();
-  showToast(`User "${name}" updated successfully!`,'success');
-  closeModal('modal-edit-user');
-  renderUsersPage();
-  const sess=localStorage.getItem('whizz_session');
-  if(sess){const se=JSON.parse(sess);if(se.email===email){se.name=name;se.role=role;localStorage.setItem('whizz_session',JSON.stringify(se));document.getElementById('u-name').textContent=name;document.getElementById('u-role').textContent=role;const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase();document.getElementById('u-avatar').textContent=initials;}}
+  try{
+    await apiW('whizz-update-user','POST',{email,name,role,allowedPlatforms,allowedBrands});
+    showToast(`User "${name}" updated successfully!`,'success');
+    closeModal('modal-edit-user');
+    await loadUsers();
+    renderUsersPage();
+    const sess=localStorage.getItem('whizz_session');
+    if(sess){const se=JSON.parse(sess);if(se.email===email){se.name=name;se.role=role;localStorage.setItem('whizz_session',JSON.stringify(se));document.getElementById('u-name').textContent=name;document.getElementById('u-role').textContent=role;const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase();document.getElementById('u-avatar').textContent=initials;}}
+  }catch(e){showToast('Failed to update user — please try again','error');}
 }
 
-function deleteUser(email){
+async function deleteUser(email){
   const u=USERS[email];
   if(!u)return;
   if(!confirm(`Delete "${u.name}" (${email})?\n\nThis cannot be undone.`))return;
-  delete USERS[email];
-  saveUsers();
-  showToast(`User "${u.name}" deleted. Remember to also remove ${email} from the Cloudflare Access policy.`,'success');
-  renderUsersPage();
+  try{
+    const d=await apiW('whizz-delete-user','POST',{email});
+    if(d.warning)showToast(d.warning,'error');
+    else showToast(`User "${u.name}" deleted and their Cloudflare Access revoked.`,'success');
+    await loadUsers();
+    renderUsersPage();
+  }catch(e){showToast('Failed to delete user — please try again','error');}
 }

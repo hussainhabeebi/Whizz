@@ -17,7 +17,7 @@ function navigate(page, el) {
   if(page==='stock'&&S.cache.stock){renderStockPage();hideBanner('stock');}
   if(page==='suggestions'){refreshSuggestions();}
   if(page==='discovery'){renderDiscoveryResults(S.discoveredContacts||[]);}
-  if(page==='users'){renderUsersPage();}
+  if(page==='users'){loadUsers().then(renderUsersPage);}
   if(page==='pipeline'){renderPipelinePage();}
   if(page==='history'){renderScheduledList();}
 }

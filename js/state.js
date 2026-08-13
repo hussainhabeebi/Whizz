@@ -1,13 +1,12 @@
-const USERS_DEFAULT = {
-  'hussain@whizzfze.com': { name: 'Hussain',       role: 'Administrator', allowedBrands: [], allowedPlatforms: [] },
-  'admin@whizz.com':      { name: 'Whizz Admin',   role: 'Administrator', allowedBrands: [], allowedPlatforms: [] },
-  'sales@whizz.com':      { name: 'Sales Team',    role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Viral'] },
-  'manager@whizz.com':    { name: 'Whizz Manager', role: 'Manager',       allowedBrands: [], allowedPlatforms: [] },
-  'mohsin@whizz.com':     { name: 'Mohsin',        role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Mohsin'] },
-  'waqas@whizz.com':      { name: 'Waqas',         role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Waqas'] }
-};
-let USERS = (()=>{ const raw=localStorage.getItem('whizz_users_v1'); if(raw){try{const p=JSON.parse(raw);Object.entries(p).forEach(([email,u])=>{if(!u.allowedBrands)u.allowedBrands=[];if(!u.allowedPlatforms){u.allowedPlatforms=USERS_DEFAULT[email]?.allowedPlatforms||[];}});return p;}catch(e){}} return JSON.parse(JSON.stringify(USERS_DEFAULT)); })();
-function saveUsers(){ localStorage.setItem('whizz_users_v1', JSON.stringify(USERS)); }
+// Users live in D1 (shared across every admin/device) instead of localStorage, since
+// whizz-add-user/whizz-delete-user also sync this list to the Cloudflare Access policy
+// that gates who can reach the app. This is just an in-memory cache of the last fetch.
+let USERS = {};
+async function loadUsers(){
+  const d = await apiW('whizz-get-users');
+  USERS = {};
+  (d.users||[]).forEach(u=>{ USERS[u.email] = u; });
+}
 
 let S = {
   page: 'dashboard', convStatus: 'open',
