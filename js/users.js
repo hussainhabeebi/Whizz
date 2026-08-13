@@ -76,51 +76,26 @@ function getSelectedChips(containerId){
   return [...document.querySelectorAll(`#${containerId} .chip.active`)].map(el=>el.textContent.trim());
 }
 
-function togglePwd(inputId, btn){
-  const input=document.getElementById(inputId);
-  const show=input.type==='password';
-  input.type=show?'text':'password';
-  btn.style.color=show?'var(--accent)':'var(--text3)';
-}
-
-function checkPwdStrength(inputId, barId){
-  const val=document.getElementById(inputId).value;
-  const bar=document.getElementById(barId);
-  if(!bar)return;
-  const len=val.length;
-  if(!len){bar.style.background='var(--bg4)';bar.style.width='100%';return;}
-  let score=0;
-  if(len>=6)score++;if(len>=10)score++;
-  if(/[A-Z]/.test(val))score++;if(/[0-9]/.test(val))score++;if(/[^A-Za-z0-9]/.test(val))score++;
-  const colors=['var(--red)','var(--red)','var(--amber)','var(--amber)','var(--green)','var(--green)'];
-  bar.style.background=colors[score]||'var(--bg4)';
-}
-
 function openAddUserModal(){
   populatePlatformChips('au-platform-chips',[]);
   populateBrandChips('au-brand-chips',[]);
-  ['au-name','au-email','au-password','au-password2'].forEach(id=>document.getElementById(id).value='');
+  ['au-name','au-email'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('au-role').value='Sales';
-  const bar=document.getElementById('au-strength');if(bar)bar.style.background='var(--bg4)';
   document.getElementById('modal-add-user').classList.add('open');
 }
 
 function submitAddUser(){
   const name=document.getElementById('au-name').value.trim();
   const email=document.getElementById('au-email').value.trim().toLowerCase();
-  const password=document.getElementById('au-password').value;
-  const password2=document.getElementById('au-password2').value;
   const role=document.getElementById('au-role').value;
   const allowedPlatforms=getSelectedChips('au-platform-chips');
   const allowedBrands=getSelectedChips('au-brand-chips');
-  if(!name||!email||!password){showToast('Name, email and password are required','error');return;}
+  if(!name||!email){showToast('Name and email are required','error');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Please enter a valid email address','error');return;}
   if(USERS[email]){showToast('A user with this email already exists','error');return;}
-  if(password.length<6){showToast('Password must be at least 6 characters','error');return;}
-  if(password!==password2){showToast('Passwords do not match','error');return;}
-  USERS[email]={hash:safeEncode(password),name,role,allowedBrands,allowedPlatforms};
+  USERS[email]={name,role,allowedBrands,allowedPlatforms};
   saveUsers();
-  showToast(`User "${name}" created successfully!`,'success');
+  showToast(`User "${name}" added. Remember to also add ${email} to the Cloudflare Access policy.`,'success');
   closeModal('modal-add-user');
   renderUsersPage();
 }
@@ -131,10 +106,7 @@ function openEditUserModal(email){
   document.getElementById('eu-email-key').value=email;
   document.getElementById('eu-email-display').textContent=email;
   document.getElementById('eu-name').value=u.name;
-  document.getElementById('eu-password').value='';
-  document.getElementById('eu-password2').value='';
   document.getElementById('eu-role').value=u.role;
-  const bar=document.getElementById('eu-strength');if(bar)bar.style.background='var(--bg4)';
   populatePlatformChips('eu-platform-chips',u.allowedPlatforms||[]);
   populateBrandChips('eu-brand-chips',u.allowedBrands||[]);
   document.getElementById('modal-edit-user').classList.add('open');
@@ -145,17 +117,10 @@ function submitEditUser(){
   const u=USERS[email];
   if(!u){showToast('User not found','error');return;}
   const name=document.getElementById('eu-name').value.trim();
-  const password=document.getElementById('eu-password').value;
-  const password2=document.getElementById('eu-password2').value;
   const role=document.getElementById('eu-role').value;
   const allowedPlatforms=getSelectedChips('eu-platform-chips');
   const allowedBrands=getSelectedChips('eu-brand-chips');
   if(!name){showToast('Name is required','error');return;}
-  if(password){
-    if(password.length<6){showToast('Password must be at least 6 characters','error');return;}
-    if(password!==password2){showToast('Passwords do not match','error');return;}
-    u.hash=safeEncode(password);
-  }
   u.name=name;
   u.role=role;
   u.allowedPlatforms=allowedPlatforms;
@@ -174,6 +139,6 @@ function deleteUser(email){
   if(!confirm(`Delete "${u.name}" (${email})?\n\nThis cannot be undone.`))return;
   delete USERS[email];
   saveUsers();
-  showToast(`User "${u.name}" deleted`,'success');
+  showToast(`User "${u.name}" deleted. Remember to also remove ${email} from the Cloudflare Access policy.`,'success');
   renderUsersPage();
 }
