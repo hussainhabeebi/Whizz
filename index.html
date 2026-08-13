@@ -546,18 +546,9 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
       <span class="login-logo-text">Whizz Exim FZE</span>
       <span class="login-logo-sub">Sales Portal</span>
     </div>
-    <div class="login-title">Welcome back</div>
-    <div class="login-sub">Sign in to access your dashboard</div>
-    <div class="lf-group">
-      <label class="lf-label">Email</label>
-      <input class="lf-input" type="email" id="login-email" placeholder="admin@whizz.com" autocomplete="email"/>
-    </div>
-    <div class="lf-group">
-      <label class="lf-label">Password</label>
-      <input class="lf-input" type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
-    </div>
-    <button class="login-btn" onclick="doLogin()" id="login-btn">Sign in</button>
-    <div class="login-error" id="login-error">Invalid credentials.</div>
+    <div class="login-title" id="login-status-title">Checking your sign-in…</div>
+    <div class="login-sub" id="login-status-sub">Verifying your Cloudflare Access session.</div>
+    <div class="login-error" id="login-error" style="display:none;"></div>
     <div class="login-footer">Powered by Whizz Technologies · v1.0</div>
   </div>
 </div>
@@ -1812,23 +1803,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <div class="fg"><label class="fl">Role *</label><select class="fs" id="au-role"><option value="Sales">Sales</option><option value="Manager">Manager</option><option value="Administrator">Administrator</option></select></div>
       </div>
       <div class="fg"><label class="fl">Email Address *</label><input class="fi" type="email" id="au-email" placeholder="user@whizz.com"/></div>
-      <div class="fg"><label class="fl">Password *</label>
-        <div style="position:relative;">
-          <input class="fi" type="password" id="au-password" placeholder="Min 6 characters" style="padding-right:40px;" oninput="checkPwdStrength('au-password','au-strength')"/>
-          <button type="button" onclick="togglePwd('au-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:2px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-        <div id="au-strength" style="height:3px;border-radius:2px;margin-top:5px;background:var(--bg4);transition:all 0.2s;"></div>
-      </div>
-      <div class="fg"><label class="fl">Confirm Password *</label>
-        <div style="position:relative;">
-          <input class="fi" type="password" id="au-password2" placeholder="Re-enter password" style="padding-right:40px;"/>
-          <button type="button" onclick="togglePwd('au-password2',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:2px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-      </div>
+      <div class="fi-hint" style="margin:-4px 0 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:10px 12px;">Adding a user here only sets their role and access inside Whizz. They also need an Allow policy for their email in the Cloudflare Access application protecting tiarafzco.com, or they won't be able to sign in at all.</div>
       <div class="fg">
         <label class="fl">Platform Access</label>
         <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific platforms. Leave all unselected for access to all platforms.</div>
@@ -1866,26 +1841,6 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <div class="fg"><label class="fl">Full Name *</label><input class="fi" id="eu-name" placeholder="Full name"/></div>
         <div class="fg"><label class="fl">Role</label><select class="fs" id="eu-role"><option value="Sales">Sales</option><option value="Manager">Manager</option><option value="Administrator">Administrator</option></select></div>
       </div>
-      <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:14px;margin-bottom:14px;">
-        <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Reset Password <span style="font-weight:400;color:var(--text3);">(leave blank to keep current)</span></div>
-        <div class="fg" style="margin-bottom:10px;"><label class="fl">New Password</label>
-          <div style="position:relative;">
-            <input class="fi" type="password" id="eu-password" placeholder="Enter new password" style="padding-right:40px;" oninput="checkPwdStrength('eu-password','eu-strength')"/>
-            <button type="button" onclick="togglePwd('eu-password',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:2px;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-          <div id="eu-strength" style="height:3px;border-radius:2px;margin-top:5px;background:var(--bg4);transition:all 0.2s;"></div>
-        </div>
-        <div class="fg" style="margin:0;"><label class="fl">Confirm New Password</label>
-          <div style="position:relative;">
-            <input class="fi" type="password" id="eu-password2" placeholder="Re-enter new password" style="padding-right:40px;"/>
-            <button type="button" onclick="togglePwd('eu-password2',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:2px;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
       <div class="fg">
         <label class="fl">Platform Access</label>
         <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific platforms. Leave all unselected for full access.</div>
@@ -1915,13 +1870,12 @@ const OB_KEY = 'whizz_onboarding';
 const SCHEDULE_KEY = 'whizz_scheduled_v1';
 const TASKS_KEY = 'whizz_tasks_v1';
 
-function safeEncode(str){ try{ return btoa(unescape(encodeURIComponent(str))); }catch(e){ return btoa(str.replace(/[^\x00-\xFF]/g,'')); } }
 const USERS_DEFAULT = {
-  'admin@whizz.com':   { hash: safeEncode('Whizz@2026'),   name: 'Whizz Admin',   role: 'Administrator', allowedBrands: [], allowedPlatforms: [] },
-  'sales@whizz.com':   { hash: safeEncode('Sales@2026'),   name: 'Sales Team',    role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Viral'] },
-  'manager@whizz.com': { hash: safeEncode('Manager@2026'), name: 'Whizz Manager', role: 'Manager',       allowedBrands: [], allowedPlatforms: [] },
-  'mohsin@whizz.com':  { hash: safeEncode('Mohsin@2026'),  name: 'Mohsin',        role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Mohsin'] },
-  'waqas@whizz.com':   { hash: safeEncode('Waqas@2026'),   name: 'Waqas',         role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Waqas'] }
+  'admin@whizz.com':   { name: 'Whizz Admin',   role: 'Administrator', allowedBrands: [], allowedPlatforms: [] },
+  'sales@whizz.com':   { name: 'Sales Team',    role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Viral'] },
+  'manager@whizz.com': { name: 'Whizz Manager', role: 'Manager',       allowedBrands: [], allowedPlatforms: [] },
+  'mohsin@whizz.com':  { name: 'Mohsin',        role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Mohsin'] },
+  'waqas@whizz.com':   { name: 'Waqas',         role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Waqas'] }
 };
 let USERS = (()=>{ const raw=localStorage.getItem('whizz_users_v1'); if(raw){try{const p=JSON.parse(raw);Object.entries(p).forEach(([email,u])=>{if(!u.allowedBrands)u.allowedBrands=[];if(!u.allowedPlatforms){u.allowedPlatforms=USERS_DEFAULT[email]?.allowedPlatforms||[];}});return p;}catch(e){}} return JSON.parse(JSON.stringify(USERS_DEFAULT)); })();
 function saveUsers(){ localStorage.setItem('whizz_users_v1', JSON.stringify(USERS)); }
@@ -1939,18 +1893,41 @@ let S = {
 };
 
 // ── Auth ──
-function doLogin() {
-  const email = document.getElementById('login-email').value.trim().toLowerCase();
-  const pass = document.getElementById('login-password').value;
+// Identity is established by Cloudflare Access at the edge (tiarafzco.com sits behind an
+// Access application). We only read who Access already authenticated — the app never
+// collects or checks a password.
+async function getAccessIdentity() {
+  try {
+    const r = await fetch('/cdn-cgi/access/get-identity', { credentials: 'include' });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d && d.email ? d : null;
+  } catch (e) { return null; }
+}
+
+function showLoginError(message) {
+  document.getElementById('login-status-title').textContent = 'Sign-in required';
+  document.getElementById('login-status-sub').textContent = '';
   const err = document.getElementById('login-error');
-  const btn = document.getElementById('login-btn');
-  err.style.display = 'none';
+  err.textContent = message;
+  err.style.display = 'block';
+}
+
+async function bootAuth() {
+  const identity = await getAccessIdentity();
+  if (!identity) {
+    showLoginError('Could not verify your Cloudflare Access session. Reload this page, or sign in again if prompted.');
+    return;
+  }
+  const email = identity.email.trim().toLowerCase();
   const user = USERS[email];
-  if (!user || user.hash !== safeEncode(pass)) { err.style.display = 'block'; document.getElementById('login-password').value = ''; return; }
-  btn.disabled = true; btn.textContent = 'Signing in...';
+  if (!user) {
+    showLoginError(`${email} is authenticated but not provisioned in Whizz. Ask an Administrator to add you under Users.`);
+    return;
+  }
   const session = { email, name: user.name, role: user.role, loginTime: Date.now() };
   localStorage.setItem('whizz_session', JSON.stringify(session));
-  setTimeout(() => { initApp(session); btn.disabled = false; btn.textContent = 'Sign in'; }, 500);
+  initApp(session);
 }
 
 function doLogout() {
@@ -1958,8 +1935,7 @@ function doLogout() {
   localStorage.removeItem('whizz_session');
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('login-page').style.display = 'flex';
-  document.getElementById('login-email').value = '';
-  document.getElementById('login-password').value = '';
+  window.location.href = '/cdn-cgi/access/logout';
 }
 
 function initApp(session) {
@@ -1980,14 +1956,7 @@ function initApp(session) {
   renderTasksList();
 }
 
-window.addEventListener('load', () => {
-  const s = localStorage.getItem('whizz_session');
-  if (s) {
-    const session = JSON.parse(s);
-    if (Date.now() - session.loginTime < 8 * 3600 * 1000) initApp(session);
-    else localStorage.removeItem('whizz_session');
-  }
-});
+window.addEventListener('load', bootAuth);
 
 // ── Cache Layer ──
 function saveCache() { localStorage.setItem(CACHE_KEY, JSON.stringify({ data: S.cache, ts: Date.now() })); }
@@ -4165,51 +4134,26 @@ function getSelectedChips(containerId){
   return [...document.querySelectorAll(`#${containerId} .chip.active`)].map(el=>el.textContent.trim());
 }
 
-function togglePwd(inputId, btn){
-  const input=document.getElementById(inputId);
-  const show=input.type==='password';
-  input.type=show?'text':'password';
-  btn.style.color=show?'var(--accent)':'var(--text3)';
-}
-
-function checkPwdStrength(inputId, barId){
-  const val=document.getElementById(inputId).value;
-  const bar=document.getElementById(barId);
-  if(!bar)return;
-  const len=val.length;
-  if(!len){bar.style.background='var(--bg4)';bar.style.width='100%';return;}
-  let score=0;
-  if(len>=6)score++;if(len>=10)score++;
-  if(/[A-Z]/.test(val))score++;if(/[0-9]/.test(val))score++;if(/[^A-Za-z0-9]/.test(val))score++;
-  const colors=['var(--red)','var(--red)','var(--amber)','var(--amber)','var(--green)','var(--green)'];
-  bar.style.background=colors[score]||'var(--bg4)';
-}
-
 function openAddUserModal(){
   populatePlatformChips('au-platform-chips',[]);
   populateBrandChips('au-brand-chips',[]);
-  ['au-name','au-email','au-password','au-password2'].forEach(id=>document.getElementById(id).value='');
+  ['au-name','au-email'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('au-role').value='Sales';
-  const bar=document.getElementById('au-strength');if(bar)bar.style.background='var(--bg4)';
   document.getElementById('modal-add-user').classList.add('open');
 }
 
 function submitAddUser(){
   const name=document.getElementById('au-name').value.trim();
   const email=document.getElementById('au-email').value.trim().toLowerCase();
-  const password=document.getElementById('au-password').value;
-  const password2=document.getElementById('au-password2').value;
   const role=document.getElementById('au-role').value;
   const allowedPlatforms=getSelectedChips('au-platform-chips');
   const allowedBrands=getSelectedChips('au-brand-chips');
-  if(!name||!email||!password){showToast('Name, email and password are required','error');return;}
+  if(!name||!email){showToast('Name and email are required','error');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Please enter a valid email address','error');return;}
   if(USERS[email]){showToast('A user with this email already exists','error');return;}
-  if(password.length<6){showToast('Password must be at least 6 characters','error');return;}
-  if(password!==password2){showToast('Passwords do not match','error');return;}
-  USERS[email]={hash:safeEncode(password),name,role,allowedBrands,allowedPlatforms};
+  USERS[email]={name,role,allowedBrands,allowedPlatforms};
   saveUsers();
-  showToast(`User "${name}" created successfully!`,'success');
+  showToast(`User "${name}" added. Remember to also add ${email} to the Cloudflare Access policy.`,'success');
   closeModal('modal-add-user');
   renderUsersPage();
 }
@@ -4220,10 +4164,7 @@ function openEditUserModal(email){
   document.getElementById('eu-email-key').value=email;
   document.getElementById('eu-email-display').textContent=email;
   document.getElementById('eu-name').value=u.name;
-  document.getElementById('eu-password').value='';
-  document.getElementById('eu-password2').value='';
   document.getElementById('eu-role').value=u.role;
-  const bar=document.getElementById('eu-strength');if(bar)bar.style.background='var(--bg4)';
   populatePlatformChips('eu-platform-chips',u.allowedPlatforms||[]);
   populateBrandChips('eu-brand-chips',u.allowedBrands||[]);
   document.getElementById('modal-edit-user').classList.add('open');
@@ -4234,17 +4175,10 @@ function submitEditUser(){
   const u=USERS[email];
   if(!u){showToast('User not found','error');return;}
   const name=document.getElementById('eu-name').value.trim();
-  const password=document.getElementById('eu-password').value;
-  const password2=document.getElementById('eu-password2').value;
   const role=document.getElementById('eu-role').value;
   const allowedPlatforms=getSelectedChips('eu-platform-chips');
   const allowedBrands=getSelectedChips('eu-brand-chips');
   if(!name){showToast('Name is required','error');return;}
-  if(password){
-    if(password.length<6){showToast('Password must be at least 6 characters','error');return;}
-    if(password!==password2){showToast('Passwords do not match','error');return;}
-    u.hash=safeEncode(password);
-  }
   u.name=name;
   u.role=role;
   u.allowedPlatforms=allowedPlatforms;
@@ -4263,7 +4197,7 @@ function deleteUser(email){
   if(!confirm(`Delete "${u.name}" (${email})?\n\nThis cannot be undone.`))return;
   delete USERS[email];
   saveUsers();
-  showToast(`User "${u.name}" deleted`,'success');
+  showToast(`User "${u.name}" deleted. Remember to also remove ${email} from the Cloudflare Access policy.`,'success');
   renderUsersPage();
 }
 

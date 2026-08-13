@@ -1,16 +1,39 @@
 // ── Auth ──
-function doLogin() {
-  const email = document.getElementById('login-email').value.trim().toLowerCase();
-  const pass = document.getElementById('login-password').value;
+// Identity is established by Cloudflare Access at the edge (tiarafzco.com sits behind an
+// Access application). We only read who Access already authenticated — the app never
+// collects or checks a password.
+async function getAccessIdentity() {
+  try {
+    const r = await fetch('/cdn-cgi/access/get-identity', { credentials: 'include' });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d && d.email ? d : null;
+  } catch (e) { return null; }
+}
+
+function showLoginError(message) {
+  document.getElementById('login-status-title').textContent = 'Sign-in required';
+  document.getElementById('login-status-sub').textContent = '';
   const err = document.getElementById('login-error');
-  const btn = document.getElementById('login-btn');
-  err.style.display = 'none';
+  err.textContent = message;
+  err.style.display = 'block';
+}
+
+async function bootAuth() {
+  const identity = await getAccessIdentity();
+  if (!identity) {
+    showLoginError('Could not verify your Cloudflare Access session. Reload this page, or sign in again if prompted.');
+    return;
+  }
+  const email = identity.email.trim().toLowerCase();
   const user = USERS[email];
-  if (!user || user.hash !== safeEncode(pass)) { err.style.display = 'block'; document.getElementById('login-password').value = ''; return; }
-  btn.disabled = true; btn.textContent = 'Signing in...';
+  if (!user) {
+    showLoginError(`${email} is authenticated but not provisioned in Whizz. Ask an Administrator to add you under Users.`);
+    return;
+  }
   const session = { email, name: user.name, role: user.role, loginTime: Date.now() };
   localStorage.setItem('whizz_session', JSON.stringify(session));
-  setTimeout(() => { initApp(session); btn.disabled = false; btn.textContent = 'Sign in'; }, 500);
+  initApp(session);
 }
 
 function doLogout() {
@@ -18,8 +41,7 @@ function doLogout() {
   localStorage.removeItem('whizz_session');
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('login-page').style.display = 'flex';
-  document.getElementById('login-email').value = '';
-  document.getElementById('login-password').value = '';
+  window.location.href = '/cdn-cgi/access/logout';
 }
 
 function initApp(session) {
@@ -37,11 +59,4 @@ function initApp(session) {
   renderScheduledList();
 }
 
-window.addEventListener('load', () => {
-  const s = localStorage.getItem('whizz_session');
-  if (s) {
-    const session = JSON.parse(s);
-    if (Date.now() - session.loginTime < 8 * 3600 * 1000) initApp(session);
-    else localStorage.removeItem('whizz_session');
-  }
-});
+window.addEventListener('load', bootAuth);
