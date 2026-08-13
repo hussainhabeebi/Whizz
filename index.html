@@ -2533,6 +2533,9 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
 // ── API Gateway Base Call ──
 async function api(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`${N8N}/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);const txt=await r.text();try{return txt?JSON.parse(txt):{success:true};}catch{return{success:true};}}
+// Endpoints migrated off n8n onto the Cloudflare Worker call this instead — same
+// contract, just same-origin. Migrate call sites one at a time as each route lands.
+async function apiW(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);const txt=await r.text();try{return txt?JSON.parse(txt):{success:true};}catch{return{success:true};}}
 
 // ── Global Refresh Orchestrator ──
 async function refreshPage() {
@@ -2653,7 +2656,7 @@ async function refreshReportsPage(){
   populateReportsPeriodSelect();
   await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod()]);
   try{
-    const d=await api('whizz-get-enquiries');
+    const d=await apiW('whizz-get-enquiries');
     const enquiries=d.enquiries||d||[];
     S.cache.enquiries=Array.isArray(enquiries)?enquiries:[];
   }catch(e){S.cache.enquiries=S.cache.enquiries||[];}
@@ -2856,7 +2859,7 @@ async function liveSyncTick(){
 // ── Enquiries Module (sourced from the Memory tab / chatbot conversation log) ──
 const ENQ_PAGE_SIZE=20;
 async function refreshEnquiries(){
-  const d=await api('whizz-get-enquiries');
+  const d=await apiW('whizz-get-enquiries');
   const enquiries=d.enquiries||d||[];
   S.cache.enquiries=Array.isArray(enquiries)?enquiries:[];
   renderEnquiriesPage(S.cache.enquiries);
@@ -3152,7 +3155,7 @@ async function openGroupContacts(platform,country,brand){
   document.getElementById('leads-contacts-count').textContent='';
   document.getElementById('leads-contacts-body').innerHTML='<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px;">Fetching contacts...</div>';
   try{
-    const d=await api(`whizz-get-contacts?platform=${encodeURIComponent(platform)}&country=${encodeURIComponent(country)}&brand=${encodeURIComponent(brand)}`);
+    const d=await apiW(`whizz-get-contacts?platform=${encodeURIComponent(platform)}&country=${encodeURIComponent(country)}&brand=${encodeURIComponent(brand)}`);
     const contacts=d.contacts||d||[];
     _currentLeadsContacts=Array.isArray(contacts)?contacts:[];
     document.getElementById('leads-contacts-subtitle').textContent=`${platform} / ${country} / ${brand}`;
@@ -3160,7 +3163,7 @@ async function openGroupContacts(platform,country,brand){
     renderLeadContacts(_currentLeadsContacts);
   }catch(e){
     document.getElementById('leads-contacts-subtitle').textContent='';
-    document.getElementById('leads-contacts-body').innerHTML='<div style="text-align:center;padding:32px;color:var(--red);font-size:12px;">Failed to load contacts — ensure <strong>whizz-get-contacts</strong> webhook is active in n8n.</div>';
+    document.getElementById('leads-contacts-body').innerHTML='<div style="text-align:center;padding:32px;color:var(--red);font-size:12px;">Failed to load contacts — the <strong>whizz-get-contacts</strong> endpoint is unavailable.</div>';
   }
 }
 
@@ -3287,7 +3290,7 @@ async function acLoadExistingPhoneMap(platform,country,brand){
     existing=_currentLeadsContacts;
   }else if(platform&&country&&brand){
     try{
-      const d=await api(`whizz-get-contacts?platform=${encodeURIComponent(platform)}&country=${encodeURIComponent(country)}&brand=${encodeURIComponent(brand)}`);
+      const d=await apiW(`whizz-get-contacts?platform=${encodeURIComponent(platform)}&country=${encodeURIComponent(country)}&brand=${encodeURIComponent(brand)}`);
       const c=d.contacts||d||[];
       existing=Array.isArray(c)?c:[];
     }catch(e){existing=[];}

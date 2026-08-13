@@ -1,0 +1,12 @@
+name = "whizz"
+main = "worker/index.js"
+compatibility_date = "2024-01-01"
+
+[assets]
+directory = "."
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "whizz-db"
+database_id = "028d5b86-352e-4809-87d1-02e2bfc34a69"
