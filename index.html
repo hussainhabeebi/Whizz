@@ -1071,6 +1071,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
                 <div class="chip active" data-period="monthly" onclick="setPlatformTrackPeriod('monthly',this)">Monthly</div>
                 <div class="chip" data-period="yearly" onclick="setPlatformTrackPeriod('yearly',this)">Yearly</div>
               </div>
+              <select class="fs" id="ptrack-year-select" style="display:none;width:auto;padding:5px 10px;font-size:11px;" onchange="setPlatformTrackYear(this.value)"></select>
               <button class="t-btn btn-primary" style="padding:5px 10px;font-size:11px;" onclick="downloadPlatformTrackingReport()" title="Download a standalone Platform Tracking &amp; Costing report">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Report
@@ -1652,7 +1653,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="fg"><label class="fl">Brand</label><input class="fi" id="ap-brand" placeholder="e.g. HP"/></div>
         <div class="fg"><label class="fl">Stage</label>
-          <select class="fs" id="ap-stage">
+          <select class="fs" id="ap-stage" onchange="toggleApClosedDateRow()">
             <option value="new">New</option>
             <option value="contacted">Contacted</option>
             <option value="interested">Interested</option>
@@ -1664,6 +1665,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <div class="fg"><label class="fl">Platform</label><input class="fi" id="ap-platform" list="ap-platform-list" placeholder="e.g. Instagram"/><datalist id="ap-platform-list"></datalist></div>
         <div class="fg"><label class="fl">Deal Value</label><input class="fi" id="ap-value" type="number" min="0" step="0.01" placeholder="0.00"/></div>
       </div>
+      <div class="fg" id="ap-closed-date-row" style="display:none;"><label class="fl">Closed Date</label><input class="fi" id="ap-closed-date" type="date"/></div>
       <div class="fg"><label class="fl">Notes</label><textarea class="ft" id="ap-notes" placeholder="Any notes…" style="min-height:60px;"></textarea></div>
     </div>
     <div class="modal-foot">
@@ -1841,6 +1843,25 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
     <div class="modal-foot">
       <button class="t-btn btn-ghost" onclick="closeModal('modal-edit-contact')">Cancel</button>
       <button class="t-btn btn-primary" onclick="submitEditLeadContact()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Closed Deal Modal (per-lead level, backdatable) -->
+<div class="modal-overlay" id="modal-add-closed-deal">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Add Closed Deal Value</div><button class="modal-close" onclick="closeModal('modal-add-closed-deal')">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Records this lead as a closed deal so it counts toward Lead Platform Tracking's conversion value. Backdate the closed date for deals that actually closed in the past — e.g. last year — so they land in the right period.</div>
+      <div class="fg"><label class="fl">Lead</label><input class="fi" id="acd-name" disabled/></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><label class="fl">Deal Value *</label><input class="fi" id="acd-value" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+        <div class="fg"><label class="fl">Closed Date</label><input class="fi" id="acd-closed-date" type="date"/></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-add-closed-deal')">Cancel</button>
+      <button class="t-btn btn-primary" onclick="submitAddClosedDeal()">Save Closed Deal</button>
     </div>
   </div>
 </div>
@@ -2475,20 +2496,20 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
   <div class="hero">
     <div class="brand">Whizz.</div>
     <div class="hero-title">Lead Platform Tracking</div>
-    <div class="hero-sub">${periodLabel} view · Cost, Efficiency &amp; Conversion Value by Platform</div>
+    <div class="hero-sub">${periodLabel} view — ${d.periodContext} · Cost, Efficiency &amp; Conversion Value by Platform</div>
     <div class="hero-gen">Generated ${d.generatedAt.toLocaleString()}</div>
   </div>
   <div class="body-pad">
     <div class="section-title" style="margin-top:0;">Summary</div>
     <div class="kpi-grid-4">
-      <div class="kpi-card amber"><div class="kpi-label">Total Spend (${periodLabel})</div><div class="kpi-value">${d.totalCost.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="kpi-sub">across ${d.rows.length} platform${d.rows.length!==1?'s':''}</div></div>
-      <div class="kpi-card green"><div class="kpi-label">Conversion Value</div><div class="kpi-value">${d.totalValue.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="kpi-sub">closed deals ${periodLabel==='Yearly'?'this year':'this month'}</div></div>
+      <div class="kpi-card amber"><div class="kpi-label">Total Spend (${d.periodContext})</div><div class="kpi-value">${d.totalCost.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="kpi-sub">across ${d.rows.length} platform${d.rows.length!==1?'s':''}</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Conversion Value</div><div class="kpi-value">${d.totalValue.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="kpi-sub">closed deals ${periodLabel==='Yearly'?'in '+d.periodContext:'this month'}</div></div>
       <div class="kpi-card blue"><div class="kpi-label">Blended ROAS</div><div class="kpi-value">${d.blendedRoas===null?'—':d.blendedRoas.toFixed(2)+'x'}</div><div class="kpi-sub">value ÷ spend</div></div>
       <div class="kpi-card red"><div class="kpi-label">Avg Cost / Lead</div><div class="kpi-value">${d.avgCostPerLead===null?'—':d.avgCostPerLead.toFixed(2)}</div><div class="kpi-sub">${periodLabel.toLowerCase()} spend ÷ all-time leads</div></div>
     </div>
 
     <div class="section-title">By Platform</div>
-    <div class="section-note">Leads are all-time totals (no lead date is stored yet). Cost and Conversion Value are scoped to the ${periodLabel.toLowerCase()} period, based on when a pipeline deal was marked Closed.</div>
+    <div class="section-note">Leads are all-time totals (no lead date is stored yet). Cost and Conversion Value are scoped to ${periodLabel==='Yearly'?d.periodContext:'this month'}, based on when a pipeline deal was marked Closed.</div>
     <table>
       <thead><tr><th>Platform</th><th>Leads</th><th>Cost</th><th>Cost / Lead</th><th>Closed</th><th>Conv. Value</th><th>ROAS</th><th>Add-on Benefits</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
@@ -2507,7 +2528,8 @@ function downloadPlatformTrackingReport(){
   const data=computePlatformTrackingData();
   if(!data.rows.length){showToast('Load leads data (or add closed deals to the Pipeline) first','error');return;}
   const html=buildPlatformTrackingReportHtml({...data,generatedAt:new Date()});
-  downloadHTML(html,`Whizz-Platform-Tracking-Report-${_platformTrackPeriod}-${new Date().toISOString().slice(0,10)}.html`);
+  const periodSlug=_platformTrackPeriod==='yearly'?`yearly-${_platformTrackYear}`:'monthly';
+  downloadHTML(html,`Whizz-Platform-Tracking-Report-${periodSlug}-${new Date().toISOString().slice(0,10)}.html`);
   showToast('Platform tracking report downloaded!','success');
 }
 
@@ -3434,6 +3456,10 @@ function renderLeadContacts(contacts){
           ${c.category?`<span class="cc-cat">${c.category}</span>`:''}
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0;">
+          <button class="t-btn btn-ghost" style="padding:4px 8px;font-size:10px;color:var(--green);" onclick="openAddClosedDealModal(${i})" title="Record this lead as a closed deal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Closed
+          </button>
           <button class="t-btn btn-ghost" style="padding:4px 8px;font-size:10px;" onclick="openEditLeadContact(${i})" title="Edit contact">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit
@@ -3446,8 +3472,14 @@ function renderLeadContacts(contacts){
       ${c.phone?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8 19.79 19.79 0 0 1 1.61 1.12 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg><a href="tel:${c.phone}" onclick="event.stopPropagation()">${c.phone}</a></div>`:''}
       ${c.email?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${c.email}" onclick="event.stopPropagation()">${c.email}</a></div>`:''}
       ${c.source?`<div class="cc-detail" style="font-size:10px;color:var(--text3);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${c.source}</div>`:''}
+      ${(()=>{const deals=getClosedDealsForContact(c);const total=deals.reduce((s,d)=>s+(Number(d.value)||0),0);return total?`<div class="cc-detail" style="color:var(--green);font-weight:600;">✓ ${total.toLocaleString()} closed${deals.length>1?` (${deals.length} deals)`:''}</div>`:'';})()}
     </div>`;
   }).join('')}</div>`;
+}
+function getClosedDealsForContact(c){
+  const phone=normalizePhone(c.phone||c.phoneNumber);
+  if(!phone)return[];
+  return pipelineLoad().filter(p=>p.stage==='closed'&&normalizePhone(p.phone)===phone);
 }
 
 function openEditLeadContact(i){
@@ -3486,6 +3518,47 @@ async function submitEditLeadContact(){
     closeModal('modal-edit-contact');
     if(_currentLeadsGroup)openGroupContacts(_currentLeadsGroup.platform,_currentLeadsGroup.country,_currentLeadsGroup.brand);
   }catch(e){showToast('Failed to update — ensure whizz-update-contact webhook is active','error');}
+}
+
+// ── Add Closed Deal (per-lead level, backdatable — e.g. for last year's deals) ──
+let _acdContact=null;
+function openAddClosedDealModal(i){
+  const c=_currentLeadsContacts[i];
+  if(!c)return;
+  _acdContact=c;
+  document.getElementById('acd-name').value=c.contactName||c.company||c.name||'Unknown';
+  document.getElementById('acd-value').value='';
+  document.getElementById('acd-closed-date').value=todayStr();
+  document.getElementById('modal-add-closed-deal').classList.add('open');
+}
+function submitAddClosedDeal(){
+  if(!_acdContact){closeModal('modal-add-closed-deal');return;}
+  const value=parseFloat(document.getElementById('acd-value').value);
+  if(!value||value<=0){showToast('Enter a deal value greater than 0','error');return;}
+  const dateVal=document.getElementById('acd-closed-date').value;
+  const closedAt=dateVal?new Date(dateVal+'T12:00:00').getTime():Date.now();
+  const c=_acdContact;
+  const data=pipelineLoad();
+  data.push({
+    id:'p'+(++_pipeId)+Date.now(),
+    name:c.contactName||c.company||c.name||'Unknown',
+    phone:c.phone||c.phoneNumber||'',
+    email:c.email||'',
+    brand:c.brand||_currentLeadsGroup?.brand||'',
+    platform:c.platform||_currentLeadsGroup?.platform||'',
+    value,
+    notes:'Closed deal added from Leads',
+    stage:'closed',
+    addedAt:Date.now(),
+    closedAt
+  });
+  pipelineSave(data);
+  closeModal('modal-add-closed-deal');
+  showToast('Closed deal recorded','success');
+  _acdContact=null;
+  if(_currentLeadsGroup)renderLeadContacts(_currentLeadsContacts);
+  if(S.page==='reports')renderPlatformTracking();
+  if(S.page==='pipeline')renderPipelinePage();
 }
 
 async function deleteLeadContact(i){
@@ -3993,9 +4066,21 @@ document.addEventListener('dragend',()=>{
   document.querySelectorAll('.pipe-card').forEach(c=>c.classList.remove('dragging'));
 });
 
+function toggleApClosedDateRow(){
+  const row=document.getElementById('ap-closed-date-row');
+  if(!row)return;
+  if(document.getElementById('ap-stage').value==='closed'){
+    row.style.display='';
+    const dateInput=document.getElementById('ap-closed-date');
+    if(!dateInput.value)dateInput.value=todayStr();
+  }else{
+    row.style.display='none';
+  }
+}
 function openAddPipelineModal(prefill){
-  ['ap-name','ap-phone','ap-email','ap-brand','ap-platform','ap-value','ap-notes'].forEach(id=>document.getElementById(id).value='');
+  ['ap-name','ap-phone','ap-email','ap-brand','ap-platform','ap-value','ap-closed-date','ap-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ap-stage').value='new';
+  toggleApClosedDateRow();
   const platformList=document.getElementById('ap-platform-list');
   if(platformList)platformList.innerHTML=(S.cache.platforms||[]).map(p=>`<option value="${p.replace(/"/g,'&quot;')}"></option>`).join('');
   if(prefill){
@@ -4011,6 +4096,11 @@ function submitAddPipeline(){
   const name=document.getElementById('ap-name').value.trim();
   if(!name){showToast('Name is required','error');return;}
   const stage=document.getElementById('ap-stage').value;
+  let closedAt=null;
+  if(stage==='closed'){
+    const dateVal=document.getElementById('ap-closed-date').value;
+    closedAt=dateVal?new Date(dateVal+'T12:00:00').getTime():Date.now();
+  }
   const data=pipelineLoad();
   data.push({
     id:'p'+(++_pipeId)+Date.now(),
@@ -4023,7 +4113,7 @@ function submitAddPipeline(){
     notes:document.getElementById('ap-notes').value.trim(),
     stage,
     addedAt:Date.now(),
-    closedAt:stage==='closed'?Date.now():null
+    closedAt
   });
   pipelineSave(data);
   closeModal('modal-add-pipeline');
@@ -4035,6 +4125,7 @@ function submitAddPipeline(){
 // ── Lead Platform Tracking (cost, efficiency, conversion value) ──
 const PLATFORM_COSTS_KEY='whizz_platform_costs_v1';
 let _platformTrackPeriod='monthly';
+let _platformTrackYear=new Date().getFullYear();
 function loadPlatformCosts(){
   let costs={};
   try{costs=JSON.parse(localStorage.getItem(PLATFORM_COSTS_KEY)||'{}');}catch{costs={};}
@@ -4053,18 +4144,37 @@ function savePlatformCosts(obj){localStorage.setItem(PLATFORM_COSTS_KEY,JSON.str
 const PLATFORM_MERGES_KEY='whizz_platform_merges_v1';
 function loadPlatformMerges(){try{return JSON.parse(localStorage.getItem(PLATFORM_MERGES_KEY)||'{}');}catch{return{};}}
 function savePlatformMerges(obj){localStorage.setItem(PLATFORM_MERGES_KEY,JSON.stringify(obj));}
-function platformTrackPeriodLabel(){return _platformTrackPeriod==='yearly'?'this year':'this month';}
+function platformTrackPeriodLabel(){return _platformTrackPeriod==='yearly'?`in ${_platformTrackYear}`:'this month';}
 function inPlatformTrackPeriod(ts){
   if(!ts)return false;
-  const d=new Date(ts),now=new Date();
+  const d=new Date(ts);
   if(isNaN(d.getTime()))return false;
-  if(_platformTrackPeriod==='yearly')return d.getFullYear()===now.getFullYear();
+  if(_platformTrackPeriod==='yearly')return d.getFullYear()===_platformTrackYear;
+  const now=new Date();
   return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
 }
 function setPlatformTrackPeriod(p,el){
   _platformTrackPeriod=p;
   document.querySelectorAll('#ptrack-period-toggle .chip').forEach(c=>c.classList.remove('active'));
   if(el)el.classList.add('active');
+  const yearSel=document.getElementById('ptrack-year-select');
+  if(yearSel){
+    if(p==='yearly'){
+      if(!yearSel.dataset.populated){
+        const nowY=new Date().getFullYear();
+        yearSel.innerHTML=[0,1,2,3,4].map(i=>{const y=nowY-i;return `<option value="${y}">${y}</option>`;}).join('');
+        yearSel.dataset.populated='1';
+      }
+      yearSel.value=String(_platformTrackYear);
+      yearSel.style.display='';
+    }else{
+      yearSel.style.display='none';
+    }
+  }
+  renderPlatformTracking();
+}
+function setPlatformTrackYear(y){
+  _platformTrackYear=parseInt(y,10)||new Date().getFullYear();
   renderPlatformTracking();
 }
 function updatePlatformCost(platform,val){
@@ -4228,15 +4338,16 @@ function computePlatformTrackingData(){
   const blendedRoas=totalCost>0?totalValue/totalCost:null;
   const avgCostPerLead=totalLeads>0?totalCost/totalLeads:null;
   const periodLabel=_platformTrackPeriod==='yearly'?'Yearly':'Monthly';
+  const periodContext=_platformTrackPeriod==='yearly'?String(_platformTrackYear):'This Month';
 
-  return{rows,hiddenPlatforms,merges,totalCost,totalValue,totalLeads,blendedRoas,avgCostPerLead,periodLabel};
+  return{rows,hiddenPlatforms,merges,totalCost,totalValue,totalLeads,blendedRoas,avgCostPerLead,periodLabel,periodContext};
 }
 function renderPlatformTracking(){
   const tableEl=document.getElementById('ptrack-table');
   const summaryEl=document.getElementById('ptrack-summary');
   if(!tableEl||!summaryEl)return;
 
-  const{rows,hiddenPlatforms,merges,totalCost,totalValue,blendedRoas,avgCostPerLead,periodLabel}=computePlatformTrackingData();
+  const{rows,hiddenPlatforms,merges,totalCost,totalValue,blendedRoas,avgCostPerLead,periodLabel,periodContext}=computePlatformTrackingData();
   renderPtrackHidden(hiddenPlatforms);
   renderPtrackMergedGroups(merges);
 
@@ -4247,7 +4358,7 @@ function renderPlatformTracking(){
   }
 
   summaryEl.innerHTML=`
-    <div class="stat-card amber"><div class="s-label">Total Spend (${periodLabel})</div><div class="s-value">${totalCost.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="s-sub">across ${rows.length} platform${rows.length!==1?'s':''}</div></div>
+    <div class="stat-card amber"><div class="s-label">Total Spend (${periodContext})</div><div class="s-value">${totalCost.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="s-sub">across ${rows.length} platform${rows.length!==1?'s':''}</div></div>
     <div class="stat-card green"><div class="s-label">Conversion Value</div><div class="s-value">${totalValue.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="s-sub">closed deals ${platformTrackPeriodLabel()}</div></div>
     <div class="stat-card blue"><div class="s-label">Blended ROAS</div><div class="s-value">${blendedRoas===null?'—':blendedRoas.toFixed(2)+'x'}</div><div class="s-sub">value ÷ spend</div></div>
     <div class="stat-card red"><div class="s-label">Avg Cost / Lead</div><div class="s-value">${avgCostPerLead===null?'—':avgCostPerLead.toFixed(2)}</div><div class="s-sub">${periodLabel.toLowerCase()} spend ÷ all-time leads</div></div>`;
