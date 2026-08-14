@@ -2635,7 +2635,7 @@ function navigate(page, el) {
   if(el)el.classList.add('active');
   if(page!=='conversations' && S.liveSync) stopLiveSync();
   const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events'};
-  const subtitles={dashboard:'Your sales operations at a glance',onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Incoming customer enquiries',reports:'Analytics across brands, countries & platforms',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location'};
+  const subtitles={dashboard:'Your sales operations at a glance',onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location'};
   document.getElementById('page-title').textContent=titles[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   S.page=page; closeSidebar();
@@ -2929,12 +2929,8 @@ async function loadWpTrafficForPeriod(){
 }
 async function refreshReportsPage(){
   populateReportsPeriodSelect();
-  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod()]);
-  try{
-    const d=await apiW('whizz-get-enquiries');
-    const enquiries=d.enquiries||d||[];
-    S.cache.enquiries=Array.isArray(enquiries)?enquiries:[];
-  }catch(e){S.cache.enquiries=S.cache.enquiries||[];}
+  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshConversations()]);
+  S.cache.enquiries=computeEnquiriesFromConversations();
   renderReports();
 }
 
@@ -3131,12 +3127,83 @@ async function liveSyncTick(){
   if(dot)dot.className=S.liveSync?'sync-dot sync-ok':'sync-dot sync-idle';
 }
 
-// ── Enquiries Module (sourced from the Memory tab / chatbot conversation log) ──
+// ── Enquiries Module ──
+// An "enquiry" is any conversation where the customer's messages mention a
+// brand or product we track — built entirely from conversations already
+// loaded client-side (no separate memory/chatbot-log fetch).
 const ENQ_PAGE_SIZE=20;
+const ENQ_CALLING_CODES=[
+  ['971','United Arab Emirates'],['966','Saudi Arabia'],['968','Oman'],
+  ['973','Bahrain'],['974','Qatar'],['965','Kuwait'],['962','Jordan'],
+  ['961','Lebanon'],['92','Pakistan'],['91','India'],['880','Bangladesh'],
+  ['94','Sri Lanka'],['20','Egypt'],['234','Nigeria'],['254','Kenya'],
+  ['27','South Africa'],['1','United States / Canada'],['44','United Kingdom'],
+  ['86','China'],['852','Hong Kong'],['65','Singapore'],['55','Brazil'],
+  ['52','Mexico'],['62','Indonesia'],['60','Malaysia'],['63','Philippines'],
+  ['84','Vietnam'],['98','Iran'],['90','Turkey'],['61','Australia'],
+  ['64','New Zealand'],['81','Japan'],['82','South Korea'],['49','Germany'],
+  ['33','France'],['39','Italy'],['34','Spain'],['31','Netherlands'],['7','Russia / Kazakhstan'],
+].sort((a,b)=>b[0].length-a[0].length);
+function countryFromPhone(phone){
+  const digits=(phone||'').replace(/\D/g,'');
+  const hit=ENQ_CALLING_CODES.find(([code])=>digits.startsWith(code));
+  return hit?hit[1]:'';
+}
+// Text to scan for one conversation: the bulk list only carries the latest
+// message, but if the user already opened this conversation's thread this
+// session, fold that cached history in too for a better match.
+function conversationSearchText(c){
+  const parts=[c.last_message||''];
+  const cached=S.convMessages[c.id];
+  if(Array.isArray(cached))cached.forEach(m=>parts.push(m.content||m.body||m.text||''));
+  return parts.join(' ');
+}
+// Brand/product terms to look for, pulled from whatever lead + stock data is
+// already loaded — no extra fetch just to build this list.
+function brandProductTerms(){
+  const terms=new Set();
+  (S.cache.brands||[]).forEach(b=>{if(b&&b.length>=3)terms.add(b);});
+  (S.stock||[]).forEach(s=>{
+    if(s.brand&&s.brand.length>=3)terms.add(s.brand);
+    if(s.productName&&s.productName.length>=3)terms.add(s.productName);
+    if(s.alias&&s.alias.length>=3)terms.add(s.alias);
+  });
+  return[...terms];
+}
+function computeEnquiriesFromConversations(){
+  const terms=brandProductTerms();
+  if(!terms.length)return[];
+  const lowerTerms=terms.map(t=>[t,t.toLowerCase()]);
+  const byPhone={};
+  (S.cache.conversations||[]).forEach(c=>{
+    const text=conversationSearchText(c);
+    if(!text.trim())return;
+    const lower=text.toLowerCase();
+    const matched=lowerTerms.filter(([,lt])=>lower.includes(lt)).map(([t])=>t);
+    if(!matched.length)return;
+    const phone=convPhone(c)||('conv:'+c.id);
+    const existing=byPhone[phone];
+    if(!existing){
+      byPhone[phone]={
+        name:c.contact_name||'Unknown',
+        phone:convPhone(c),
+        country:countryFromPhone(convPhone(c))||'—',
+        products:new Set(matched),
+        lastActivity:c.last_activity||0
+      };
+    }else{
+      matched.forEach(m=>existing.products.add(m));
+      if((c.last_activity||0)>existing.lastActivity)existing.lastActivity=c.last_activity||0;
+      if((!existing.name||existing.name==='Unknown')&&c.contact_name)existing.name=c.contact_name;
+    }
+  });
+  return Object.values(byPhone)
+    .sort((a,b)=>b.lastActivity-a.lastActivity)
+    .map(e=>({name:e.name,productInterest:[...e.products].join(', '),country:e.country,phone:e.phone}));
+}
 async function refreshEnquiries(){
-  const d=await apiW('whizz-get-enquiries');
-  const enquiries=d.enquiries||d||[];
-  S.cache.enquiries=Array.isArray(enquiries)?enquiries:[];
+  await refreshConversations();
+  S.cache.enquiries=computeEnquiriesFromConversations();
   renderEnquiriesPage(S.cache.enquiries);
 }
 function renderEnquiriesPage(enquiries){
