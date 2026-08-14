@@ -380,6 +380,8 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .ptrack-tbl td{text-align:left;}
 .ptrack-tbl td.ptrack-num{text-align:center;}
 .ptrack-input{padding:6px 8px;font-size:11px;min-width:90px;}
+.ptrack-remove-btn{width:22px;height:22px;border-radius:6px;background:var(--red-dim);border:1px solid rgba(220,38,38,0.2);color:var(--red);cursor:pointer;font-size:11px;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s var(--ease);}
+.ptrack-remove-btn:hover{background:var(--red);color:#fff;}
 .ac-remove-btn{width:26px;height:26px;border-radius:7px;background:var(--red-dim);border:1px solid rgba(220,38,38,0.2);color:var(--red);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s var(--ease);}
 .ac-remove-btn:hover{background:var(--red);color:#fff;}
 .ac-add-row-btn{margin-top:12px;width:100%;padding:9px;font-size:12px;border:1.5px dashed var(--border2);justify-content:center;border-radius:var(--r-sm);}
@@ -1069,9 +1071,10 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
             </div>
           </div>
           <div class="card-body">
-            <div style="font-size:10.5px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Leads per platform are all-time totals (no lead date is stored yet). Cost and Conversion Value are scoped to the selected period, based on when a pipeline deal was marked <strong>Closed</strong>. Enter each platform's monthly ad spend and any add-on benefits below — saved on this device.</div>
+            <div style="font-size:10.5px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Leads per platform are all-time totals (no lead date is stored yet). Cost and Conversion Value are scoped to the selected period, based on when a pipeline deal was marked <strong>Closed</strong>. Enter each platform's yearly ad spend and any add-on benefits below — saved on this device. Use ✕ to drop a platform out of this report.</div>
             <div class="stats-grid" id="ptrack-summary" style="margin-bottom:16px;"></div>
             <div id="ptrack-table"><div class="empty-state">Load leads data first.</div></div>
+            <div id="ptrack-hidden"></div>
           </div>
         </div>
 
@@ -3805,7 +3808,20 @@ function submitAddPipeline(){
 // ── Lead Platform Tracking (cost, efficiency, conversion value) ──
 const PLATFORM_COSTS_KEY='whizz_platform_costs_v1';
 let _platformTrackPeriod='monthly';
-function loadPlatformCosts(){try{return JSON.parse(localStorage.getItem(PLATFORM_COSTS_KEY)||'{}');}catch{return{};}}
+function loadPlatformCosts(){
+  let costs={};
+  try{costs=JSON.parse(localStorage.getItem(PLATFORM_COSTS_KEY)||'{}');}catch{costs={};}
+  let migrated=false;
+  Object.values(costs).forEach(cfg=>{
+    if(cfg&&cfg.monthlyCost!==undefined&&cfg.yearlyCost===undefined){
+      cfg.yearlyCost=(Number(cfg.monthlyCost)||0)*12;
+      delete cfg.monthlyCost;
+      migrated=true;
+    }
+  });
+  if(migrated)savePlatformCosts(costs);
+  return costs;
+}
 function savePlatformCosts(obj){localStorage.setItem(PLATFORM_COSTS_KEY,JSON.stringify(obj));}
 function platformTrackPeriodLabel(){return _platformTrackPeriod==='yearly'?'this year':'this month';}
 function inPlatformTrackPeriod(ts){
@@ -3823,16 +3839,38 @@ function setPlatformTrackPeriod(p,el){
 }
 function updatePlatformCost(platform,val){
   const costs=loadPlatformCosts();
-  if(!costs[platform])costs[platform]={monthlyCost:0,benefits:''};
-  costs[platform].monthlyCost=parseFloat(val)||0;
+  if(!costs[platform])costs[platform]={yearlyCost:0,benefits:'',hidden:false};
+  costs[platform].yearlyCost=parseFloat(val)||0;
   savePlatformCosts(costs);
   renderPlatformTracking();
 }
 function updatePlatformBenefits(platform,val){
   const costs=loadPlatformCosts();
-  if(!costs[platform])costs[platform]={monthlyCost:0,benefits:''};
+  if(!costs[platform])costs[platform]={yearlyCost:0,benefits:'',hidden:false};
   costs[platform].benefits=val.trim();
   savePlatformCosts(costs);
+}
+function hidePlatformFromTracking(platform){
+  const costs=loadPlatformCosts();
+  if(!costs[platform])costs[platform]={yearlyCost:0,benefits:''};
+  costs[platform].hidden=true;
+  savePlatformCosts(costs);
+  renderPlatformTracking();
+}
+function restorePlatformToTracking(platform){
+  const costs=loadPlatformCosts();
+  if(costs[platform])costs[platform].hidden=false;
+  savePlatformCosts(costs);
+  renderPlatformTracking();
+}
+function renderPtrackHidden(hidden){
+  const el=document.getElementById('ptrack-hidden');
+  if(!el)return;
+  if(!hidden.length){el.innerHTML='';return;}
+  el.innerHTML=`<div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.8;">Removed from report: ${hidden.map(p=>{
+    const safeP=p.replace(/'/g,"\\'");
+    return `<span style="margin-right:12px;">${p} — <a href="javascript:void(0)" onclick="restorePlatformToTracking('${safeP}')" style="color:var(--accent2);">restore</a></span>`;
+  }).join('')}</div>`;
 }
 function renderPlatformTracking(){
   const tableEl=document.getElementById('ptrack-table');
@@ -3861,17 +3899,21 @@ function renderPlatformTracking(){
   const allPlatforms=new Set([...Object.keys(leadsByPlatform),...Object.keys(closedByPlatform)]);
   if(allowedPlatforms.length>0){[...allPlatforms].forEach(p=>{if(!allowedPlatforms.includes(p))allPlatforms.delete(p);});}
 
-  if(!allPlatforms.size){
+  const hiddenPlatforms=[...allPlatforms].filter(p=>costs[p]?.hidden).sort();
+  const visiblePlatforms=[...allPlatforms].filter(p=>!costs[p]?.hidden);
+  renderPtrackHidden(hiddenPlatforms);
+
+  if(!visiblePlatforms.length){
     tableEl.innerHTML='<div class="empty-state">Load leads data (or add closed deals to the Pipeline) to see platform tracking.</div>';
     summaryEl.innerHTML='';
     return;
   }
 
-  const multiplier=_platformTrackPeriod==='yearly'?12:1;
-  const rows=[...allPlatforms].sort((a,b)=>(leadsByPlatform[b]||0)-(leadsByPlatform[a]||0)).map(p=>{
+  const multiplier=_platformTrackPeriod==='yearly'?1:1/12;
+  const rows=visiblePlatforms.sort((a,b)=>(leadsByPlatform[b]||0)-(leadsByPlatform[a]||0)).map(p=>{
     const leads=leadsByPlatform[p]||0;
-    const cfg=costs[p]||{monthlyCost:0,benefits:''};
-    const cost=(Number(cfg.monthlyCost)||0)*multiplier;
+    const cfg=costs[p]||{yearlyCost:0,benefits:''};
+    const cost=(Number(cfg.yearlyCost)||0)*multiplier;
     const costPerLead=leads>0?cost/leads:null;
     const closed=closedByPlatform[p]||{count:0,value:0};
     const roas=cost>0?closed.value/cost:null;
@@ -3893,7 +3935,7 @@ function renderPlatformTracking(){
 
   tableEl.innerHTML=`<div class="heatmap-wrap"><table class="heatmap-tbl ptrack-tbl">
     <thead><tr>
-      <th class="row-h">Platform</th><th>Leads</th><th>Monthly Cost</th><th>Cost / Lead</th><th>Closed Deals</th><th>Conv. Value</th><th>Efficiency (ROAS)</th><th>Add-on Benefits</th>
+      <th class="row-h">Platform</th><th>Leads</th><th>Yearly Cost</th><th>Cost / Lead</th><th>Closed Deals</th><th>Conv. Value</th><th>Efficiency (ROAS)</th><th>Add-on Benefits</th><th></th>
     </tr></thead>
     <tbody>${rows.map(r=>{
       const safeP=r.platform.replace(/'/g,"\\'");
@@ -3901,12 +3943,13 @@ function renderPlatformTracking(){
       return`<tr>
         <td class="row-label">${r.platform}</td>
         <td class="ptrack-num">${r.leads.toLocaleString()}</td>
-        <td class="ptrack-num"><input class="fi ptrack-input" type="number" min="0" step="0.01" value="${costs[r.platform]?.monthlyCost||''}" placeholder="0" onchange="updatePlatformCost('${safeP}',this.value)"/></td>
+        <td class="ptrack-num"><input class="fi ptrack-input" type="number" min="0" step="0.01" value="${costs[r.platform]?.yearlyCost||''}" placeholder="0" onchange="updatePlatformCost('${safeP}',this.value)"/></td>
         <td class="ptrack-num">${r.costPerLead===null?'—':r.costPerLead.toFixed(2)}</td>
         <td class="ptrack-num">${r.closedCount}</td>
         <td class="ptrack-num" style="color:var(--green);font-weight:700;">${r.value?r.value.toLocaleString():'—'}</td>
         <td class="ptrack-num" style="color:${roasColor};font-weight:700;">${r.roas===null?'—':r.roas.toFixed(2)+'x'}</td>
         <td><input class="fi ptrack-input" type="text" value="${(r.benefits||'').replace(/"/g,'&quot;')}" placeholder="e.g. free banner placement" onchange="updatePlatformBenefits('${safeP}',this.value)"/></td>
+        <td class="ptrack-num"><button class="ptrack-remove-btn" title="Remove ${r.platform} from this report" onclick="hidePlatformFromTracking('${safeP}')">✕</button></td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;
