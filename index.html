@@ -1065,16 +1065,20 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <div class="card" style="margin-bottom:16px;">
           <div class="card-head">
             <div class="card-title">Lead Platform Tracking</div>
-            <div class="chip-group" id="ptrack-period-toggle" style="display:flex;gap:6px;">
-              <div class="chip active" data-period="monthly" onclick="setPlatformTrackPeriod('monthly',this)">Monthly</div>
-              <div class="chip" data-period="yearly" onclick="setPlatformTrackPeriod('yearly',this)">Yearly</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <button class="t-btn btn-ghost" style="padding:5px 10px;font-size:11px;" onclick="openMergePlatformsModal()">Merge Platforms</button>
+              <div class="chip-group" id="ptrack-period-toggle" style="display:flex;gap:6px;">
+                <div class="chip active" data-period="monthly" onclick="setPlatformTrackPeriod('monthly',this)">Monthly</div>
+                <div class="chip" data-period="yearly" onclick="setPlatformTrackPeriod('yearly',this)">Yearly</div>
+              </div>
             </div>
           </div>
           <div class="card-body">
-            <div style="font-size:10.5px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Leads per platform are all-time totals (no lead date is stored yet). Cost and Conversion Value are scoped to the selected period, based on when a pipeline deal was marked <strong>Closed</strong>. Enter each platform's yearly ad spend and any add-on benefits below — saved on this device. Use ✕ to drop a platform out of this report.</div>
+            <div style="font-size:10.5px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Leads per platform are all-time totals (no lead date is stored yet). Cost and Conversion Value are scoped to the selected period, based on when a pipeline deal was marked <strong>Closed</strong>. Enter each platform's yearly ad spend and any add-on benefits below — saved on this device. Use ✕ to drop a platform out of this report, or <strong>Merge Platforms</strong> to combine multiple platform names into one row.</div>
             <div class="stats-grid" id="ptrack-summary" style="margin-bottom:16px;"></div>
             <div id="ptrack-table"><div class="empty-state">Load leads data first.</div></div>
             <div id="ptrack-hidden"></div>
+            <div id="ptrack-merged"></div>
           </div>
         </div>
 
@@ -1609,6 +1613,24 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         </div>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- Merge Platforms Modal -->
+<div class="modal-overlay" id="modal-merge-platforms">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Merge Platforms</div><button class="modal-close" onclick="closeModal('modal-merge-platforms')">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Select two or more platforms that should be reported as a single row in Lead Platform Tracking. Leads, closed deals, conversion value and cost will be combined. This only affects the report — your raw lead and platform data elsewhere is unchanged.</div>
+      <div class="fg"><label class="fl">Platforms to merge</label>
+        <div id="merge-platform-list" style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;padding:4px 2px;"></div>
+      </div>
+      <div class="fg"><label class="fl">Merged name</label><input class="fi" id="merge-target-name" placeholder="e.g. Instagram"/></div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-merge-platforms')">Cancel</button>
+      <button class="t-btn btn-primary" onclick="submitMergePlatforms()">Merge</button>
     </div>
   </div>
 </div>
@@ -3823,6 +3845,9 @@ function loadPlatformCosts(){
   return costs;
 }
 function savePlatformCosts(obj){localStorage.setItem(PLATFORM_COSTS_KEY,JSON.stringify(obj));}
+const PLATFORM_MERGES_KEY='whizz_platform_merges_v1';
+function loadPlatformMerges(){try{return JSON.parse(localStorage.getItem(PLATFORM_MERGES_KEY)||'{}');}catch{return{};}}
+function savePlatformMerges(obj){localStorage.setItem(PLATFORM_MERGES_KEY,JSON.stringify(obj));}
 function platformTrackPeriodLabel(){return _platformTrackPeriod==='yearly'?'this year':'this month';}
 function inPlatformTrackPeriod(ts){
   if(!ts)return false;
@@ -3872,24 +3897,106 @@ function renderPtrackHidden(hidden){
     return `<span style="margin-right:12px;">${p} — <a href="javascript:void(0)" onclick="restorePlatformToTracking('${safeP}')" style="color:var(--accent2);">restore</a></span>`;
   }).join('')}</div>`;
 }
+
+// ── Merge platforms for costing/reporting purposes ──
+function openMergePlatformsModal(){
+  const merges=loadPlatformMerges();
+  const names=new Set();
+  (S.cache.platforms||[]).forEach(p=>{if(p)names.add(p);});
+  (S.cache.groups||[]).forEach(g=>{if(g.platform)names.add(g.platform);});
+  pipelineLoad().forEach(c=>{if(c.platform)names.add(c.platform);});
+  Object.keys(loadPlatformCosts()).forEach(p=>names.add(p));
+  Object.keys(merges).forEach(p=>names.add(p));
+  Object.values(merges).forEach(p=>names.add(p));
+  const sorted=[...names].sort((a,b)=>a.localeCompare(b));
+  const listEl=document.getElementById('merge-platform-list');
+  listEl.innerHTML=sorted.length?sorted.map(p=>{
+    const canon=merges[p];
+    const safe=p.replace(/"/g,'&quot;');
+    return `<label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
+      <input type="checkbox" class="merge-plat-chk" value="${safe}"/> ${p}${canon?` <span style="color:var(--text3);font-size:10px;">(currently merged into ${canon})</span>`:''}
+    </label>`;
+  }).join(''):'<div style="font-size:12px;color:var(--text3);">No platforms found yet — load leads data first.</div>';
+  document.getElementById('merge-target-name').value='';
+  document.getElementById('modal-merge-platforms').classList.add('open');
+}
+function submitMergePlatforms(){
+  const checked=[...document.querySelectorAll('.merge-plat-chk:checked')].map(c=>c.value);
+  if(checked.length<2){showToast('Select at least 2 platforms to merge','error');return;}
+  let target=document.getElementById('merge-target-name').value.trim();
+  if(!target)target=checked[0];
+
+  const merges=loadPlatformMerges();
+  const allRaw=new Set(checked);
+  Object.entries(merges).forEach(([raw,canon])=>{if(checked.includes(canon))allRaw.add(raw);});
+  allRaw.add(target);
+
+  const costs=loadPlatformCosts();
+  let combinedYearlyCost=0,wasHidden=false;
+  const benefitsSet=new Set();
+  allRaw.forEach(p=>{
+    const cfg=costs[p];
+    if(cfg){
+      combinedYearlyCost+=Number(cfg.yearlyCost)||0;
+      if(cfg.benefits)benefitsSet.add(cfg.benefits);
+      if(cfg.hidden)wasHidden=true;
+    }
+  });
+
+  allRaw.forEach(p=>{
+    if(p===target)delete merges[p];
+    else{merges[p]=target;delete costs[p];}
+  });
+  costs[target]={yearlyCost:combinedYearlyCost,benefits:[...benefitsSet].join(' · '),hidden:wasHidden};
+
+  savePlatformMerges(merges);
+  savePlatformCosts(costs);
+  closeModal('modal-merge-platforms');
+  const mergedCount=allRaw.size-1;
+  showToast(`Merged ${mergedCount} platform${mergedCount!==1?'s':''} into "${target}"`,'success');
+  renderPlatformTracking();
+}
+function unmergePlatformGroup(canonicalName){
+  const merges=loadPlatformMerges();
+  let count=0;
+  Object.keys(merges).forEach(raw=>{if(merges[raw]===canonicalName){delete merges[raw];count++;}});
+  savePlatformMerges(merges);
+  showToast(count?`Unmerged ${count} platform${count!==1?'s':''} — you may need to re-enter their costs`:'Nothing to unmerge','info');
+  renderPlatformTracking();
+}
+function renderPtrackMergedGroups(merges){
+  const el=document.getElementById('ptrack-merged');
+  if(!el)return;
+  const byCanon={};
+  Object.entries(merges).forEach(([raw,canon])=>{(byCanon[canon]=byCanon[canon]||[]).push(raw);});
+  const entries=Object.entries(byCanon);
+  if(!entries.length){el.innerHTML='';return;}
+  el.innerHTML=`<div style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.8;">Merged groups: ${entries.map(([canon,members])=>{
+    const safe=canon.replace(/'/g,"\\'");
+    return `<span style="margin-right:12px;">${members.join(', ')} → <strong>${canon}</strong> — <a href="javascript:void(0)" onclick="unmergePlatformGroup('${safe}')" style="color:var(--accent2);">unmerge</a></span>`;
+  }).join('')}</div>`;
+}
 function renderPlatformTracking(){
   const tableEl=document.getElementById('ptrack-table');
   const summaryEl=document.getElementById('ptrack-summary');
   if(!tableEl||!summaryEl)return;
 
   const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
+  const merges=loadPlatformMerges();
+  const canon=p=>merges[p]||p;
   let groups=S.cache.groups||[];
   if(allowedBrands.length>0)groups=groups.filter(g=>allowedBrands.includes(g.brand));
   if(allowedPlatforms.length>0)groups=groups.filter(g=>allowedPlatforms.includes(g.platform));
   const leadsByPlatform={};
-  groups.forEach(g=>{if(!g.isAggregatedTail)leadsByPlatform[g.platform]=(leadsByPlatform[g.platform]||0)+g.count;});
+  groups.forEach(g=>{if(!g.isAggregatedTail){const p=canon(g.platform);leadsByPlatform[p]=(leadsByPlatform[p]||0)+g.count;}});
 
   const closedByPlatform={};
   pipelineLoad().forEach(c=>{
     if(c.stage!=='closed')return;
     if(!inPlatformTrackPeriod(c.closedAt||c.addedAt))return;
-    const p=c.platform||'Unassigned';
-    if(allowedPlatforms.length>0&&!allowedPlatforms.includes(p))return;
+    const raw=c.platform||'Unassigned';
+    if(allowedPlatforms.length>0&&!allowedPlatforms.includes(raw))return;
+    const p=canon(raw);
     if(!closedByPlatform[p])closedByPlatform[p]={count:0,value:0};
     closedByPlatform[p].count++;
     closedByPlatform[p].value+=Number(c.value)||0;
@@ -3897,11 +4004,11 @@ function renderPlatformTracking(){
 
   const costs=loadPlatformCosts();
   const allPlatforms=new Set([...Object.keys(leadsByPlatform),...Object.keys(closedByPlatform)]);
-  if(allowedPlatforms.length>0){[...allPlatforms].forEach(p=>{if(!allowedPlatforms.includes(p))allPlatforms.delete(p);});}
 
   const hiddenPlatforms=[...allPlatforms].filter(p=>costs[p]?.hidden).sort();
   const visiblePlatforms=[...allPlatforms].filter(p=>!costs[p]?.hidden);
   renderPtrackHidden(hiddenPlatforms);
+  renderPtrackMergedGroups(merges);
 
   if(!visiblePlatforms.length){
     tableEl.innerHTML='<div class="empty-state">Load leads data (or add closed deals to the Pipeline) to see platform tracking.</div>';
