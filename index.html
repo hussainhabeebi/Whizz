@@ -1071,10 +1071,14 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
                 <div class="chip active" data-period="monthly" onclick="setPlatformTrackPeriod('monthly',this)">Monthly</div>
                 <div class="chip" data-period="yearly" onclick="setPlatformTrackPeriod('yearly',this)">Yearly</div>
               </div>
+              <button class="t-btn btn-primary" style="padding:5px 10px;font-size:11px;" onclick="downloadPlatformTrackingReport()" title="Download a standalone Platform Tracking &amp; Costing report">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Report
+              </button>
             </div>
           </div>
           <div class="card-body">
-            <div style="font-size:10.5px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Leads per platform are all-time totals (no lead date is stored yet). Cost and Conversion Value are scoped to the selected period, based on when a pipeline deal was marked <strong>Closed</strong>. Enter each platform's yearly ad spend and any add-on benefits below — saved on this device. Use ✕ to drop a platform out of this report, or <strong>Merge Platforms</strong> to combine multiple platform names into one row.</div>
+            <div style="font-size:10.5px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Leads per platform are all-time totals (no lead date is stored yet). Cost and Conversion Value are scoped to the selected period, based on when a pipeline deal was marked <strong>Closed</strong>. Enter each platform's yearly ad spend and any add-on benefits below — saved on this device. Use ✕ to drop a platform out of this report, or <strong>Merge Platforms</strong> to combine multiple platform names into one row. Click <strong>Report</strong> for a standalone, downloadable copy of this data.</div>
             <div class="stats-grid" id="ptrack-summary" style="margin-bottom:16px;"></div>
             <div id="ptrack-table"><div class="empty-state">Load leads data first.</div></div>
             <div id="ptrack-hidden"></div>
@@ -2402,6 +2406,111 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
 </div>
 </body></html>`;
 }
+
+// ── Standalone Lead Platform Tracking & Costing Report ──
+function buildPlatformTrackingReportHtml(d){
+  const periodLabel=d.periodLabel;
+  const rowsHtml=d.rows.length?d.rows.map(r=>{
+    const roasDisplay=r.roas===null?'—':r.roas.toFixed(2)+'x';
+    const roasColor=r.roas===null?'#94a3b8':r.roas>=1?'#16a34a':'#dc2626';
+    return `<tr>
+      <td style="font-weight:700;">${r.platform}</td>
+      <td>${r.leads.toLocaleString()}</td>
+      <td>${r.cost.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+      <td>${r.costPerLead===null?'—':r.costPerLead.toFixed(2)}</td>
+      <td>${r.closedCount}</td>
+      <td style="color:#16a34a;font-weight:700;">${r.value?r.value.toLocaleString():'—'}</td>
+      <td style="color:${roasColor};font-weight:700;">${roasDisplay}</td>
+      <td>${r.benefits||'—'}</td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:20px;">No platform data available</td></tr>';
+
+  const mergedByCanon={};
+  Object.entries(d.merges||{}).forEach(([raw,canon])=>{(mergedByCanon[canon]=mergedByCanon[canon]||[]).push(raw);});
+  const mergedEntries=Object.entries(mergedByCanon);
+  const hiddenPlatforms=d.hiddenPlatforms||[];
+
+  return`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Whizz Platform Tracking Report — ${d.generatedAt.toLocaleDateString()}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}
+body{font-family:'DM Sans',Arial,sans-serif;background:#eef1f6;color:#0f172a;padding:32px;}
+.page{max-width:920px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 10px 40px rgba(15,23,42,0.12);overflow:hidden;}
+.hero{background:linear-gradient(135deg,#f59e0b,#ea580c 55%,#dc2626);color:#fff;padding:40px 40px 30px;position:relative;overflow:hidden;}
+.hero::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 85% 15%,rgba(255,255,255,0.18),transparent 55%);}
+.brand{font-family:'Syne',Georgia,serif;font-weight:800;font-size:22px;letter-spacing:0.02em;position:relative;}
+.hero-title{font-family:'Syne',Georgia,serif;font-weight:800;font-size:28px;margin-top:16px;position:relative;}
+.hero-sub{font-size:13px;opacity:0.92;margin-top:6px;font-weight:600;position:relative;}
+.hero-gen{font-size:11px;opacity:0.75;margin-top:2px;position:relative;}
+.body-pad{padding:8px 40px 40px;}
+.section-title{font-family:'Syne',Georgia,serif;font-size:16px;font-weight:700;color:#0f172a;margin:30px 0 14px;display:flex;align-items:center;gap:8px;}
+.section-title::before{content:'';display:inline-block;width:5px;height:16px;border-radius:3px;background:linear-gradient(180deg,#f59e0b,#dc2626);}
+.section-note{color:#94a3b8;font-size:11px;margin:-8px 0 14px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#475569;padding:8px 10px;border-bottom:2px solid #eef0f4;}
+td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
+.kpi-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.kpi-card{border-radius:14px;padding:16px;border:1px solid #eef0f4;border-left:4px solid transparent;background:#fcfcfd;}
+.kpi-card.amber{border-left-color:#f59e0b;}
+.kpi-card.green{border-left-color:#16a34a;}
+.kpi-card.blue{border-left-color:#2563eb;}
+.kpi-card.red{border-left-color:#dc2626;}
+.kpi-label{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+.kpi-value{font-size:26px;font-weight:800;line-height:1;margin-bottom:6px;}
+.kpi-card.amber .kpi-value{color:#d97706;}
+.kpi-card.green .kpi-value{color:#16a34a;}
+.kpi-card.blue .kpi-value{color:#2563eb;}
+.kpi-card.red .kpi-value{color:#dc2626;}
+.kpi-sub{font-size:11px;color:#94a3b8;}
+.muted{color:#94a3b8;font-size:12px;margin-bottom:4px;}
+.empty-note{text-align:center;color:#94a3b8;font-size:13px;padding:20px;background:#fcfcfd;border:1px dashed #e2e8f0;border-radius:12px;}
+.print-btn{display:block;margin:26px auto 20px;padding:11px 22px;background:linear-gradient(135deg,#f59e0b,#dc2626);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(234,88,12,0.3);}
+.report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #eef0f4;}
+@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;border-radius:0;}}
+</style></head>
+<body>
+<div class="page">
+  <div class="hero">
+    <div class="brand">Whizz.</div>
+    <div class="hero-title">Lead Platform Tracking</div>
+    <div class="hero-sub">${periodLabel} view · Cost, Efficiency &amp; Conversion Value by Platform</div>
+    <div class="hero-gen">Generated ${d.generatedAt.toLocaleString()}</div>
+  </div>
+  <div class="body-pad">
+    <div class="section-title" style="margin-top:0;">Summary</div>
+    <div class="kpi-grid-4">
+      <div class="kpi-card amber"><div class="kpi-label">Total Spend (${periodLabel})</div><div class="kpi-value">${d.totalCost.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="kpi-sub">across ${d.rows.length} platform${d.rows.length!==1?'s':''}</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Conversion Value</div><div class="kpi-value">${d.totalValue.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="kpi-sub">closed deals ${periodLabel==='Yearly'?'this year':'this month'}</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">Blended ROAS</div><div class="kpi-value">${d.blendedRoas===null?'—':d.blendedRoas.toFixed(2)+'x'}</div><div class="kpi-sub">value ÷ spend</div></div>
+      <div class="kpi-card red"><div class="kpi-label">Avg Cost / Lead</div><div class="kpi-value">${d.avgCostPerLead===null?'—':d.avgCostPerLead.toFixed(2)}</div><div class="kpi-sub">${periodLabel.toLowerCase()} spend ÷ all-time leads</div></div>
+    </div>
+
+    <div class="section-title">By Platform</div>
+    <div class="section-note">Leads are all-time totals (no lead date is stored yet). Cost and Conversion Value are scoped to the ${periodLabel.toLowerCase()} period, based on when a pipeline deal was marked Closed.</div>
+    <table>
+      <thead><tr><th>Platform</th><th>Leads</th><th>Cost</th><th>Cost / Lead</th><th>Closed</th><th>Conv. Value</th><th>ROAS</th><th>Add-on Benefits</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+
+    ${mergedEntries.length?`<div class="section-title">Merged Platforms</div>${mergedEntries.map(([canon,members])=>`<div class="muted">${members.join(', ')} → <strong style="color:#0f172a;">${canon}</strong></div>`).join('')}`:''}
+    ${hiddenPlatforms.length?`<div class="section-title">Removed From Report</div><div class="muted">${hiddenPlatforms.join(', ')}</div>`:''}
+
+    <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+    <div class="report-footer">Whizz Marketing Console — Lead Platform Tracking Snapshot</div>
+  </div>
+</div>
+</body></html>`;
+}
+function downloadPlatformTrackingReport(){
+  const data=computePlatformTrackingData();
+  if(!data.rows.length){showToast('Load leads data (or add closed deals to the Pipeline) first','error');return;}
+  const html=buildPlatformTrackingReportHtml({...data,generatedAt:new Date()});
+  downloadHTML(html,`Whizz-Platform-Tracking-Report-${_platformTrackPeriod}-${new Date().toISOString().slice(0,10)}.html`);
+  showToast('Platform tracking report downloaded!','success');
+}
+
 function downloadReportsPageReport(){
   const stats=S.cache.stats||{};
   const groups=S.cache.groups||[];
@@ -2612,12 +2721,108 @@ async function refreshPage() {
 async function refreshDashboard(){await Promise.all([refreshStats(),refreshDashConvData(),refreshLeadData()]);}
 async function refreshStats(){const d=await api('whizz-get-stats');S.cache.stats=d;renderStats(d);const cnt=d.open||0;if(cnt>0){document.getElementById('open-count').textContent=cnt;document.getElementById('open-count').style.display='inline';addNotif(`${cnt} operational conversations pending response`);}}
 async function refreshDashConvData(){const d=await api('whizz-get-conversations?status=open');S.cache.conversations=d.conversations||[];renderDashConvs(S.cache.conversations);}
+// ── Platform name de-duplication ──
+// Lead data often has the same platform typed inconsistently (case, spacing/
+// punctuation, or the occasional one-letter typo — "Instagram" / "instagram" /
+// "Instgram"). Treating those as separate platforms silently splits a single
+// platform's leads, cost and conversion value across duplicate rows, so every
+// place that reads S.cache.groups/crossTabMatrix/platforms (Leads, Campaigns,
+// Reports, Platform Tracking) is normalized once here, at the data layer.
+function normalizePlatformKey(name){
+  return String(name||'').trim().toLowerCase().replace(/[\s\-_.]+/g,' ').trim();
+}
+function levenshteinDistance(a,b){
+  const m=a.length,n=b.length;
+  if(!m)return n; if(!n)return m;
+  const dp=Array(n+1);
+  for(let j=0;j<=n;j++)dp[j]=j;
+  for(let i=1;i<=m;i++){
+    let prev=dp[0]; dp[0]=i;
+    for(let j=1;j<=n;j++){
+      const tmp=dp[j];
+      dp[j]=a[i-1]===b[j-1]?prev:1+Math.min(prev,dp[j],dp[j-1]);
+      prev=tmp;
+    }
+  }
+  return dp[n];
+}
+// Builds a map of raw platform string -> canonical display label, clustering
+// names that only differ by case/spacing/punctuation, or by a single-character
+// typo on names of 5+ characters (short names are left untouched so distinct
+// short codes/salesperson names, e.g. "IG" vs "FB", never get merged).
+function buildPlatformCanonicalMap(platformNames){
+  const uniq=[...new Set(platformNames.filter(Boolean))];
+  const clusters=[];
+  uniq.forEach(raw=>{
+    const key=normalizePlatformKey(raw);
+    let cluster=clusters.find(c=>c.key===key);
+    if(!cluster){cluster={key,members:[]};clusters.push(cluster);}
+    cluster.members.push(raw);
+  });
+  for(let i=0;i<clusters.length;i++){
+    for(let j=clusters.length-1;j>i;j--){
+      const a=clusters[i],b=clusters[j];
+      if(Math.min(a.key.length,b.key.length)>=5&&Math.abs(a.key.length-b.key.length)<=1&&levenshteinDistance(a.key,b.key)<=1){
+        a.members.push(...b.members);
+        clusters.splice(j,1);
+      }
+    }
+  }
+  const map={};
+  clusters.forEach(c=>{
+    const counts={};
+    c.members.forEach(m=>{counts[m]=(counts[m]||0)+1;});
+    const label=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
+    c.members.forEach(m=>{map[m]=label;});
+  });
+  return map;
+}
+// Remaps each group's platform through canonMap and merges rows that collapse
+// onto the same platform/country/brand, summing counts.
+function dedupeGroupsByPlatform(groups,canonMap){
+  if(!groups||!groups.length)return groups||[];
+  const map=canonMap||buildPlatformCanonicalMap(groups.map(g=>g.platform));
+  const merged={};
+  groups.forEach(g=>{
+    const platform=map[g.platform]||g.platform;
+    const key=`${platform}||${g.country}||${g.brand}`;
+    if(!merged[key]){merged[key]={group:{...g,platform},bestCount:g.count||0};}
+    else{
+      const m=merged[key];
+      m.group.count=(m.group.count||0)+(g.count||0);
+      m.group.isAggregatedTail=m.group.isAggregatedTail&&g.isAggregatedTail;
+      if((g.count||0)>m.bestCount){m.bestCount=g.count||0;m.group.trend=g.trend;m.group.velocity30DayPct=g.velocity30DayPct;}
+    }
+  });
+  return Object.values(merged).map(m=>m.group);
+}
+function dedupeCrossTabPlatforms(matrix,canonMap){
+  if(!matrix||!matrix.length)return matrix||[];
+  return matrix.map(m=>{
+    const bp={};
+    Object.entries(m.breakdownByPlatform||{}).forEach(([pl,cnt])=>{
+      const platform=canonMap[pl]||pl;
+      bp[platform]=(bp[platform]||0)+cnt;
+    });
+    return{...m,breakdownByPlatform:bp};
+  });
+}
+function normalizeLeadPlatforms(d){
+  const names=(d.groups||[]).map(g=>g.platform);
+  (d.crossTabMatrix||[]).forEach(m=>Object.keys(m.breakdownByPlatform||{}).forEach(pl=>names.push(pl)));
+  const canonMap=buildPlatformCanonicalMap(names);
+  const groups=dedupeGroupsByPlatform(d.groups||[],canonMap);
+  const crossTabMatrix=dedupeCrossTabPlatforms(d.crossTabMatrix||[],canonMap);
+  const platforms=[...new Set(groups.map(g=>g.platform))];
+  return{groups,crossTabMatrix,platforms};
+}
 async function refreshLeadData(){
   const d=await api('whizz-get-leads');
-  S.cache.groups=d.groups||[];
-  S.cache.crossTabMatrix=d.crossTabMatrix||[];
+  const norm=normalizeLeadPlatforms(d);
+  S.cache.groups=norm.groups;
+  S.cache.crossTabMatrix=norm.crossTabMatrix;
   S.cache.leadsTotal=d.totalDistributedItems || d.total || 0;
-  S.cache.platforms=d.platforms||[];
+  S.cache.platforms=norm.platforms;
   S.cache.countries=d.countries||[];
   S.cache.brands=d.brands||[];
   S.groups=S.cache.groups;
@@ -3976,11 +4181,9 @@ function renderPtrackMergedGroups(merges){
     return `<span style="margin-right:12px;">${members.join(', ')} → <strong>${canon}</strong> — <a href="javascript:void(0)" onclick="unmergePlatformGroup('${safe}')" style="color:var(--accent2);">unmerge</a></span>`;
   }).join('')}</div>`;
 }
-function renderPlatformTracking(){
-  const tableEl=document.getElementById('ptrack-table');
-  const summaryEl=document.getElementById('ptrack-summary');
-  if(!tableEl||!summaryEl)return;
-
+// Shared by the on-page card and the standalone downloadable report, so both
+// always reflect the same numbers for the currently selected period.
+function computePlatformTrackingData(){
   const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
   const merges=loadPlatformMerges();
   const canon=p=>merges[p]||p;
@@ -4004,27 +4207,19 @@ function renderPlatformTracking(){
 
   const costs=loadPlatformCosts();
   const allPlatforms=new Set([...Object.keys(leadsByPlatform),...Object.keys(closedByPlatform)]);
-
   const hiddenPlatforms=[...allPlatforms].filter(p=>costs[p]?.hidden).sort();
   const visiblePlatforms=[...allPlatforms].filter(p=>!costs[p]?.hidden);
-  renderPtrackHidden(hiddenPlatforms);
-  renderPtrackMergedGroups(merges);
-
-  if(!visiblePlatforms.length){
-    tableEl.innerHTML='<div class="empty-state">Load leads data (or add closed deals to the Pipeline) to see platform tracking.</div>';
-    summaryEl.innerHTML='';
-    return;
-  }
 
   const multiplier=_platformTrackPeriod==='yearly'?1:1/12;
   const rows=visiblePlatforms.sort((a,b)=>(leadsByPlatform[b]||0)-(leadsByPlatform[a]||0)).map(p=>{
     const leads=leadsByPlatform[p]||0;
     const cfg=costs[p]||{yearlyCost:0,benefits:''};
-    const cost=(Number(cfg.yearlyCost)||0)*multiplier;
+    const yearlyCost=Number(cfg.yearlyCost)||0;
+    const cost=yearlyCost*multiplier;
     const costPerLead=leads>0?cost/leads:null;
     const closed=closedByPlatform[p]||{count:0,value:0};
     const roas=cost>0?closed.value/cost:null;
-    return{platform:p,leads,cost,costPerLead,closedCount:closed.count,value:closed.value,roas,benefits:cfg.benefits||''};
+    return{platform:p,leads,yearlyCost,cost,costPerLead,closedCount:closed.count,value:closed.value,roas,benefits:cfg.benefits||''};
   });
 
   const totalCost=rows.reduce((s,r)=>s+r.cost,0);
@@ -4033,6 +4228,23 @@ function renderPlatformTracking(){
   const blendedRoas=totalCost>0?totalValue/totalCost:null;
   const avgCostPerLead=totalLeads>0?totalCost/totalLeads:null;
   const periodLabel=_platformTrackPeriod==='yearly'?'Yearly':'Monthly';
+
+  return{rows,hiddenPlatforms,merges,totalCost,totalValue,totalLeads,blendedRoas,avgCostPerLead,periodLabel};
+}
+function renderPlatformTracking(){
+  const tableEl=document.getElementById('ptrack-table');
+  const summaryEl=document.getElementById('ptrack-summary');
+  if(!tableEl||!summaryEl)return;
+
+  const{rows,hiddenPlatforms,merges,totalCost,totalValue,blendedRoas,avgCostPerLead,periodLabel}=computePlatformTrackingData();
+  renderPtrackHidden(hiddenPlatforms);
+  renderPtrackMergedGroups(merges);
+
+  if(!rows.length){
+    tableEl.innerHTML='<div class="empty-state">Load leads data (or add closed deals to the Pipeline) to see platform tracking.</div>';
+    summaryEl.innerHTML='';
+    return;
+  }
 
   summaryEl.innerHTML=`
     <div class="stat-card amber"><div class="s-label">Total Spend (${periodLabel})</div><div class="s-value">${totalCost.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="s-sub">across ${rows.length} platform${rows.length!==1?'s':''}</div></div>
@@ -4050,7 +4262,7 @@ function renderPlatformTracking(){
       return`<tr>
         <td class="row-label">${r.platform}</td>
         <td class="ptrack-num">${r.leads.toLocaleString()}</td>
-        <td class="ptrack-num"><input class="fi ptrack-input" type="number" min="0" step="0.01" value="${costs[r.platform]?.yearlyCost||''}" placeholder="0" onchange="updatePlatformCost('${safeP}',this.value)"/></td>
+        <td class="ptrack-num"><input class="fi ptrack-input" type="number" min="0" step="0.01" value="${r.yearlyCost||''}" placeholder="0" onchange="updatePlatformCost('${safeP}',this.value)"/></td>
         <td class="ptrack-num">${r.costPerLead===null?'—':r.costPerLead.toFixed(2)}</td>
         <td class="ptrack-num">${r.closedCount}</td>
         <td class="ptrack-num" style="color:var(--green);font-weight:700;">${r.value?r.value.toLocaleString():'—'}</td>
@@ -5657,10 +5869,11 @@ async function autoSyncTick() {
         if (S.page === 'dashboard' || S.page === 'reports') renderStats(d);
       }).catch(() => {}),
       api('whizz-get-leads').then(d => {
-        S.cache.groups = d.groups || [];
-        S.cache.crossTabMatrix = d.crossTabMatrix || [];
+        const norm = normalizeLeadPlatforms(d);
+        S.cache.groups = norm.groups;
+        S.cache.crossTabMatrix = norm.crossTabMatrix;
         S.cache.leadsTotal = d.totalDistributedItems || d.total || 0;
-        S.cache.platforms = d.platforms || [];
+        S.cache.platforms = norm.platforms;
         S.cache.countries = d.countries || [];
         S.cache.brands = d.brands || [];
         S.groups = S.cache.groups;
