@@ -377,6 +377,9 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .ac-row{display:grid;grid-template-columns:1fr 130px 150px 130px 28px;gap:6px;align-items:center;padding:5px 8px;border-radius:8px;transition:background 0.12s;}
 .ac-row:hover{background:var(--bg3);}
 .ac-row .fi{padding:7px 9px;font-size:12px;}
+.ptrack-tbl td{text-align:left;}
+.ptrack-tbl td.ptrack-num{text-align:center;}
+.ptrack-input{padding:6px 8px;font-size:11px;min-width:90px;}
 .ac-remove-btn{width:26px;height:26px;border-radius:7px;background:var(--red-dim);border:1px solid rgba(220,38,38,0.2);color:var(--red);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s var(--ease);}
 .ac-remove-btn:hover{background:var(--red);color:#fff;}
 .ac-add-row-btn{margin-top:12px;width:100%;padding:9px;font-size:12px;border:1.5px dashed var(--border2);justify-content:center;border-radius:var(--r-sm);}
@@ -1056,6 +1059,22 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
             <div class="s-sub">All-time received</div>
           </div>
         </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Lead Platform Tracking</div>
+            <div class="chip-group" id="ptrack-period-toggle" style="display:flex;gap:6px;">
+              <div class="chip active" data-period="monthly" onclick="setPlatformTrackPeriod('monthly',this)">Monthly</div>
+              <div class="chip" data-period="yearly" onclick="setPlatformTrackPeriod('yearly',this)">Yearly</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="font-size:10.5px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Leads per platform are all-time totals (no lead date is stored yet). Cost and Conversion Value are scoped to the selected period, based on when a pipeline deal was marked <strong>Closed</strong>. Enter each platform's monthly ad spend and any add-on benefits below — saved on this device.</div>
+            <div class="stats-grid" id="ptrack-summary" style="margin-bottom:16px;"></div>
+            <div id="ptrack-table"><div class="empty-state">Load leads data first.</div></div>
+          </div>
+        </div>
+
         <div class="two-col" style="margin-bottom: 16px;">
           <div class="card">
             <div class="card-head"><div class="card-title">Conversation Status Metrics</div></div>
@@ -1611,6 +1630,10 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
             <option value="closed">Closed</option>
           </select>
         </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><label class="fl">Platform</label><input class="fi" id="ap-platform" list="ap-platform-list" placeholder="e.g. Instagram"/><datalist id="ap-platform-list"></datalist></div>
+        <div class="fg"><label class="fl">Deal Value</label><input class="fi" id="ap-value" type="number" min="0" step="0.01" placeholder="0.00"/></div>
       </div>
       <div class="fg"><label class="fl">Notes</label><textarea class="ft" id="ap-notes" placeholder="Any notes…" style="min-height:60px;"></textarea></div>
     </div>
@@ -3687,6 +3710,8 @@ function pipeCardHtml(c){
     <div class="pipe-card-name">${c.name}</div>
     ${c.phone?`<div class="pipe-card-meta">${c.phone}</div>`:''}
     ${c.email?`<div class="pipe-card-meta">${c.email}</div>`:''}
+    ${c.platform?`<div class="pipe-card-meta">${c.platform}</div>`:''}
+    ${c.value?`<div class="pipe-card-meta" style="color:var(--green);font-weight:600;">${Number(c.value).toLocaleString()}</div>`:''}
     ${c.notes?`<div class="pipe-card-meta" style="margin-top:4px;font-style:italic;">${c.notes}</div>`:''}
     <div class="pipe-card-foot">
       <span class="pipe-card-brand">${c.brand||'—'}</span>
@@ -3708,7 +3733,7 @@ function pipelineMove(id,dir){
   if(!c)return;
   const idx=PIPE_STAGES.indexOf(c.stage);
   const next=PIPE_STAGES[idx+dir];
-  if(next){c.stage=next;pipelineSave(data);renderPipelinePage();}
+  if(next){c.stage=next;c.closedAt=next==='closed'?Date.now():null;pipelineSave(data);renderPipelinePage();}
 }
 
 function pipelineDelete(id){
@@ -3729,7 +3754,7 @@ function pipelineDrop(event,stage){
   if(!_dragId)return;
   const data=pipelineLoad();
   const c=data.find(x=>x.id===_dragId);
-  if(c){c.stage=stage;pipelineSave(data);renderPipelinePage();}
+  if(c){c.stage=stage;c.closedAt=stage==='closed'?Date.now():null;pipelineSave(data);renderPipelinePage();}
   _dragId=null;
 }
 document.addEventListener('dragover',()=>{});
@@ -3739,19 +3764,23 @@ document.addEventListener('dragend',()=>{
 });
 
 function openAddPipelineModal(prefill){
-  ['ap-name','ap-phone','ap-email','ap-brand','ap-notes'].forEach(id=>document.getElementById(id).value='');
+  ['ap-name','ap-phone','ap-email','ap-brand','ap-platform','ap-value','ap-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ap-stage').value='new';
+  const platformList=document.getElementById('ap-platform-list');
+  if(platformList)platformList.innerHTML=(S.cache.platforms||[]).map(p=>`<option value="${p.replace(/"/g,'&quot;')}"></option>`).join('');
   if(prefill){
     document.getElementById('ap-name').value=prefill.name||'';
     document.getElementById('ap-phone').value=prefill.phone||'';
     document.getElementById('ap-email').value=prefill.email||'';
     document.getElementById('ap-brand').value=prefill.brand||'';
+    document.getElementById('ap-platform').value=prefill.platform||'';
   }
   document.getElementById('modal-add-pipeline').classList.add('open');
 }
 function submitAddPipeline(){
   const name=document.getElementById('ap-name').value.trim();
   if(!name){showToast('Name is required','error');return;}
+  const stage=document.getElementById('ap-stage').value;
   const data=pipelineLoad();
   data.push({
     id:'p'+(++_pipeId)+Date.now(),
@@ -3759,14 +3788,128 @@ function submitAddPipeline(){
     phone:document.getElementById('ap-phone').value.trim(),
     email:document.getElementById('ap-email').value.trim(),
     brand:document.getElementById('ap-brand').value.trim(),
+    platform:document.getElementById('ap-platform').value.trim(),
+    value:parseFloat(document.getElementById('ap-value').value)||0,
     notes:document.getElementById('ap-notes').value.trim(),
-    stage:document.getElementById('ap-stage').value,
-    addedAt:Date.now()
+    stage,
+    addedAt:Date.now(),
+    closedAt:stage==='closed'?Date.now():null
   });
   pipelineSave(data);
   closeModal('modal-add-pipeline');
   showToast('Added to pipeline','success');
   if(S.page==='pipeline')renderPipelinePage();
+  if(S.page==='reports')renderPlatformTracking();
+}
+
+// ── Lead Platform Tracking (cost, efficiency, conversion value) ──
+const PLATFORM_COSTS_KEY='whizz_platform_costs_v1';
+let _platformTrackPeriod='monthly';
+function loadPlatformCosts(){try{return JSON.parse(localStorage.getItem(PLATFORM_COSTS_KEY)||'{}');}catch{return{};}}
+function savePlatformCosts(obj){localStorage.setItem(PLATFORM_COSTS_KEY,JSON.stringify(obj));}
+function platformTrackPeriodLabel(){return _platformTrackPeriod==='yearly'?'this year':'this month';}
+function inPlatformTrackPeriod(ts){
+  if(!ts)return false;
+  const d=new Date(ts),now=new Date();
+  if(isNaN(d.getTime()))return false;
+  if(_platformTrackPeriod==='yearly')return d.getFullYear()===now.getFullYear();
+  return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
+}
+function setPlatformTrackPeriod(p,el){
+  _platformTrackPeriod=p;
+  document.querySelectorAll('#ptrack-period-toggle .chip').forEach(c=>c.classList.remove('active'));
+  if(el)el.classList.add('active');
+  renderPlatformTracking();
+}
+function updatePlatformCost(platform,val){
+  const costs=loadPlatformCosts();
+  if(!costs[platform])costs[platform]={monthlyCost:0,benefits:''};
+  costs[platform].monthlyCost=parseFloat(val)||0;
+  savePlatformCosts(costs);
+  renderPlatformTracking();
+}
+function updatePlatformBenefits(platform,val){
+  const costs=loadPlatformCosts();
+  if(!costs[platform])costs[platform]={monthlyCost:0,benefits:''};
+  costs[platform].benefits=val.trim();
+  savePlatformCosts(costs);
+}
+function renderPlatformTracking(){
+  const tableEl=document.getElementById('ptrack-table');
+  const summaryEl=document.getElementById('ptrack-summary');
+  if(!tableEl||!summaryEl)return;
+
+  const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
+  let groups=S.cache.groups||[];
+  if(allowedBrands.length>0)groups=groups.filter(g=>allowedBrands.includes(g.brand));
+  if(allowedPlatforms.length>0)groups=groups.filter(g=>allowedPlatforms.includes(g.platform));
+  const leadsByPlatform={};
+  groups.forEach(g=>{if(!g.isAggregatedTail)leadsByPlatform[g.platform]=(leadsByPlatform[g.platform]||0)+g.count;});
+
+  const closedByPlatform={};
+  pipelineLoad().forEach(c=>{
+    if(c.stage!=='closed')return;
+    if(!inPlatformTrackPeriod(c.closedAt||c.addedAt))return;
+    const p=c.platform||'Unassigned';
+    if(allowedPlatforms.length>0&&!allowedPlatforms.includes(p))return;
+    if(!closedByPlatform[p])closedByPlatform[p]={count:0,value:0};
+    closedByPlatform[p].count++;
+    closedByPlatform[p].value+=Number(c.value)||0;
+  });
+
+  const costs=loadPlatformCosts();
+  const allPlatforms=new Set([...Object.keys(leadsByPlatform),...Object.keys(closedByPlatform)]);
+  if(allowedPlatforms.length>0){[...allPlatforms].forEach(p=>{if(!allowedPlatforms.includes(p))allPlatforms.delete(p);});}
+
+  if(!allPlatforms.size){
+    tableEl.innerHTML='<div class="empty-state">Load leads data (or add closed deals to the Pipeline) to see platform tracking.</div>';
+    summaryEl.innerHTML='';
+    return;
+  }
+
+  const multiplier=_platformTrackPeriod==='yearly'?12:1;
+  const rows=[...allPlatforms].sort((a,b)=>(leadsByPlatform[b]||0)-(leadsByPlatform[a]||0)).map(p=>{
+    const leads=leadsByPlatform[p]||0;
+    const cfg=costs[p]||{monthlyCost:0,benefits:''};
+    const cost=(Number(cfg.monthlyCost)||0)*multiplier;
+    const costPerLead=leads>0?cost/leads:null;
+    const closed=closedByPlatform[p]||{count:0,value:0};
+    const roas=cost>0?closed.value/cost:null;
+    return{platform:p,leads,cost,costPerLead,closedCount:closed.count,value:closed.value,roas,benefits:cfg.benefits||''};
+  });
+
+  const totalCost=rows.reduce((s,r)=>s+r.cost,0);
+  const totalValue=rows.reduce((s,r)=>s+r.value,0);
+  const totalLeads=rows.reduce((s,r)=>s+r.leads,0);
+  const blendedRoas=totalCost>0?totalValue/totalCost:null;
+  const avgCostPerLead=totalLeads>0?totalCost/totalLeads:null;
+  const periodLabel=_platformTrackPeriod==='yearly'?'Yearly':'Monthly';
+
+  summaryEl.innerHTML=`
+    <div class="stat-card amber"><div class="s-label">Total Spend (${periodLabel})</div><div class="s-value">${totalCost.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="s-sub">across ${rows.length} platform${rows.length!==1?'s':''}</div></div>
+    <div class="stat-card green"><div class="s-label">Conversion Value</div><div class="s-value">${totalValue.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="s-sub">closed deals ${platformTrackPeriodLabel()}</div></div>
+    <div class="stat-card blue"><div class="s-label">Blended ROAS</div><div class="s-value">${blendedRoas===null?'—':blendedRoas.toFixed(2)+'x'}</div><div class="s-sub">value ÷ spend</div></div>
+    <div class="stat-card red"><div class="s-label">Avg Cost / Lead</div><div class="s-value">${avgCostPerLead===null?'—':avgCostPerLead.toFixed(2)}</div><div class="s-sub">${periodLabel.toLowerCase()} spend ÷ all-time leads</div></div>`;
+
+  tableEl.innerHTML=`<div class="heatmap-wrap"><table class="heatmap-tbl ptrack-tbl">
+    <thead><tr>
+      <th class="row-h">Platform</th><th>Leads</th><th>Monthly Cost</th><th>Cost / Lead</th><th>Closed Deals</th><th>Conv. Value</th><th>Efficiency (ROAS)</th><th>Add-on Benefits</th>
+    </tr></thead>
+    <tbody>${rows.map(r=>{
+      const safeP=r.platform.replace(/'/g,"\\'");
+      const roasColor=r.roas===null?'var(--text3)':r.roas>=1?'var(--green)':'var(--red)';
+      return`<tr>
+        <td class="row-label">${r.platform}</td>
+        <td class="ptrack-num">${r.leads.toLocaleString()}</td>
+        <td class="ptrack-num"><input class="fi ptrack-input" type="number" min="0" step="0.01" value="${costs[r.platform]?.monthlyCost||''}" placeholder="0" onchange="updatePlatformCost('${safeP}',this.value)"/></td>
+        <td class="ptrack-num">${r.costPerLead===null?'—':r.costPerLead.toFixed(2)}</td>
+        <td class="ptrack-num">${r.closedCount}</td>
+        <td class="ptrack-num" style="color:var(--green);font-weight:700;">${r.value?r.value.toLocaleString():'—'}</td>
+        <td class="ptrack-num" style="color:${roasColor};font-weight:700;">${r.roas===null?'—':r.roas.toFixed(2)+'x'}</td>
+        <td><input class="fi ptrack-input" type="text" value="${(r.benefits||'').replace(/"/g,'&quot;')}" placeholder="e.g. free banner placement" onchange="updatePlatformBenefits('${safeP}',this.value)"/></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
 }
 
 // ── Reports Tab Optimization ──
@@ -3805,6 +3948,7 @@ function renderReports(){
   const d=S.cache.stats||{};
 
   renderSummaryStats();
+  renderPlatformTracking();
 
   let groups=S.cache.groups||[];
   let matrix=S.crossTabMatrix||[];
