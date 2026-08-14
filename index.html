@@ -286,6 +286,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .open-cw svg{width:11px;height:11px;}
 .conv-item.selected{background:var(--accent-dim);}
 .conv-item.selected .c-name{color:var(--accent2);}
+.conv-item-inquiry{border-left:3px solid var(--green);}
+.inquiry-badge{font-size:10px;padding:1px 7px;border-radius:var(--r-pill);font-weight:600;background:var(--green-dim);color:var(--green);white-space:nowrap;}
 
 /* Live Sync Toggle */
 .live-toggle{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:var(--text2);cursor:pointer;padding:5px 10px;border-radius:var(--r-pill);border:1px solid var(--border2);background:var(--bg3);transition:all 0.15s;user-select:none;}
@@ -1021,7 +1023,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:8px;">
             <select class="fs" id="rep-period-select" style="width:auto;padding:6px 12px;font-size:12px;" onchange="onReportsPeriodChange()"></select>
-            <span style="font-size:10.5px;color:var(--text3);">Leads, Inquiries &amp; Heatmap are always all-time — no date is stored for them yet</span>
+            <span style="font-size:10.5px;color:var(--text3);">Leads &amp; Heatmap are always all-time — no date is stored for them yet</span>
           </div>
           <button class="t-btn btn-primary" id="download-reports-page-btn" onclick="downloadReportsPageReport()" title="Download a presentable analytics report">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1029,7 +1031,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           </button>
         </div>
         <div class="eyebrow">Performance Summary</div>
-        <div class="stats-grid cols-5" id="rep-summary-grid">
+        <div class="stats-grid" id="rep-summary-grid">
           <div class="stat-card green">
             <div class="s-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
             <div class="s-label">Emails Sent</div>
@@ -1053,12 +1055,6 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
             <div class="s-label">Total Leads</div>
             <div class="s-value" id="rep-sum-leads">—</div>
             <div class="s-sub">All-time database total</div>
-          </div>
-          <div class="stat-card red">
-            <div class="s-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg></div>
-            <div class="s-label">Total Inquiries</div>
-            <div class="s-value" id="rep-sum-enquiries">—</div>
-            <div class="s-sub">All-time received</div>
           </div>
         </div>
 
@@ -2350,8 +2346,8 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
     ${siteRows?`<div>${siteRows}</div>`:'<div class="empty-note">No WordPress sites with traffic stats configured</div>'}
 
     <div class="section-title">Performance Summary${d.periodLabel!=='All Time'?` — ${d.periodLabel}`:''}</div>
-    <div class="section-note">Email &amp; WhatsApp sends reflect the period above. Leads, Inquiries, Tasks and Events are always all-time / current.</div>
-    <div class="kpi-grid-5">
+    <div class="section-note">Email &amp; WhatsApp sends reflect the period above. Leads, Tasks and Events are always all-time / current.</div>
+    <div class="kpi-grid-4">
       <div class="kpi-card green">
         <div class="kpi-label">Emails Sent</div>
         <div class="kpi-value">${d.emailSent.toLocaleString()}</div>
@@ -2371,11 +2367,6 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
         <div class="kpi-label">Total Leads</div>
         <div class="kpi-value">${d.leadsTotal.toLocaleString()}</div>
         <div class="kpi-sub">All-time database total</div>
-      </div>
-      <div class="kpi-card red">
-        <div class="kpi-label">Total Inquiries</div>
-        <div class="kpi-value">${d.enquiriesTotal.toLocaleString()}</div>
-        <div class="kpi-sub">All-time received</div>
       </div>
     </div>
     <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-top:14px;">
@@ -2578,7 +2569,6 @@ function downloadReportsPageReport(){
     open:stats.open||0,
     resolved:stats.resolved||0,
     leadsTotal:S.cache.leadsTotal||0,
-    enquiriesTotal:(S.cache.enquiries||[]).length,
     brevoTotalLeads:S.cache.brevoTotalLeads,
     emailSent,emailOpenRate,
     waSent,waDeliveryRate,waCampaignCount:history.length,
@@ -2929,8 +2919,7 @@ async function loadWpTrafficForPeriod(){
 }
 async function refreshReportsPage(){
   populateReportsPeriodSelect();
-  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshConversations()]);
-  S.cache.enquiries=computeEnquiriesFromConversations();
+  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod()]);
   renderReports();
 }
 
@@ -3006,7 +2995,10 @@ function convHtml(c){
   const lbl=c.channel?.includes('whatsapp')?'WhatsApp':c.channel?.includes('email')?'Email':'Chat';
   const time=c.last_activity?new Date(c.last_activity*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
   const sel=String(c.id)===String(S.selectedConvId)?' selected':'';
-  return`<div class="conv-item${sel}" onclick="selectConv('${c.id}')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
+  const matched=matchedProductsForConversation(c);
+  const inquiryCls=matched.length?' conv-item-inquiry':'';
+  const inquiryBadge=matched.length?`<span class="inquiry-badge" title="Mentioned: ${matched.join(', ').replace(/"/g,'&quot;')}">Inquiry</span>`:'';
+  return`<div class="conv-item${sel}${inquiryCls}" onclick="selectConv('${c.id}')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${inquiryBadge}${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
 }
 function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=>{b.className='t-btn btn-ghost';b.style.cssText='padding:5px 12px;font-size:11px;';});btn.className='t-btn btn-primary';btn.style.cssText='padding:5px 12px;font-size:11px;';S.convStatus=status;renderConvs(S.cache.conversations||[]);}
 
@@ -3170,16 +3162,23 @@ function brandProductTerms(){
   });
   return[...terms];
 }
+// Which of the given terms (default: all known brand/product terms) this
+// conversation's available text mentions. Shared by the Enquiries list and
+// the "Inquiry" highlight shown directly on Conversation list items.
+function matchedProductsForConversation(c,terms){
+  terms=terms||brandProductTerms();
+  if(!terms.length)return[];
+  const text=conversationSearchText(c);
+  if(!text.trim())return[];
+  const lower=text.toLowerCase();
+  return terms.filter(t=>lower.includes(t.toLowerCase()));
+}
 function computeEnquiriesFromConversations(){
   const terms=brandProductTerms();
   if(!terms.length)return[];
-  const lowerTerms=terms.map(t=>[t,t.toLowerCase()]);
   const byPhone={};
   (S.cache.conversations||[]).forEach(c=>{
-    const text=conversationSearchText(c);
-    if(!text.trim())return;
-    const lower=text.toLowerCase();
-    const matched=lowerTerms.filter(([,lt])=>lower.includes(lt)).map(([t])=>t);
+    const matched=matchedProductsForConversation(c,terms);
     if(!matched.length)return;
     const phone=convPhone(c)||('conv:'+c.id);
     const existing=byPhone[phone];
@@ -4481,7 +4480,6 @@ function renderSummaryStats(){
   document.getElementById('rep-sum-wa-sub').textContent=history.length?`${waDeliveryRate}% delivery rate`:'No campaigns sent yet';
 
   document.getElementById('rep-sum-leads').textContent=(S.cache.leadsTotal||0).toLocaleString();
-  document.getElementById('rep-sum-enquiries').textContent=((S.cache.enquiries||[]).length).toLocaleString();
 }
 function renderReports(){
   const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
