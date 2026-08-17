@@ -4,6 +4,7 @@ import { handleAppendMemory } from './routes/appendMemory.js';
 import { handleUsers, handleCreateUser, handleUpdateUser, handleDeleteUser, handleResetUserAccess, handleSyncUserAccess } from './routes/users.js';
 import { handleAutomation } from './routes/automation.js';
 import { handleConversationAssignment } from './routes/conversationAssignments.js';
+import { ensureDatabaseSchema } from './dbSchema.js';
 
 // Routes migrated off n8n live here, one at a time. Anything not matched
 // falls through to the static site assets (index.html, css/, js/) exactly
@@ -19,6 +20,10 @@ const routes = [
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/whizz-')) {
+      try { await ensureDatabaseSchema(env); }
+      catch (err) { return Response.json({ error: `D1 schema repair failed: ${err.message}` }, { status: 503 }); }
+    }
     const automationMatch = url.pathname.match(/^\/api\/automation\/([a-z0-9-]+)$/i);
     if (automationMatch) {
       try { return await handleAutomation(request, env, automationMatch[1]); }
