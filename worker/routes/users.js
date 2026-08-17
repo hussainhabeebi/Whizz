@@ -1,8 +1,18 @@
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' };
 const ROLES = new Set(['Administrator', 'Manager', 'Sales']);
+let supportTablesReady;
 
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS }); }
 function emailFromAccess(request) { return (request.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase(); }
+async function ensureSupportTables(env) {
+  if (!supportTablesReady) {
+    supportTablesReady = env.DB.batch([
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS user_access_state (email TEXT PRIMARY KEY, resetAt INTEGER NOT NULL DEFAULT 0)'),
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS access_user_policies (email TEXT PRIMARY KEY, policyId TEXT NOT NULL, createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)')
+    ]).catch(error => { supportTablesReady = null; throw error; });
+  }
+  await supportTablesReady;
+}
 function normalizeRow(row) {
   let allowedBrands = [], allowedPlatforms = [];
   try { allowedBrands = JSON.parse(row.allowedBrands || '[]'); } catch (_) {}
@@ -10,6 +20,7 @@ function normalizeRow(row) {
   return { email: row.email, name: row.name, role: row.role, allowedBrands, allowedPlatforms, resetAt: row.resetAt || 0, accessPolicySynced: !!row.policyId };
 }
 async function actorFor(request, env) {
+  await ensureSupportTables(env);
   const email = emailFromAccess(request);
   return email ? env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first() : null;
 }
