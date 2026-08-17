@@ -1537,7 +1537,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           <div class="card-body" style="padding:0;">
             <div style="overflow-x:auto;">
               <table class="stock-table" id="users-table">
-                <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Platform Access</th><th>Brand Access</th><th style="text-align:center;">Actions</th></tr></thead>
+                <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Team</th><th>Platform Access</th><th>Brand Access</th><th style="text-align:center;">Actions</th></tr></thead>
                 <tbody id="users-tbody"></tbody>
               </table>
             </div>
@@ -1959,7 +1959,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <div class="fg"><label class="fl">Full Name *</label><input class="fi" id="au-name" placeholder="e.g. John Smith"/></div>
         <div class="fg"><label class="fl">Role *</label><select class="fs" id="au-role"><option value="Sales">Sales</option><option value="Manager">Manager</option><option value="Administrator">Administrator</option></select></div>
       </div>
-      <div class="fg"><label class="fl">Email Address *</label><input class="fi" type="email" id="au-email" placeholder="user@whizz.com"/></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><div class="fg"><label class="fl">Email Address *</label><input class="fi" type="email" id="au-email" placeholder="user@whizz.com"/></div><div class="fg"><label class="fl">Team</label><input class="fi" id="au-team" value="sales" placeholder="e.g. sales"/></div></div>
       <div class="fi-hint" style="margin:-4px 0 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:10px 12px;">Adding a user here only sets their role and access inside Whizz. They also need an Allow policy for their email in the Cloudflare Access application protecting tiarafzco.com, or they won't be able to sign in at all.</div>
       <div class="fg">
         <label class="fl">Platform Access</label>
@@ -1998,6 +1998,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <div class="fg"><label class="fl">Full Name *</label><input class="fi" id="eu-name" placeholder="Full name"/></div>
         <div class="fg"><label class="fl">Role</label><select class="fs" id="eu-role"><option value="Sales">Sales</option><option value="Manager">Manager</option><option value="Administrator">Administrator</option></select></div>
       </div>
+      <div class="fg"><label class="fl">Team</label><input class="fi" id="eu-team" value="sales" placeholder="e.g. sales"/><div class="fi-hint">Managers can access and assign conversations only inside this team.</div></div>
       <div class="fg">
         <label class="fl">Platform Access</label>
         <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific platforms. Leave all unselected for full access.</div>
@@ -2066,7 +2067,7 @@ let S = {
   activeStockBrand: 'ALL', activeStockRegion: 'ALL', activeStockParentGroup: 'ALL', activeStockStatus: 'ALL',
   discoveredContacts: [], selectedDiscContacts: new Set(), discType: 'wholesaler',
   cache: {}, notifications: [], history: [],
-  selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}
+  selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: []
 };
 
 // ── Auth ──
@@ -3034,6 +3035,7 @@ async function refreshConversations(){
     api('whizz-get-conversations?status=resolved').catch(()=>({conversations:[]}))
   ]);
   const merged=[...(o.conversations||[]),...(p.conversations||[]),...(r.conversations||[])];
+  S.conversationAssignees=o.assignees||p.assignees||r.assignees||[];
   merged.sort((a,b)=>(b.last_activity||0)-(a.last_activity||0));
   S.cache.conversations=merged;
   renderConvs(merged);
@@ -3173,7 +3175,26 @@ function convHtml(c){
   const matched=matchedProductsForConversation(c);
   const inquiryCls=matched.length?' conv-item-inquiry':'';
   const inquiryBadge=matched.length?`<span class="inquiry-badge" title="Mentioned: ${matched.join(', ').replace(/"/g,'&quot;')}">Inquiry</span>`:'';
-  return`<div class="conv-item${sel}${inquiryCls}" onclick="selectConv('${c.id}')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${inquiryBadge}${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
+  const assignment=c.assignment?.userName||'Unassigned';
+  const canAssign=['Administrator','Manager'].includes(CURRENT_SESSION?.role);
+  const assignmentAction=canAssign?`<span class="open-cw" onclick="event.stopPropagation();assignConversation('${c.id}')">Assign</span>`:'';
+  return`<div class="conv-item${sel}${inquiryCls}" onclick="selectConv('${c.id}')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${inquiryBadge}<span class="ch-badge" title="Conversation owner">${assignment}</span>${assignmentAction}${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
+}
+async function assignConversation(id){
+  const users=S.conversationAssignees||[];
+  if(!users.length){showToast('No eligible users are available in your team.','error');return;}
+  const current=findConv(id)?.assignment?.userEmail||'';
+  const choices=users.map((u,i)=>`${i+1}. ${u.name} — ${u.email}`).join('\n');
+  const answer=prompt(`Assign conversation\n\n0. Unassigned\n${choices}\n\nEnter a number:`,current?String(users.findIndex(u=>u.email===current)+1):'');
+  if(answer===null)return;
+  const number=Number(answer),assignedUserEmail=number===0?'':users[number-1]?.email;
+  if(number!==0&&!assignedUserEmail){showToast('Select a valid user number.','error');return;}
+  try{
+    const response=await fetch(`/api/conversation-assignments/${encodeURIComponent(id)}`,{method:'PUT',credentials:'include',headers:{'content-type':'application/json'},body:JSON.stringify({assignedUserEmail})});
+    const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Assignment failed');
+    showToast(number===0?'Conversation moved to the unassigned queue.':'Conversation assigned successfully.','success');
+    await refreshConversations();
+  }catch(error){showToast(error.message,'error');}
 }
 function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=>{b.className='t-btn btn-ghost';b.style.cssText='padding:5px 12px;font-size:11px;';});btn.className='t-btn btn-primary';btn.style.cssText='padding:5px 12px;font-size:11px;';S.convStatus=status;renderConvs(S.cache.conversations||[]);}
 
@@ -4985,7 +5006,7 @@ function renderUsersPage(){
   const tbody=document.getElementById('users-tbody');
   if(!tbody)return;
   if(!entries.length){
-    tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text3);font-size:13px;">${search?'No users match your search.':'No users found.'}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text3);font-size:13px;">${search?'No users match your search.':'No users found.'}</td></tr>`;
     return;
   }
   const roleStyle={Administrator:'background:var(--green-dim);color:var(--green);',Manager:'background:var(--amber-dim);color:var(--amber);',Sales:'background:var(--blue-dim);color:var(--blue);'};
@@ -5005,6 +5026,7 @@ function renderUsersPage(){
       </td>
       <td style="color:var(--text2);font-size:12px;">${email}</td>
       <td><span style="display:inline-block;padding:2px 9px;border-radius:var(--r-pill);font-size:11px;font-weight:600;${roleStyle[u.role]||''}">${u.role}</span></td>
+      <td><span class="ch-badge">${u.teamId||'sales'}</span></td>
       <td><div style="display:flex;flex-wrap:wrap;gap:3px;">${chipHtml(u.allowedPlatforms,'#8b5cf6')}</div></td>
       <td><div style="display:flex;flex-wrap:wrap;gap:3px;">${chipHtml(u.allowedBrands,'#f59e0b')}</div></td>
       <td>
@@ -5054,6 +5076,7 @@ function openAddUserModal(){
   populateBrandChips('au-brand-chips',[]);
   ['au-name','au-email'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('au-role').value='Sales';
+  document.getElementById('au-team').value='sales';
   document.getElementById('modal-add-user').classList.add('open');
 }
 
@@ -5061,13 +5084,14 @@ async function submitAddUser(){
   const name=document.getElementById('au-name').value.trim();
   const email=document.getElementById('au-email').value.trim().toLowerCase();
   const role=document.getElementById('au-role').value;
+  const teamId=document.getElementById('au-team').value.trim().toLowerCase()||'sales';
   const allowedPlatforms=getSelectedChips('au-platform-chips');
   const allowedBrands=getSelectedChips('au-brand-chips');
   if(!name||!email){showToast('Name and email are required','error');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Please enter a valid email address','error');return;}
   if(USERS[email]){showToast('A user with this email already exists','error');return;}
   try{
-    const result=await usersRequest('',{method:'POST',body:JSON.stringify({email,name,role,allowedBrands,allowedPlatforms})});
+    const result=await usersRequest('',{method:'POST',body:JSON.stringify({email,name,role,teamId,allowedBrands,allowedPlatforms})});
     USERS[email]=result.user;
     showToast(result.access&&result.access.synced?`User "${name}" and Access policy created.`:`User added, but Access policy is pending: ${result.access?.reason||'not configured'}`,result.access&&result.access.synced?'success':'error');
     closeModal('modal-add-user'); renderUsersPage();
@@ -5081,6 +5105,7 @@ function openEditUserModal(email){
   document.getElementById('eu-email-display').textContent=email;
   document.getElementById('eu-name').value=u.name;
   document.getElementById('eu-role').value=u.role;
+  document.getElementById('eu-team').value=u.teamId||'sales';
   populatePlatformChips('eu-platform-chips',u.allowedPlatforms||[]);
   populateBrandChips('eu-brand-chips',u.allowedBrands||[]);
   document.getElementById('modal-edit-user').classList.add('open');
@@ -5092,12 +5117,13 @@ async function submitEditUser(){
   if(!u){showToast('User not found','error');return;}
   const name=document.getElementById('eu-name').value.trim();
   const role=document.getElementById('eu-role').value;
+  const teamId=document.getElementById('eu-team').value.trim().toLowerCase()||'sales';
   const allowedPlatforms=getSelectedChips('eu-platform-chips');
   const allowedBrands=getSelectedChips('eu-brand-chips');
   if(!name){showToast('Name is required','error');return;}
-  try{await usersRequest('/'+encodeURIComponent(email),{method:'PUT',body:JSON.stringify({name,role,allowedPlatforms,allowedBrands})});}
+  try{await usersRequest('/'+encodeURIComponent(email),{method:'PUT',body:JSON.stringify({name,role,teamId,allowedPlatforms,allowedBrands})});}
   catch(error){showToast(error.message,'error');return;}
-  u.name=name; u.role=role; u.allowedPlatforms=allowedPlatforms; u.allowedBrands=allowedBrands;
+  u.name=name; u.role=role; u.teamId=teamId; u.allowedPlatforms=allowedPlatforms; u.allowedBrands=allowedBrands;
   showToast(`User "${name}" updated successfully!`,'success');
   closeModal('modal-edit-user');
   renderUsersPage();

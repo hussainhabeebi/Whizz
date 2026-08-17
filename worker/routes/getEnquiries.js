@@ -43,6 +43,12 @@ function productInterestsFromHistory(history) {
 }
 
 export async function handleGetEnquiries(request, env) {
+  const email = (request.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase();
+  const actor = email ? await env.DB.prepare('SELECT role FROM users WHERE email=?').bind(email).first() : null;
+  if (!actor) return Response.json({ error: 'Authenticated user is not provisioned in Whizz.' }, { status: 403 });
+  if (actor.role === 'Sales') {
+    return Response.json({ error: 'Sales users receive enquiries only through their assigned conversations.' }, { status: 403 });
+  }
   const { results } = await env.DB.prepare('SELECT id, phone, name, history FROM memory').all();
 
   const byPhone = {};
