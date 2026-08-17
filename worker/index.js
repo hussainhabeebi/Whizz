@@ -1,7 +1,7 @@
 import { handleGetContacts } from './routes/getContacts.js';
 import { handleGetEnquiries } from './routes/getEnquiries.js';
 import { handleAppendMemory } from './routes/appendMemory.js';
-import { handleUsers, handleCreateUser, handleUpdateUser, handleDeleteUser, handleResetUserAccess } from './routes/users.js';
+import { handleUsers, handleCreateUser, handleUpdateUser, handleDeleteUser, handleResetUserAccess, handleSyncUserAccess } from './routes/users.js';
 
 // Routes migrated off n8n live here, one at a time. Anything not matched
 // falls through to the static site assets (index.html, css/, js/) exactly
@@ -17,13 +17,14 @@ const routes = [
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access))?$/);
+    const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access|sync-access))?$/);
     if (userMatch) {
       const email = decodeURIComponent(userMatch[1]).trim().toLowerCase();
       try {
         if (request.method === 'PUT' && !userMatch[2]) return await handleUpdateUser(request, env, email);
         if (request.method === 'DELETE' && !userMatch[2]) return await handleDeleteUser(request, env, email);
         if (request.method === 'POST' && userMatch[2] === 'reset-access') return await handleResetUserAccess(request, env, email);
+        if (request.method === 'POST' && userMatch[2] === 'sync-access') return await handleSyncUserAccess(request, env, email);
       } catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const route = routes.find(r => r.method === request.method && r.path === url.pathname);
