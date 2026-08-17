@@ -540,6 +540,56 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .timing-label{font-size:13px;font-weight:500;color:var(--text);flex:1;min-width:0;}
 .timing-rate{font-size:14px;font-weight:700;color:var(--green);min-width:36px;text-align:right;}
 
+/* Tasks & Events workspace */
+.task-hero{position:relative;overflow:hidden;border-radius:18px;padding:24px 26px;margin-bottom:16px;background:linear-gradient(125deg,#111827 0%,#312e81 52%,#7c2d12 100%);color:#fff;box-shadow:0 16px 42px rgba(15,23,42,.22);}
+.task-hero::after{content:'';position:absolute;width:260px;height:260px;border-radius:50%;right:-70px;top:-120px;background:radial-gradient(circle,rgba(251,191,36,.45),rgba(251,191,36,0) 68%);}
+.task-hero-row{position:relative;z-index:1;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;}
+.task-eyebrow{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fbbf24;margin-bottom:8px;}
+.task-hero-title{font-family:var(--font-display);font-size:25px;font-weight:800;line-height:1.15;}
+.task-hero-sub{font-size:12px;color:rgba(255,255,255,.7);margin-top:7px;}
+.task-hero-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+.task-hero-btn{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);backdrop-filter:blur(8px);color:#fff;padding:9px 13px;border-radius:9px;font:600 11px var(--font);cursor:pointer;display:flex;align-items:center;gap:6px;}
+.task-hero-btn.primary{background:#f59e0b;border-color:#f59e0b;color:#111827;}
+.task-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+.task-kpi{position:relative;overflow:hidden;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px;min-height:96px;}
+.task-kpi::after{content:'';position:absolute;width:58px;height:58px;border-radius:50%;right:-18px;bottom:-20px;background:var(--kpi-color);opacity:.1;}
+.task-kpi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.task-kpi-label{font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;}
+.task-kpi-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--kpi-color) 13%,transparent);color:var(--kpi-color);}
+.task-kpi-icon svg{width:14px;height:14px;}
+.task-kpi-value{font-family:var(--font-display);font-size:25px;font-weight:800;color:var(--kpi-color);}
+.task-workspace{display:grid;grid-template-columns:minmax(290px,.72fr) minmax(0,1.55fr);gap:16px;align-items:start;}
+.task-composer{position:sticky;top:0;border-radius:16px;overflow:hidden;}
+.task-composer-head{padding:17px 18px;background:linear-gradient(135deg,var(--accent-dim),transparent);border-bottom:1px solid var(--border);}
+.task-composer-head h3{font-family:var(--font-display);font-size:14px;margin-bottom:3px;}
+.task-composer-head p{font-size:10px;color:var(--text3);}
+.task-type-switch{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px;}
+.task-type-option{position:relative;}
+.task-type-option input{position:absolute;opacity:0;pointer-events:none;}
+.task-type-option span{display:flex;align-items:center;justify-content:center;gap:7px;padding:9px;border:1px solid var(--border2);border-radius:9px;font-size:11px;font-weight:700;color:var(--text2);cursor:pointer;background:var(--bg3);}
+.task-type-option input:checked+span{border-color:var(--accent);background:var(--accent-dim);color:var(--accent);box-shadow:0 0 0 2px rgba(245,158,11,.08);}
+.task-board-card{border-radius:16px;overflow:hidden;}
+.task-board-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;border-bottom:1px solid var(--border);}
+.task-filter-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
+.task-report-controls{display:flex;gap:6px;align-items:center;}
+.task-report-select{width:auto;min-width:108px;padding:6px 9px;font-size:10px;}
+.task-date-group{margin-bottom:18px;}
+.task-date-heading{display:flex;align-items:center;gap:9px;padding:6px 2px 9px;color:var(--text2);}
+.task-date-badge{width:37px;height:42px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;}
+.task-date-badge b{font-family:var(--font-display);font-size:16px;color:var(--text);}
+.task-date-badge span{font-size:8px;text-transform:uppercase;color:var(--text3);margin-top:3px;}
+.task-date-copy strong{display:block;font-size:12px;color:var(--text);}.task-date-copy small{font-size:10px;color:var(--text3);}
+.task-live-card{display:grid;grid-template-columns:4px 42px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;transition:transform .15s,border-color .15s,box-shadow .15s;}
+.task-live-card:hover{transform:translateY(-1px);border-color:var(--border2);box-shadow:var(--shadow);}
+.task-live-accent{align-self:stretch;border-radius:8px;background:var(--item-color);}
+.task-live-icon{width:39px;height:39px;border-radius:11px;background:color-mix(in srgb,var(--item-color) 13%,transparent);color:var(--item-color);display:flex;align-items:center;justify-content:center;}.task-live-icon svg{width:17px;height:17px;}
+.task-live-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:5px;}.task-live-title.done{text-decoration:line-through;color:var(--text3);}
+.task-live-meta{display:flex;flex-wrap:wrap;gap:5px;}.task-live-pill{font-size:9px;color:var(--text2);padding:2px 7px;border-radius:20px;background:var(--bg3);border:1px solid var(--border);}.task-live-pill.location{color:#2563eb;background:rgba(37,99,235,.08);}
+.task-live-notes{font-size:10px;color:var(--text3);margin-top:6px;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:620px;}
+.task-live-actions{display:flex;gap:5px;}
+@media(max-width:980px){.task-workspace{grid-template-columns:1fr}.task-composer{position:static}.task-kpi-grid{grid-template-columns:1fr 1fr}.task-board-toolbar{align-items:flex-start;flex-direction:column}.task-report-controls{width:100%;}.task-report-select{flex:1}}
+@media(max-width:600px){.task-hero{padding:20px}.task-hero-row{align-items:flex-start;flex-direction:column}.task-hero-actions{width:100%;justify-content:flex-start}.task-kpi-grid{grid-template-columns:1fr 1fr;gap:8px}.task-kpi{min-height:84px;padding:13px}.task-workspace{display:block}.task-composer{margin-bottom:14px}.task-live-card{grid-template-columns:4px 34px minmax(0,1fr)}.task-live-icon{width:33px;height:33px}.task-live-actions{grid-column:2/4;width:100%;}.task-live-actions .t-btn{flex:1;justify-content:center}.task-report-controls{flex-wrap:wrap}.task-report-controls .t-btn{width:100%;justify-content:center}}
+
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght=0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet">
 </head>
@@ -1555,61 +1605,40 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
       </div>
 
       <div class="page" id="page-tasks">
-        <div class="two-col" style="margin-bottom:16px;align-items:start;">
-          <div class="card">
-            <div class="card-head">
-              <div class="card-title">Add Task / Event</div>
-            </div>
-            <div class="card-body">
-              <div class="fg"><label class="fl">Title *</label><input class="fi" id="task-title" placeholder="e.g. Follow up with ABC Trading"/></div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                <div class="fg"><label class="fl">Type</label>
-                  <select class="fs" id="task-type">
-                    <option value="task">Task</option>
-                    <option value="event">Event</option>
-                  </select>
-                </div>
-                <div class="fg"><label class="fl">Location</label><input class="fi" id="task-location" placeholder="e.g. Dubai office"/></div>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                <div class="fg"><label class="fl">Date *</label><input class="fi" type="date" id="task-date"/></div>
-                <div class="fg"><label class="fl">Time</label><input class="fi" type="time" id="task-time"/></div>
-              </div>
-              <div class="fg"><label class="fl">Notes</label><textarea class="ft" id="task-notes" placeholder="Any details…" style="min-height:50px;"></textarea></div>
-              <button class="t-btn btn-primary" style="width:100%;justify-content:center;" onclick="submitAddTask()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add
-              </button>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-head">
-              <div class="card-title">Overview</div>
-              <button class="t-btn btn-ghost t-btn-sm" onclick="downloadTasksWeeklyReport()" title="Download a printable PDF of last week's tasks">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Weekly PDF Report
-              </button>
-            </div>
-            <div class="card-body">
-              <div class="metric-row"><div class="m-label">Pending</div><div class="m-value" style="color:var(--amber)" id="task-stat-pending">0</div></div>
-              <div class="metric-row"><div class="m-label">Done</div><div class="m-value" style="color:var(--green)" id="task-stat-done">0</div></div>
-              <div class="metric-row"><div class="m-label">Upcoming (next 7 days)</div><div class="m-value" style="color:var(--accent)" id="task-stat-upcoming">0</div></div>
-              <div class="metric-row"><div class="m-label">Overdue</div><div class="m-value" style="color:var(--red)" id="task-stat-overdue">0</div></div>
-            </div>
+        <div class="task-hero">
+          <div class="task-hero-row">
+            <div><div class="task-eyebrow">Planning command centre</div><div class="task-hero-title">Make every task visible.<br/>Never miss an event.</div><div class="task-hero-sub" id="task-hero-date">Your schedule, locations and priorities in one view.</div></div>
+            <div class="task-hero-actions"><button class="task-hero-btn" onclick="document.getElementById('task-title').focus()">＋ Quick add</button><button class="task-hero-btn primary" onclick="downloadTasksWeeklyReport()">⇩ Generate PDF report</button></div>
           </div>
         </div>
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">Tasks &amp; Events</div>
-            <div style="display:flex;gap:6px;">
-              <button class="t-btn btn-primary" id="tf-upcoming" style="padding:5px 12px;font-size:11px;" onclick="setTaskFilter('upcoming',this)">Upcoming</button>
-              <button class="t-btn btn-ghost" id="tf-pending" style="padding:5px 12px;font-size:11px;" onclick="setTaskFilter('pending',this)">Pending</button>
-              <button class="t-btn btn-ghost" id="tf-done" style="padding:5px 12px;font-size:11px;" onclick="setTaskFilter('done',this)">Done</button>
-              <button class="t-btn btn-ghost" id="tf-all" style="padding:5px 12px;font-size:11px;" onclick="setTaskFilter('all',this)">All</button>
+        <div class="task-kpi-grid">
+          <div class="task-kpi" style="--kpi-color:#f59e0b"><div class="task-kpi-top"><span class="task-kpi-label">Pending</span><span class="task-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span></div><div class="task-kpi-value" id="task-stat-pending">0</div></div>
+          <div class="task-kpi" style="--kpi-color:#16a34a"><div class="task-kpi-top"><span class="task-kpi-label">Completed</span><span class="task-kpi-icon">✓</span></div><div class="task-kpi-value" id="task-stat-done">0</div></div>
+          <div class="task-kpi" style="--kpi-color:#2563eb"><div class="task-kpi-top"><span class="task-kpi-label">Next 7 days</span><span class="task-kpi-icon">7</span></div><div class="task-kpi-value" id="task-stat-upcoming">0</div></div>
+          <div class="task-kpi" style="--kpi-color:#dc2626"><div class="task-kpi-top"><span class="task-kpi-label">Overdue</span><span class="task-kpi-icon">!</span></div><div class="task-kpi-value" id="task-stat-overdue">0</div></div>
+        </div>
+        <div class="task-workspace">
+          <div class="card task-composer" id="task-composer">
+            <div class="task-composer-head"><h3>Create a new item</h3><p>Add the essential details now. Refine later.</p></div>
+            <div class="card-body">
+              <div class="task-type-switch"><label class="task-type-option"><input type="radio" name="task-kind" value="task" checked onchange="document.getElementById('task-type').value=this.value"><span>✓ Task</span></label><label class="task-type-option"><input type="radio" name="task-kind" value="event" onchange="document.getElementById('task-type').value=this.value"><span>▣ Event</span></label></div>
+              <input type="hidden" id="task-type" value="task"/>
+              <div class="fg"><label class="fl">Title *</label><input class="fi" id="task-title" placeholder="What needs to happen?"/></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div class="fg"><label class="fl">Date *</label><input class="fi" type="date" id="task-date"/></div><div class="fg"><label class="fl">Time</label><input class="fi" type="time" id="task-time"/></div></div>
+              <div class="fg"><label class="fl">Location</label><input class="fi" id="task-location" placeholder="Office, city or meeting venue"/></div>
+              <div class="fg"><label class="fl">Priority</label><select class="fs" id="task-priority"><option value="normal">Normal</option><option value="high">High priority</option><option value="low">Low priority</option></select></div>
+              <div class="fg"><label class="fl">Notes</label><textarea class="ft" id="task-notes" placeholder="Context, contact person or next step…" style="min-height:72px;"></textarea></div>
+              <button class="t-btn btn-primary" style="width:100%;justify-content:center;padding:10px;" onclick="submitAddTask()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add to schedule</button>
             </div>
           </div>
-          <div class="card-body" id="tasks-list">
+          <div class="card task-board-card">
+            <div class="task-board-toolbar">
+              <div class="task-filter-scroll"><button class="t-btn btn-primary" id="tf-upcoming" onclick="setTaskFilter('upcoming',this)">Upcoming</button><button class="t-btn btn-ghost" id="tf-pending" onclick="setTaskFilter('pending',this)">Pending</button><button class="t-btn btn-ghost" id="tf-done" onclick="setTaskFilter('done',this)">Done</button><button class="t-btn btn-ghost" id="tf-all" onclick="setTaskFilter('all',this)">All</button></div>
+              <div class="task-report-controls"><select class="fs task-report-select" id="task-report-range"><option value="last7">Last 7 days</option><option value="next7">Next 7 days</option><option value="month">This month</option><option value="all">All items</option></select><select class="fs task-report-select" id="task-report-scope"><option value="all">Tasks + Events</option><option value="task">Tasks only</option><option value="event">Events only</option></select><button class="t-btn btn-ghost" onclick="downloadTasksWeeklyReport()">PDF</button></div>
+            </div>
+            <div class="card-body" id="tasks-list">
             <div class="empty-state">No tasks or events yet. Add one above.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -5810,6 +5839,7 @@ function submitAddTask() {
     time: document.getElementById('task-time').value || '',
     location: document.getElementById('task-location').value.trim(),
     notes: document.getElementById('task-notes').value.trim(),
+    priority: document.getElementById('task-priority').value,
     status: 'pending',
     createdAt: Date.now()
   };
@@ -5819,6 +5849,8 @@ function submitAddTask() {
   ['task-title','task-location','task-time','task-notes'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('task-date').value = '';
   document.getElementById('task-type').value = 'task';
+  document.getElementById('task-priority').value = 'normal';
+  const taskRadio = document.querySelector('input[name="task-kind"][value="task"]'); if (taskRadio) taskRadio.checked = true;
   showToast(`${task.type === 'event' ? 'Event' : 'Task'} added`, 'success');
   addNotif(`${task.type === 'event' ? 'Event' : 'Task'} "${task.title}" scheduled for ${new Date(task.date+'T00:00:00').toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'})}`);
   renderTasksList();
@@ -5857,6 +5889,8 @@ function renderTasksList() {
   const today = todayStr();
   const in7 = new Date(); in7.setDate(in7.getDate()+7);
   const in7Str = in7.getFullYear() + '-' + String(in7.getMonth()+1).padStart(2,'0') + '-' + String(in7.getDate()).padStart(2,'0');
+  const heroDate = document.getElementById('task-hero-date');
+  if (heroDate) heroDate.textContent = new Date().toLocaleDateString('en-AE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}) + ' · Your schedule, locations and priorities in one view.';
 
   const pendingCount = data.filter(t => t.status === 'pending').length;
   const doneCount = data.filter(t => t.status === 'done').length;
@@ -5884,24 +5918,28 @@ function renderTasksList() {
   filtered.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
 
   el.innerHTML = Object.keys(groups).map(date => {
-    const dLabel = new Date(date+'T00:00:00').toLocaleDateString('en-AE', { weekday:'long', day:'2-digit', month:'short', year:'numeric' });
+    const dateObj = new Date(date+'T00:00:00');
+    const dLabel = dateObj.toLocaleDateString('en-AE', { weekday:'long', day:'2-digit', month:'short', year:'numeric' });
+    const dayNum = dateObj.toLocaleDateString('en-AE',{day:'2-digit'}), monthShort=dateObj.toLocaleDateString('en-AE',{month:'short'});
     const isOverdue = date < today;
     const rows = groups[date].map(t => {
       const done = t.status === 'done';
-      return `<div class="hist-item">
-        <div class="hist-icon" style="background:${done?'var(--green-dim)':'var(--accent-dim)'};color:${done?'var(--green)':'var(--accent)'};">${taskIcon(t.type)}</div>
-        <div class="hist-info">
-          <div class="hist-name" style="${done?'text-decoration:line-through;color:var(--text3);':''}">${t.title}${t.time ? ` · ${t.time}` : ''}</div>
-          <div class="hist-meta">${t.type === 'event' ? 'Event' : 'Task'}${t.location ? ' · 📍 ' + t.location : ''}${t.notes ? ' · ' + t.notes : ''}</div>
+      const color=done?'#16a34a':(isOverdue?'#dc2626':(t.type==='event'?'#2563eb':(t.priority==='high'?'#f97316':'#f59e0b')));
+      return `<div class="task-live-card" style="--item-color:${color}">
+        <div class="task-live-accent"></div><div class="task-live-icon">${taskIcon(t.type)}</div>
+        <div>
+          <div class="task-live-title ${done?'done':''}">${t.title}</div>
+          <div class="task-live-meta"><span class="task-live-pill">${t.type === 'event' ? 'Event' : 'Task'}</span>${t.time?`<span class="task-live-pill">${t.time}</span>`:''}${t.location?`<span class="task-live-pill location">📍 ${t.location}</span>`:''}${t.priority==='high'?'<span class="task-live-pill" style="color:#f97316">High priority</span>':''}</div>
+          ${t.notes?`<div class="task-live-notes">${t.notes}</div>`:''}
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;">
+        <div class="task-live-actions">
           <button class="t-btn" style="padding:4px 10px;font-size:11px;background:${done?'var(--amber-dim)':'var(--green-dim)'};color:${done?'var(--amber)':'var(--green)'};border:1px solid ${done?'rgba(245,158,11,0.2)':'rgba(22,163,74,0.2)'};" onclick="toggleTaskDone('${t.id}')">${done?'Reopen':'Mark Done'}</button>
           <button class="t-btn" style="padding:4px 10px;font-size:11px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteTask('${t.id}')">Delete</button>
         </div>
       </div>`;
     }).join('');
     return `<div style="margin-bottom:10px;">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:${isOverdue?'var(--red)':'var(--text3)'};padding:8px 4px 4px;font-weight:600;">${dLabel}${isOverdue?' · Overdue':''}</div>
+      <div class="task-date-heading"><div class="task-date-badge"><b>${dayNum}</b><span>${monthShort}</span></div><div class="task-date-copy"><strong style="${isOverdue?'color:var(--red)':''}">${dLabel}</strong><small>${groups[date].length} scheduled item${groups[date].length===1?'':'s'}${isOverdue?' · Needs attention':''}</small></div></div>
       ${rows}
     </div>`;
   }).join('');
@@ -5927,8 +5965,10 @@ function taskReportCardHtml(t) {
         <div class="task-card-title" style="${t.status==='done'?'text-decoration:line-through;color:#94a3b8;':''}">${t.title}</div>
         <div class="task-card-tags">
           <span class="tag-pill">${t.type === 'event' ? 'Event' : 'Task'}</span>
+          <span class="tag-pill">📅 ${new Date(t.date+'T00:00:00').toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'})}</span>
           ${t.time ? `<span class="tag-pill">🕒 ${t.time}</span>` : ''}
           ${t.location ? `<span class="tag-pill">📍 ${t.location}</span>` : ''}
+          ${t.priority==='high'?'<span class="tag-pill priority">⚑ High priority</span>':''}
         </div>
       </div>
       <span class="status-pill" style="color:${sm.color};background:${sm.bg};border-color:${sm.border};">${sm.label}</span>
@@ -5941,7 +5981,17 @@ function buildTasksWeeklyReportHtml(d) {
   const doneCount = d.items.filter(t => t.status === 'done').length;
   const overdueCount = d.items.filter(t => t.status === 'overdue').length;
   const pendingCount = d.items.filter(t => t.status === 'pending').length;
+  const taskCount = d.items.filter(t => t.type !== 'event').length;
+  const eventCount = d.items.filter(t => t.type === 'event').length;
+  const highCount = d.items.filter(t => t.priority === 'high' && t.status !== 'done').length;
   const pct = total ? Math.round(doneCount / total * 100) : 0;
+
+  const locationMap={};
+  d.items.filter(t=>t.location).forEach(t=>{locationMap[t.location]=(locationMap[t.location]||0)+1;});
+  const locationRows=Object.entries(locationMap).sort((a,b)=>b[1]-a[1]).map(([location,count])=>`<div class="location-row"><span>📍 ${location}</span><b>${count} item${count===1?'':'s'}</b></div>`).join('')||'<div class="empty-note">No locations were added in this report period.</div>';
+  const attention=d.items.filter(t=>t.status==='overdue'||(t.priority==='high'&&t.status!=='done')).slice(0,4);
+  const nextUp=d.items.filter(t=>t.status==='pending'&&t.date>=todayStr()).slice(0,4);
+  const highlightList=(items,empty)=>items.length?items.map(t=>`<div class="highlight-item"><span class="highlight-dot" style="background:${t.status==='overdue'?'#dc2626':t.type==='event'?'#2563eb':'#f59e0b'}"></span><div><b>${t.title}</b><small>${new Date(t.date+'T00:00:00').toLocaleDateString('en-AE',{day:'2-digit',month:'short'})}${t.location?' · 📍 '+t.location:''}</small></div></div>`).join(''):`<div class="highlight-empty">${empty}</div>`;
 
   const groups = {};
   d.items.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
@@ -5980,18 +6030,20 @@ body{font-family:'DM Sans',Arial,sans-serif;background:#eef1f6;color:#0f172a;pad
 .ring-inner b{font-size:17px;font-weight:800;line-height:1;}
 .ring-inner span{font-size:8px;text-transform:uppercase;letter-spacing:0.05em;opacity:0.85;margin-top:2px;}
 .ring-label{font-size:11px;text-align:right;opacity:0.9;max-width:80px;line-height:1.3;}
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:26px 40px 6px;}
+.stats-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;padding:26px 40px 6px;}
 .stat-card{border-radius:14px;padding:16px;border:1px solid #eef0f4;}
 .stat-card.total{background:#f8fafc;}
 .stat-card.done{background:rgba(22,163,74,0.07);}
 .stat-card.pending{background:rgba(245,158,11,0.08);}
 .stat-card.overdue{background:rgba(220,38,38,0.07);}
+.stat-card.blue{background:rgba(37,99,235,0.07)}
 .stat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:8px;}
 .stat-value{font-size:26px;font-weight:800;line-height:1;}
 .stat-card.total .stat-value{color:#0f172a;}
 .stat-card.done .stat-value{color:#16a34a;}
 .stat-card.pending .stat-value{color:#d97706;}
 .stat-card.overdue .stat-value{color:#dc2626;}
+.stat-card.blue .stat-value{color:#2563eb}.stats-row .stat-value{font-size:22px;}
 .body-pad{padding:8px 40px 40px;}
 .section-title{font-family:'Syne',Georgia,serif;font-size:16px;font-weight:700;color:#0f172a;margin:28px 0 16px;}
 .timeline-row{display:flex;gap:16px;}
@@ -6009,12 +6061,15 @@ body{font-family:'DM Sans',Arial,sans-serif;background:#eef1f6;color:#0f172a;pad
 .task-card-title{font-weight:700;font-size:14px;color:#0f172a;margin-bottom:6px;}
 .task-card-tags{display:flex;flex-wrap:wrap;gap:6px;}
 .tag-pill{font-size:11px;color:#475569;background:#f1f3f7;border-radius:20px;padding:2px 9px;}
+.tag-pill.priority{color:#c2410c;background:#fff7ed;font-weight:700;}
 .status-pill{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border:1px solid;border-radius:20px;padding:3px 10px;flex-shrink:0;}
 .task-card-notes{margin-top:10px;padding:9px 12px;background:#f8fafc;border-radius:8px;font-size:12px;color:#475569;font-style:italic;line-height:1.5;}
 .empty-note{text-align:center;color:#94a3b8;font-size:13px;padding:30px;}
+.highlight-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}.highlight-box{border:1px solid #e8edf4;border-radius:14px;padding:15px;background:#fbfcfe}.highlight-head{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#475569;margin-bottom:11px}.highlight-item{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-top:1px solid #edf0f4}.highlight-item:first-of-type{border-top:0}.highlight-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}.highlight-item b{display:block;font-size:12px}.highlight-item small{display:block;font-size:10px;color:#64748b;margin-top:2px}.highlight-empty{font-size:11px;color:#94a3b8}.location-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.location-row{display:flex;justify-content:space-between;align-items:center;border:1px solid #eef0f4;border-radius:9px;padding:9px 11px;font-size:11px;color:#475569}.location-row b{font-size:10px;color:#2563eb}
 .print-btn{display:block;margin:0 auto 22px;padding:11px 22px;background:linear-gradient(135deg,#f59e0b,#dc2626);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(234,88,12,0.3);}
 .report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #eef0f4;}
-@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;border-radius:0;}}
+@page{size:A4;margin:9mm}
+@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;border-radius:0;}.hero{padding:28px 30px}.stats-row{padding:18px 30px 4px}.body-pad{padding:6px 30px 24px}}
 </style></head>
 <body>
 <div class="page">
@@ -6022,8 +6077,8 @@ body{font-family:'DM Sans',Arial,sans-serif;background:#eef1f6;color:#0f172a;pad
     <div class="hero-top">
       <div>
         <div class="brand">Whizz.</div>
-        <div class="hero-title">Weekly Tasks &amp; Events Report</div>
-        <div class="hero-range">${d.weekStart.toLocaleDateString('en-AE',{day:'2-digit',month:'short'})} – ${d.weekEnd.toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'})}</div>
+        <div class="hero-title">${d.reportTitle}</div>
+        <div class="hero-range">${d.rangeLabel}</div>
         <div class="hero-gen">Generated ${d.generatedAt.toLocaleString()}</div>
       </div>
       <div class="ring-wrap">
@@ -6035,12 +6090,17 @@ body{font-family:'DM Sans',Arial,sans-serif;background:#eef1f6;color:#0f172a;pad
     </div>
   </div>
   <div class="stats-row">
-    <div class="stat-card total"><div class="stat-label">Total Items</div><div class="stat-value">${total}</div></div>
+    <div class="stat-card total"><div class="stat-label">Total</div><div class="stat-value">${total}</div></div>
+    <div class="stat-card blue"><div class="stat-label">Tasks</div><div class="stat-value">${taskCount}</div></div>
+    <div class="stat-card blue"><div class="stat-label">Events</div><div class="stat-value">${eventCount}</div></div>
     <div class="stat-card done"><div class="stat-label">Completed</div><div class="stat-value">${doneCount}</div></div>
     <div class="stat-card pending"><div class="stat-label">Pending</div><div class="stat-value">${pendingCount}</div></div>
     <div class="stat-card overdue"><div class="stat-label">Overdue</div><div class="stat-value">${overdueCount}</div></div>
   </div>
   <div class="body-pad">
+    <div class="section-title">Management Highlights</div>
+    <div class="highlight-grid"><div class="highlight-box"><div class="highlight-head">Needs attention · ${overdueCount+highCount}</div>${highlightList(attention,'No overdue or high-priority items.')}</div><div class="highlight-box"><div class="highlight-head">Next up</div>${highlightList(nextUp,'No upcoming items in this period.')}</div></div>
+    <div class="section-title">Locations</div><div class="location-grid">${locationRows}</div>
     <div class="section-title">Timeline — Full Details</div>
     ${timelineHtml}
     <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
@@ -6051,18 +6111,30 @@ body{font-family:'DM Sans',Arial,sans-serif;background:#eef1f6;color:#0f172a;pad
 }
 function downloadTasksWeeklyReport() {
   const now = new Date();
-  const weekEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekStart = new Date(weekEnd); weekStart.setDate(weekStart.getDate() - 6);
+  const range=document.getElementById('task-report-range')?.value||'last7';
+  const scope=document.getElementById('task-report-scope')?.value||'all';
+  let weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let weekEnd = new Date(weekStart);
+  if(range==='last7') weekStart.setDate(weekStart.getDate()-6);
+  else if(range==='next7') weekEnd.setDate(weekEnd.getDate()+6);
+  else if(range==='month'){weekStart=new Date(now.getFullYear(),now.getMonth(),1);weekEnd=new Date(now.getFullYear(),now.getMonth()+1,0);}
+  else { weekStart=new Date(2000,0,1); weekEnd=new Date(2100,11,31); }
   const startStr = weekStart.getFullYear() + '-' + String(weekStart.getMonth()+1).padStart(2,'0') + '-' + String(weekStart.getDate()).padStart(2,'0');
   const endStr = weekEnd.getFullYear() + '-' + String(weekEnd.getMonth()+1).padStart(2,'0') + '-' + String(weekEnd.getDate()).padStart(2,'0');
   const today = todayStr();
   const items = loadTasks()
     .filter(t => t.date >= startStr && t.date <= endStr)
+    .filter(t => scope==='all'||t.type===scope)
     .map(t => ({ ...t, status: t.status === 'done' ? 'done' : (t.date < today ? 'overdue' : 'pending') }))
     .sort((a,b) => (a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
-  const html = buildTasksWeeklyReportHtml({ generatedAt: now, weekStart, weekEnd, items });
-  downloadHTML(html, `Whizz-Weekly-Tasks-Report-${endStr}.html`);
-  showToast('Weekly report downloaded!', 'success');
+  const rangeLabel=range==='all'?'All scheduled dates':`${weekStart.toLocaleDateString('en-AE',{day:'2-digit',month:'short'})} – ${weekEnd.toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'})}`;
+  const reportTitle=scope==='task'?'Tasks Performance Report':scope==='event'?'Events Schedule Report':'Tasks & Events Report';
+  const html = buildTasksWeeklyReportHtml({ generatedAt: now, weekStart, weekEnd, rangeLabel, reportTitle, items });
+  const reportWindow=window.open('','_blank');
+  if(!reportWindow){showToast('Allow pop-ups to generate the PDF report.','error');return;}
+  reportWindow.document.open(); reportWindow.document.write(html); reportWindow.document.close();
+  reportWindow.onload=()=>setTimeout(()=>{reportWindow.focus();reportWindow.print();},350);
+  showToast('PDF report opened — choose Save as PDF.','success');
 }
 
 // ── Real-time Auto Sync ──
