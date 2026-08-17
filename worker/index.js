@@ -3,6 +3,7 @@ import { handleGetEnquiries } from './routes/getEnquiries.js';
 import { handleAppendMemory } from './routes/appendMemory.js';
 import { handleUsers, handleCreateUser, handleUpdateUser, handleDeleteUser, handleResetUserAccess, handleSyncUserAccess } from './routes/users.js';
 import { handleAutomation } from './routes/automation.js';
+import { handleConversationAssignment } from './routes/conversationAssignments.js';
 
 // Routes migrated off n8n live here, one at a time. Anything not matched
 // falls through to the static site assets (index.html, css/, js/) exactly
@@ -22,6 +23,11 @@ export default {
     if (automationMatch) {
       try { return await handleAutomation(request, env, automationMatch[1]); }
       catch (err) { return Response.json({ error: err.message }, { status: 502 }); }
+    }
+    const assignmentMatch = url.pathname.match(/^\/api\/conversation-assignments\/([^/]+)$/);
+    if (assignmentMatch && request.method === 'PUT') {
+      try { return await handleConversationAssignment(request, env, decodeURIComponent(assignmentMatch[1])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access|sync-access))?$/);
     if (userMatch) {
