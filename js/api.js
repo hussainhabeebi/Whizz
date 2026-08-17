@@ -1,5 +1,6 @@
 // ── API Gateway Base Call ──
-async function api(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'},credentials:'include'};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/api/automation/${path}`,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{success:true};}catch{data={success:true};}if(!r.ok)throw new Error(data.error||'HTTP Status Error '+r.status);return data;}
+const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-get-conversations','whizz-get-conversation-messages','whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-save-integration','whizz-delete-integration']);
+async function api(path,method='GET',body=null){const endpoint=String(path).split('?')[0],protectedRoute=WORKER_PROTECTED_ENDPOINTS.has(endpoint);const opts={method,headers:{'Content-Type':'application/json'}};if(protectedRoute)opts.credentials='include';if(body)opts.body=JSON.stringify(body);const url=protectedRoute?`/api/automation/${path}`:`${N8N}/${path}`;const r=await fetch(url,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{success:true};}catch{data={success:true};}if(!r.ok)throw new Error(data.error||'HTTP Status Error '+r.status);return data;}
 
 // ── Global Refresh Orchestrator ──
 async function refreshPage() {
