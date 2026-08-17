@@ -1253,6 +1253,11 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>Cached. Click Refresh to reload.</span>
         </div>
+        <section id="my-leads-workspace" style="display:none;margin-bottom:16px;">
+          <div class="role-hero" style="margin-bottom:12px;"><div class="role-hero-grid"><div><div class="role-kicker">Personal sales desk</div><div class="role-title">My Leads</div><div class="role-copy">Only leads assigned to you, ordered around today’s best next actions.</div></div><button class="role-action primary" onclick="openAddContactModal()">+ Add my lead</button></div></div>
+          <div class="stats-grid" id="my-leads-kpis" style="grid-template-columns:repeat(7,minmax(120px,1fr));overflow-x:auto;"></div>
+          <div class="card" style="margin-top:12px;"><div class="card-head"><div><div class="card-title">Priority lead list</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">Overdue, hot and newly assigned leads first</div></div><span id="my-leads-owner" class="ch-badge"></span></div><div class="card-body" id="my-leads-priority"><div class="empty-state">Refresh to load your assigned leads.</div></div></div>
+        </section>
         <div class="card" style="margin-bottom:16px;">
           <div class="card-head">
             <div class="card-title">Lead Score Rankings</div>
@@ -2792,7 +2797,7 @@ function navigate(page, el) {
   S.page=page; closeSidebar();
   if(page==='campaigns'&&S.cache.groups){S.groups=S.cache.groups;renderCampGroups(S.cache.groups);hideBanner('camp');}
   if(page==='campaigns'&&S.cache.templates){S.templates=S.cache.templates;renderCampTemplates(S.cache.templates);}
-  if(page==='leads'&&S.cache.groups){renderLeadsPage(S.cache.groups,S.cache.leadsTotal);hideBanner('leads');}
+  if(page==='leads'&&S.cache.groups){renderLeadsPage(S.cache.groups,S.cache.leadsTotal);refreshMyLeadsWorkspace();hideBanner('leads');}
   if(page==='conversations'&&S.cache.conversations){renderConvs(S.cache.conversations);hideBanner('conv');}
   if(page==='enquiries'&&S.cache.enquiries){renderEnquiriesPage(S.cache.enquiries);hideBanner('enquiries');}
   if(page==='templates'&&S.cache.templates){renderTplPage(S.cache.templates);hideBanner('tpl');}
@@ -3042,7 +3047,36 @@ async function refreshConversations(){
 }
 async function refreshCampaign(){await Promise.all([refreshLeadData(),refreshTemplates()]);}
 async function refreshTemplates(){const d=await api('whizz-get-templates');S.cache.templates=d.templates||[];S.templates=S.cache.templates;renderTplPage(S.cache.templates);renderCampTemplates(S.cache.templates);}
-async function refreshLeads(){await refreshLeadData();renderLeadsPage(S.cache.groups,S.cache.leadsTotal);}
+async function refreshLeads(){await refreshLeadData();renderLeadsPage(S.cache.groups,S.cache.leadsTotal);await refreshMyLeadsWorkspace();}
+
+async function refreshMyLeadsWorkspace(){
+  const panel=document.getElementById('my-leads-workspace');
+  if(!panel)return;
+  const isSales=CURRENT_SESSION?.role==='Sales';panel.style.display=isSales?'block':'none';if(!isSales)return;
+  try{
+    const data=await apiW('whizz-get-contacts');
+    const leads=data.contacts||[],now=new Date(),today=now.toISOString().slice(0,10);
+    const monthKey=today.slice(0,7),weekAgo=Date.now()-7*86400000;
+    const convData=await api('whizz-get-conversations?status=open').catch(()=>({conversations:S.cache.conversations||[]}));
+    const conversations=convData.conversations||[];S.cache.conversations=conversations;
+    const metrics=[
+      ['New today',leads.filter(l=>(l.createdAt||'').slice(0,10)===today).length,'var(--blue)'],
+      ['Follow-up',leads.filter(l=>l.nextFollowUpAt&&(l.nextFollowUpAt.slice(0,10)>=today)).length,'var(--amber)'],
+      ['Overdue',leads.filter(l=>l.nextFollowUpAt&&l.nextFollowUpAt.slice(0,10)<today).length,'var(--red)'],
+      ['Hot leads',leads.filter(l=>(l.leadScore||0)>=70).length,'#f97316'],
+      ['Unread chats',conversations.reduce((n,c)=>n+(Number(c.unread)||0),0),'#8b5cf6'],
+      ['Deals this month',leads.filter(l=>(l.dealExpectedAt||'').slice(0,7)===monthKey).length,'var(--green)'],
+      ['Recently contacted',leads.filter(l=>l.lastContactedAt&&new Date(l.lastContactedAt).getTime()>=weekAgo).length,'#0891b2']
+    ];
+    document.getElementById('my-leads-kpis').innerHTML=metrics.map(([label,value,color])=>`<div class="stat-card" style="min-width:120px;"><div class="s-label">${label}</div><div class="s-value" style="color:${color};">${value}</div><div class="s-sub">My assigned leads</div></div>`).join('');
+    document.getElementById('my-leads-owner').textContent=CURRENT_SESSION.email;
+    const ranked=[...leads].sort((a,b)=>{
+      const overdue=l=>l.nextFollowUpAt&&l.nextFollowUpAt.slice(0,10)<today?1:0;
+      return overdue(b)-overdue(a)||(b.leadScore||0)-(a.leadScore||0)||String(b.createdAt||'').localeCompare(String(a.createdAt||''));
+    }).slice(0,8);
+    document.getElementById('my-leads-priority').innerHTML=ranked.length?ranked.map(l=>`<div class="metric-row"><div><div class="m-label" style="color:var(--text);font-weight:700;">${l.contactName||l.company||'Unnamed lead'}</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">${[l.brand,l.country,l.platform].filter(Boolean).join(' · ')||'No lead details'}${l.nextFollowUpAt?` · Follow-up ${new Date(l.nextFollowUpAt).toLocaleDateString('en-AE',{day:'2-digit',month:'short'})}`:''}</div></div><div class="m-value" style="color:${(l.leadScore||0)>=70?'var(--red)':'var(--accent)'};">${l.leadScore||0}</div></div>`).join(''):'<div class="empty-state">No leads assigned yet. Add a lead and it will be assigned to you automatically.</div>';
+  }catch(error){document.getElementById('my-leads-priority').innerHTML=`<div class="empty-state">${error.message}</div>`;}
+}
 // ── Reports Period Selector ──
 // Only Email/WhatsApp sends and WordPress traffic carry real dates today, so only
 // those are period-scoped. Leads, Inquiries and the Heatmap have no created-date
