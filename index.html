@@ -4804,6 +4804,7 @@ function renderUsersPage(){
             Edit
           </button>
           ${!isMe?`<button class="t-btn btn-ghost" style="padding:5px 10px;font-size:11px;" onclick="resetUserAccess('${esc(email)}')" title="End the user's current sign-in session">Reset sign-in</button>`:''}
+          ${!isMe&&!u.accessPolicySynced?`<button class="t-btn btn-ghost" style="padding:5px 10px;font-size:11px;color:var(--amber);" onclick="syncUserAccess('${esc(email)}')" title="Create this user's Cloudflare Access allow policy">Sync Access</button>`:''}
           ${!isMe?`<button class="t-btn" style="padding:5px 10px;font-size:11px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteUser('${esc(email)}')" title="Delete user">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             Delete
@@ -4858,7 +4859,7 @@ async function submitAddUser(){
   try{
     const result=await usersRequest('',{method:'POST',body:JSON.stringify({email,name,role,allowedBrands,allowedPlatforms})});
     USERS[email]=result.user;
-    showToast(`User "${name}" added successfully.`,'success');
+    showToast(result.access&&result.access.synced?`User "${name}" and Access policy created.`:`User added, but Access policy is pending: ${result.access?.reason||'not configured'}`,result.access&&result.access.synced?'success':'error');
     closeModal('modal-add-user'); renderUsersPage();
   }catch(error){showToast(error.message,'error');}
 }
@@ -4912,6 +4913,16 @@ async function resetUserAccess(email){
     const result=await usersRequest('/'+encodeURIComponent(email)+'/reset-access',{method:'POST',body:'{}'});
     u.resetAt=result.resetAt;
     showToast(`Sign-in reset for ${u.name}. They must use a new Cloudflare Access OTP.`,'success');
+  }catch(error){showToast(error.message,'error');}
+}
+
+async function syncUserAccess(email){
+  const u=USERS[email]; if(!u)return;
+  try{
+    await usersRequest('/'+encodeURIComponent(email)+'/sync-access',{method:'POST',body:'{}'});
+    u.accessPolicySynced=true;
+    showToast(`Cloudflare Access policy created for ${u.name}.`,'success');
+    renderUsersPage();
   }catch(error){showToast(error.message,'error');}
 }
 
