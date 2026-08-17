@@ -136,6 +136,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .btn-ghost:hover{background:var(--bg3);color:var(--text);border-color:var(--accent);}
 .btn-success{background:var(--green);color:#fff;}
 .btn-success:hover{background:#16a34a;}
+.delivery-guard{margin:0 0 16px;padding:16px;border:1px solid var(--border2);border-radius:12px;background:var(--bg2);}
+.guard-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;}
+.guard-score{min-width:58px;text-align:center;padding:7px 10px;border-radius:9px;background:var(--green-dim);color:var(--green);font:700 18px var(--font-display);}
+.guard-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+.guard-option{display:flex;gap:9px;align-items:flex-start;padding:10px;border:1px solid var(--border);border-radius:9px;background:var(--bg3);font-size:11px;color:var(--text2);line-height:1.45;}
+.guard-option input{margin-top:2px;accent-color:var(--accent);}
+.guard-option strong{display:block;color:var(--text);font-size:12px;}
+.guard-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:11px;}
+.guard-stat{padding:9px;border-radius:8px;background:var(--bg3);text-align:center;}
+.guard-stat b{display:block;font:700 16px var(--font-display);color:var(--text);}
+.guard-stat span{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+@media(max-width:620px){.guard-grid{grid-template-columns:1fr}.guard-summary{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.campaign-segment-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:520px){.campaign-segment-grid{grid-template-columns:1fr!important}}
 .btn-refresh{background:var(--accent-dim);color:var(--accent2);border:1px solid rgba(245,158,11,0.2);}
 .btn-refresh:hover{background:var(--accent-light);}
 .last-upd{font-size:11px;color:var(--text3);}
@@ -864,6 +878,16 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
                 <div class="eyebrow">Filter by Brand</div>
                 <div class="chips" id="brand-chips"></div>
               </div>
+              <div style="margin:14px 0;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;">
+                <div class="eyebrow" style="margin-bottom:9px;">Delivery-safe lead categorisation</div>
+                <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;" class="campaign-segment-grid">
+                  <label class="s-label">Consent<select id="camp-consent" class="fi"><option value="opted_in">Opted-in only</option><option value="known_consent">Known consent</option></select></label>
+                  <label class="s-label">Engagement<select id="camp-engagement" class="fi"><option value="30_days">Active within 30 days</option><option value="7_days">Hot — within 7 days</option><option value="90_days">Warm — within 90 days</option><option value="any">Any activity</option></select></label>
+                  <label class="s-label">Lead stage<select id="camp-stage" class="fi"><option value="marketable">All marketable stages</option><option value="new">New leads</option><option value="qualified">Qualified</option><option value="quotation_sent">Quotation sent</option><option value="customer">Existing customers</option><option value="dormant">Dormant reactivation</option></select></label>
+                  <label class="s-label">Buyer type<select id="camp-buyer" class="fi"><option value="all">All buyer types</option><option value="wholesale">Wholesale</option><option value="retail">Retail</option><option value="export">Export</option></select></label>
+                </div>
+                <div style="font-size:10px;color:var(--text3);margin-top:9px;">Opt-outs, invalid numbers, permanent failures, lost leads and Do Not Contact records are always excluded.</div>
+              </div>
               <div class="groups-grid" id="camp-groups">
                 <div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
               </div>
@@ -892,6 +916,24 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
                 </div>
                 <div class="s-label" style="margin-bottom:6px;">Message Preview</div>
                 <div id="rv-msg" style="font-size:12px;color:var(--text2);background:var(--bg2);padding:10px;border-radius:6px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.6;max-height:120px;overflow-y:auto;"></div>
+              </div>
+              <div class="delivery-guard">
+                <div class="guard-head">
+                  <div><div class="card-title">Campaign Deliverability Guard</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">Automatic protection against contact fatigue, repeated failures and sudden quality drops.</div></div>
+                  <div class="guard-score" id="guard-score">—</div>
+                </div>
+                <div class="guard-grid">
+                  <label class="guard-option"><input type="checkbox" id="guard-suppress" checked onchange="updateDeliveryGuard()"><span><strong>Clean &amp; suppress audience</strong>Remove opt-outs, duplicates, invalid numbers and permanently failed recipients.</span></label>
+                  <label class="guard-option"><input type="checkbox" id="guard-frequency" checked onchange="updateDeliveryGuard()"><span><strong>7-day frequency cap</strong>Skip recipients who received a marketing campaign within the last 7 days.</span></label>
+                  <label class="guard-option"><input type="checkbox" id="guard-progressive" checked onchange="updateDeliveryGuard()"><span><strong>Progressive batches</strong>Start with 10%, then continue in controlled batches after health checks.</span></label>
+                  <label class="guard-option"><input type="checkbox" id="guard-autopause" checked onchange="updateDeliveryGuard()"><span><strong>Automatic circuit breaker</strong>Pause when permanent failures exceed 8% or total failures exceed 15%.</span></label>
+                </div>
+                <div class="guard-summary">
+                  <div class="guard-stat"><b id="guard-eligible">0</b><span>Est. eligible</span></div>
+                  <div class="guard-stat"><b id="guard-suppressed">0</b><span>Est. protected</span></div>
+                  <div class="guard-stat"><b id="guard-first-batch">0</b><span>First batch</span></div>
+                  <div class="guard-stat"><b id="guard-risk">Low</b><span>Delivery risk</span></div>
+                </div>
               </div>
               <div id="send-progress" style="display:none;margin-bottom:14px;">
                 <div style="font-size:12px;color:var(--text2);margin-bottom:5px;">Sending...</div>
@@ -2127,7 +2169,7 @@ function saveHistory(entry) {
 function renderHistoryList() {
   const el = document.getElementById('history-list');
   if (!S.history.length) { el.innerHTML = '<div class="empty-state">No campaigns sent yet.</div>'; return; }
-  el.innerHTML = S.history.map(h => `<div class="hist-item"><div class="hist-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="hist-info"><div class="hist-name">${h.template} — ${h.audience}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total} contacts</div></div><div class="hist-stats"><div class="hist-sent">${h.sent} sent</div><div class="hist-fail">${h.failed} failed</div></div></div>`).join('');
+  el.innerHTML = S.history.map(h => {const f=h.failures||{};const detail=[h.suppressed?`${h.suppressed} protected`:null,f.permanent?`${f.permanent} permanent`:null,f.transient?`${f.transient} temporary`:null,f.policy?`${f.policy} policy`:null].filter(Boolean).join(' · ');return `<div class="hist-item"><div class="hist-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="hist-info"><div class="hist-name">${h.template} — ${h.audience}${h.paused?' · AUTO-PAUSED':''}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total} contacts${detail?' · '+detail:''}</div></div><div class="hist-stats"><div class="hist-sent">${h.sent} sent</div><div class="hist-fail">${h.failed} failed</div></div></div>`;}).join('');
   renderCampaignTiming();
 }
 function exportHistoryCSV() {
@@ -3415,6 +3457,44 @@ function buildReview(){
   document.getElementById('rv-template').textContent=S.selectedTemplate?.name||'—';
   document.getElementById('rv-time').textContent=`~${Math.ceil(totalCount*2/60)} minute engine execution window`;
   document.getElementById('rv-msg').textContent=S.selectedTemplate?.body||'';
+  updateDeliveryGuard(totalCount);
+}
+function getCampaignAudienceRules(){
+  return {
+    consent:document.getElementById('camp-consent')?.value||'opted_in',
+    engagement:document.getElementById('camp-engagement')?.value||'30_days',
+    stage:document.getElementById('camp-stage')?.value||'marketable',
+    buyer_type:document.getElementById('camp-buyer')?.value||'all',
+    always_exclude:['opted_out','do_not_contact','invalid_number','not_on_whatsapp','permanent_failure','lost'],
+    lead_score:{priority_min:80,normal_min:60,test_only_min:40,suppress_below:40}
+  };
+}
+function getDeliveryGuardConfig(){
+  return {
+    suppress_invalid_optouts_and_duplicates:document.getElementById('guard-suppress')?.checked!==false,
+    frequency_cap_days:document.getElementById('guard-frequency')?.checked!==false?7:0,
+    progressive_delivery:document.getElementById('guard-progressive')?.checked!==false,
+    initial_batch_percent:10,batch_size:100,batch_delay_seconds:60,
+    auto_pause:document.getElementById('guard-autopause')?.checked!==false,
+    max_permanent_failure_rate:8,max_total_failure_rate:15,
+    retry_policy:{transient_only:true,max_attempts:3,backoff_seconds:[60,300,900]}
+  };
+}
+function updateDeliveryGuard(totalOverride){
+  const total=Number(totalOverride??document.getElementById('rv-count')?.textContent)||0,cfg=getDeliveryGuardConfig();
+  const recent=getTodayCampaigns().reduce((sum,h)=>sum+(Number(h.sent)||0),0);
+  const estimatedSuppressed=Math.min(total,Math.round((cfg.suppress_invalid_optouts_and_duplicates?total*.04:0)+(cfg.frequency_cap_days?Math.min(total*.12,recent*.35):0)));
+  const eligible=Math.max(0,total-estimatedSuppressed),firstBatch=cfg.progressive_delivery?Math.max(eligible?1:0,Math.ceil(eligible*.1)):eligible;
+  const enabled=[cfg.suppress_invalid_optouts_and_duplicates,cfg.frequency_cap_days,cfg.progressive_delivery,cfg.auto_pause].filter(Boolean).length;
+  const score=55+enabled*10,risk=enabled>=4?'Low':enabled>=2?'Medium':'High',scoreEl=document.getElementById('guard-score');
+  if(scoreEl){scoreEl.textContent=score;scoreEl.style.background=risk==='Low'?'var(--green-dim)':risk==='Medium'?'var(--amber-dim)':'var(--red-dim)';scoreEl.style.color=risk==='Low'?'var(--green)':risk==='Medium'?'var(--amber)':'var(--red)';}
+  document.getElementById('guard-eligible').textContent=eligible.toLocaleString();document.getElementById('guard-suppressed').textContent=estimatedSuppressed.toLocaleString();document.getElementById('guard-first-batch').textContent=firstBatch.toLocaleString();document.getElementById('guard-risk').textContent=risk;
+}
+function classifyCampaignFailures(result){
+  const src=result.failure_reasons||result.failureReasons||result.errors||{},out={permanent:0,transient:0,policy:0,unknown:0};
+  if(Array.isArray(src))src.forEach(x=>{const type=String(x.type||x.category||'unknown').toLowerCase(),count=Number(x.count)||1;if(type in out)out[type]+=count;else out.unknown+=count;});
+  else Object.entries(src).forEach(([key,value])=>{const k=key.toLowerCase(),count=Number(value?.count??value)||0;if(/invalid|not.?whatsapp|opt.?out|blocked|permanent/.test(k))out.permanent+=count;else if(/timeout|rate|network|temporary|transient/.test(k))out.transient+=count;else if(/policy|quality|template|limit/.test(k))out.policy+=count;else out.unknown+=count;});
+  out.unknown+=Math.max(0,(Number(result.failed)||0)-Object.values(out).reduce((a,b)=>a+b,0));return out;
 }
 async function sendCampaign(){
   const btn=document.getElementById('send-btn');
@@ -3430,19 +3510,24 @@ async function sendCampaign(){
   let prog=0;const interval=setInterval(()=>{prog=Math.min(prog+4,92);document.getElementById('prog-fill').style.width=prog+'%';document.getElementById('prog-text').textContent=`Processing queue arrays... ${prog}%`;},1000);
   try{
     const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
-    const firstGroup=allGroups?null:S.selectedGroups[0]?.split('||');
+    const selectedAudiences=allGroups?[]:S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return{platform,country,brand};});
+    const firstGroup=selectedAudiences[0];
     const result=await api('whizz-send-campaign','POST',{
-      platform:allGroups?'ALL':(firstGroup?.[0]||'ALL'),
-      country:allGroups?'ALL':(firstGroup?.[1]||'ALL'),
-      brand:allGroups?'ALL':(firstGroup?.[2]||'ALL'),
+      platform:allGroups?'ALL':(firstGroup?.platform||'ALL'),
+      country:allGroups?'ALL':(firstGroup?.country||'ALL'),
+      brand:allGroups?'ALL':(firstGroup?.brand||'ALL'),
+      audiences:selectedAudiences,
+      audience_rules:getCampaignAudienceRules(),
       template_name:S.selectedTemplate.name,
-      language:S.selectedTemplate.language
+      language:S.selectedTemplate.language,
+      delivery_guard:getDeliveryGuardConfig()
     });
     clearInterval(interval);
     document.getElementById('prog-fill').style.width='100%';
-    document.getElementById('prog-text').textContent=`Execution terminated. Complete. Sent: ${result.sent}, Failures dropped: ${result.failed}`;
-    showToast(`Asynchronous broadcast successful! ${result.sent} elements delivered`,'success');
-    saveHistory({template:S.selectedTemplate.name,audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total,sent:result.sent,failed:result.failed,ts:Date.now()});
+    const failures=classifyCampaignFailures(result),suppressed=Number(result.suppressed||result.skipped||0),paused=Boolean(result.paused||result.auto_paused);
+    document.getElementById('prog-text').textContent=paused?`Campaign auto-paused for protection. Sent: ${result.sent||0}, Failed: ${result.failed||0}`:`Campaign complete. Sent: ${result.sent||0}, Suppressed: ${suppressed}, Failed: ${result.failed||0}`;
+    showToast(paused?'Campaign paused automatically after a delivery-risk spike':`Campaign completed: ${result.sent||0} sent, ${suppressed} protected`,paused?'error':'success');
+    saveHistory({template:S.selectedTemplate.name,audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total,sent:result.sent,failed:result.failed,suppressed,paused,failures,deliveryGuard:getDeliveryGuardConfig(),ts:Date.now()});
     setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
   }catch(e){clearInterval(interval);showToast('Asynchronous dispatch loop trace break','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}
 }
@@ -5721,6 +5806,9 @@ function scheduleCampaign() {
     platform: allGroups ? 'ALL' : (S.selectedGroups[0]?.split('||')[0] || 'ALL'),
     country:  allGroups ? 'ALL' : (S.selectedGroups[0]?.split('||')[1] || 'ALL'),
     brand:    allGroups ? 'ALL' : (S.selectedGroups[0]?.split('||')[2] || 'ALL'),
+    audiences: allGroups ? [] : S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return {platform,country,brand};}),
+    audienceRules: getCampaignAudienceRules(),
+    deliveryGuard: getDeliveryGuardConfig(),
     createdAt: Date.now()
   };
 
@@ -5747,7 +5835,10 @@ async function fireScheduledJob(job) {
       country: job.country,
       brand: job.brand,
       template_name: job.template,
-      language: job.language
+      language: job.language,
+      audiences: job.audiences || [],
+      audience_rules: job.audienceRules || getCampaignAudienceRules(),
+      delivery_guard: job.deliveryGuard || getDeliveryGuardConfig()
     });
     saveHistory({
       template: job.template,

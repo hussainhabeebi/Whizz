@@ -57,7 +57,12 @@ function buildReview(){
   document.getElementById('rv-template').textContent=S.selectedTemplate?.name||'—';
   document.getElementById('rv-time').textContent=`~${Math.ceil(totalCount*2/60)} minute engine execution window`;
   document.getElementById('rv-msg').textContent=S.selectedTemplate?.body||'';
+  updateDeliveryGuard(totalCount);
 }
+function getCampaignAudienceRules(){return{consent:document.getElementById('camp-consent')?.value||'opted_in',engagement:document.getElementById('camp-engagement')?.value||'30_days',stage:document.getElementById('camp-stage')?.value||'marketable',buyer_type:document.getElementById('camp-buyer')?.value||'all',always_exclude:['opted_out','do_not_contact','invalid_number','not_on_whatsapp','permanent_failure','lost'],lead_score:{priority_min:80,normal_min:60,test_only_min:40,suppress_below:40}};}
+function getDeliveryGuardConfig(){return{suppress_invalid_optouts_and_duplicates:document.getElementById('guard-suppress')?.checked!==false,frequency_cap_days:document.getElementById('guard-frequency')?.checked!==false?7:0,progressive_delivery:document.getElementById('guard-progressive')?.checked!==false,initial_batch_percent:10,batch_size:100,batch_delay_seconds:60,auto_pause:document.getElementById('guard-autopause')?.checked!==false,max_permanent_failure_rate:8,max_total_failure_rate:15,retry_policy:{transient_only:true,max_attempts:3,backoff_seconds:[60,300,900]}};}
+function updateDeliveryGuard(totalOverride){const total=Number(totalOverride??document.getElementById('rv-count')?.textContent)||0,cfg=getDeliveryGuardConfig(),recent=getTodayCampaigns().reduce((s,h)=>s+(Number(h.sent)||0),0),suppressed=Math.min(total,Math.round((cfg.suppress_invalid_optouts_and_duplicates?total*.04:0)+(cfg.frequency_cap_days?Math.min(total*.12,recent*.35):0))),eligible=Math.max(0,total-suppressed),first=cfg.progressive_delivery?Math.max(eligible?1:0,Math.ceil(eligible*.1)):eligible,enabled=[cfg.suppress_invalid_optouts_and_duplicates,cfg.frequency_cap_days,cfg.progressive_delivery,cfg.auto_pause].filter(Boolean).length,risk=enabled>=4?'Low':enabled>=2?'Medium':'High',score=55+enabled*10,se=document.getElementById('guard-score');if(se){se.textContent=score;se.style.background=risk==='Low'?'var(--green-dim)':risk==='Medium'?'var(--amber-dim)':'var(--red-dim)';se.style.color=risk==='Low'?'var(--green)':risk==='Medium'?'var(--amber)':'var(--red)';}document.getElementById('guard-eligible').textContent=eligible.toLocaleString();document.getElementById('guard-suppressed').textContent=suppressed.toLocaleString();document.getElementById('guard-first-batch').textContent=first.toLocaleString();document.getElementById('guard-risk').textContent=risk;}
+function classifyCampaignFailures(result){const src=result.failure_reasons||result.failureReasons||result.errors||{},out={permanent:0,transient:0,policy:0,unknown:0};if(Array.isArray(src))src.forEach(x=>{const type=String(x.type||x.category||'unknown').toLowerCase(),count=Number(x.count)||1;if(type in out)out[type]+=count;else out.unknown+=count;});else Object.entries(src).forEach(([key,value])=>{const k=key.toLowerCase(),count=Number(value?.count??value)||0;if(/invalid|not.?whatsapp|opt.?out|blocked|permanent/.test(k))out.permanent+=count;else if(/timeout|rate|network|temporary|transient/.test(k))out.transient+=count;else if(/policy|quality|template|limit/.test(k))out.policy+=count;else out.unknown+=count;});out.unknown+=Math.max(0,(Number(result.failed)||0)-Object.values(out).reduce((a,b)=>a+b,0));return out;}
 async function sendCampaign(){
   const btn=document.getElementById('send-btn');
   if(S.selectedTemplate){
@@ -72,19 +77,24 @@ async function sendCampaign(){
   let prog=0;const interval=setInterval(()=>{prog=Math.min(prog+4,92);document.getElementById('prog-fill').style.width=prog+'%';document.getElementById('prog-text').textContent=`Processing queue arrays... ${prog}%`;},1000);
   try{
     const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
-    const firstGroup=allGroups?null:S.selectedGroups[0]?.split('||');
+    const selectedAudiences=allGroups?[]:S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return{platform,country,brand};});
+    const firstGroup=selectedAudiences[0];
     const result=await api('whizz-send-campaign','POST',{
-      platform:allGroups?'ALL':(firstGroup?.[0]||'ALL'),
-      country:allGroups?'ALL':(firstGroup?.[1]||'ALL'),
-      brand:allGroups?'ALL':(firstGroup?.[2]||'ALL'),
+      platform:allGroups?'ALL':(firstGroup?.platform||'ALL'),
+      country:allGroups?'ALL':(firstGroup?.country||'ALL'),
+      brand:allGroups?'ALL':(firstGroup?.brand||'ALL'),
+      audiences:selectedAudiences,
+      audience_rules:getCampaignAudienceRules(),
       template_name:S.selectedTemplate.name,
-      language:S.selectedTemplate.language
+      language:S.selectedTemplate.language,
+      delivery_guard:getDeliveryGuardConfig()
     });
     clearInterval(interval);
     document.getElementById('prog-fill').style.width='100%';
-    document.getElementById('prog-text').textContent=`Execution terminated. Complete. Sent: ${result.sent}, Failures dropped: ${result.failed}`;
-    showToast(`Asynchronous broadcast successful! ${result.sent} elements delivered`,'success');
-    saveHistory({template:S.selectedTemplate.name,audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total,sent:result.sent,failed:result.failed,ts:Date.now()});
+    const failures=classifyCampaignFailures(result),suppressed=Number(result.suppressed||result.skipped||0),paused=Boolean(result.paused||result.auto_paused);
+    document.getElementById('prog-text').textContent=paused?`Campaign auto-paused for protection. Sent: ${result.sent||0}, Failed: ${result.failed||0}`:`Campaign complete. Sent: ${result.sent||0}, Suppressed: ${suppressed}, Failed: ${result.failed||0}`;
+    showToast(paused?'Campaign paused automatically after a delivery-risk spike':`Campaign completed: ${result.sent||0} sent, ${suppressed} protected`,paused?'error':'success');
+    saveHistory({template:S.selectedTemplate.name,audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total,sent:result.sent,failed:result.failed,suppressed,paused,failures,deliveryGuard:getDeliveryGuardConfig(),ts:Date.now()});
     setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
   }catch(e){clearInterval(interval);showToast('Asynchronous dispatch loop trace break','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}
 }
