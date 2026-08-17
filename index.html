@@ -1947,8 +1947,17 @@ const USERS_DEFAULT = {
   'mohsin@whizz.com':     { name: 'Mohsin',        role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Mohsin'] },
   'waqas@whizz.com':      { name: 'Waqas',         role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Waqas'] }
 };
-let USERS = (()=>{ const raw=localStorage.getItem('whizz_users_v1'); if(raw){try{const p=JSON.parse(raw);Object.entries(p).forEach(([email,u])=>{if(!u.allowedBrands)u.allowedBrands=[];if(!u.allowedPlatforms){u.allowedPlatforms=USERS_DEFAULT[email]?.allowedPlatforms||[];}});return p;}catch(e){}} return JSON.parse(JSON.stringify(USERS_DEFAULT)); })();
-function saveUsers(){ localStorage.setItem('whizz_users_v1', JSON.stringify(USERS)); }
+let USERS = {};
+async function usersRequest(path='', options={}) {
+  const response = await fetch('/api/users' + path, { credentials:'include', headers:{'content-type':'application/json',...(options.headers||{})}, ...options });
+  const data = await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(data.error||`User request failed (${response.status})`);
+  return data;
+}
+async function loadUsersFromServer(){
+  const data=await usersRequest();
+  USERS=Object.fromEntries((data.users||[]).map(user=>[user.email,user]));
+}
 
 let S = {
   page: 'dashboard', convStatus: 'all',
@@ -1990,9 +1999,17 @@ async function bootAuth() {
     return;
   }
   const email = identity.email.trim().toLowerCase();
+  try { await loadUsersFromServer(); }
+  catch(error){ showLoginError(`Could not load your Whizz account: ${error.message}`); return; }
   const user = USERS[email];
   if (!user) {
     showLoginError(`${email} is authenticated but not provisioned in Whizz. Ask an Administrator to add you under Users.`);
+    return;
+  }
+  const previousSession=JSON.parse(localStorage.getItem('whizz_session')||'null');
+  if(user.resetAt&&previousSession&&previousSession.email===email&&previousSession.loginTime<user.resetAt){
+    localStorage.removeItem('whizz_session');
+    window.location.href='/cdn-cgi/access/logout?returnTo='+encodeURIComponent(location.origin);
     return;
   }
   const session = { email, name: user.name, role: user.role, loginTime: Date.now() };
@@ -4786,6 +4803,7 @@ function renderUsersPage(){
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit
           </button>
+          ${!isMe?`<button class="t-btn btn-ghost" style="padding:5px 10px;font-size:11px;" onclick="resetUserAccess('${esc(email)}')" title="End the user's current sign-in session">Reset sign-in</button>`:''}
           ${!isMe?`<button class="t-btn" style="padding:5px 10px;font-size:11px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteUser('${esc(email)}')" title="Delete user">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             Delete
@@ -4828,7 +4846,7 @@ function openAddUserModal(){
   document.getElementById('modal-add-user').classList.add('open');
 }
 
-function submitAddUser(){
+async function submitAddUser(){
   const name=document.getElementById('au-name').value.trim();
   const email=document.getElementById('au-email').value.trim().toLowerCase();
   const role=document.getElementById('au-role').value;
@@ -4837,11 +4855,12 @@ function submitAddUser(){
   if(!name||!email){showToast('Name and email are required','error');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Please enter a valid email address','error');return;}
   if(USERS[email]){showToast('A user with this email already exists','error');return;}
-  USERS[email]={name,role,allowedBrands,allowedPlatforms};
-  saveUsers();
-  showToast(`User "${name}" added. Remember to also add ${email} to the Cloudflare Access policy.`,'success');
-  closeModal('modal-add-user');
-  renderUsersPage();
+  try{
+    const result=await usersRequest('',{method:'POST',body:JSON.stringify({email,name,role,allowedBrands,allowedPlatforms})});
+    USERS[email]=result.user;
+    showToast(`User "${name}" added successfully.`,'success');
+    closeModal('modal-add-user'); renderUsersPage();
+  }catch(error){showToast(error.message,'error');}
 }
 
 function openEditUserModal(email){
@@ -4856,7 +4875,7 @@ function openEditUserModal(email){
   document.getElementById('modal-edit-user').classList.add('open');
 }
 
-function submitEditUser(){
+async function submitEditUser(){
   const email=document.getElementById('eu-email-key').value;
   const u=USERS[email];
   if(!u){showToast('User not found','error');return;}
@@ -4865,11 +4884,9 @@ function submitEditUser(){
   const allowedPlatforms=getSelectedChips('eu-platform-chips');
   const allowedBrands=getSelectedChips('eu-brand-chips');
   if(!name){showToast('Name is required','error');return;}
-  u.name=name;
-  u.role=role;
-  u.allowedPlatforms=allowedPlatforms;
-  u.allowedBrands=allowedBrands;
-  saveUsers();
+  try{await usersRequest('/'+encodeURIComponent(email),{method:'PUT',body:JSON.stringify({name,role,allowedPlatforms,allowedBrands})});}
+  catch(error){showToast(error.message,'error');return;}
+  u.name=name; u.role=role; u.allowedPlatforms=allowedPlatforms; u.allowedBrands=allowedBrands;
   showToast(`User "${name}" updated successfully!`,'success');
   closeModal('modal-edit-user');
   renderUsersPage();
@@ -4877,14 +4894,25 @@ function submitEditUser(){
   if(sess){const se=JSON.parse(sess);if(se.email===email){se.name=name;se.role=role;localStorage.setItem('whizz_session',JSON.stringify(se));document.getElementById('u-name').textContent=name;document.getElementById('u-role').textContent=role;const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase();document.getElementById('u-avatar').textContent=initials;}}
 }
 
-function deleteUser(email){
+async function deleteUser(email){
   const u=USERS[email];
   if(!u)return;
   if(!confirm(`Delete "${u.name}" (${email})?\n\nThis cannot be undone.`))return;
-  delete USERS[email];
-  saveUsers();
-  showToast(`User "${u.name}" deleted. Remember to also remove ${email} from the Cloudflare Access policy.`,'success');
-  renderUsersPage();
+  try{
+    await usersRequest('/'+encodeURIComponent(email),{method:'DELETE'});
+    delete USERS[email];
+    showToast(`User "${u.name}" deleted successfully.`,'success'); renderUsersPage();
+  }catch(error){showToast(error.message,'error');}
+}
+
+async function resetUserAccess(email){
+  const u=USERS[email];
+  if(!u||!confirm(`Reset sign-in for ${u.name}?\n\nTheir current session will end. Cloudflare Access will require a fresh OTP.`))return;
+  try{
+    const result=await usersRequest('/'+encodeURIComponent(email)+'/reset-access',{method:'POST',body:'{}'});
+    u.resetAt=result.resetAt;
+    showToast(`Sign-in reset for ${u.name}. They must use a new Cloudflare Access OTP.`,'success');
+  }catch(error){showToast(error.message,'error');}
 }
 
 // ── Integrations (Brevo / WordPress) ──
