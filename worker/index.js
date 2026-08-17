@@ -2,6 +2,7 @@ import { handleGetContacts } from './routes/getContacts.js';
 import { handleGetEnquiries } from './routes/getEnquiries.js';
 import { handleAppendMemory } from './routes/appendMemory.js';
 import { handleUsers, handleCreateUser, handleUpdateUser, handleDeleteUser, handleResetUserAccess, handleSyncUserAccess } from './routes/users.js';
+import { handleAutomation } from './routes/automation.js';
 
 // Routes migrated off n8n live here, one at a time. Anything not matched
 // falls through to the static site assets (index.html, css/, js/) exactly
@@ -17,6 +18,11 @@ const routes = [
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const automationMatch = url.pathname.match(/^\/api\/automation\/([a-z0-9-]+)$/i);
+    if (automationMatch) {
+      try { return await handleAutomation(request, env, automationMatch[1]); }
+      catch (err) { return Response.json({ error: err.message }, { status: 502 }); }
+    }
     const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access|sync-access))?$/);
     if (userMatch) {
       const email = decodeURIComponent(userMatch[1]).trim().toLowerCase();
