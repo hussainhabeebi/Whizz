@@ -23,6 +23,9 @@ function scheduleCampaign() {
     platform: allGroups ? 'ALL' : (S.selectedGroups[0]?.split('||')[0] || 'ALL'),
     country:  allGroups ? 'ALL' : (S.selectedGroups[0]?.split('||')[1] || 'ALL'),
     brand:    allGroups ? 'ALL' : (S.selectedGroups[0]?.split('||')[2] || 'ALL'),
+    audiences: allGroups ? [] : S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return {platform,country,brand};}),
+    audienceRules: getCampaignAudienceRules(),
+    deliveryGuard: getDeliveryGuardConfig(),
     createdAt: Date.now()
   };
 
@@ -49,7 +52,10 @@ async function fireScheduledJob(job) {
       country: job.country,
       brand: job.brand,
       template_name: job.template,
-      language: job.language
+      language: job.language,
+      audiences: job.audiences || [],
+      audience_rules: job.audienceRules || getCampaignAudienceRules(),
+      delivery_guard: job.deliveryGuard || getDeliveryGuardConfig()
     });
     saveHistory({
       template: job.template,
