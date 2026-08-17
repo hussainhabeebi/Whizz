@@ -1,5 +1,5 @@
 // ── API Gateway Base Call ──
-async function api(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`${N8N}/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);const txt=await r.text();try{return txt?JSON.parse(txt):{success:true};}catch{return{success:true};}}
+async function api(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'},credentials:'include'};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/api/automation/${path}`,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{success:true};}catch{data={success:true};}if(!r.ok)throw new Error(data.error||'HTTP Status Error '+r.status);return data;}
 
 // ── Global Refresh Orchestrator ──
 async function refreshPage() {

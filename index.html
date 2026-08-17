@@ -603,6 +603,10 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .task-live-actions{display:flex;gap:5px;}
 @media(max-width:980px){.task-workspace{grid-template-columns:1fr}.task-composer{position:static}.task-kpi-grid{grid-template-columns:1fr 1fr}.task-board-toolbar{align-items:flex-start;flex-direction:column}.task-report-controls{width:100%;}.task-report-select{flex:1}}
 @media(max-width:600px){.task-hero{padding:20px}.task-hero-row{align-items:flex-start;flex-direction:column}.task-hero-actions{width:100%;justify-content:flex-start}.task-kpi-grid{grid-template-columns:1fr 1fr;gap:8px}.task-kpi{min-height:84px;padding:13px}.task-workspace{display:block}.task-composer{margin-bottom:14px}.task-live-card{grid-template-columns:4px 34px minmax(0,1fr)}.task-live-icon{width:33px;height:33px}.task-live-actions{grid-column:2/4;width:100%;}.task-live-actions .t-btn{flex:1;justify-content:center}.task-report-controls{flex-wrap:wrap}.task-report-controls .t-btn{width:100%;justify-content:center}}
+.role-hero{position:relative;overflow:hidden;border-radius:18px;padding:22px 24px;margin-bottom:16px;background:linear-gradient(125deg,#111827,#312e81 58%,#9a3412);color:#fff;box-shadow:0 14px 38px rgba(15,23,42,.2)}
+.role-hero-grid{position:relative;z-index:1;display:flex;align-items:flex-end;justify-content:space-between;gap:20px}.role-kicker{font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#fbbf24}.role-title{font:800 24px/1.2 var(--font-display);margin-top:6px}.role-copy{font-size:12px;color:rgba(255,255,255,.72);margin-top:6px}.role-actions{display:flex;gap:7px;flex-wrap:wrap}.role-action{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.11);color:#fff;border-radius:9px;padding:8px 12px;font:600 11px var(--font);cursor:pointer}.role-action.primary{background:#f59e0b;color:#111827;border-color:#f59e0b}
+.role-badge{display:inline-flex;margin-left:auto;padding:2px 7px;border-radius:20px;background:var(--accent-dim);color:var(--accent);font-size:9px;font-weight:700}.lead-profile-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}.profile-panel{border:1px solid var(--border);background:var(--bg3);border-radius:11px;padding:14px}.profile-field{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:11px}.profile-field:last-child{border-bottom:0}.profile-field span{color:var(--text3)}.profile-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}.health-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.health-card{border:1px solid var(--border);border-radius:12px;padding:15px;background:var(--bg2)}.health-row{display:flex;align-items:center;gap:9px}.health-dot{width:10px;height:10px;border-radius:50%;background:var(--text3)}.health-dot.ok{background:var(--green)}.health-dot.warn{background:var(--amber)}.health-dot.bad{background:var(--red)}.health-name{font-size:12px;font-weight:700}.health-detail{font-size:10px;color:var(--text3);margin-top:5px}.mobile-dock{display:none}
+@media(max-width:768px){.role-hero-grid{align-items:flex-start;flex-direction:column}.role-actions{width:100%}.role-action{flex:1}.lead-profile-grid,.health-grid{grid-template-columns:1fr}.mobile-dock{display:grid;position:fixed;z-index:250;bottom:0;left:0;right:0;height:62px;background:var(--bg2);border-top:1px solid var(--border2);grid-template-columns:repeat(5,1fr);padding:5px 6px max(5px,env(safe-area-inset-bottom))}.mobile-dock button{border:0;background:none;color:var(--text3);font:600 9px var(--font);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}.mobile-dock button svg{width:18px;height:18px}.mobile-dock button.active{color:var(--accent)}.content{padding-bottom:74px}}
 
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght=0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet">
@@ -638,69 +642,69 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section">Overview</div>
-      <div class="nav-item active" onclick="navigate('dashboard',this)">
+      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Dashboard
       </div>
-      <div class="nav-item" onclick="navigate('onboarding',this)" id="nav-onboarding">
+      <div class="nav-item" data-page="onboarding" onclick="navigate('onboarding',this)" id="nav-onboarding">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         Setup Checklist
         <span class="nav-badge" id="ob-badge">!</span>
       </div>
       <div class="nav-section">Marketing</div>
-      <div class="nav-item" onclick="navigate('campaigns',this)">
+      <div class="nav-item" data-page="campaigns" onclick="navigate('campaigns',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg>
         Campaigns
       </div>
-      <div class="nav-item" onclick="navigate('suggestions',this)">
+      <div class="nav-item" data-page="suggestions" onclick="navigate('suggestions',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         Suggestions
         <span class="nav-badge" id="suggest-badge" style="display:none">0</span>
       </div>
-      <div class="nav-item" onclick="navigate('history',this)">
+      <div class="nav-item" data-page="history" onclick="navigate('history',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Campaign History
       </div>
-      <div class="nav-item" onclick="navigate('templates',this)">
+      <div class="nav-item" data-page="templates" onclick="navigate('templates',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Templates
       </div>
       <div class="nav-section">Support</div>
-      <div class="nav-item" onclick="navigate('conversations',this)">
+      <div class="nav-item" data-page="conversations" onclick="navigate('conversations',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         Conversations
         <span class="nav-badge" id="open-count" style="display:none">0</span>
       </div>
-      <div class="nav-item" onclick="navigate('enquiries',this)">
+      <div class="nav-item" data-page="enquiries" onclick="navigate('enquiries',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>
         Enquiries
       </div>
       <div class="nav-section">Planning</div>
-      <div class="nav-item" onclick="navigate('tasks',this)">
+      <div class="nav-item" data-page="tasks" onclick="navigate('tasks',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Tasks &amp; Events
         <span class="nav-badge" id="task-due-badge" style="display:none">0</span>
       </div>
       <div class="nav-section">Analytics</div>
-      <div class="nav-item" onclick="navigate('reports',this)">
+      <div class="nav-item" data-page="reports" onclick="navigate('reports',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         Reports
       </div>
       <div class="nav-section">Data</div>
-      <div class="nav-item" onclick="navigate('leads',this)">
+      <div class="nav-item" data-page="leads" onclick="navigate('leads',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
         Leads
       </div>
-      <div class="nav-item" onclick="navigate('stock',this)">
+      <div class="nav-item" data-page="stock" onclick="navigate('stock',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
         Stock
       </div>
-      <div class="nav-item" onclick="navigate('pipeline',this)">
+      <div class="nav-item" data-page="pipeline" onclick="navigate('pipeline',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="4" height="18" rx="1"/><rect x="10" y="3" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="10" rx="1"/></svg>
         Pipeline
       </div>
       <div class="nav-section">Prospecting</div>
-      <div class="nav-item" onclick="navigate('discovery',this)">
+      <div class="nav-item" data-page="discovery" onclick="navigate('discovery',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
         Contact Discovery
         <span class="nav-badge" id="disc-badge" style="display:none;background:var(--green)">0</span>
@@ -720,6 +724,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 13a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"/><path d="M8 13v3a2 2 0 0 0 2 2h3"/><path d="M16 11V8a2 2 0 0 0-2-2h-3"/></svg>
         Integrations
       </div>
+      <div class="nav-item" id="nav-reliability" data-page="reliability" style="display:none" onclick="navigate('reliability',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>System Health</div>
     </nav>
     <div class="sidebar-footer">
       <div class="user-row">
@@ -779,6 +784,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>Cached data from <strong id="dash-cache-time">—</strong>. Click Refresh for live data.</span>
         </div>
+        <div class="role-hero"><div class="role-hero-grid"><div><div class="role-kicker" id="role-kicker">Your workspace</div><div class="role-title" id="role-title">Good day.</div><div class="role-copy" id="role-copy">Your priorities and next actions are ready.</div></div><div class="role-actions" id="role-actions"></div></div></div>
         <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
           <button class="t-btn btn-primary" id="download-report-btn" onclick="downloadDashboardReport()" title="Download an overall performance report">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1574,6 +1580,12 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         </div>
       </div>
 
+      <div class="page" id="page-reliability">
+        <div class="role-hero"><div class="role-hero-grid"><div><div class="role-kicker">Operations control</div><div class="role-title">System Health &amp; Reliability</div><div class="role-copy">One place to diagnose authentication, data, messaging and integration failures.</div></div><div class="role-actions"><button class="role-action primary" onclick="runSystemHealthChecks()">Run all checks</button></div></div></div>
+        <div class="health-grid" id="health-grid"><div class="health-card"><div class="health-row"><span class="health-dot"></span><span class="health-name">Awaiting checks</span></div><div class="health-detail">Select Run all checks to test live services.</div></div></div>
+        <div class="card" style="margin-top:16px"><div class="card-head"><div class="card-title">Operational safeguards</div></div><div class="card-body"><div class="metric-row"><span class="m-label">Cloudflare Access identity</span><span class="m-value">Edge protected</span></div><div class="metric-row"><span class="m-label">D1 user provisioning</span><span class="m-value">Server managed</span></div><div class="metric-row"><span class="m-label">WhatsApp campaign guard</span><span class="m-value">Enabled</span></div><div class="metric-row"><span class="m-label">Campaign retries</span><span class="m-value">Transient only</span></div></div></div>
+      </div>
+
       <!-- WordPress Site Modal -->
       <div class="modal-overlay" id="modal-wp-site">
         <div class="modal" style="width:min(96vw,480px);">
@@ -1999,6 +2011,10 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-lead-profile"><div class="modal" style="width:min(94vw,760px)"><div class="modal-head"><div><div class="modal-title" id="lp-name">Lead profile</div><div id="lp-sub" style="font-size:11px;color:var(--text3);margin-top:3px"></div></div><button class="modal-close" onclick="closeModal('modal-lead-profile')">✕</button></div><div class="modal-body" id="lp-body"></div></div></div>
+
+<nav class="mobile-dock" id="mobile-dock"><button data-mobile-page="dashboard" onclick="mobileNavigate('dashboard',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Home</button><button data-mobile-page="conversations" onclick="mobileNavigate('conversations',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Inbox</button><button data-mobile-page="leads" onclick="mobileNavigate('leads',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/></svg>Leads</button><button data-mobile-page="tasks" onclick="mobileNavigate('tasks',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Tasks</button><button data-mobile-page="pipeline" onclick="mobileNavigate('pipeline',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="4" height="18"/><rect x="10" y="3" width="4" height="14"/><rect x="17" y="3" width="4" height="10"/></svg>Pipeline</button></nav>
+
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script>
@@ -2009,6 +2025,12 @@ const NOTIF_KEY = 'whizz_notifs';
 const OB_KEY = 'whizz_onboarding';
 const SCHEDULE_KEY = 'whizz_scheduled_v1';
 const TASKS_KEY = 'whizz_tasks_v1';
+const ROLE_EXPERIENCES={
+  Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
+  Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
+  Sales:{label:'My sales workspace',copy:'Focus on assigned leads, live conversations, follow-ups and the next best action.',pages:['dashboard','conversations','enquiries','tasks','leads','stock','pipeline'],actions:[['Open inbox','conversations'],['My leads','leads'],['Today’s tasks','tasks']]}
+};
+let CURRENT_SESSION=null;
 
 const USERS_DEFAULT = {
   'hussain@whizzfze.com': { name: 'Hussain',       role: 'Administrator', allowedBrands: [], allowedPlatforms: [] },
@@ -2097,6 +2119,7 @@ function doLogout() {
 }
 
 function initApp(session) {
+  CURRENT_SESSION=session;
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('app-shell').classList.add('visible');
   const initials = session.name.split(' ').map(w=>w[0]).join('').toUpperCase();
@@ -2107,12 +2130,28 @@ function initApp(session) {
   if (navUsers) navUsers.style.display = session.role === 'Administrator' ? 'flex' : 'none';
   const navIntegrations = document.getElementById('nav-integrations');
   if (navIntegrations) navIntegrations.style.display = session.role === 'Administrator' ? 'flex' : 'none';
+  applyRoleExperience(session);
   loadCache(); loadOnboarding(); loadNotifications();
   startAutoSync();
   startScheduler();
   renderScheduledList();
   renderTasksList();
 }
+function currentRoleExperience(){return ROLE_EXPERIENCES[CURRENT_SESSION?.role]||ROLE_EXPERIENCES.Sales;}
+function applyRoleExperience(session){
+  const experience=ROLE_EXPERIENCES[session.role]||ROLE_EXPERIENCES.Sales;
+  document.body.dataset.role=session.role.toLowerCase();
+  document.querySelectorAll('.nav-item[data-page]').forEach(item=>{item.style.display=experience.pages.includes(item.dataset.page)?'flex':'none';});
+  const reliability=document.getElementById('nav-reliability');if(reliability)reliability.style.display=experience.pages.includes('reliability')?'flex':'none';
+  document.querySelectorAll('.nav-section').forEach(section=>{let next=section.nextElementSibling,visible=false;while(next&&!next.classList.contains('nav-section')){if((next.classList.contains('nav-item')||next.classList.contains('nav-ext'))&&getComputedStyle(next).display!=='none')visible=true;next=next.nextElementSibling;}section.style.display=visible?'block':'none';});
+  document.getElementById('role-kicker').textContent=experience.label;
+  document.getElementById('role-title').textContent=`Welcome back, ${session.name.split(' ')[0]}.`;
+  document.getElementById('role-copy').textContent=experience.copy;
+  document.getElementById('role-actions').innerHTML=experience.actions.map(([label,page],i)=>`<button class="role-action ${i===0?'primary':''}" onclick="goToPage('${page}')">${label}</button>`).join('');
+  document.querySelectorAll('#mobile-dock button').forEach(btn=>btn.style.display=experience.pages.includes(btn.dataset.mobilePage)?'flex':'none');
+}
+function goToPage(page){const nav=document.querySelector(`.nav-item[data-page="${page}"]`)||document.getElementById('nav-'+page);navigate(page,nav);}
+function mobileNavigate(page,btn){goToPage(page);document.querySelectorAll('#mobile-dock button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
 
 window.addEventListener('load', bootAuth);
 
@@ -2707,13 +2746,14 @@ function updateObScore() {
 
 // ── Routing Navigation ──
 function navigate(page, el) {
+  if(CURRENT_SESSION&&!currentRoleExperience().pages.includes(page)){showToast('This module is not available for your role.','error');return;}
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item,.nav-ext').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
   if(page!=='conversations' && S.liveSync) stopLiveSync();
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events'};
-  const subtitles={dashboard:'Your sales operations at a glance',onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events',reliability:'System Health'};
+  const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics'};
   document.getElementById('page-title').textContent=titles[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   S.page=page; closeSidebar();
@@ -2732,9 +2772,24 @@ function navigate(page, el) {
   if(page==='history'){renderScheduledList();}
   if(page==='integrations'){loadIntegrationsStatus();}
   if(page==='tasks'){renderTasksList();}
+  if(page==='reliability'){runSystemHealthChecks();}
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('show');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show');}
+
+async function runSystemHealthChecks(){
+  const grid=document.getElementById('health-grid');if(!grid)return;
+  const checks=[
+    {name:'Cloudflare Access',detail:'Authenticated edge identity',run:()=>fetch('/cdn-cgi/access/get-identity',{credentials:'include'}).then(r=>{if(!r.ok)throw Error('Identity unavailable');return r.json();})},
+    {name:'D1 Users',detail:'Provisioning and role access',run:()=>fetch('/api/users',{credentials:'include'}).then(r=>{if(!r.ok)throw Error(`HTTP ${r.status}`);return r.json();})},
+    {name:'D1 Contacts',detail:'Lead database route',run:()=>fetch('/whizz-get-contacts',{credentials:'include'}).then(r=>{if(!r.ok)throw Error(`HTTP ${r.status}`);return r.json();})},
+    {name:'n8n Operations',detail:'Stats workflow gateway',run:()=>api('whizz-get-stats')},
+    {name:'WhatsApp Templates',detail:'Approved template workflow',run:()=>api('whizz-get-templates')},
+    {name:'Browser storage',detail:'Non-critical cache only',run:()=>Promise.resolve(localStorage.length)}
+  ];
+  grid.innerHTML=checks.map(c=>`<div class="health-card"><div class="health-row"><span class="health-dot" id="health-${c.name.replace(/\W/g,'')}"></span><span class="health-name">${c.name}</span></div><div class="health-detail">Checking ${c.detail.toLowerCase()}…</div></div>`).join('');
+  await Promise.all(checks.map(async c=>{const id=c.name.replace(/\W/g,''),dot=document.getElementById('health-'+id),card=dot?.closest('.health-card'),start=performance.now();try{await Promise.race([c.run(),new Promise((_,reject)=>setTimeout(()=>reject(Error('Timed out')),8000))]);dot.className='health-dot ok';card.querySelector('.health-detail').textContent=`Operational · ${Math.round(performance.now()-start)} ms · ${c.detail}`;}catch(error){dot.className='health-dot bad';card.querySelector('.health-detail').textContent=`Needs attention · ${error.message} · ${c.detail}`;}}));
+}
 
 // ── Toast Notifications UI Node ──
 const TOAST_ICONS={
@@ -2789,7 +2844,7 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 })();
 
 // ── API Gateway Base Call ──
-async function api(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`${N8N}/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);const txt=await r.text();try{return txt?JSON.parse(txt):{success:true};}catch{return{success:true};}}
+async function api(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'},credentials:'include'};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/api/automation/${path}`,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{success:true};}catch{data={success:true};}if(!r.ok)throw new Error(data.error||'HTTP Status Error '+r.status);return data;}
 // Endpoints migrated off n8n onto the Cloudflare Worker call this instead — same
 // contract, just same-origin. Migrate call sites one at a time as each route lands.
 async function apiW(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);const txt=await r.text();try{return txt?JSON.parse(txt):{success:true};}catch{return{success:true};}}
@@ -3653,6 +3708,7 @@ function renderLeadContacts(contacts){
           ${c.category?`<span class="cc-cat">${c.category}</span>`:''}
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0;">
+          <button class="t-btn btn-primary" style="padding:4px 8px;font-size:10px;" onclick="openLeadProfile(${i})">View</button>
           <button class="t-btn btn-ghost" style="padding:4px 8px;font-size:10px;color:var(--green);" onclick="openAddClosedDealModal(${i})" title="Record this lead as a closed deal">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
             Closed
@@ -3661,9 +3717,9 @@ function renderLeadContacts(contacts){
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit
           </button>
-          <button class="t-btn" style="padding:4px 8px;font-size:10px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteLeadContact(${i})" title="Delete contact">
+          ${CURRENT_SESSION?.role!=='Sales'?`<button class="t-btn" style="padding:4px 8px;font-size:10px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteLeadContact(${i})" title="Delete contact">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-          </button>
+          </button>`:''}
         </div>
       </div>
       ${c.phone?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8 19.79 19.79 0 0 1 1.61 1.12 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg><a href="tel:${c.phone}" onclick="event.stopPropagation()">${c.phone}</a></div>`:''}
@@ -3672,6 +3728,14 @@ function renderLeadContacts(contacts){
       ${(()=>{const deals=getClosedDealsForContact(c);const total=deals.reduce((s,d)=>s+(Number(d.value)||0),0);return total?`<div class="cc-detail" style="color:var(--green);font-weight:600;">✓ ${total.toLocaleString()} closed${deals.length>1?` (${deals.length} deals)`:''}</div>`:'';})()}
     </div>`;
   }).join('')}</div>`;
+}
+function leadTemperature(c){const deals=getClosedDealsForContact(c);if(deals.length)return'Customer';const stage=(c.stage||c.status||'').toLowerCase();if(stage.includes('qualified')||stage.includes('quotation'))return'Hot';if(c.phone||c.email)return'Warm';return'Cold';}
+function leadScore(c){let score=20;if(c.phone)score+=20;if(c.email)score+=10;if(c.brand||c.productInterest)score+=15;if(c.country)score+=10;if((c.stage||'').toLowerCase().includes('qualified'))score+=20;if(getClosedDealsForContact(c).length)score=100;return Math.min(score,100);}
+function openLeadProfile(i){
+  const c=_currentLeadsContacts[i];if(!c)return;const name=c.contactName||c.company||c.name||'Unknown',phone=c.phone||c.phoneNumber||'',score=leadScore(c),temp=leadTemperature(c);
+  document.getElementById('lp-name').textContent=name;document.getElementById('lp-sub').textContent=[c.company,c.country,c.brand].filter(Boolean).join(' · ');
+  document.getElementById('lp-body').innerHTML=`<div class="lead-profile-grid"><div class="profile-panel"><div class="eyebrow">Complete customer view</div><div class="profile-field"><span>Phone</span><b>${phone||'Not provided'}</b></div><div class="profile-field"><span>Email</span><b>${c.email||'Not provided'}</b></div><div class="profile-field"><span>Platform</span><b>${c.platform||_currentLeadsGroup?.platform||'—'}</b></div><div class="profile-field"><span>Country</span><b>${c.country||_currentLeadsGroup?.country||'—'}</b></div><div class="profile-field"><span>Interest</span><b>${c.productInterest||c.category||c.brand||'Not classified'}</b></div><div class="profile-field"><span>Source</span><b>${c.source||'—'}</b></div></div><div><div class="profile-panel"><div class="eyebrow">Sales intelligence</div><div class="profile-field"><span>Temperature</span><b>${temp}</b></div><div class="profile-field"><span>Lead score</span><b style="color:var(--green)">${score}/100</b></div><div class="profile-field"><span>Buyer type</span><b>${c.buyerType||c.buyer_nature||'Unclassified'}</b></div><div class="profile-field"><span>Campaign status</span><b>${c.optedOut?'Suppressed':'Eligible'}</b></div></div><div class="profile-actions">${phone?`<a class="t-btn btn-success" style="justify-content:center;text-decoration:none" href="https://wa.me/${normalizePhone(phone)}" target="_blank">WhatsApp</a><a class="t-btn btn-ghost" style="justify-content:center;text-decoration:none" href="tel:${phone}">Call</a>`:''}<button class="t-btn btn-primary" onclick="closeModal('modal-lead-profile');openEditLeadContact(${i})">Edit lead</button><button class="t-btn btn-ghost" onclick="closeModal('modal-lead-profile');openAddClosedDealModal(${i})">Record deal</button></div></div></div>`;
+  document.getElementById('modal-lead-profile').classList.add('open');
 }
 function getClosedDealsForContact(c){
   const phone=normalizePhone(c.phone||c.phoneNumber);
