@@ -1634,7 +1634,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           <div class="card task-board-card">
             <div class="task-board-toolbar">
               <div class="task-filter-scroll"><button class="t-btn btn-primary" id="tf-upcoming" onclick="setTaskFilter('upcoming',this)">Upcoming</button><button class="t-btn btn-ghost" id="tf-pending" onclick="setTaskFilter('pending',this)">Pending</button><button class="t-btn btn-ghost" id="tf-done" onclick="setTaskFilter('done',this)">Done</button><button class="t-btn btn-ghost" id="tf-all" onclick="setTaskFilter('all',this)">All</button></div>
-              <div class="task-report-controls"><select class="fs task-report-select" id="task-report-range"><option value="last7">Last 7 days</option><option value="next7">Next 7 days</option><option value="month">This month</option><option value="sixMonths">Next 6 months</option><option value="year">Next 1 year</option><option value="all">All items</option></select><select class="fs task-report-select" id="task-report-scope"><option value="all">Tasks + Events</option><option value="task">Tasks only</option><option value="event">Events only</option></select><button class="t-btn btn-ghost" onclick="downloadTasksWeeklyReport()">PDF</button></div>
+              <div class="task-report-controls"><select class="fs task-report-select" id="task-report-range" onchange="toggleTaskReportDates()"><option value="last7">Last 7 days</option><option value="next7">Next 7 days</option><option value="month">This month</option><option value="sixMonths">Next 6 months</option><option value="year">Next 1 year</option><option value="custom">Custom dates</option><option value="all">All items</option></select><input class="fi task-report-select" type="date" id="task-report-from" style="display:none" title="Report start date"/><input class="fi task-report-select" type="date" id="task-report-to" style="display:none" title="Report end date"/><select class="fs task-report-select" id="task-report-scope"><option value="all">Tasks + Events</option><option value="task">Tasks only</option><option value="event">Events only</option></select><button class="t-btn btn-ghost" onclick="downloadTasksWeeklyReport()">PDF</button></div>
             </div>
             <div class="card-body" id="tasks-list">
             <div class="empty-state">No tasks or events yet. Add one above.</div>
@@ -5885,8 +5885,8 @@ function taskIcon(type) {
 function renderTasksList() {
   const el = document.getElementById('tasks-list');
   if (!el) return;
-  const data = loadTasks();
   const today = todayStr();
+  const data = loadTasks().filter(t => !(t.type === 'event' && t.date < today));
   const in7 = new Date(); in7.setDate(in7.getDate()+7);
   const in7Str = in7.getFullYear() + '-' + String(in7.getMonth()+1).padStart(2,'0') + '-' + String(in7.getDate()).padStart(2,'0');
   const heroDate = document.getElementById('task-hero-date');
@@ -6136,6 +6136,13 @@ body{font-family:'DM Sans',Arial,sans-serif;background:#eef1f6;color:#0f172a;pad
 </div>
 </body></html>`;
 }
+function toggleTaskReportDates(){
+  const custom=document.getElementById('task-report-range')?.value==='custom';
+  const from=document.getElementById('task-report-from'),to=document.getElementById('task-report-to');
+  if(!from||!to)return;
+  from.style.display=custom?'block':'none';to.style.display=custom?'block':'none';
+  if(custom&&!from.value){from.value=todayStr();const end=new Date();end.setDate(end.getDate()+30);to.value=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');}
+}
 function downloadTasksWeeklyReport() {
   const now = new Date();
   const range=document.getElementById('task-report-range')?.value||'last7';
@@ -6147,6 +6154,12 @@ function downloadTasksWeeklyReport() {
   else if(range==='month'){weekStart=new Date(now.getFullYear(),now.getMonth(),1);weekEnd=new Date(now.getFullYear(),now.getMonth()+1,0);}
   else if(range==='sixMonths'){weekStart=new Date(now.getFullYear(),now.getMonth(),1);weekEnd=new Date(now.getFullYear(),now.getMonth()+6,0);}
   else if(range==='year'){weekStart=new Date(now.getFullYear(),now.getMonth(),1);weekEnd=new Date(now.getFullYear(),now.getMonth()+12,0);}
+  else if(range==='custom'){
+    const from=document.getElementById('task-report-from')?.value,to=document.getElementById('task-report-to')?.value;
+    if(!from||!to){showToast('Select both report dates.','error');return;}
+    if(from>to){showToast('Report start date must be before the end date.','error');return;}
+    weekStart=new Date(from+'T00:00:00');weekEnd=new Date(to+'T00:00:00');
+  }
   else { weekStart=new Date(now.getFullYear(),now.getMonth(),1);weekEnd=new Date(now.getFullYear(),now.getMonth(),1); }
   const sourceTasks=loadTasks();
   if(range==='all'&&sourceTasks.length){
@@ -6158,6 +6171,7 @@ function downloadTasksWeeklyReport() {
   const today = todayStr();
   const items = sourceTasks
     .filter(t => t.date >= startStr && t.date <= endStr)
+    .filter(t => !(t.type === 'event' && t.date < today))
     .filter(t => scope==='all'||t.type===scope)
     .map(t => ({ ...t, status: t.status === 'done' ? 'done' : (t.date < today ? 'overdue' : 'pending') }))
     .sort((a,b) => (a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
