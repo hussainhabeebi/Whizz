@@ -1,6 +1,7 @@
 import { handleGetContacts } from './routes/getContacts.js';
 import { handleGetEnquiries } from './routes/getEnquiries.js';
 import { handleAppendMemory } from './routes/appendMemory.js';
+import { handleUsers, handleCreateUser, handleUpdateUser, handleDeleteUser, handleResetUserAccess } from './routes/users.js';
 
 // Routes migrated off n8n live here, one at a time. Anything not matched
 // falls through to the static site assets (index.html, css/, js/) exactly
@@ -9,11 +10,22 @@ const routes = [
   { method: 'GET', path: '/whizz-get-contacts', handler: handleGetContacts },
   { method: 'GET', path: '/whizz-get-enquiries', handler: handleGetEnquiries },
   { method: 'POST', path: '/whizz-append-memory', handler: handleAppendMemory },
+  { method: 'GET', path: '/api/users', handler: handleUsers },
+  { method: 'POST', path: '/api/users', handler: handleCreateUser },
 ];
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access))?$/);
+    if (userMatch) {
+      const email = decodeURIComponent(userMatch[1]).trim().toLowerCase();
+      try {
+        if (request.method === 'PUT' && !userMatch[2]) return await handleUpdateUser(request, env, email);
+        if (request.method === 'DELETE' && !userMatch[2]) return await handleDeleteUser(request, env, email);
+        if (request.method === 'POST' && userMatch[2] === 'reset-access') return await handleResetUserAccess(request, env, email);
+      } catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
     const route = routes.find(r => r.method === request.method && r.path === url.pathname);
     if (route) {
       try {
