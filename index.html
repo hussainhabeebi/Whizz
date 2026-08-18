@@ -1800,7 +1800,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         </button>
       </div>
       <div class="fg"><label class="fl">Header (optional)</label><input class="fi" id="tpl-header" placeholder="Whizz Exim FZE"/></div>
-      <div class="fg"><label class="fl">Body *</label><textarea class="ft" id="tpl-body" placeholder="Hi {{1}}, Whizz Exim FZE is pleased to offer exclusive pricing on {{2}}..." style="min-height:110px;"></textarea><div class="fi-hint">Use {{1}}, {{2}} for variables. AI will generate and fill this.</div></div>
+      <div class="fg"><label class="fl">Body *</label><textarea class="ft" id="tpl-body" maxlength="1024" oninput="updateBodyCount()" placeholder="Hi {{1}}, Whizz Exim FZE is pleased to offer exclusive pricing on {{2}}..." style="min-height:110px;"></textarea><div class="fi-hint" style="display:flex;justify-content:space-between;"><span>Use {{1}}, {{2}} for variables. AI will generate and fill this.</span><span id="tpl-body-count" style="color:var(--text3);">0 / 1024</span></div></div>
       <div class="fg"><label class="fl">Footer (optional)</label><input class="fi" id="tpl-footer" placeholder="Reply STOP to unsubscribe"/></div>
     </div>
     <div class="modal-foot">
@@ -3497,9 +3497,10 @@ function exportEnquiriesCSV(){
 
 // ── Meta Template Module ──
 function renderTplPage(templates){const el=document.getElementById('tpl-list');if(!templates.length){el.innerHTML='<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">No approved template records identified inside WABA.</div>';return;}el.innerHTML=`<div class="tpl-grid">${templates.map(t=>`<div class="tpl-card" style="cursor:default;"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span><span class="tpl-approved">APPROVED</span></div><div class="tpl-body">${t.body||'Empty body context'}</div></div>`).join('')}</div>`;}
-function openTplModal(){document.getElementById('tpl-modal').classList.add('open');}
+function openTplModal(){document.getElementById('tpl-modal').classList.add('open');updateBodyCount();}
 function closeTplModal(){document.getElementById('tpl-modal').classList.remove('open');}
-async function createTemplate(){const name=document.getElementById('tpl-name').value.trim(),body=document.getElementById('tpl-body').value.trim();if(!name||!body){showToast('Structural template parameters missing','error');return;}try{const r=await api('whizz-create-template','POST',{name,body,language:document.getElementById('tpl-lang').value,category:document.getElementById('tpl-cat').value,header:document.getElementById('tpl-header').value.trim(),footer:document.getElementById('tpl-footer').value.trim()});if(r.success){showToast('Dispatched to Meta registration node successfully!','success');closeTplModal();refreshTemplates();}else showToast('Meta edge rejected packaging format','error');}catch(e){showToast(e.message||'API communication drop','error');}}
+function updateBodyCount(){const ta=document.getElementById('tpl-body'),counter=document.getElementById('tpl-body-count');if(!ta||!counter)return;const len=ta.value.length;counter.textContent=`${len} / 1024`;counter.style.color=len>1024?'var(--red)':len>900?'var(--amber)':'var(--text3)';}
+async function createTemplate(){const name=document.getElementById('tpl-name').value.trim(),body=document.getElementById('tpl-body').value.trim();if(!name||!body){showToast('Structural template parameters missing','error');return;}if(body.length>1024){showToast(`Body is ${body.length} characters — Meta limit is 1,024. Please shorten it.`,'error');return;}try{const r=await api('whizz-create-template','POST',{name,body,language:document.getElementById('tpl-lang').value,category:document.getElementById('tpl-cat').value,header:document.getElementById('tpl-header').value.trim(),footer:document.getElementById('tpl-footer').value.trim()});if(r.success){showToast('Dispatched to Meta registration node successfully!','success');closeTplModal();refreshTemplates();}else showToast('Meta edge rejected packaging format','error');}catch(e){showToast(e.message||'API communication drop','error');}}
 
 // ── AI Template Generation ──
 async function generateAiTemplate() {
@@ -3531,6 +3532,7 @@ async function generateAiTemplate() {
     const r = await api('whizz-ai-template', 'POST', { brand, type, region, language: lang, company: 'Whizz Exim FZE' });
     if (r.body) {
       bodyField.value = r.body;
+      updateBodyCount();
       if (r.header) document.getElementById('tpl-header').value = r.header;
       if (r.footer) document.getElementById('tpl-footer').value = r.footer;
       if (r.name)   document.getElementById('tpl-name').value = r.name;
