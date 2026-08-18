@@ -1,7 +1,4 @@
 const WRITE_ROLES = {
-  'whizz-send-campaign': ['Administrator', 'Manager'],
-  'whizz-create-template': ['Administrator', 'Manager'],
-  'whizz-ai-template': ['Administrator', 'Manager'],
   'whizz-discover-contacts': ['Administrator', 'Manager'],
   'whizz-save-integration': ['Administrator'],
   'whizz-delete-integration': ['Administrator'],
