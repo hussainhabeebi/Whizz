@@ -882,8 +882,8 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
                 <div class="chips" id="platform-chips"></div>
               </div>
               <div style="margin-bottom:8px;display:flex;gap:8px;">
-                <div style="flex:1"><div class="eyebrow">Region</div><select id="camp-region-sel" onchange="onCampRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div>
-                <div style="flex:1"><div class="eyebrow">Country</div><select id="camp-country-sel" onchange="onCampCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div>
+                <div style="flex:1"><div class="eyebrow">Region</div><select id="camp-region-sel" onchange="onCampRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div>
+                <div style="flex:1"><div class="eyebrow">Country</div><select id="camp-country-sel" onchange="onCampCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div>
               </div>
               <div style="margin-bottom:12px;">
                 <div class="eyebrow">Filter by Brand</div>
@@ -1286,7 +1286,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           </div>
           <div class="card-body">
             <div style="margin-bottom:8px;"><div class="eyebrow">Platform</div><div class="chips" id="leads-platform-chips"></div></div>
-            <div style="margin-bottom:8px;display:flex;gap:8px;"><div style="flex:1"><div class="eyebrow">Region</div><select id="leads-region-sel" onchange="onLeadsRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div><div style="flex:1"><div class="eyebrow">Country</div><select id="leads-country-sel" onchange="onLeadsCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div></div>
+            <div style="margin-bottom:8px;display:flex;gap:8px;"><div style="flex:1"><div class="eyebrow">Region</div><select id="leads-region-sel" onchange="onLeadsRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div><div style="flex:1"><div class="eyebrow">Country</div><select id="leads-country-sel" onchange="onLeadsCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div></div>
             <div style="margin-bottom:12px;"><div class="eyebrow">Brand Focus</div><div class="chips" id="leads-brand-chips"></div></div>
             <div class="groups-grid" id="leads-groups">
               <div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
@@ -1302,6 +1302,10 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
               <span style="font-size:11px;color:var(--text3);" id="leads-contacts-count"></span>
+              <button class="t-btn btn-primary t-btn-sm" onclick="launchGroupCampaign(_currentLeadsGroup&&_currentLeadsGroup.platform,_currentLeadsGroup&&_currentLeadsGroup.country,_currentLeadsGroup&&_currentLeadsGroup.brand)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Send Campaign
+              </button>
               <button class="t-btn btn-ghost t-btn-sm" onclick="closeGroupContacts()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 Close
@@ -3702,6 +3706,25 @@ function launchSuggestedCampaign(brand, alreadySent) {
   setTimeout(() => {
     const chips = document.querySelectorAll('#brand-chips .chip');
     chips.forEach(c => { if (c.textContent.trim() === brand) c.click(); });
+  }, 150);
+}
+
+function launchGroupCampaign(platform, country, brand) {
+  if (!platform || !country || !brand) return;
+  const group = (S.groups||[]).find(g => g.platform === platform && g.country === country && g.brand === brand);
+  const region = group ? (group.region || 'ALL') : 'ALL';
+  S.activePlatform = platform;
+  S.activeCampaignRegion = region;
+  S.activeCountry = country;
+  S.activeBrand = brand;
+  S.selectedGroups = [platform + '||' + country + '||' + brand];
+  const campNav = document.querySelector('.nav-item[onclick*="\'campaigns\'"]');
+  navigate('campaigns', campNav);
+  setTimeout(() => {
+    if (S.groups && S.groups.length) {
+      renderCampGroups(S.groups);
+      applyGroupFilters();
+    }
   }, 150);
 }
 
