@@ -881,9 +881,9 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
                 <div class="eyebrow">Filter by Platform</div>
                 <div class="chips" id="platform-chips"></div>
               </div>
-              <div style="margin-bottom:8px;">
-                <div class="eyebrow">Filter by Country</div>
-                <div class="chips" id="country-chips"></div>
+              <div style="margin-bottom:8px;display:flex;gap:8px;">
+                <div style="flex:1"><div class="eyebrow">Region</div><select id="camp-region-sel" onchange="onCampRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div>
+                <div style="flex:1"><div class="eyebrow">Country</div><select id="camp-country-sel" onchange="onCampCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div>
               </div>
               <div style="margin-bottom:12px;">
                 <div class="eyebrow">Filter by Brand</div>
@@ -1286,7 +1286,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           </div>
           <div class="card-body">
             <div style="margin-bottom:8px;"><div class="eyebrow">Platform</div><div class="chips" id="leads-platform-chips"></div></div>
-            <div style="margin-bottom:8px;"><div class="eyebrow">Country</div><div class="chips" id="leads-country-chips"></div></div>
+            <div style="margin-bottom:8px;display:flex;gap:8px;"><div style="flex:1"><div class="eyebrow">Region</div><select id="leads-region-sel" onchange="onLeadsRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div><div style="flex:1"><div class="eyebrow">Country</div><select id="leads-country-sel" onchange="onLeadsCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div></div>
             <div style="margin-bottom:12px;"><div class="eyebrow">Brand Focus</div><div class="chips" id="leads-brand-chips"></div></div>
             <div class="groups-grid" id="leads-groups">
               <div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
@@ -2065,9 +2065,9 @@ async function loadUsersFromServer(){
 
 let S = {
   page: 'dashboard', convStatus: 'all',
-  groups: [], crossTabMatrix: [], templates: [], platforms: [], countries: [], brands: [],
+  groups: [], crossTabMatrix: [], templates: [], platforms: [], countries: [], brands: [], regions: [],
   selectedGroups: [], selectedTemplate: null,
-  activePlatform: 'ALL', activeCountry: 'ALL', activeBrand: 'ALL',
+  activePlatform: 'ALL', activeCountry: 'ALL', activeBrand: 'ALL', activeCampaignRegion: 'ALL', activeLeadsRegion: 'ALL', activeLeadsCountry: 'ALL',
   stock: [], stockCrossTab: [], stockBrands: [], stockRegions: [], stockParentGroups: [],
   activeStockBrand: 'ALL', activeStockRegion: 'ALL', activeStockParentGroup: 'ALL', activeStockStatus: 'ALL',
   discoveredContacts: [], selectedDiscContacts: new Set(), discType: 'wholesaler',
@@ -3019,11 +3019,13 @@ async function refreshLeadData(){
   S.cache.platforms=norm.platforms;
   S.cache.countries=d.countries||[];
   S.cache.brands=d.brands||[];
+  S.cache.regions=d.regions||[...new Set((S.cache.groups||[]).map(g=>g.region||'Other'))].sort();
   S.groups=S.cache.groups;
   S.crossTabMatrix=S.cache.crossTabMatrix;
   S.platforms=S.cache.platforms;
   S.countries=S.cache.countries;
   S.brands=S.cache.brands;
+  S.regions=S.cache.regions;
   const{allowedBrands:_ab,allowedPlatforms:_ap}=getCurrentUserRestrictions();
   let _filtG=S.cache.groups||[];
   if(_ab.length>0)_filtG=_filtG.filter(g=>_ab.includes(g.brand));
@@ -3547,16 +3549,30 @@ function renderChips(list,containerId,activeProp,filterFn) {
   el.innerHTML = ['ALL', ...list].map(v => `<div class="chip ${S[activeProp] === v ? 'active' : ''}" onclick="${filterFn}('${v.replace(/'/g, "\\'")}', this)">${v}</div>`).join('');
 }
 function filterByPlatform(v,el){document.querySelectorAll('#platform-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activePlatform=v;applyGroupFilters();}
-function filterByCountry(v,el){document.querySelectorAll('#country-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activeCountry=v;applyGroupFilters();}
 function filterByBrand(v,el){document.querySelectorAll('#brand-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activeBrand=v;applyGroupFilters();}
+function populateRegionSelect(selId,regions,activeVal){const el=document.getElementById(selId);if(!el)return;el.innerHTML=['ALL',...regions].map(r=>`<option value="${r}"${r===activeVal?' selected':''}>${r==='ALL'?'All Regions':r}</option>`).join('');}
+function populateCountrySelect(selId,countries,activeVal){const el=document.getElementById(selId);if(!el)return;el.innerHTML=['ALL',...countries].map(c=>`<option value="${c}"${c===activeVal?' selected':''}>${c==='ALL'?'All Countries':c}</option>`).join('');}
+function onCampRegionChange(v){S.activeCampaignRegion=v;S.activeCountry='ALL';const countries=v==='ALL'?S.countries:[...new Set(S.groups.filter(g=>g.region===v).map(g=>g.country))].sort();populateCountrySelect('camp-country-sel',countries,'ALL');applyGroupFilters();}
+function onCampCountryChange(v){S.activeCountry=v;applyGroupFilters();}
+function onLeadsRegionChange(v){S.activeLeadsRegion=v;S.activeLeadsCountry='ALL';const countries=v==='ALL'?S.countries:[...new Set((S.cache.groups||[]).filter(g=>g.region===v).map(g=>g.country))].sort();populateCountrySelect('leads-country-sel',countries,'ALL');applyLeadsFilter();}
+function onLeadsCountryChange(v){S.activeLeadsCountry=v;applyLeadsFilter();}
 function applyGroupFilters(){
   let f=S.groups;
   if(S.activePlatform!=='ALL') f=f.filter(g=>g.platform===S.activePlatform);
+  if(S.activeCampaignRegion!=='ALL') f=f.filter(g=>g.region===S.activeCampaignRegion);
   if(S.activeCountry!=='ALL') f=f.filter(g=>g.country===S.activeCountry);
   if(S.activeBrand!=='ALL') f=f.filter(g=>g.brand.toLowerCase().includes(S.activeBrand.toLowerCase()));
   renderGroupCards(f,'camp-groups',true);
 }
-function renderCampGroups(groups){renderChips(S.platforms,'platform-chips','activePlatform','filterByPlatform');renderChips(S.countries,'country-chips','activeCountry','filterByCountry');renderChips(S.brands,'brand-chips','activeBrand','filterByBrand');renderGroupCards(groups,'camp-groups',true);}
+function renderCampGroups(groups){
+  renderChips(S.platforms,'platform-chips','activePlatform','filterByPlatform');
+  const regions=[...new Set(groups.map(g=>g.region||'Other'))].sort();
+  populateRegionSelect('camp-region-sel',regions,S.activeCampaignRegion);
+  const campCountries=S.activeCampaignRegion==='ALL'?S.countries:[...new Set(groups.filter(g=>g.region===S.activeCampaignRegion).map(g=>g.country))].sort();
+  populateCountrySelect('camp-country-sel',campCountries,S.activeCountry);
+  renderChips(S.brands,'brand-chips','activeBrand','filterByBrand');
+  renderGroupCards(groups,'camp-groups',true);
+}
 
 // Render Group Cards supporting Pareto Tail UI flags and Velocity Arrows
 function renderGroupCards(groups,id,selectable,clickFn){
@@ -3716,7 +3732,10 @@ function renderLeadsPage(groups,total){
   if(allowedPlatforms.length>0){filteredGroups=filteredGroups.filter(g=>allowedPlatforms.includes(g.platform));filteredPlatforms=S.platforms.filter(p=>allowedPlatforms.includes(p));}
   document.getElementById('leads-total').textContent=`${total||0} operational records mapped`;
   renderChipsFilter(filteredPlatforms,'leads-platform-chips','filterLeadsByPlatform');
-  renderChipsFilter(S.countries,'leads-country-chips','filterLeadsByCountry');
+  const leadsRegions=[...new Set(filteredGroups.map(g=>g.region||'Other'))].sort();
+  populateRegionSelect('leads-region-sel',leadsRegions,S.activeLeadsRegion);
+  const leadsCountries=(!S.activeLeadsRegion||S.activeLeadsRegion==='ALL')?[...new Set(filteredGroups.map(g=>g.country))].sort():[...new Set(filteredGroups.filter(g=>g.region===S.activeLeadsRegion).map(g=>g.country))].sort();
+  populateCountrySelect('leads-country-sel',leadsCountries,S.activeLeadsCountry||'ALL');
   renderChipsFilter(filteredBrands,'leads-brand-chips','filterLeadsByBrand');
   renderGroupCards(filteredGroups,'leads-groups',true,'selectLeadsGroup');
   renderLeadScores(filteredGroups,'lead-score-list');
@@ -3726,17 +3745,18 @@ function renderChipsFilter(list,id,fn){
   el.innerHTML=['ALL',...list].map(v=>`<div class="chip ${v==='ALL'?'active':''}" onclick="${fn}('${v.replace(/'/g, "\\'")}',this)">${v}</div>`).join('');
 }
 function filterLeadsByPlatform(v,el){document.querySelectorAll('#leads-platform-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyLeadsFilter();}
-function filterLeadsByCountry(v,el){document.querySelectorAll('#leads-country-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyLeadsFilter();}
 function filterLeadsByBrand(v,el){document.querySelectorAll('#leads-brand-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyLeadsFilter();}
 function applyLeadsFilter(){
   const p=document.querySelector('#leads-platform-chips .chip.active')?.textContent||'ALL';
-  const co=document.querySelector('#leads-country-chips .chip.active')?.textContent||'ALL';
+  const re=S.activeLeadsRegion||'ALL';
+  const co=S.activeLeadsCountry||'ALL';
   const b=document.querySelector('#leads-brand-chips .chip.active')?.textContent||'ALL';
   const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
   let f=S.cache.groups||[];
   if(allowedBrands.length>0) f=f.filter(g=>allowedBrands.includes(g.brand));
   if(allowedPlatforms.length>0) f=f.filter(g=>allowedPlatforms.includes(g.platform));
   if(p!=='ALL') f=f.filter(g=>g.platform===p);
+  if(re!=='ALL') f=f.filter(g=>g.region===re);
   if(co!=='ALL') f=f.filter(g=>g.country===co);
   if(b!=='ALL') f=f.filter(g=>g.brand.toLowerCase().includes(b.toLowerCase()));
   renderGroupCards(f,'leads-groups',true,'selectLeadsGroup');
@@ -6411,11 +6431,13 @@ async function autoSyncTick() {
         S.cache.platforms = norm.platforms;
         S.cache.countries = d.countries || [];
         S.cache.brands = d.brands || [];
+        S.cache.regions = d.regions || [...new Set((S.cache.groups||[]).map(g=>g.region||'Other'))].sort();
         S.groups = S.cache.groups;
         S.crossTabMatrix = S.cache.crossTabMatrix;
         S.platforms = S.cache.platforms;
         S.countries = S.cache.countries;
         S.brands = S.cache.brands;
+        S.regions = S.cache.regions;
       }).catch(() => {})
     ]);
     saveCache();
