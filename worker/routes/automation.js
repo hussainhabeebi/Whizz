@@ -164,42 +164,47 @@ async function ownedLeadSummary(env, user) {
 
 async function resolveContactsForCampaign(env, user, body) {
   const audiences = Array.isArray(body.audiences) && body.audiences.length > 0 ? body.audiences : null;
-  const allContacts = body.platform === 'ALL' && !audiences;
+  const targets = audiences || [{ platform: body.platform || 'ALL', country: body.country || 'ALL', brand: body.brand || 'ALL' }];
 
-  const ownershipClause = user.role === 'Administrator' ? '(?1 IS NOT NULL)'
-    : user.role === 'Manager' ? '(ownerEmail IS NULL OR teamId = ?1)'
-    : 'ownerEmail = ?1';
-  const ownerScope = user.role === 'Sales' ? user.email : (user.teamId || '');
-
-  let contacts = [];
-  if (allContacts) {
-    const { results } = await env.DB.prepare(
-      `SELECT id,contactName,phone,email,platform,country,brand,leadScore,lastContactedAt FROM contacts WHERE ${ownershipClause} ORDER BY leadScore DESC`
-    ).bind(ownerScope).all();
-    contacts = results || [];
-  } else {
-    const targets = audiences || [{ platform: body.platform, country: body.country, brand: body.brand }];
-    for (const t of targets) {
-      const { results } = await env.DB.prepare(
-        `SELECT id,contactName,phone,email,platform,country,brand,leadScore,lastContactedAt FROM contacts
-         WHERE (? = 'ALL' OR LOWER(platform) = LOWER(?))
-           AND (? = 'ALL' OR LOWER(country) = LOWER(?))
-           AND (? = 'ALL' OR LOWER(brand) = LOWER(?))
-           AND ${ownershipClause}
-         ORDER BY leadScore DESC`
-      ).bind(t.platform||'ALL', t.platform||'ALL', t.country||'ALL', t.country||'ALL', t.brand||'ALL', t.brand||'ALL', ownerScope).all();
-      contacts.push(...(results || []));
-    }
-    // deduplicate by id
-    const seen = new Set();
-    contacts = contacts.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+  // Build ownership filter appended at end of bind list
+  let ownerFilter = '';
+  let ownerParam = undefined;
+  if (user.role === 'Manager') {
+    ownerFilter = 'AND (ownerEmail IS NULL OR teamId = ?)';
+    ownerParam = user.teamId || '';
+  } else if (user.role === 'Sales') {
+    ownerFilter = 'AND ownerEmail = ?';
+    ownerParam = user.email;
   }
 
-  // Apply lead score suppression from audience_rules
+  let contacts = [];
+  for (const t of targets) {
+    const binds = [
+      t.platform || 'ALL', t.platform || 'ALL',
+      t.country  || 'ALL', t.country  || 'ALL',
+      t.brand    || 'ALL', t.brand    || 'ALL',
+    ];
+    if (ownerParam !== undefined) binds.push(ownerParam);
+    const { results } = await env.DB.prepare(
+      `SELECT id,contactName,phone,email,platform,country,brand,leadScore,lastContactedAt FROM contacts
+       WHERE (? = 'ALL' OR LOWER(platform) = LOWER(?))
+         AND (? = 'ALL' OR LOWER(country) = LOWER(?))
+         AND (? = 'ALL' OR LOWER(brand) = LOWER(?))
+         ${ownerFilter}
+       ORDER BY leadScore DESC`
+    ).bind(...binds).all();
+    contacts.push(...(results || []));
+  }
+
+  // Deduplicate by id
+  const seen = new Set();
+  contacts = contacts.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+
+  // Apply lead score suppression
   const suppressBelow = Number(body.audience_rules?.lead_score?.suppress_below ?? 0);
   if (suppressBelow > 0) contacts = contacts.filter(c => Number(c.leadScore || 0) >= suppressBelow);
 
-  // Only keep contacts that have a phone number (WhatsApp requires it)
+  // WhatsApp requires a phone number
   contacts = contacts.filter(c => c.phone && String(c.phone).trim().length > 5);
 
   return contacts;
