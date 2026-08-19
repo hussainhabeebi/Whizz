@@ -559,6 +559,17 @@ body {
 
     var waLink = 'https://wa.me/?text=' + encodeURIComponent(lines.join('\n'));
 
+    // Save booking to D1 (fire-and-forget — don't block the UX if it fails)
+    fetch('/api/ifa-bookings', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ team: team, date: selDate, time: selTime, name: name, company: company, whatsapp: wa, note: note })
+    }).catch(function () {});
+
+    var btn = document.getElementById('btnBook');
+    btn.disabled = true;
+    btn.textContent = 'Booking saved!';
+
     document.getElementById('confWaLink').href = waLink;
     document.getElementById('confBody').innerHTML =
       'Meeting with <strong>' + team + '</strong><br>' +
