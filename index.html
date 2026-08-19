@@ -3694,7 +3694,7 @@ async function sendCampaign(){
     showToast(paused?'Campaign paused automatically after a delivery-risk spike':`Campaign completed: ${result.sent||0} sent, ${suppressed} protected`,paused?'error':'success');
     saveHistory({template:S.selectedTemplate.name,audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total||0,sent:result.sent||0,failed:result.failed||0,suppressed,paused,failures,deliveryGuard:getDeliveryGuardConfig(),ts:Date.now()});
     setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
-  }catch(e){clearInterval(interval);showToast('Asynchronous dispatch loop trace break','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}
+  }catch(e){clearInterval(interval);showToast(e.message||'Campaign send failed','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}
 }
 function resetCampaign(){S.selectedGroups=[];S.selectedTemplate=null;campStep(1);document.getElementById('all-groups').checked=false;document.querySelectorAll('.group-card').forEach(c=>c.classList.remove('selected'));}
 
