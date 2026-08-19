@@ -4,6 +4,7 @@ import { handleAppendMemory } from './routes/appendMemory.js';
 import { handleUsers, handleCreateUser, handleUpdateUser, handleDeleteUser, handleResetUserAccess, handleSyncUserAccess } from './routes/users.js';
 import { handleAutomation } from './routes/automation.js';
 import { handleConversationAssignment } from './routes/conversationAssignments.js';
+import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookings.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 // Routes migrated off n8n live here, one at a time. Anything not matched
@@ -15,6 +16,8 @@ const routes = [
   { method: 'POST', path: '/whizz-append-memory', handler: handleAppendMemory },
   { method: 'GET', path: '/api/users', handler: handleUsers },
   { method: 'POST', path: '/api/users', handler: handleCreateUser },
+  { method: 'POST', path: '/api/ifa-bookings', handler: handleIFABookingCreate },
+  { method: 'GET', path: '/api/ifa-bookings', handler: handleIFABookingList },
 ];
 
 export default {

@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IFA 2026 Bookings — Whizz Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --brand:      #5C2E91;
+  --brand-deep: #2E1458;
+  --brand-mid:  #7C4DBB;
+  --brand-pale: #EEE6FA;
+
+  --bg:      #F7F4FC;
+  --surface: #FFFFFF;
+  --border:  #E2D5F5;
+  --text:    #1A0F30;
+  --text-m:  #7260A0;
+
+  --green:  #16A34A;
+  --green-bg: #DCFCE7;
+  --wa: #25D366;
+  --wa-dk: #1EAD57;
+
+  --r: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:         #0F0B1D;
+    --surface:    #19102E;
+    --border:     #302054;
+    --text:       #ECE4FA;
+    --text-m:     #9580C0;
+    --brand-pale: #221440;
+    --green-bg:   #052E16;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:         #0F0B1D;
+  --surface:    #19102E;
+  --border:     #302054;
+  --text:       #ECE4FA;
+  --text-m:     #9580C0;
+  --brand-pale: #221440;
+  --green-bg:   #052E16;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Outfit', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── HEADER ── */
+.hdr {
+  background: var(--brand-deep);
+  padding: 24px 20px 28px;
+  position: relative;
+  overflow: hidden;
+}
+.hdr::before {
+  content: '';
+  position: absolute;
+  inset: -30% -10%;
+  background: repeating-linear-gradient(
+    -58deg,
+    transparent 0, transparent 30px,
+    rgba(124,77,187,.12) 30px, rgba(124,77,187,.12) 32px
+  );
+  pointer-events: none;
+}
+.hdr-inner {
+  position: relative; z-index: 1;
+  max-width: 1200px; margin: 0 auto;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.wordmark {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 40px; letter-spacing: 5px; color: #fff; line-height: 1;
+}
+.hdr-sub {
+  font-size: 14px; font-weight: 600;
+  color: rgba(255,255,255,.55);
+  letter-spacing: .3px;
+}
+.hdr-meta { margin-left: auto; text-align: right; }
+.hdr-event {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px; letter-spacing: 2px; color: rgba(255,255,255,.5);
+}
+
+/* ── BODY ── */
+.wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 16px 60px;
+}
+
+/* ── STATS ── */
+.stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 18px 22px;
+  flex: 1;
+  min-width: 140px;
+}
+.stat-val {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 40px; letter-spacing: 2px; color: var(--brand);
+  line-height: 1; display: block;
+}
+.stat-lbl { font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-m); margin-top: 4px; }
+
+/* ── FILTERS ── */
+.filters {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;
+}
+
+.filter-select {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  padding: 9px 14px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px; font-weight: 500;
+  color: var(--text);
+  outline: none; cursor: pointer;
+  transition: border-color .14s;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237260A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+.filter-select:focus { border-color: var(--brand); }
+
+.filter-count {
+  font-size: 13px; color: var(--text-m); font-weight: 500;
+  margin-left: auto;
+}
+
+/* ── TABLE ── */
+.tbl-wrap { overflow-x: auto; }
+
+table {
+  width: 100%; border-collapse: collapse;
+  background: var(--surface);
+  border-radius: var(--r);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+thead th {
+  background: var(--brand-pale);
+  padding: 12px 14px;
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--brand);
+  text-align: left; white-space: nowrap;
+  border-bottom: 2px solid var(--border);
+}
+
+tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--brand-pale); }
+
+td {
+  padding: 13px 14px;
+  font-size: 14px; color: var(--text);
+  vertical-align: top;
+}
+
+.td-date { white-space: nowrap; font-weight: 600; }
+.td-time { white-space: nowrap; font-size: 13px; color: var(--text-m); }
+.td-team { }
+.team-tag {
+  display: inline-block;
+  background: var(--brand-pale);
+  color: var(--brand);
+  border-radius: 100px;
+  padding: 2px 9px;
+  font-size: 12px; font-weight: 600;
+  margin: 1px 2px 1px 0;
+  white-space: nowrap;
+}
+.td-name { font-weight: 600; }
+.td-company { color: var(--text-m); font-size: 13px; }
+.td-note { font-size: 13px; color: var(--text-m); max-width: 200px; }
+.td-ts { font-size: 12px; color: var(--text-m); white-space: nowrap; }
+
+.wa-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--wa); color: #fff; text-decoration: none;
+  border-radius: 100px; padding: 5px 12px;
+  font-size: 13px; font-weight: 700;
+  transition: background .14s; white-space: nowrap;
+}
+.wa-btn:hover { background: var(--wa-dk); }
+
+/* ── DATE BADGE ── */
+.date-sep {
+  background: var(--brand-deep);
+  color: rgba(255,255,255,.7);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px; letter-spacing: 2px;
+  padding: 8px 14px;
+}
+
+/* ── EMPTY / ERROR / LOADING ── */
+.state-msg {
+  text-align: center; padding: 60px 20px;
+  color: var(--text-m); font-size: 15px;
+}
+.state-msg strong { display: block; font-size: 22px; color: var(--text); margin-bottom: 8px; }
+
+/* ── REFRESH ── */
+.btn-refresh {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  padding: 9px 16px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px; font-weight: 600; color: var(--text);
+  cursor: pointer; transition: border-color .14s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-refresh:hover { border-color: var(--brand-mid); }
+
+@media (max-width: 700px) {
+  .stats { gap: 8px; }
+  .stat-card { padding: 14px 16px; }
+  .stat-val  { font-size: 32px; }
+  td, thead th { padding: 10px 10px; }
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-inner">
+    <div>
+      <div class="wordmark">WHIZZ</div>
+      <div class="hdr-sub">IFA 2026 Booking Admin</div>
+    </div>
+    <div class="hdr-meta">
+      <div class="hdr-event">HALL 27 · STAND H27N_08</div>
+      <div class="hdr-event">SEP 4–8, 2026 · BERLIN</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="mainContent">
+    <div class="state-msg"><strong>Loading…</strong>Fetching bookings</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var allBookings = [];
+
+  var DATES = ['Friday, 4 Sep 2026','Saturday, 5 Sep 2026','Sunday, 6 Sep 2026','Monday, 7 Sep 2026','Tuesday, 8 Sep 2026'];
+  var TEAM  = ['Urvashi Kejriwal','Derrick','Vinayak Kejriwal','Ali Khan'];
+
+  function fmt(ts) {
+    if (!ts) return '—';
+    try {
+      var d = new Date(ts.replace(' ','T') + (ts.includes('Z') ? '' : 'Z'));
+      return d.toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', timeZone:'Asia/Dubai' });
+    } catch(e) { return ts; }
+  }
+
+  function waHref(num) {
+    var clean = (num || '').replace(/[^\d+]/g, '');
+    if (!clean) return null;
+    if (!clean.startsWith('+') && !clean.startsWith('00')) clean = '+' + clean;
+    return 'https://wa.me/' + clean.replace(/\D/g,'');
+  }
+
+  function render(bookings) {
+    var dateFilter = document.getElementById('fDate') ? document.getElementById('fDate').value : '';
+    var teamFilter = document.getElementById('fTeam') ? document.getElementById('fTeam').value : '';
+
+    var filtered = bookings.filter(function (b) {
+      if (dateFilter && b.date !== dateFilter) return false;
+      if (teamFilter && b.team.indexOf(teamFilter) === -1) return false;
+      return true;
+    });
+
+    var countEl = document.getElementById('filterCount');
+    if (countEl) countEl.textContent = filtered.length + ' of ' + bookings.length + ' booking' + (bookings.length !== 1 ? 's' : '');
+
+    var tbl = document.getElementById('bookingTable');
+    if (!tbl) return;
+    var tbody = tbl.querySelector('tbody');
+    tbody.innerHTML = '';
+
+    if (!filtered.length) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td colspan="8" style="text-align:center;padding:40px;color:var(--text-m)">No bookings match the selected filters.</td>';
+      tbody.appendChild(tr);
+      return;
+    }
+
+    var lastDate = '';
+    filtered.forEach(function (b) {
+      if (b.date !== lastDate) {
+        lastDate = b.date;
+        var sep = document.createElement('tr');
+        sep.innerHTML = '<td colspan="8" class="date-sep">' + b.date.toUpperCase() + '</td>';
+        tbody.appendChild(sep);
+      }
+      var teams = b.team.split(',').map(function (t) {
+        return '<span class="team-tag">' + t.trim() + '</span>';
+      }).join('');
+      var waLink = waHref(b.whatsapp);
+      var waCell = waLink
+        ? '<a class="wa-btn" href="' + waLink + '" target="_blank" rel="noopener">WA ' + b.whatsapp + '</a>'
+        : b.whatsapp;
+      var tr = document.createElement('tr');
+      tr.innerHTML = [
+        '<td class="td-time">' + (b.time || '—') + '</td>',
+        '<td class="td-team">' + teams + '</td>',
+        '<td class="td-name">' + esc(b.name) + '<div class="td-company">' + esc(b.company) + '</div></td>',
+        '<td>' + waCell + '</td>',
+        '<td class="td-note">' + esc(b.note || '—') + '</td>',
+        '<td class="td-ts">' + fmt(b.createdAt) + '</td>',
+      ].join('');
+      tbody.appendChild(tr);
+    });
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function buildStats(bookings) {
+    var byDate = {};
+    DATES.forEach(function (d) { byDate[d] = 0; });
+    var byTeam = {};
+    TEAM.forEach(function (t) { byTeam[t] = 0; });
+
+    bookings.forEach(function (b) {
+      if (byDate[b.date] !== undefined) byDate[b.date]++;
+      b.team.split(',').forEach(function (t) {
+        t = t.trim();
+        if (byTeam[t] !== undefined) byTeam[t]++;
+      });
+    });
+
+    var topDate = Object.keys(byDate).sort(function (a,b) { return byDate[b]-byDate[a]; })[0];
+    var topTeam = Object.keys(byTeam).sort(function (a,b) { return byTeam[b]-byTeam[a]; })[0];
+
+    return { total: bookings.length, topDate: topDate, topDateCount: byDate[topDate] || 0, topTeam: topTeam, topTeamCount: byTeam[topTeam] || 0 };
+  }
+
+  function buildUI(bookings) {
+    var stats = buildStats(bookings);
+
+    var html = '';
+
+    // Stats
+    html += '<div class="stats">';
+    html += '<div class="stat-card"><span class="stat-val">' + stats.total + '</span><div class="stat-lbl">Total Bookings</div></div>';
+    html += '<div class="stat-card"><span class="stat-val">' + stats.topDateCount + '</span><div class="stat-lbl">Busiest Day<br><span style="font-family:\'Outfit\';font-size:11px;font-weight:600;letter-spacing:.5px">' + (stats.topDate ? stats.topDate.split(',')[0] : '—') + '</span></div></div>';
+    html += '<div class="stat-card"><span class="stat-val">' + stats.topTeamCount + '</span><div class="stat-lbl">Most Requested<br><span style="font-family:\'Outfit\';font-size:11px;font-weight:600;letter-spacing:.5px">' + (stats.topTeam || '—') + '</span></div></div>';
+    html += '</div>';
+
+    // Filters
+    var dateOpts = '<option value="">All dates</option>' + DATES.map(function (d) {
+      return '<option value="' + d + '">' + d + '</option>';
+    }).join('');
+    var teamOpts = '<option value="">All team members</option>' + TEAM.map(function (t) {
+      return '<option value="' + t + '">' + t + '</option>';
+    }).join('');
+
+    html += '<div class="filters">';
+    html += '<select class="filter-select" id="fDate">' + dateOpts + '</select>';
+    html += '<select class="filter-select" id="fTeam">' + teamOpts + '</select>';
+    html += '<button class="btn-refresh" id="btnRefresh"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refresh</button>';
+    html += '<span class="filter-count" id="filterCount"></span>';
+    html += '</div>';
+
+    // Table
+    html += '<div class="tbl-wrap"><table id="bookingTable">';
+    html += '<thead><tr><th>Time</th><th>Meeting with</th><th>Name / Company</th><th>WhatsApp</th><th>Note</th><th>Submitted</th></tr></thead>';
+    html += '<tbody></tbody></table></div>';
+
+    document.getElementById('mainContent').innerHTML = html;
+
+    document.getElementById('fDate').addEventListener('change', function () { render(allBookings); });
+    document.getElementById('fTeam').addEventListener('change', function () { render(allBookings); });
+    document.getElementById('btnRefresh').addEventListener('click', function () { load(); });
+
+    render(bookings);
+  }
+
+  function load() {
+    fetch('/api/ifa-bookings')
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, status: r.status, data: d }; }); })
+      .then(function (r) {
+        if (!r.ok) {
+          var msg = r.status === 403
+            ? '<strong>Access denied</strong>This page requires an Administrator account.'
+            : '<strong>Error ' + r.status + '</strong>' + (r.data.error || 'Failed to load bookings.');
+          document.getElementById('mainContent').innerHTML = '<div class="state-msg">' + msg + '</div>';
+          return;
+        }
+        allBookings = r.data.bookings || [];
+        if (!allBookings.length) {
+          document.getElementById('mainContent').innerHTML = '<div class="state-msg"><strong>No bookings yet</strong>Bookings will appear here as visitors submit the form.</div>';
+          return;
+        }
+        buildUI(allBookings);
+      })
+      .catch(function (err) {
+        document.getElementById('mainContent').innerHTML = '<div class="state-msg"><strong>Network error</strong>' + err.message + '</div>';
+      });
+  }
+
+  load();
+}());
+</script>
+
+</body>
+</html>
