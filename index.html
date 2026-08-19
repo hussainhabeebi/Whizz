@@ -3677,10 +3677,11 @@ async function sendCampaign(){
     const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
     const selectedAudiences=allGroups?[]:S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return{platform,country,brand};});
     const firstGroup=selectedAudiences[0];
+    const useAll=allGroups||selectedAudiences.length!==1;
     const result=await api('whizz-send-campaign','POST',{
-      platform:allGroups?'ALL':(firstGroup?.platform||'ALL'),
-      country:allGroups?'ALL':(firstGroup?.country||'ALL'),
-      brand:allGroups?'ALL':(firstGroup?.brand||'ALL'),
+      platform:useAll?'ALL':(firstGroup?.platform||'ALL'),
+      country:useAll?'ALL':(firstGroup?.country||'ALL'),
+      brand:useAll?'ALL':(firstGroup?.brand||'ALL'),
       audiences:selectedAudiences,
       audience_rules:getCampaignAudienceRules(),
       template_name:S.selectedTemplate.name,
@@ -6032,13 +6033,15 @@ function cancelScheduled(id) {
 
 async function fireScheduledJob(job) {
   try {
+    const _jobAudiences=job.audiences||[];
+    const _jobUseAll=_jobAudiences.length!==1;
     const result = await api('whizz-send-campaign', 'POST', {
-      platform: job.platform,
-      country: job.country,
-      brand: job.brand,
+      platform: _jobUseAll?'ALL':(job.platform||'ALL'),
+      country: _jobUseAll?'ALL':(job.country||'ALL'),
+      brand: _jobUseAll?'ALL':(job.brand||'ALL'),
       template_name: job.template,
       language: job.language,
-      audiences: job.audiences || [],
+      audiences: _jobAudiences,
       audience_rules: job.audienceRules || getCampaignAudienceRules(),
       delivery_guard: job.deliveryGuard || getDeliveryGuardConfig()
     });
