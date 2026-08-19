@@ -200,13 +200,6 @@ async function resolveContactsForCampaign(env, user, body) {
   const seen = new Set();
   contacts = contacts.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
 
-  // Apply lead score suppression
-  const suppressBelow = Number(body.audience_rules?.lead_score?.suppress_below ?? 0);
-  if (suppressBelow > 0) contacts = contacts.filter(c => Number(c.leadScore || 0) >= suppressBelow);
-
-  // WhatsApp requires a phone number
-  contacts = contacts.filter(c => c.phone && String(c.phone).trim().length > 5);
-
   return contacts;
 }
 

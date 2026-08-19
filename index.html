@@ -3630,8 +3630,8 @@ function getCampaignAudienceRules(){
     engagement:document.getElementById('camp-engagement')?.value||'any',
     stage:document.getElementById('camp-stage')?.value||'marketable',
     buyer_type:document.getElementById('camp-buyer')?.value||'all',
-    always_exclude:['opted_out','do_not_contact','invalid_number','not_on_whatsapp','permanent_failure','lost'],
-    lead_score:{priority_min:80,normal_min:60,test_only_min:40,suppress_below:40}
+    always_exclude:[],
+    lead_score:{priority_min:0,normal_min:0,test_only_min:0,suppress_below:0}
   };
 }
 function getDeliveryGuardConfig(){
