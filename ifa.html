@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meet Whizz at IFA 2026</title>
+<meta name="description" content="Book a meeting with the Whizz team at IFA 2026 — Hall 27, Stand H27N_08, Berlin. Sep 4–8, 2026.">
+<meta property="og:title" content="Meet Whizz at IFA 2026">
+<meta property="og:description" content="Book a meeting with our team — Hall 27, Stand H27N_08, Berlin. Sep 4–8, 2026.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --brand:      #5C2E91;
+  --brand-deep: #2E1458;
+  --brand-mid:  #7C4DBB;
+  --brand-pale: #EEE6FA;
+  --brand-bdr:  #CDB5EB;
+  --wa:         #25D366;
+  --wa-dk:      #1EAD57;
+
+  --bg:      #F7F4FC;
+  --surface: #FFFFFF;
+  --border:  #E2D5F5;
+  --text:    #1A0F30;
+  --text-m:  #7260A0;
+
+  --r:  12px;
+  --rl: 20px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:         #0F0B1D;
+    --surface:    #19102E;
+    --border:     #302054;
+    --text:       #ECE4FA;
+    --text-m:     #9580C0;
+    --brand-pale: #221440;
+    --brand-bdr:  #482D76;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:         #0F0B1D;
+  --surface:    #19102E;
+  --border:     #302054;
+  --text:       #ECE4FA;
+  --text-m:     #9580C0;
+  --brand-pale: #221440;
+  --brand-bdr:  #482D76;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Outfit', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.hdr {
+  background: var(--brand-deep);
+  border-radius: 0 0 32px 32px;
+  padding: 44px 20px 48px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hdr::before {
+  content: '';
+  position: absolute;
+  inset: -30% -10%;
+  background: repeating-linear-gradient(
+    -58deg,
+    transparent 0, transparent 30px,
+    rgba(124,77,187,.14) 30px, rgba(124,77,187,.14) 32px
+  );
+  pointer-events: none;
+}
+.hdr-inner { position: relative; z-index: 1; }
+
+.wordmark {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 80px;
+  letter-spacing: 8px;
+  color: #fff;
+  line-height: 1;
+  text-shadow: 0 3px 24px rgba(0,0,0,.45);
+}
+
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 100px;
+  padding: 6px 16px;
+  margin: 14px 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.88);
+}
+.dot-live {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #8DFFA0;
+  animation: blink 2.2s ease-in-out infinite;
+}
+@keyframes blink {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:.4; transform:scale(.7); }
+}
+@media (prefers-reduced-motion: reduce) { .dot-live { animation:none; } }
+
+.hdr-dates {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  letter-spacing: 3.5px;
+  color: rgba(255,255,255,.48);
+}
+.hdr-tagline {
+  margin-top: 18px;
+  font-size: 17px;
+  font-weight: 600;
+  color: rgba(255,255,255,.92);
+}
+
+.wrap {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 32px 16px 110px;
+}
+
+.sh { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.sh-n { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1px; color:var(--brand-mid); flex-shrink:0; }
+.sh-t { font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--text-m); white-space:nowrap; }
+.sh-l { flex:1; height:1px; background:var(--border); }
+
+.sec { margin-bottom: 30px; }
+
+.team-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+.tc {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  padding: 15px 15px 15px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: border-color .14s, background .14s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  text-align: left;
+  font-family: inherit;
+  position: relative;
+}
+.tc:hover { border-color: var(--brand-mid); }
+.tc:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.tc.sel { border-color: var(--brand); background: var(--brand-pale); }
+
+.av {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  letter-spacing: 1px;
+  color: #fff;
+  flex-shrink: 0;
+}
+.tc-name { font-size:14px; font-weight:600; color:var(--text); line-height:1.25; flex:1; }
+
+.chk {
+  position: absolute; top:10px; right:10px;
+  width:18px; height:18px;
+  border-radius:50%;
+  border:2px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  transition: all .14s;
+}
+.tc.sel .chk { background:var(--brand); border-color:var(--brand); }
+.chk::after {
+  content:''; display:none;
+  width:4px; height:7px;
+  border-right:2px solid #fff;
+  border-bottom:2px solid #fff;
+  transform:rotate(45deg) translate(-1px,-1px);
+}
+.tc.sel .chk::after { display:block; }
+
+.date-row { display:flex; gap:8px; }
+
+.dc {
+  flex:1;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px 4px 11px;
+  cursor: pointer;
+  text-align: center;
+  transition: all .14s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family: inherit;
+}
+.dc:hover { border-color: var(--brand-mid); }
+.dc:focus-visible { outline:3px solid var(--brand); outline-offset:2px; }
+.dc.sel { border-color:var(--brand); background:var(--brand); }
+
+.dc-day {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; letter-spacing:1px;
+  color: var(--text); display:block; line-height:1;
+}
+.dc-wd {
+  font-size:10px; font-weight:700; letter-spacing:1.2px;
+  text-transform:uppercase; color:var(--text-m);
+  display:block; margin-top:3px;
+}
+.dc.sel .dc-day, .dc.sel .dc-wd { color:#fff; }
+
+.time-block { margin-bottom:10px; }
+.time-lbl { font-size:10px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:var(--text-m); margin-bottom:8px; }
+.time-row { display:flex; gap:8px; }
+
+.ts {
+  flex:1;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  padding: 11px 4px;
+  cursor: pointer;
+  text-align: center;
+  font-family: 'Outfit', sans-serif;
+  font-size:14px; font-weight:600;
+  color: var(--text);
+  transition: all .14s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ts:hover { border-color: var(--brand-mid); }
+.ts:focus-visible { outline:3px solid var(--brand); outline-offset:2px; }
+.ts.sel { border-color:var(--brand); background:var(--brand); color:#fff; }
+
+.fg { margin-bottom:12px; }
+.fl { display:block; font-size:11px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--text-m); margin-bottom:6px; }
+.fi {
+  width:100%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  padding: 13px 14px;
+  font-family: 'Outfit', sans-serif;
+  font-size:15px; color:var(--text);
+  outline:none; transition:border-color .14s;
+  -webkit-appearance:none; appearance:none;
+}
+.fi::placeholder { color:var(--text-m); opacity:.65; }
+.fi:focus { border-color:var(--brand); }
+
+.err { display:none; background:#FEE2E2; color:#991B1B; border-radius:var(--r); padding:11px 14px; font-size:14px; font-weight:500; margin-bottom:12px; line-height:1.5; }
+.err.on { display:block; }
+
+.btn-book {
+  width:100%; background:var(--brand); color:#fff;
+  font-family:'Outfit',sans-serif; font-size:16px; font-weight:700;
+  border:none; border-radius:var(--rl); padding:18px; cursor:pointer;
+  margin-top:8px;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  transition:background .14s, transform .1s;
+}
+.btn-book:hover  { background:var(--brand-mid); }
+.btn-book:active { transform:scale(.99); }
+.btn-book:focus-visible { outline:3px solid var(--brand-mid); outline-offset:3px; }
+
+.conf {
+  display:none; background:var(--brand-pale); border:2px solid var(--brand-bdr);
+  border-radius:var(--rl); padding:34px 24px; text-align:center; margin-top:20px;
+  animation:up .28s ease;
+}
+.conf.on { display:block; }
+@keyframes up { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+.conf-ico { width:62px; height:62px; background:var(--brand); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 18px; }
+.conf-h { font-family:'Bebas Neue',sans-serif; font-size:34px; letter-spacing:2px; color:var(--brand); margin-bottom:8px; }
+.conf-body { font-size:15px; color:var(--text-m); line-height:1.7; margin-bottom:24px; }
+.conf-body strong { color:var(--text); }
+.conf-note { font-size:13px; color:var(--text-m); margin-bottom:16px; line-height:1.5; }
+
+.btn-wa {
+  display:inline-flex; align-items:center; gap:10px;
+  background:var(--wa); color:#fff; text-decoration:none; border:none;
+  border-radius:100px; padding:15px 32px;
+  font-family:'Outfit',sans-serif; font-size:16px; font-weight:700;
+  cursor:pointer; transition:background .14s;
+}
+.btn-wa:hover { background:var(--wa-dk); }
+.btn-wa:focus-visible { outline:3px solid var(--wa); outline-offset:3px; }
+
+.share-bar {
+  position:fixed; bottom:0; left:0; right:0;
+  background:var(--surface); border-top:1px solid var(--border);
+  padding:11px 16px;
+  display:flex; align-items:center; justify-content:center; gap:12px;
+  z-index:30;
+}
+.share-lbl { font-size:13px; color:var(--text-m); font-weight:500; }
+.btn-share {
+  display:inline-flex; align-items:center; gap:7px;
+  background:var(--wa); color:#fff; border:none;
+  border-radius:100px; padding:10px 20px;
+  font-family:'Outfit',sans-serif; font-size:13px; font-weight:700;
+  cursor:pointer; transition:background .14s;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn-share:hover { background:var(--wa-dk); }
+.btn-share:focus-visible { outline:3px solid var(--wa); outline-offset:2px; }
+
+.ico { display:inline-block; vertical-align:middle; flex-shrink:0; }
+
+@media (max-width:380px) {
+  .wordmark { font-size:66px; }
+  .dc-day { font-size:22px; }
+  .date-row { gap:6px; }
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-inner">
+    <div class="wordmark">WHIZZ</div>
+    <div class="live-pill">
+      <span class="dot-live"></span>
+      IFA 2026 &middot; Berlin
+    </div>
+    <div class="hdr-dates">4 &ndash; 8 SEPTEMBER &nbsp;&middot;&nbsp; HALL 27 &nbsp;&middot;&nbsp; STAND H27N_08</div>
+    <p class="hdr-tagline">Book a meeting with our team at the show</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="sec">
+    <div class="sh">
+      <span class="sh-n">01</span>
+      <span class="sh-t">Who would you like to meet?</span>
+      <div class="sh-l"></div>
+    </div>
+    <div class="team-grid" id="teamGrid">
+      <button class="tc" data-name="Urvashi Kejriwal" type="button">
+        <div class="av" style="background:#5C2E91">UK</div>
+        <div class="tc-name">Urvashi Kejriwal</div>
+        <div class="chk"></div>
+      </button>
+      <button class="tc" data-name="Derrick" type="button">
+        <div class="av" style="background:#1A6B6B">D</div>
+        <div class="tc-name">Derrick</div>
+        <div class="chk"></div>
+      </button>
+      <button class="tc" data-name="Vinayak Kejriwal" type="button">
+        <div class="av" style="background:#1E4F9A">VK</div>
+        <div class="tc-name">Vinayak Kejriwal</div>
+        <div class="chk"></div>
+      </button>
+      <button class="tc" data-name="Ali Khan" type="button">
+        <div class="av" style="background:#2D7A54">AK</div>
+        <div class="tc-name">Ali Khan</div>
+        <div class="chk"></div>
+      </button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sh">
+      <span class="sh-n">02</span>
+      <span class="sh-t">Choose a date</span>
+      <div class="sh-l"></div>
+    </div>
+    <div class="date-row" id="dateRow">
+      <button class="dc" data-date="Friday, 4 Sep 2026"   type="button"><span class="dc-day">4</span><span class="dc-wd">Fri</span></button>
+      <button class="dc" data-date="Saturday, 5 Sep 2026" type="button"><span class="dc-day">5</span><span class="dc-wd">Sat</span></button>
+      <button class="dc" data-date="Sunday, 6 Sep 2026"   type="button"><span class="dc-day">6</span><span class="dc-wd">Sun</span></button>
+      <button class="dc" data-date="Monday, 7 Sep 2026"   type="button"><span class="dc-day">7</span><span class="dc-wd">Mon</span></button>
+      <button class="dc" data-date="Tuesday, 8 Sep 2026"  type="button"><span class="dc-day">8</span><span class="dc-wd">Tue</span></button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sh">
+      <span class="sh-n">03</span>
+      <span class="sh-t">Pick a time slot</span>
+      <div class="sh-l"></div>
+    </div>
+    <div class="time-block">
+      <div class="time-lbl">Morning</div>
+      <div class="time-row">
+        <button class="ts" data-time="10:00 AM" type="button">10:00</button>
+        <button class="ts" data-time="10:30 AM" type="button">10:30</button>
+        <button class="ts" data-time="11:00 AM" type="button">11:00</button>
+        <button class="ts" data-time="11:30 AM" type="button">11:30</button>
+      </div>
+    </div>
+    <div class="time-block">
+      <div class="time-lbl">Afternoon</div>
+      <div class="time-row">
+        <button class="ts" data-time="2:00 PM"  type="button">14:00</button>
+        <button class="ts" data-time="2:30 PM"  type="button">14:30</button>
+        <button class="ts" data-time="3:00 PM"  type="button">15:00</button>
+        <button class="ts" data-time="4:00 PM"  type="button">16:00</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sh">
+      <span class="sh-n">04</span>
+      <span class="sh-t">Your details</span>
+      <div class="sh-l"></div>
+    </div>
+    <div class="fg">
+      <label class="fl" for="f-name">Your name</label>
+      <input class="fi" id="f-name" type="text" placeholder="Full name" autocomplete="name">
+    </div>
+    <div class="fg">
+      <label class="fl" for="f-co">Company</label>
+      <input class="fi" id="f-co" type="text" placeholder="Company name" autocomplete="organization">
+    </div>
+    <div class="fg">
+      <label class="fl" for="f-wa">WhatsApp number</label>
+      <input class="fi" id="f-wa" type="tel" placeholder="+971 XX XXX XXXX" autocomplete="tel">
+    </div>
+    <div class="fg">
+      <label class="fl" for="f-note">What would you like to discuss? <span style="font-weight:400;opacity:.7">(optional)</span></label>
+      <input class="fi" id="f-note" type="text" placeholder="Products, partnerships, pricing…">
+    </div>
+  </div>
+
+  <div class="err" id="errBox"></div>
+
+  <button class="btn-book" id="btnBook" type="button">
+    <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+    Request Meeting
+  </button>
+
+  <div class="conf" id="confPanel" role="status">
+    <div class="conf-ico" aria-hidden="true">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <div class="conf-h">You're all set!</div>
+    <div class="conf-body" id="confBody"></div>
+    <p class="conf-note">Tap below &mdash; WhatsApp will open with your meeting details pre-filled. Send the message to confirm your slot with the team.</p>
+    <a class="btn-wa" id="confWaLink" href="#" target="_blank" rel="noopener noreferrer">
+      <svg class="ico" width="20" height="20" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+        <path d="M16 3C9.4 3 4 8.4 4 15c0 2.4.7 4.7 1.9 6.6L4 29l7.6-2C13.3 27.9 14.6 28 16 28c6.6 0 12-5.4 12-12S22.6 3 16 3zm0 22c-1.4 0-2.7-.2-4-.7l-.3-.1-4.5 1.2 1.2-4.3-.2-.3C7.2 19.3 6.9 17.2 6.9 15c0-5 4-9.1 9.1-9.1S25.1 10 25.1 15 21.1 25 16 25zm6.4-8.9c-.4-.2-2.1-1-2.5-1.1-.4-.1-.6-.2-.9.2-.3.3-1 1.1-1.2 1.3-.2.2-.4.2-.8 0-.4-.2-1.5-.6-2.9-1.8-1.1-1-1.8-2.2-2-2.6-.2-.4 0-.6.2-.8l.5-.6c.2-.2.3-.4.4-.6.1-.2.1-.4 0-.6-.1-.2-.9-2.1-1.2-2.9-.3-.7-.6-.6-.9-.6h-.7c-.2 0-.7.1-1 .4-.4.4-1.4 1.4-1.4 3.4s1.4 3.9 1.6 4.2c.2.3 2.8 4.3 6.8 6 1 .4 1.7.6 2.3.8.9.3 1.8.2 2.5.1.8-.1 2.1-.9 2.4-1.7.3-.8.3-1.5.2-1.7-.1-.1-.3-.2-.7-.4z"/>
+      </svg>
+      Send via WhatsApp
+    </a>
+  </div>
+
+</div>
+
+<div class="share-bar" role="complementary" aria-label="Share this page">
+  <span class="share-lbl">Invite someone to visit</span>
+  <button class="btn-share" id="btnShare" type="button">
+    <svg class="ico" width="15" height="15" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+      <path d="M16 3C9.4 3 4 8.4 4 15c0 2.4.7 4.7 1.9 6.6L4 29l7.6-2C13.3 27.9 14.6 28 16 28c6.6 0 12-5.4 12-12S22.6 3 16 3zm0 22c-1.4 0-2.7-.2-4-.7l-.3-.1-4.5 1.2 1.2-4.3-.2-.3C7.2 19.3 6.9 17.2 6.9 15c0-5 4-9.1 9.1-9.1S25.1 10 25.1 15 21.1 25 16 25zm6.4-8.9c-.4-.2-2.1-1-2.5-1.1-.4-.1-.6-.2-.9.2-.3.3-1 1.1-1.2 1.3-.2.2-.4.2-.8 0-.4-.2-1.5-.6-2.9-1.8-1.1-1-1.8-2.2-2-2.6-.2-.4 0-.6.2-.8l.5-.6c.2-.2.3-.4.4-.6.1-.2.1-.4 0-.6-.1-.2-.9-2.1-1.2-2.9-.3-.7-.6-.6-.9-.6h-.7c-.2 0-.7.1-1 .4-.4.4-1.4 1.4-1.4 3.4s1.4 3.9 1.6 4.2c.2.3 2.8 4.3 6.8 6 1 .4 1.7.6 2.3.8.9.3 1.8.2 2.5.1.8-.1 2.1-.9 2.4-1.7.3-.8.3-1.5.2-1.7-.1-.1-.3-.2-.7-.4z"/>
+    </svg>
+    Share on WhatsApp
+  </button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var selTeam = new Set();
+  var selDate = '';
+  var selTime = '';
+
+  document.getElementById('teamGrid').addEventListener('click', function (e) {
+    var card = e.target.closest('.tc');
+    if (!card) return;
+    var n = card.dataset.name;
+    if (selTeam.has(n)) { selTeam.delete(n); card.classList.remove('sel'); }
+    else                { selTeam.add(n);    card.classList.add('sel');    }
+  });
+
+  document.getElementById('dateRow').addEventListener('click', function (e) {
+    var btn = e.target.closest('.dc');
+    if (!btn) return;
+    document.querySelectorAll('.dc').forEach(function (b) { b.classList.remove('sel'); });
+    btn.classList.add('sel');
+    selDate = btn.dataset.date;
+  });
+
+  document.querySelectorAll('.ts').forEach(function (ts) {
+    ts.addEventListener('click', function () {
+      document.querySelectorAll('.ts').forEach(function (b) { b.classList.remove('sel'); });
+      ts.classList.add('sel');
+      selTime = ts.dataset.time;
+    });
+  });
+
+  document.getElementById('btnBook').addEventListener('click', function () {
+    var name    = document.getElementById('f-name').value.trim();
+    var company = document.getElementById('f-co').value.trim();
+    var wa      = document.getElementById('f-wa').value.trim();
+    var note    = document.getElementById('f-note').value.trim();
+    var errBox  = document.getElementById('errBox');
+
+    var missing = [];
+    if (selTeam.size === 0) missing.push("select who you'd like to meet");
+    if (!selDate)           missing.push('choose a date');
+    if (!selTime)           missing.push('pick a time slot');
+    if (!name)              missing.push('enter your name');
+    if (!company)           missing.push('enter your company');
+    if (!wa)                missing.push('add your WhatsApp number');
+
+    if (missing.length) {
+      errBox.textContent = 'Please ' + missing.join(', then ') + '.';
+      errBox.classList.add('on');
+      errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    errBox.classList.remove('on');
+
+    var team = Array.from(selTeam).join(', ');
+
+    var lines = [
+      'Hello Whizz Team! 👋',
+      '',
+      "I'd like to book a meeting at IFA 2026.",
+      '',
+      '👥 Meet: ' + team,
+      '📅 Date: ' + selDate,
+      '⏰ Time: ' + selTime,
+      '📍 Hall 27, Stand H27N_08 — Messe Berlin',
+      '',
+      '👤 Name: '    + name,
+      '🏢 Company: ' + company,
+      '📱 Contact: ' + wa,
+    ];
+    if (note) lines.push('💬 Note: ' + note);
+    lines.push('', 'Looking forward to meeting you!');
+
+    var waLink = 'https://wa.me/?text=' + encodeURIComponent(lines.join('\n'));
+
+    document.getElementById('confWaLink').href = waLink;
+    document.getElementById('confBody').innerHTML =
+      'Meeting with <strong>' + team + '</strong><br>' +
+      selDate + ' &middot; ' + selTime + '<br>' +
+      'Hall 27, Stand H27N_08 &mdash; Berlin';
+
+    var panel = document.getElementById('confPanel');
+    panel.classList.add('on');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  document.getElementById('btnShare').addEventListener('click', function () {
+    var text = 'Meet the Whizz team at IFA 2026 — Sep 4–8, Hall 27, Stand H27N_08, Berlin. Book a meeting here: ';
+    window.open('https://wa.me/?text=' + encodeURIComponent(text + window.location.href), '_blank', 'noopener');
+  });
+}());
+</script>
+
+</body>
+</html>
