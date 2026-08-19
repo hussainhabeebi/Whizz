@@ -59,6 +59,7 @@ body {
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  padding-top: 44px;
 }
 
 .hdr {
@@ -82,13 +83,57 @@ body {
 }
 .hdr-inner { position: relative; z-index: 1; }
 
+.logo-img {
+  max-height: 58px;
+  max-width: 220px;
+  width: auto;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  display: block;
+  margin: 0 auto 2px;
+}
 .wordmark {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 80px;
+  font-size: 72px;
   letter-spacing: 8px;
   color: #fff;
   line-height: 1;
   text-shadow: 0 3px 24px rgba(0,0,0,.45);
+  display: none;
+}
+.co-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.5);
+  margin-top: 6px;
+  margin-bottom: 2px;
+}
+.brand-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+  margin: 14px auto 0;
+  max-width: 380px;
+}
+.brand-pill {
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 100px;
+  padding: 4px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  color: rgba(255,255,255,.75);
+  white-space: nowrap;
+}
+.hdr-sub-cta {
+  margin-top: 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(255,255,255,.55);
 }
 
 .live-pill {
@@ -125,16 +170,17 @@ body {
   color: rgba(255,255,255,.48);
 }
 .hdr-tagline {
-  margin-top: 18px;
-  font-size: 17px;
-  font-weight: 600;
+  margin-top: 12px;
+  font-size: 16px;
+  font-weight: 700;
   color: rgba(255,255,255,.92);
+  letter-spacing: .2px;
 }
 
 .wrap {
   max-width: 540px;
   margin: 0 auto;
-  padding: 32px 16px 110px;
+  padding: 24px 16px 160px;
 }
 
 .sh { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
@@ -271,17 +317,27 @@ body {
 .err { display:none; background:#FEE2E2; color:#991B1B; border-radius:var(--r); padding:11px 14px; font-size:14px; font-weight:500; margin-bottom:12px; line-height:1.5; }
 .err.on { display:block; }
 
+.book-footer {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  z-index: 25;
+  max-width: 100%;
+}
 .btn-book {
   width:100%; background:var(--brand); color:#fff;
   font-family:'Outfit',sans-serif; font-size:16px; font-weight:700;
-  border:none; border-radius:var(--rl); padding:18px; cursor:pointer;
-  margin-top:8px;
+  border:none; border-radius:var(--rl); padding:17px; cursor:pointer;
   display:flex; align-items:center; justify-content:center; gap:10px;
   transition:background .14s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
 }
 .btn-book:hover  { background:var(--brand-mid); }
 .btn-book:active { transform:scale(.99); }
 .btn-book:focus-visible { outline:3px solid var(--brand-mid); outline-offset:3px; }
+.btn-book:disabled { background:var(--text-m); cursor:default; }
 
 .conf {
   display:none; background:var(--brand-pale); border:2px solid var(--brand-bdr);
@@ -308,20 +364,27 @@ body {
 .btn-wa:focus-visible { outline:3px solid var(--wa); outline-offset:3px; }
 
 .share-bar {
-  position:fixed; bottom:0; left:0; right:0;
-  background:var(--surface); border-top:1px solid var(--border);
-  padding:11px 16px;
-  display:flex; align-items:center; justify-content:center; gap:12px;
-  z-index:30;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background: rgba(46,20,88,.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  z-index: 40;
 }
-.share-lbl { font-size:13px; color:var(--text-m); font-weight:500; }
+.share-lbl { font-size:12px; color:rgba(255,255,255,.55); font-weight:500; letter-spacing:.3px; }
 .btn-share {
-  display:inline-flex; align-items:center; gap:7px;
+  display:inline-flex; align-items:center; gap:6px;
   background:var(--wa); color:#fff; border:none;
-  border-radius:100px; padding:10px 20px;
-  font-family:'Outfit',sans-serif; font-size:13px; font-weight:700;
+  border-radius:100px; padding:7px 16px;
+  font-family:'Outfit',sans-serif; font-size:12px; font-weight:700;
   cursor:pointer; transition:background .14s;
   -webkit-tap-highlight-color:transparent;
+  flex-shrink: 0;
 }
 .btn-share:hover { background:var(--wa-dk); }
 .btn-share:focus-visible { outline:3px solid var(--wa); outline-offset:2px; }
@@ -339,13 +402,24 @@ body {
 
 <header class="hdr">
   <div class="hdr-inner">
-    <div class="wordmark">WHIZZ</div>
+    <img src="https://whizzfze.com/wp-content/uploads/2026/07/Whizz-logo-website-3.png" class="logo-img" alt="Whizz" width="220" height="58">
+    <div class="co-name">Whizz Exim FZE</div>
     <div class="live-pill">
       <span class="dot-live"></span>
       IFA 2026 &middot; Berlin
     </div>
     <div class="hdr-dates">4 &ndash; 8 SEPTEMBER &nbsp;&middot;&nbsp; HALL 27 &nbsp;&middot;&nbsp; STAND H27N_08</div>
-    <p class="hdr-tagline">Book a meeting with our team at the show</p>
+    <p class="hdr-tagline">Distributor of Premium Electronics</p>
+    <div class="brand-strip">
+      <span class="brand-pill">JBL</span>
+      <span class="brand-pill">Dyson</span>
+      <span class="brand-pill">OM System</span>
+      <span class="brand-pill">Canon</span>
+      <span class="brand-pill">Nikon</span>
+      <span class="brand-pill">Fujifilm</span>
+      <span class="brand-pill">Sony</span>
+    </div>
+    <p class="hdr-sub-cta">Book a meeting with our team at the show</p>
   </div>
 </header>
 
@@ -453,13 +527,6 @@ body {
 
   <div class="err" id="errBox"></div>
 
-  <button class="btn-book" id="btnBook" type="button">
-    <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-    </svg>
-    Request Meeting
-  </button>
-
   <div class="conf" id="confPanel" role="status">
     <div class="conf-ico" aria-hidden="true">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
@@ -479,8 +546,17 @@ body {
 
 </div>
 
+<div class="book-footer">
+  <button class="btn-book" id="btnBook" type="button">
+    <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+    Request Meeting
+  </button>
+</div>
+
 <div class="share-bar" role="complementary" aria-label="Share this page">
-  <span class="share-lbl">Invite someone to visit</span>
+  <span class="share-lbl">IFA 2026 &middot; Hall 27 &middot; Stand H27N_08</span>
   <button class="btn-share" id="btnShare" type="button">
     <svg class="ico" width="15" height="15" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
       <path d="M16 3C9.4 3 4 8.4 4 15c0 2.4.7 4.7 1.9 6.6L4 29l7.6-2C13.3 27.9 14.6 28 16 28c6.6 0 12-5.4 12-12S22.6 3 16 3zm0 22c-1.4 0-2.7-.2-4-.7l-.3-.1-4.5 1.2 1.2-4.3-.2-.3C7.2 19.3 6.9 17.2 6.9 15c0-5 4-9.1 9.1-9.1S25.1 10 25.1 15 21.1 25 16 25zm6.4-8.9c-.4-.2-2.1-1-2.5-1.1-.4-.1-.6-.2-.9.2-.3.3-1 1.1-1.2 1.3-.2.2-.4.2-.8 0-.4-.2-1.5-.6-2.9-1.8-1.1-1-1.8-2.2-2-2.6-.2-.4 0-.6.2-.8l.5-.6c.2-.2.3-.4.4-.6.1-.2.1-.4 0-.6-.1-.2-.9-2.1-1.2-2.9-.3-.7-.6-.6-.9-.6h-.7c-.2 0-.7.1-1 .4-.4.4-1.4 1.4-1.4 3.4s1.4 3.9 1.6 4.2c.2.3 2.8 4.3 6.8 6 1 .4 1.7.6 2.3.8.9.3 1.8.2 2.5.1.8-.1 2.1-.9 2.4-1.7.3-.8.3-1.5.2-1.7-.1-.1-.3-.2-.7-.4z"/>
@@ -573,7 +649,7 @@ body {
 
     var btn = document.getElementById('btnBook');
     btn.disabled = true;
-    btn.textContent = 'Booking saved!';
+    btn.innerHTML = '<svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> Meeting Requested!';
 
     document.getElementById('confWaLink').href = waLink;
     document.getElementById('confBody').innerHTML =
