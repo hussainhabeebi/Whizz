@@ -162,6 +162,66 @@ async function ownedLeadSummary(env, user) {
     brands: [...new Set(groups.map(g=>g.brand))], regions });
 }
 
+async function resolveContactsForCampaign(env, user, body) {
+  const audiences = Array.isArray(body.audiences) && body.audiences.length > 0 ? body.audiences : null;
+  const allContacts = body.platform === 'ALL' && !audiences;
+
+  const ownershipClause = user.role === 'Administrator' ? '(?1 IS NOT NULL)'
+    : user.role === 'Manager' ? '(ownerEmail IS NULL OR teamId = ?1)'
+    : 'ownerEmail = ?1';
+  const ownerScope = user.role === 'Sales' ? user.email : (user.teamId || '');
+
+  let contacts = [];
+  if (allContacts) {
+    const { results } = await env.DB.prepare(
+      `SELECT id,contactName,phone,email,platform,country,brand,leadScore,lastContactedAt FROM contacts WHERE ${ownershipClause} ORDER BY leadScore DESC`
+    ).bind(ownerScope).all();
+    contacts = results || [];
+  } else {
+    const targets = audiences || [{ platform: body.platform, country: body.country, brand: body.brand }];
+    for (const t of targets) {
+      const { results } = await env.DB.prepare(
+        `SELECT id,contactName,phone,email,platform,country,brand,leadScore,lastContactedAt FROM contacts
+         WHERE (? = 'ALL' OR LOWER(platform) = LOWER(?))
+           AND (? = 'ALL' OR LOWER(country) = LOWER(?))
+           AND (? = 'ALL' OR LOWER(brand) = LOWER(?))
+           AND ${ownershipClause}
+         ORDER BY leadScore DESC`
+      ).bind(t.platform||'ALL', t.platform||'ALL', t.country||'ALL', t.country||'ALL', t.brand||'ALL', t.brand||'ALL', ownerScope).all();
+      contacts.push(...(results || []));
+    }
+    // deduplicate by id
+    const seen = new Set();
+    contacts = contacts.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+  }
+
+  // Apply lead score suppression from audience_rules
+  const suppressBelow = Number(body.audience_rules?.lead_score?.suppress_below ?? 0);
+  if (suppressBelow > 0) contacts = contacts.filter(c => Number(c.leadScore || 0) >= suppressBelow);
+
+  // Only keep contacts that have a phone number (WhatsApp requires it)
+  contacts = contacts.filter(c => c.phone && String(c.phone).trim().length > 5);
+
+  return contacts;
+}
+
+async function sendCampaignWithContacts(request, env, user) {
+  const body = await request.json().catch(() => ({}));
+  const contacts = await resolveContactsForCampaign(env, user, body);
+
+  const base = (env.N8N_WEBHOOK_BASE || 'https://n8n.aiingo.com/webhook').replace(/\/$/, '');
+  const target = new URL(`${base}/whizz-send-campaign`);
+  const headers = new Headers({ 'content-type': 'application/json' });
+  headers.set('x-whizz-user-email', user.email);
+  headers.set('x-whizz-user-role', user.role);
+
+  const payload = { ...body, contacts, contact_count: contacts.length };
+  const response = await fetch(target, { method: 'POST', headers, body: JSON.stringify(payload), redirect: 'follow' });
+  const responseHeaders = new Headers(response.headers);
+  responseHeaders.set('cache-control', 'no-store');
+  return new Response(response.body, { status: response.status, headers: responseHeaders });
+}
+
 export async function handleAutomation(request, env, endpoint) {
   const email = emailFromAccess(request);
   const user = email ? await env.DB.prepare('SELECT email,role,teamId FROM users WHERE email=?').bind(email).first() : null;
@@ -172,6 +232,9 @@ export async function handleAutomation(request, env, endpoint) {
   }
   if (endpoint === 'whizz-get-leads' && request.method === 'GET') {
     return ownedLeadSummary(env, user);
+  }
+  if (endpoint === 'whizz-send-campaign' && request.method === 'POST') {
+    return sendCampaignWithContacts(request, env, user);
   }
 
   const allowedRoles = WRITE_ROLES[endpoint];
