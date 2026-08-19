@@ -892,8 +892,8 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
               <div style="margin:14px 0;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;">
                 <div class="eyebrow" style="margin-bottom:9px;">Delivery-safe lead categorisation</div>
                 <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;" class="campaign-segment-grid">
-                  <label class="s-label">Consent<select id="camp-consent" class="fi"><option value="opted_in">Opted-in only</option><option value="known_consent">Known consent</option></select></label>
-                  <label class="s-label">Engagement<select id="camp-engagement" class="fi"><option value="30_days">Active within 30 days</option><option value="7_days">Hot — within 7 days</option><option value="90_days">Warm — within 90 days</option><option value="any">Any activity</option></select></label>
+                  <label class="s-label">Consent<select id="camp-consent" class="fi"><option value="any">Any contact</option><option value="opted_in">Opted-in only</option><option value="known_consent">Known consent</option></select></label>
+                  <label class="s-label">Engagement<select id="camp-engagement" class="fi"><option value="any">Any activity</option><option value="30_days">Active within 30 days</option><option value="7_days">Hot — within 7 days</option><option value="90_days">Warm — within 90 days</option></select></label>
                   <label class="s-label">Lead stage<select id="camp-stage" class="fi"><option value="marketable">All marketable stages</option><option value="new">New leads</option><option value="qualified">Qualified</option><option value="quotation_sent">Quotation sent</option><option value="customer">Existing customers</option><option value="dormant">Dormant reactivation</option></select></label>
                   <label class="s-label">Buyer type<select id="camp-buyer" class="fi"><option value="all">All buyer types</option><option value="wholesale">Wholesale</option><option value="retail">Retail</option><option value="export">Export</option></select></label>
                 </div>
@@ -3626,8 +3626,8 @@ function buildReview(){
 }
 function getCampaignAudienceRules(){
   return {
-    consent:document.getElementById('camp-consent')?.value||'opted_in',
-    engagement:document.getElementById('camp-engagement')?.value||'30_days',
+    consent:document.getElementById('camp-consent')?.value||'any',
+    engagement:document.getElementById('camp-engagement')?.value||'any',
     stage:document.getElementById('camp-stage')?.value||'marketable',
     buyer_type:document.getElementById('camp-buyer')?.value||'all',
     always_exclude:['opted_out','do_not_contact','invalid_number','not_on_whatsapp','permanent_failure','lost'],
