@@ -48,12 +48,51 @@ async function repairSchema(env) {
     conversationId TEXT PRIMARY KEY, assignedUserEmail TEXT, assignedTeamId TEXT,
     assignedByEmail TEXT NOT NULL, assignedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS directory_accounts (
+    source TEXT PRIMARY KEY,
+    username TEXT NOT NULL DEFAULT '',
+    credentialsEncrypted TEXT,
+    status TEXT NOT NULL DEFAULT 'not_configured',
+    verificationUrl TEXT,
+    lastSyncAt TEXT,
+    lastError TEXT,
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS directory_prospects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    dedupeKey TEXT NOT NULL UNIQUE,
+    company TEXT NOT NULL DEFAULT '',
+    contactName TEXT NOT NULL DEFAULT '',
+    country TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    phone TEXT NOT NULL DEFAULT '',
+    website TEXT NOT NULL DEFAULT '',
+    brand TEXT NOT NULL DEFAULT '',
+    productInterest TEXT NOT NULL DEFAULT '',
+    activity TEXT NOT NULL DEFAULT '',
+    profileUrl TEXT NOT NULL DEFAULT '',
+    verified INTEGER NOT NULL DEFAULT 0,
+    lastActivityAt TEXT,
+    leadScore INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'new',
+    contactId INTEGER,
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_team ON conversation_assignments(assignedTeamId)',
     'CREATE INDEX IF NOT EXISTS idx_contacts_owner ON contacts(ownerEmail)',
     'CREATE INDEX IF NOT EXISTS idx_contacts_team ON contacts(teamId)',
-    'CREATE INDEX IF NOT EXISTS idx_contacts_created_at ON contacts(createdAt)'
+    'CREATE INDEX IF NOT EXISTS idx_contacts_created_at ON contacts(createdAt)',
+    'CREATE INDEX IF NOT EXISTS idx_directory_prospects_source ON directory_prospects(source)',
+    'CREATE INDEX IF NOT EXISTS idx_directory_prospects_status ON directory_prospects(status)',
+    'CREATE INDEX IF NOT EXISTS idx_directory_prospects_score ON directory_prospects(leadScore)',
+    'CREATE INDEX IF NOT EXISTS idx_directory_prospects_updated ON directory_prospects(updatedAt)'
   ]) await safeRun(env, sql);
 }
 
