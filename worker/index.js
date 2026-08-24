@@ -18,6 +18,19 @@ const routes = [
   { method: 'GET', path: '/api/ifa-bookings', handler: handleIFABookingList },
 ];
 
+async function leadActor(request, env) {
+  const email = (request.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase();
+  if (!email) return null;
+  return env.DB.prepare('SELECT email,name,role,teamId FROM users WHERE email=?').bind(email).first();
+}
+async function requireLeadRole(request, env, adminOnly = false) {
+  const actor = await leadActor(request, env);
+  if (!actor) return { error: Response.json({ error: 'User is not provisioned in Whizz.' }, { status: 403 }) };
+  if (adminOnly && actor.role !== 'Administrator') return { error: Response.json({ error: 'Administrator access required.' }, { status: 403 }) };
+  if (!adminOnly && !['Administrator','Manager','Sales'].includes(actor.role)) return { error: Response.json({ error: 'Lead Intelligence access denied.' }, { status: 403 }) };
+  return { actor };
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -26,36 +39,46 @@ export default {
       catch (err) { return Response.json({ error: `D1 schema repair failed: ${err.message}` }, { status: 503 }); }
     }
 
-    const leadSourceMatch = url.pathname.match(/^\/api\/lead-intelligence\/sources\/([a-z0-9-]+)$/i);
-    if (leadSourceMatch && request.method === 'PUT') {
-      try { return await handleLeadIntelligence(request, env, 'source', leadSourceMatch[1]); }
-      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
-    }
-    const leadRunMatch = url.pathname.match(/^\/api\/lead-intelligence\/run\/([a-z0-9-]+)$/i);
-    if (leadRunMatch && request.method === 'POST') {
-      try { return await handleLeadIntelligence(request, env, 'run', leadRunMatch[1]); }
-      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
-    }
-    const leadPromoteMatch = url.pathname.match(/^\/api\/lead-intelligence\/prospects\/(\d+)\/promote$/);
-    if (leadPromoteMatch && request.method === 'POST') {
-      try { return await handleLeadIntelligence(request, env, 'promote', leadPromoteMatch[1]); }
-      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
-    }
-    if (url.pathname === '/api/lead-intelligence/sources' && request.method === 'GET') {
-      try { return await handleLeadIntelligence(request, env, 'sources'); }
-      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
-    }
-    if (url.pathname === '/api/lead-intelligence/prospects' && request.method === 'GET') {
-      try { return await handleLeadIntelligence(request, env, 'prospects'); }
-      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
-    }
-    if (url.pathname === '/api/lead-intelligence/import' && request.method === 'POST') {
-      try { return await handleLeadIntelligence(request, env, 'import'); }
-      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
-    }
     if (url.pathname === '/api/lead-intelligence/callback' && request.method === 'POST') {
       try { return await handleLeadIntelligence(request, env, 'callback'); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+
+    if (url.pathname.startsWith('/api/lead-intelligence/')) {
+      const adminOnly = request.method === 'PUT' || url.pathname.includes('/run/') || url.pathname === '/api/lead-intelligence/import' || url.pathname === '/api/lead-intelligence/sources';
+      const access = await requireLeadRole(request, env, adminOnly);
+      if (access.error) return access.error;
+
+      const leadSourceMatch = url.pathname.match(/^\/api\/lead-intelligence\/sources\/([a-z0-9-]+)$/i);
+      if (leadSourceMatch && request.method === 'PUT') {
+        try { return await handleLeadIntelligence(request, env, 'source', leadSourceMatch[1]); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
+      const leadRunMatch = url.pathname.match(/^\/api\/lead-intelligence\/run\/([a-z0-9-]+)$/i);
+      if (leadRunMatch && request.method === 'POST') {
+        try { return await handleLeadIntelligence(request, env, 'run', leadRunMatch[1]); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
+      const leadPromoteMatch = url.pathname.match(/^\/api\/lead-intelligence\/prospects\/(\d+)\/promote$/);
+      if (leadPromoteMatch && request.method === 'POST') {
+        try {
+          const body = JSON.stringify({ ownerEmail: access.actor.email });
+          const forwarded = new Request(request.url, { method:'POST', headers:request.headers, body });
+          return await handleLeadIntelligence(forwarded, env, 'promote', leadPromoteMatch[1]);
+        } catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
+      if (url.pathname === '/api/lead-intelligence/sources' && request.method === 'GET') {
+        try { return await handleLeadIntelligence(request, env, 'sources'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
+      if (url.pathname === '/api/lead-intelligence/prospects' && request.method === 'GET') {
+        try { return await handleLeadIntelligence(request, env, 'prospects'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
+      if (url.pathname === '/api/lead-intelligence/import' && request.method === 'POST') {
+        try { return await handleLeadIntelligence(request, env, 'import'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
     }
 
     const automationMatch = url.pathname.match(/^\/api\/automation\/([a-z0-9-]+)$/i);
@@ -80,11 +103,8 @@ export default {
     }
     const route = routes.find(r => r.method === request.method && r.path === url.pathname);
     if (route) {
-      try {
-        return await route.handler(request, env);
-      } catch (err) {
-        return Response.json({ error: err.message }, { status: 500 });
-      }
+      try { return await route.handler(request, env); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     return env.ASSETS.fetch(request);
   },
