@@ -23,3 +23,17 @@ function navigate(page, el) {
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('show');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show');}
+
+// Lead Intelligence is intentionally a standalone page so directory sessions and
+// credential management remain isolated from the main CRM state.
+window.addEventListener('DOMContentLoaded',()=>{
+  const nav=document.querySelector('.sidebar-nav');
+  if(!nav || nav.querySelector('[data-lead-intelligence]')) return;
+  const link=document.createElement('a');
+  link.className='nav-ext';
+  link.dataset.leadIntelligence='1';
+  link.href='/lead-intelligence.html';
+  link.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="4"/></svg><span>Lead Intelligence</span>';
+  const firstSection=nav.querySelector('.nav-section');
+  if(firstSection) nav.insertBefore(link,firstSection); else nav.appendChild(link);
+});
