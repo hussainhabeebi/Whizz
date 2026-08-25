@@ -2334,9 +2334,10 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
 .sort-arrow{font-size:9px;opacity:.45;margin-left:2px;}
 /* Contact drawer */
 .ct-drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:600;display:none;}
-.ct-drawer-overlay.show{display:block;}
+.ct-drawer-overlay{display:none;}
+body[data-page="leads"] .ct-drawer-overlay.show{display:block;}
 .ct-drawer{position:fixed;top:0;right:-440px;width:420px;max-width:100vw;height:100vh;background:var(--bg2);border-left:1px solid var(--border);z-index:601;display:flex;flex-direction:column;transition:right .25s cubic-bezier(.4,0,.2,1);box-shadow:-8px 0 32px rgba(0,0,0,.14);}
-.ct-drawer.open{right:0;}
+body[data-page="leads"] .ct-drawer.open{right:0;}
 .ct-drawer-head{display:flex;align-items:flex-start;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--border);}
 .ct-drawer-name{font-size:15px;font-weight:700;color:var(--text);}
 .ct-drawer-sub{font-size:11px;color:var(--text3);margin-top:3px;}
@@ -2860,7 +2861,7 @@ function navigate(page, el) {
   const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics'};
   document.getElementById('page-title').textContent=titles[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
-  S.page=page; closeSidebar(); closeContactDrawer();
+  S.page=page; document.body.dataset.page=page; closeSidebar(); closeContactDrawer();
   // Render from cache immediately (instant)
   if(page==='campaigns'&&S.cache.groups){S.groups=S.cache.groups;renderCampGroups(S.cache.groups);hideBanner('camp');}
   if(page==='campaigns'&&S.cache.templates){S.templates=S.cache.templates;renderCampTemplates(S.cache.templates);}
@@ -6725,8 +6726,8 @@ function openContactDrawer(i) {
 }
 
 function closeContactDrawer() {
-  document.getElementById('ct-drawer').classList.remove('open');
-  document.getElementById('ct-drawer-overlay').classList.remove('show');
+  document.getElementById('ct-drawer')?.classList.remove('open');
+  document.getElementById('ct-drawer-overlay')?.classList.remove('show');
   _cddContact = null;
   _cddContactIndex = -1;
 }
