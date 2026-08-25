@@ -674,6 +674,10 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Templates
       </div>
+      <div class="nav-item" data-page="tg-broadcast" onclick="navigate('tg-broadcast',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tg-icon"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+        Telegram Broadcast
+      </div>
       <div class="nav-section">Support</div>
       <div class="nav-item" data-page="conversations" onclick="navigate('conversations',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -683,6 +687,11 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
       <div class="nav-item" data-page="enquiries" onclick="navigate('enquiries',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>
         Enquiries
+      </div>
+      <div class="nav-item" data-page="tg-inbox" onclick="navigate('tg-inbox',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tg-icon"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+        Telegram Inbox
+        <span class="nav-badge" id="tg-badge" style="display:none;background:#0088cc">0</span>
       </div>
       <div class="nav-section">Planning</div>
       <div class="nav-item" data-page="tasks" onclick="navigate('tasks',this)">
@@ -1733,6 +1742,77 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
   </div>
 </div>
 
+<!-- Telegram Inbox Page -->
+<div class="page" id="page-tg-inbox">
+  <div class="tg-shell">
+    <div class="tg-list">
+      <div class="tg-list-head">
+        Conversations
+        <button class="t-btn btn-ghost t-btn-sm" onclick="tgRefreshInbox()" title="Refresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+      </div>
+      <div class="tg-list-scroll" id="tg-conv-list">
+        <div class="tg-empty" style="padding:32px 16px;text-align:center;color:var(--text3);font-size:12px;">No conversations yet.<br>Connect your bot and start chatting.</div>
+      </div>
+    </div>
+    <div class="tg-chat" id="tg-chat-area">
+      <div class="tg-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+        <span>Select a conversation</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Telegram Broadcast Page -->
+<div class="page" id="page-tg-broadcast">
+  <div class="card" style="max-width:640px;">
+    <div class="card-head">
+      <div class="card-title">Telegram Broadcast</div>
+      <span id="tg-bc-stat" style="font-size:12px;color:var(--text3);">— contacts connected</span>
+    </div>
+    <div class="card-body">
+      <div class="fg">
+        <label class="fl">Message</label>
+        <textarea class="fi" id="tg-bc-text" rows="5" placeholder="Type your broadcast message here…" oninput="tgPreviewBroadcast()" style="resize:vertical;"></textarea>
+      </div>
+      <div class="fg">
+        <label class="fl">Preview</label>
+        <div class="tgb-preview" id="tg-bc-preview" style="color:var(--text3);">Message will appear here…</div>
+      </div>
+      <div class="err" id="tg-bc-err" style="display:none;"></div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
+        <button class="t-btn btn-primary" id="tg-bc-btn" onclick="tgSendBroadcast()" style="background:#0088cc;border-color:#0088cc;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+          Send Broadcast
+        </button>
+        <span id="tg-bc-result" style="font-size:12px;color:var(--green);display:none;"></span>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="max-width:640px;margin-top:16px;">
+    <div class="card-head"><div class="card-title">Bot Setup</div></div>
+    <div class="card-body">
+      <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px;">
+        To receive messages, register your webhook with Telegram.<br>
+        Make sure <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;">TELEGRAM_BOT_TOKEN</code> and <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;">TELEGRAM_WEBHOOK_SECRET</code> are set as Cloudflare Worker secrets.
+        Also add a <strong>Cloudflare Access bypass rule</strong> for the path <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;">/api/telegram/webhook</code> so Telegram can reach it.
+      </div>
+      <div class="fg">
+        <label class="fl">Your webhook URL</label>
+        <input class="fi" id="tg-setup-url" placeholder="https://yourdomain.com/api/telegram/webhook" />
+      </div>
+      <div class="fg">
+        <label class="fl">Webhook secret token <span style="opacity:.6;font-weight:400;">(must match TELEGRAM_WEBHOOK_SECRET)</span></label>
+        <input class="fi" id="tg-setup-secret" placeholder="your-secret-token" />
+      </div>
+      <button class="t-btn btn-ghost" onclick="tgSetupWebhook()">Register Webhook</button>
+      <span id="tg-setup-result" style="font-size:12px;margin-left:10px;color:var(--text3);"></span>
+    </div>
+  </div>
+</div>
+
 <!-- Add Pipeline Contact Modal -->
 <div class="modal-overlay" id="modal-add-pipeline">
   <div class="modal">
@@ -2028,6 +2108,8 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 
 <div class="modal-overlay" id="modal-lead-profile"><div class="modal" style="width:min(94vw,760px)"><div class="modal-head"><div><div class="modal-title" id="lp-name">Lead profile</div><div id="lp-sub" style="font-size:11px;color:var(--text3);margin-top:3px"></div></div><button class="modal-close" onclick="closeModal('modal-lead-profile')">✕</button></div><div class="modal-body" id="lp-body"></div></div></div>
 
+<!-- Injected pages rendered inside .content by navigate() -->
+
 <nav class="mobile-dock" id="mobile-dock"><button data-mobile-page="dashboard" onclick="mobileNavigate('dashboard',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Home</button><button data-mobile-page="conversations" onclick="mobileNavigate('conversations',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Inbox</button><button data-mobile-page="leads" onclick="mobileNavigate('leads',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/></svg>Leads</button><button data-mobile-page="tasks" onclick="mobileNavigate('tasks',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Tasks</button><button data-mobile-page="pipeline" onclick="mobileNavigate('pipeline',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="4" height="18"/><rect x="10" y="3" width="4" height="14"/><rect x="17" y="3" width="4" height="10"/></svg>Pipeline</button></nav>
 
 <div class="toast-wrap" id="toast-wrap"></div>
@@ -2041,9 +2123,9 @@ const OB_KEY = 'whizz_onboarding';
 const SCHEDULE_KEY = 'whizz_scheduled_v1';
 const TASKS_KEY = 'whizz_tasks_v1';
 const ROLE_EXPERIENCES={
-  Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
-  Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
-  Sales:{label:'My sales workspace',copy:'Focus on assigned leads, live conversations, follow-ups and the next best action.',pages:['dashboard','conversations','enquiries','tasks','leads','stock','pipeline','campaigns','suggestions','history','templates'],actions:[['Open inbox','conversations'],['My leads','leads'],["Today's tasks",'tasks']]}
+  Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','templates','tg-broadcast','conversations','enquiries','tg-inbox','tasks','reports','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
+  Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','templates','tg-broadcast','conversations','enquiries','tg-inbox','tasks','reports','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
+  Sales:{label:'My sales workspace',copy:'Focus on assigned leads, live conversations, follow-ups and the next best action.',pages:['dashboard','conversations','enquiries','tg-inbox','tasks','leads','stock','pipeline','campaigns','suggestions','history','templates'],actions:[['Open inbox','conversations'],['My leads','leads'],["Today's tasks",'tasks']]}
 };
 let CURRENT_SESSION=null;
 
@@ -2282,6 +2364,38 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
 .print-btn{display:block;margin:0 auto 20px;padding:10px 20px;background:#f59e0b;color:#000;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;}
 .report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #e8ecf2;}
 @media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;padding:0;}}
+/* Telegram */
+.tg-shell{display:flex;height:calc(100vh - 72px - 40px);gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--bg2);}
+.tg-list{width:290px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.tg-list-head{padding:12px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between;}
+.tg-list-scroll{flex:1;overflow-y:auto;}
+.tg-conv{padding:11px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;display:flex;gap:10px;align-items:flex-start;}
+.tg-conv:hover{background:var(--bg3);}
+.tg-conv.active{background:var(--accent-dim);}
+.tg-av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#0088cc,#00aaff);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;}
+.tg-conv-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tg-conv-last{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.tg-conv-time{font-size:10px;color:var(--text3);flex-shrink:0;margin-left:auto;}
+.tg-chat{flex:1;display:flex;flex-direction:column;min-width:0;}
+.tg-chat-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.tg-chat-name{font-size:14px;font-weight:700;color:var(--text);}
+.tg-chat-sub{font-size:11px;color:var(--text3);}
+.tg-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;}
+.tg-bubble{max-width:72%;padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.55;word-break:break-word;}
+.tg-bubble.in{background:var(--bg3);border-radius:14px 14px 14px 2px;align-self:flex-start;}
+.tg-bubble.out{background:var(--accent);color:#000;border-radius:14px 14px 2px 14px;align-self:flex-end;}
+.tg-bubble-meta{font-size:10px;color:var(--text3);margin-top:3px;}
+.tg-bubble.out .tg-bubble-meta{text-align:right;}
+.tg-reply{padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;}
+.tg-reply textarea{flex:1;resize:none;border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;font:14px var(--font);color:var(--text);background:var(--bg3);outline:none;transition:border-color .14s;height:42px;max-height:100px;}
+.tg-reply textarea:focus{border-color:var(--accent);}
+.tg-reply button{padding:8px 16px;border-radius:var(--r-sm);background:var(--accent);color:#000;border:none;font-weight:700;font-size:13px;cursor:pointer;transition:background .14s;white-space:nowrap;}
+.tg-reply button:hover{background:var(--accent2);}
+.tg-empty{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text3);font-size:13px;}
+.tg-empty svg{opacity:.3;}
+.tg-icon{color:#0088cc;}
+/* Telegram broadcast */
+.tgb-preview{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap;word-break:break-word;min-height:80px;}
 </style></head>
 <body>
 <div class="page">
@@ -2794,8 +2908,8 @@ function navigate(page, el) {
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
   if(page!=='conversations' && S.liveSync) stopLiveSync();
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events',reliability:'System Health'};
-  const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events',reliability:'System Health','tg-inbox':'Telegram Inbox','tg-broadcast':'Telegram Broadcast'};
+  const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics','tg-inbox':'Live Telegram conversations from your bot','tg-broadcast':'Send a Telegram message to all connected contacts'};
   document.getElementById('page-title').textContent=titles[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   S.page=page; closeSidebar();
@@ -2815,6 +2929,8 @@ function navigate(page, el) {
   if(page==='integrations'){loadIntegrationsStatus();}
   if(page==='tasks'){renderTasksList();}
   if(page==='reliability'){runSystemHealthChecks();}
+  if(page==='tg-inbox'){tgRefreshInbox();}
+  if(page==='tg-broadcast'){tgLoadStats();}
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('show');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show');}
@@ -3858,6 +3974,7 @@ function renderLeadContacts(contacts){
       </div>
       ${c.phone?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8 19.79 19.79 0 0 1 1.61 1.12 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg><a href="tel:${c.phone}" onclick="event.stopPropagation()">${c.phone}</a></div>`:''}
       ${c.email?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${c.email}" onclick="event.stopPropagation()">${c.email}</a></div>`:''}
+      ${c.telegramChatId?`<div class="cc-detail" style="color:#0088cc;cursor:pointer;" onclick="navigate('tg-inbox',document.querySelector('[data-page=tg-inbox]'));setTimeout(()=>tgOpenChat('${c.telegramChatId}','${(c.contactName||c.company||'').replace(/'/g,'\\'')}','${c.telegramUsername||''}'),200);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>${c.telegramUsername?'@'+c.telegramUsername:'Telegram'}</div>`:''}
       ${c.source?`<div class="cc-detail" style="font-size:10px;color:var(--text3);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${c.source}</div>`:''}
       ${(()=>{const deals=getClosedDealsForContact(c);const total=deals.reduce((s,d)=>s+(Number(d.value)||0),0);return total?`<div class="cc-detail" style="color:var(--green);font-weight:600;">✓ ${total.toLocaleString()} closed${deals.length>1?` (${deals.length} deals)`:''}</div>`:'';})()}
     </div>`;
@@ -3868,7 +3985,8 @@ function leadScore(c){let score=20;if(c.phone)score+=20;if(c.email)score+=10;if(
 function openLeadProfile(i){
   const c=_currentLeadsContacts[i];if(!c)return;const name=c.contactName||c.company||c.name||'Unknown',phone=c.phone||c.phoneNumber||'',score=leadScore(c),temp=leadTemperature(c);
   document.getElementById('lp-name').textContent=name;document.getElementById('lp-sub').textContent=[c.company,c.country,c.brand].filter(Boolean).join(' · ');
-  document.getElementById('lp-body').innerHTML=`<div class="lead-profile-grid"><div class="profile-panel"><div class="eyebrow">Complete customer view</div><div class="profile-field"><span>Phone</span><b>${phone||'Not provided'}</b></div><div class="profile-field"><span>Email</span><b>${c.email||'Not provided'}</b></div><div class="profile-field"><span>Platform</span><b>${c.platform||_currentLeadsGroup?.platform||'—'}</b></div><div class="profile-field"><span>Country</span><b>${c.country||_currentLeadsGroup?.country||'—'}</b></div><div class="profile-field"><span>Interest</span><b>${c.productInterest||c.category||c.brand||'Not classified'}</b></div><div class="profile-field"><span>Source</span><b>${c.source||'—'}</b></div></div><div><div class="profile-panel"><div class="eyebrow">Sales intelligence</div><div class="profile-field"><span>Temperature</span><b>${temp}</b></div><div class="profile-field"><span>Lead score</span><b style="color:var(--green)">${score}/100</b></div><div class="profile-field"><span>Buyer type</span><b>${c.buyerType||c.buyer_nature||'Unclassified'}</b></div><div class="profile-field"><span>Campaign status</span><b>${c.optedOut?'Suppressed':'Eligible'}</b></div></div><div class="profile-actions">${phone?`<a class="t-btn btn-success" style="justify-content:center;text-decoration:none" href="https://wa.me/${normalizePhone(phone)}" target="_blank">WhatsApp</a><a class="t-btn btn-ghost" style="justify-content:center;text-decoration:none" href="tel:${phone}">Call</a>`:''}<button class="t-btn btn-primary" onclick="closeModal('modal-lead-profile');openEditLeadContact(${i})">Edit lead</button><button class="t-btn btn-ghost" onclick="closeModal('modal-lead-profile');openAddClosedDealModal(${i})">Record deal</button></div></div></div>`;
+  const tgBtn=c.telegramChatId?`<button class="t-btn" style="justify-content:center;background:#0088cc;color:#fff;border:none;" onclick="closeModal('modal-lead-profile');navigate('tg-inbox',document.querySelector('[data-page=tg-inbox]'));setTimeout(()=>tgOpenChat('${c.telegramChatId}','${(c.contactName||c.company||'').replace(/'/g,'\\'')}','${c.telegramUsername||''}'),200);">Telegram</button>`:'';
+  document.getElementById('lp-body').innerHTML=`<div class="lead-profile-grid"><div class="profile-panel"><div class="eyebrow">Complete customer view</div><div class="profile-field"><span>Phone</span><b>${phone||'Not provided'}</b></div><div class="profile-field"><span>Email</span><b>${c.email||'Not provided'}</b></div><div class="profile-field"><span>Telegram</span><b>${c.telegramUsername?'@'+c.telegramUsername:c.telegramChatId||'—'}</b></div><div class="profile-field"><span>Platform</span><b>${c.platform||_currentLeadsGroup?.platform||'—'}</b></div><div class="profile-field"><span>Country</span><b>${c.country||_currentLeadsGroup?.country||'—'}</b></div><div class="profile-field"><span>Interest</span><b>${c.productInterest||c.category||c.brand||'Not classified'}</b></div><div class="profile-field"><span>Source</span><b>${c.source||'—'}</b></div></div><div><div class="profile-panel"><div class="eyebrow">Sales intelligence</div><div class="profile-field"><span>Temperature</span><b>${temp}</b></div><div class="profile-field"><span>Lead score</span><b style="color:var(--green)">${score}/100</b></div><div class="profile-field"><span>Buyer type</span><b>${c.buyerType||c.buyer_nature||'Unclassified'}</b></div><div class="profile-field"><span>Campaign status</span><b>${c.optedOut?'Suppressed':'Eligible'}</b></div></div><div class="profile-actions">${phone?`<a class="t-btn btn-success" style="justify-content:center;text-decoration:none" href="https://wa.me/${normalizePhone(phone)}" target="_blank">WhatsApp</a><a class="t-btn btn-ghost" style="justify-content:center;text-decoration:none" href="tel:${phone}">Call</a>`:''} ${tgBtn}<button class="t-btn btn-primary" onclick="closeModal('modal-lead-profile');openEditLeadContact(${i})">Edit lead</button><button class="t-btn btn-ghost" onclick="closeModal('modal-lead-profile');openAddClosedDealModal(${i})">Record deal</button></div></div></div>`;
   document.getElementById('modal-lead-profile').classList.add('open');
 }
 function getClosedDealsForContact(c){
@@ -6502,6 +6620,148 @@ function stopAutoSync() {
     _syncInterval = null;
   }
   updateSyncIndicator('idle');
+}
+
+// ── Telegram ──────────────────────────────────────────────────────────────────
+let _tgActiveChatId = null;
+let _tgPollTimer = null;
+
+async function tgRefreshInbox() {
+  try {
+    const data = await apiFetch('/api/telegram/inbox');
+    const convs = data.conversations || [];
+    const badge = document.getElementById('tg-badge');
+    if (badge) { badge.textContent = convs.length; badge.style.display = convs.length ? 'inline-flex' : 'none'; }
+    const list = document.getElementById('tg-conv-list');
+    if (!list) return;
+    if (!convs.length) {
+      list.innerHTML = '<div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:12px;">No conversations yet.<br>Connect your bot and start chatting.</div>';
+      return;
+    }
+    list.innerHTML = convs.map(c => {
+      const name = c.contactName || c.telegramUsername || c.chatId;
+      const initials = (name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()) || 'T';
+      const isActive = c.chatId === _tgActiveChatId;
+      const time = c.lastAt ? new Date(c.lastAt).toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'}) : '';
+      const arrow = c.lastDirection === 'out' ? '↗ ' : '';
+      return `<div class="tg-conv${isActive?' active':''}" onclick="tgOpenChat('${c.chatId}','${name.replace(/'/g,"\\'")}','${c.telegramUsername||''}')">
+        <div class="tg-av">${initials}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="tg-conv-name">${name}${c.telegramUsername?` <span style="font-weight:400;color:var(--text3)">@${c.telegramUsername}</span>`:''}</div>
+          <div class="tg-conv-last">${arrow}${c.lastMessage||''}</div>
+        </div>
+        <div class="tg-conv-time">${time}</div>
+      </div>`;
+    }).join('');
+    if (_tgActiveChatId && !convs.find(c => c.chatId === _tgActiveChatId)) _tgActiveChatId = null;
+  } catch(e) { showToast('Failed to load Telegram inbox','error'); }
+}
+
+async function tgOpenChat(chatId, name, username) {
+  _tgActiveChatId = chatId;
+  tgRefreshInbox();
+  const area = document.getElementById('tg-chat-area');
+  if (!area) return;
+  area.innerHTML = `
+    <div class="tg-chat-head">
+      <div class="tg-av" style="width:32px;height:32px;font-size:11px;">${(name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase())||'T'}</div>
+      <div>
+        <div class="tg-chat-name">${name}</div>
+        <div class="tg-chat-sub">${username?'@'+username+' · ':''}chat_id: ${chatId}</div>
+      </div>
+    </div>
+    <div class="tg-msgs" id="tg-msgs-${chatId}"><div style="text-align:center;color:var(--text3);font-size:12px;padding:16px;">Loading…</div></div>
+    <div class="tg-reply">
+      <textarea id="tg-reply-box" placeholder="Type a message…" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();tgSendReply('${chatId}');}"></textarea>
+      <button onclick="tgSendReply('${chatId}')">Send</button>
+    </div>`;
+  await tgLoadMessages(chatId);
+  clearInterval(_tgPollTimer);
+  _tgPollTimer = setInterval(() => { if (S.page === 'tg-inbox' && _tgActiveChatId === chatId) tgLoadMessages(chatId); }, 8000);
+}
+
+async function tgLoadMessages(chatId) {
+  try {
+    const data = await apiFetch(`/api/telegram/messages?chatId=${encodeURIComponent(chatId)}`);
+    const msgs = data.messages || [];
+    const container = document.getElementById(`tg-msgs-${chatId}`);
+    if (!container) return;
+    if (!msgs.length) { container.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:24px;">No messages yet.</div>'; return; }
+    container.innerHTML = msgs.map(m => {
+      const dir = m.direction === 'out' ? 'out' : 'in';
+      const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'}) : '';
+      const sender = dir === 'out' ? (m.senderName || 'You') : (m.senderName || 'Contact');
+      return `<div>
+        <div class="tg-bubble ${dir}">${m.text.replace(/</g,'&lt;')}</div>
+        <div class="tg-bubble-meta">${dir==='in'?sender+' · ':''}${time}</div>
+      </div>`;
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+  } catch(e) {}
+}
+
+async function tgSendReply(chatId) {
+  const box = document.getElementById('tg-reply-box');
+  if (!box) return;
+  const text = box.value.trim();
+  if (!text) return;
+  box.value = '';
+  box.disabled = true;
+  try {
+    await apiFetch('/api/telegram/send', { method: 'POST', body: JSON.stringify({ chatId, text }) });
+    await tgLoadMessages(chatId);
+  } catch(e) { showToast('Failed to send message','error'); box.value = text; }
+  finally { box.disabled = false; box.focus(); }
+}
+
+async function tgLoadStats() {
+  try {
+    const data = await apiFetch('/api/telegram/stats');
+    const el = document.getElementById('tg-bc-stat');
+    if (el) el.textContent = `${data.contactsWithTelegram} contact${data.contactsWithTelegram===1?'':'s'} connected via Telegram`;
+  } catch(e) {}
+}
+
+function tgPreviewBroadcast() {
+  const text = document.getElementById('tg-bc-text')?.value || '';
+  const prev = document.getElementById('tg-bc-preview');
+  if (prev) { prev.textContent = text || 'Message will appear here…'; prev.style.color = text ? 'var(--text)' : 'var(--text3)'; }
+}
+
+async function tgSendBroadcast() {
+  const text = document.getElementById('tg-bc-text')?.value.trim() || '';
+  const errEl = document.getElementById('tg-bc-err');
+  const resEl = document.getElementById('tg-bc-result');
+  const btn = document.getElementById('tg-bc-btn');
+  errEl.style.display = 'none'; resEl.style.display = 'none';
+  if (!text) { errEl.textContent = 'Please enter a message.'; errEl.style.display = 'block'; return; }
+  if (!confirm(`Send this message to all Telegram-connected contacts?`)) return;
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    const data = await apiFetch('/api/telegram/broadcast', { method: 'POST', body: JSON.stringify({ text }) });
+    resEl.textContent = `Sent to ${data.sent} contact${data.sent===1?'':'s'}${data.failed?`, ${data.failed} failed`:''}`;
+    resEl.style.display = 'inline';
+    if (data.errors?.length) showToast(`${data.failed} failed: ${data.errors[0]}`, 'error');
+  } catch(e) { errEl.textContent = e.message || 'Broadcast failed.'; errEl.style.display = 'block'; }
+  finally { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg> Send Broadcast'; }
+}
+
+async function tgSetupWebhook() {
+  const webhookUrl = document.getElementById('tg-setup-url')?.value.trim() || '';
+  const secretToken = document.getElementById('tg-setup-secret')?.value.trim() || '';
+  const resEl = document.getElementById('tg-setup-result');
+  resEl.textContent = 'Registering…'; resEl.style.color = 'var(--text3)';
+  try {
+    const data = await apiFetch('/api/telegram/setup', { method: 'POST', body: JSON.stringify({ webhookUrl, secretToken }) });
+    resEl.textContent = data.ok ? '✓ Webhook registered!' : (data.description || 'Failed');
+    resEl.style.color = data.ok ? 'var(--green)' : 'var(--red)';
+  } catch(e) { resEl.textContent = e.message || 'Error'; resEl.style.color = 'var(--red)'; }
+}
+
+async function apiFetch(path, opts={}) {
+  const res = await fetch(path, { credentials: 'include', headers: { 'content-type': 'application/json', ...(opts.headers||{}) }, ...opts });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error || `HTTP ${res.status}`); }
+  return res.json();
 }
 
 </script>

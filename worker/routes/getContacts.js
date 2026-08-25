@@ -36,6 +36,7 @@ export async function handleGetContacts(request, env) {
     ownerEmail: r.ownerEmail || '', teamId: r.teamId || '', createdByEmail: r.createdByEmail || '',
     createdAt: r.createdAt || '', updatedAt: r.updatedAt || '', lastContactedAt: r.lastContactedAt || '',
     nextFollowUpAt: r.nextFollowUpAt || '', dealExpectedAt: r.dealExpectedAt || '', leadScore: Number(r.leadScore || 0),
+    telegramChatId: r.telegramChatId || '', telegramUsername: r.telegramUsername || '',
   }));
 
   return Response.json({ contacts });
