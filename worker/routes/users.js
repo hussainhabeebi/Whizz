@@ -68,6 +68,14 @@ async function removeAccessPolicy(env, email) {
   return { synced: true };
 }
 
+export async function handleMe(request, env) {
+  const email = emailFromAccess(request);
+  if (!email) return json({ error: 'Not authenticated.' }, 401);
+  const row = await env.DB.prepare('SELECT email,name,role,teamId,resetAt FROM users WHERE email=?').bind(email).first();
+  if (!row) return json({ error: `${email} is not provisioned in Whizz. Ask an Administrator to add you.` }, 403);
+  return json({ email: row.email, name: row.name, role: row.role, teamId: row.teamId || 'sales', resetAt: row.resetAt || 0 });
+}
+
 export async function handleUsers(request, env) {
   const actor = await actorFor(request, env);
   if (!actor) return json({ error: 'User is not provisioned in Whizz.' }, 403);

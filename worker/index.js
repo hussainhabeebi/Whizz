@@ -1,7 +1,7 @@
 import { handleGetContacts } from './routes/getContacts.js';
 import { handleGetEnquiries } from './routes/getEnquiries.js';
 import { handleAppendMemory } from './routes/appendMemory.js';
-import { handleUsers, handleCreateUser, handleUpdateUser, handleDeleteUser, handleResetUserAccess, handleSyncUserAccess } from './routes/users.js';
+import { handleMe, handleUsers, handleCreateUser, handleUpdateUser, handleDeleteUser, handleResetUserAccess, handleSyncUserAccess } from './routes/users.js';
 import { handleAutomation } from './routes/automation.js';
 import { handleConversationAssignment } from './routes/conversationAssignments.js';
 import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookings.js';
@@ -13,6 +13,7 @@ const routes = [
   { method: 'GET', path: '/whizz-get-contacts', handler: handleGetContacts },
   { method: 'GET', path: '/whizz-get-enquiries', handler: handleGetEnquiries },
   { method: 'POST', path: '/whizz-append-memory', handler: handleAppendMemory },
+  { method: 'GET', path: '/api/me', handler: handleMe },
   { method: 'GET', path: '/api/users', handler: handleUsers },
   { method: 'POST', path: '/api/users', handler: handleCreateUser },
   { method: 'POST', path: '/api/ifa-bookings', handler: handleIFABookingCreate },
