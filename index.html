@@ -1720,6 +1720,77 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         </div>
       </div>
 
+      <!-- Telegram Inbox Page -->
+      <div class="page" id="page-tg-inbox">
+        <div class="tg-shell">
+          <div class="tg-list">
+            <div class="tg-list-head">
+              Conversations
+              <button class="t-btn btn-ghost t-btn-sm" onclick="tgRefreshInbox()" title="Refresh">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              </button>
+            </div>
+            <div class="tg-list-scroll" id="tg-conv-list">
+              <div class="tg-empty" style="padding:32px 16px;text-align:center;color:var(--text3);font-size:12px;">No conversations yet.<br>Connect your bot and start chatting.</div>
+            </div>
+          </div>
+          <div class="tg-chat" id="tg-chat-area">
+            <div class="tg-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+              <span>Select a conversation</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Telegram Broadcast Page -->
+      <div class="page" id="page-tg-broadcast">
+        <div class="card" style="max-width:640px;">
+          <div class="card-head">
+            <div class="card-title">Telegram Broadcast</div>
+            <span id="tg-bc-stat" style="font-size:12px;color:var(--text3);">— contacts connected</span>
+          </div>
+          <div class="card-body">
+            <div class="fg">
+              <label class="fl">Message</label>
+              <textarea class="fi" id="tg-bc-text" rows="5" placeholder="Type your broadcast message here…" oninput="tgPreviewBroadcast()" style="resize:vertical;"></textarea>
+            </div>
+            <div class="fg">
+              <label class="fl">Preview</label>
+              <div class="tgb-preview" id="tg-bc-preview" style="color:var(--text3);">Message will appear here…</div>
+            </div>
+            <div class="err" id="tg-bc-err" style="display:none;"></div>
+            <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
+              <button class="t-btn btn-primary" id="tg-bc-btn" onclick="tgSendBroadcast()" style="background:#0088cc;border-color:#0088cc;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+                Send Broadcast
+              </button>
+              <span id="tg-bc-result" style="font-size:12px;color:var(--green);display:none;"></span>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="max-width:640px;margin-top:16px;">
+          <div class="card-head"><div class="card-title">Bot Setup</div></div>
+          <div class="card-body">
+            <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px;">
+              To receive messages, register your webhook with Telegram.<br>
+              Make sure <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;">TELEGRAM_BOT_TOKEN</code> and <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;">TELEGRAM_WEBHOOK_SECRET</code> are set as Cloudflare Worker secrets.
+              Also add a <strong>Cloudflare Access bypass rule</strong> for the path <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;">/api/telegram/webhook</code> so Telegram can reach it.
+            </div>
+            <div class="fg">
+              <label class="fl">Your webhook URL</label>
+              <input class="fi" id="tg-setup-url" placeholder="https://yourdomain.com/api/telegram/webhook" />
+            </div>
+            <div class="fg">
+              <label class="fl">Webhook secret token <span style="opacity:.6;font-weight:400;">(must match TELEGRAM_WEBHOOK_SECRET)</span></label>
+              <input class="fi" id="tg-setup-secret" placeholder="your-secret-token" />
+            </div>
+            <button class="t-btn btn-ghost" onclick="tgSetupWebhook()">Register Webhook</button>
+            <span id="tg-setup-result" style="font-size:12px;margin-left:10px;color:var(--text3);"></span>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -1738,77 +1809,6 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
     <div class="modal-foot">
       <button class="t-btn btn-ghost" onclick="closeModal('modal-merge-platforms')">Cancel</button>
       <button class="t-btn btn-primary" onclick="submitMergePlatforms()">Merge</button>
-    </div>
-  </div>
-</div>
-
-<!-- Telegram Inbox Page -->
-<div class="page" id="page-tg-inbox">
-  <div class="tg-shell">
-    <div class="tg-list">
-      <div class="tg-list-head">
-        Conversations
-        <button class="t-btn btn-ghost t-btn-sm" onclick="tgRefreshInbox()" title="Refresh">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        </button>
-      </div>
-      <div class="tg-list-scroll" id="tg-conv-list">
-        <div class="tg-empty" style="padding:32px 16px;text-align:center;color:var(--text3);font-size:12px;">No conversations yet.<br>Connect your bot and start chatting.</div>
-      </div>
-    </div>
-    <div class="tg-chat" id="tg-chat-area">
-      <div class="tg-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
-        <span>Select a conversation</span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Telegram Broadcast Page -->
-<div class="page" id="page-tg-broadcast">
-  <div class="card" style="max-width:640px;">
-    <div class="card-head">
-      <div class="card-title">Telegram Broadcast</div>
-      <span id="tg-bc-stat" style="font-size:12px;color:var(--text3);">— contacts connected</span>
-    </div>
-    <div class="card-body">
-      <div class="fg">
-        <label class="fl">Message</label>
-        <textarea class="fi" id="tg-bc-text" rows="5" placeholder="Type your broadcast message here…" oninput="tgPreviewBroadcast()" style="resize:vertical;"></textarea>
-      </div>
-      <div class="fg">
-        <label class="fl">Preview</label>
-        <div class="tgb-preview" id="tg-bc-preview" style="color:var(--text3);">Message will appear here…</div>
-      </div>
-      <div class="err" id="tg-bc-err" style="display:none;"></div>
-      <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
-        <button class="t-btn btn-primary" id="tg-bc-btn" onclick="tgSendBroadcast()" style="background:#0088cc;border-color:#0088cc;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
-          Send Broadcast
-        </button>
-        <span id="tg-bc-result" style="font-size:12px;color:var(--green);display:none;"></span>
-      </div>
-    </div>
-  </div>
-  <div class="card" style="max-width:640px;margin-top:16px;">
-    <div class="card-head"><div class="card-title">Bot Setup</div></div>
-    <div class="card-body">
-      <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px;">
-        To receive messages, register your webhook with Telegram.<br>
-        Make sure <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;">TELEGRAM_BOT_TOKEN</code> and <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;">TELEGRAM_WEBHOOK_SECRET</code> are set as Cloudflare Worker secrets.
-        Also add a <strong>Cloudflare Access bypass rule</strong> for the path <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;">/api/telegram/webhook</code> so Telegram can reach it.
-      </div>
-      <div class="fg">
-        <label class="fl">Your webhook URL</label>
-        <input class="fi" id="tg-setup-url" placeholder="https://yourdomain.com/api/telegram/webhook" />
-      </div>
-      <div class="fg">
-        <label class="fl">Webhook secret token <span style="opacity:.6;font-weight:400;">(must match TELEGRAM_WEBHOOK_SECRET)</span></label>
-        <input class="fi" id="tg-setup-secret" placeholder="your-secret-token" />
-      </div>
-      <button class="t-btn btn-ghost" onclick="tgSetupWebhook()">Register Webhook</button>
-      <span id="tg-setup-result" style="font-size:12px;margin-left:10px;color:var(--text3);"></span>
     </div>
   </div>
 </div>
