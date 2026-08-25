@@ -5,6 +5,7 @@ import { handleUsers, handleCreateUser, handleUpdateUser, handleDeleteUser, hand
 import { handleAutomation } from './routes/automation.js';
 import { handleConversationAssignment } from './routes/conversationAssignments.js';
 import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookings.js';
+import { handleTelegramWebhook, handleTelegramInbox, handleTelegramMessages, handleTelegramSend, handleTelegramBroadcast, handleTelegramSetup, handleTelegramStats } from './routes/telegram.js';
 import { handleLeadIntelligence } from './routes/leadIntelligence.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
@@ -16,6 +17,13 @@ const routes = [
   { method: 'POST', path: '/api/users', handler: handleCreateUser },
   { method: 'POST', path: '/api/ifa-bookings', handler: handleIFABookingCreate },
   { method: 'GET', path: '/api/ifa-bookings', handler: handleIFABookingList },
+  { method: 'POST', path: '/api/telegram/webhook', handler: handleTelegramWebhook },
+  { method: 'GET',  path: '/api/telegram/inbox',   handler: handleTelegramInbox },
+  { method: 'GET',  path: '/api/telegram/messages', handler: handleTelegramMessages },
+  { method: 'POST', path: '/api/telegram/send',     handler: handleTelegramSend },
+  { method: 'POST', path: '/api/telegram/broadcast', handler: handleTelegramBroadcast },
+  { method: 'POST', path: '/api/telegram/setup',    handler: handleTelegramSetup },
+  { method: 'GET',  path: '/api/telegram/stats',    handler: handleTelegramStats },
 ];
 
 async function leadActor(request, env) {
