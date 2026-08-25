@@ -2288,31 +2288,24 @@ function showLoginError(message) {
 
 async function bootAuth() {
   try {
-    const identity = await getAccessIdentity();
-    if (!identity) {
-      showLoginError('Could not verify your Cloudflare Access session. Reload this page, or sign in again if prompted.');
-      return;
-    }
-    const email = identity.email.trim().toLowerCase();
-    try { await loadUsersFromServer(); }
-    catch(error){ showLoginError(`Could not load your Whizz account: ${error.message}`); return; }
-    const user = USERS[email];
-    if (!user) {
-      showLoginError(`${email} is authenticated but not provisioned in Whizz. Ask an Administrator to add you under Users.`);
+    const r = await fetch('/api/me', { credentials: 'include' });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      showLoginError(data.error || 'Sign-in required. Please reload the page.');
       return;
     }
     let previousSession = null;
     try { previousSession = JSON.parse(localStorage.getItem('whizz_session') || 'null'); } catch {}
-    if(user.resetAt&&previousSession&&previousSession.email===email&&previousSession.loginTime<user.resetAt){
+    if (data.resetAt && previousSession && previousSession.email === data.email && previousSession.loginTime < data.resetAt) {
       localStorage.removeItem('whizz_session');
-      window.location.href='/cdn-cgi/access/logout?returnTo='+encodeURIComponent(location.origin);
+      window.location.href = '/cdn-cgi/access/logout?returnTo=' + encodeURIComponent(location.origin);
       return;
     }
-    const session = { email, name: user.name, role: user.role, loginTime: Date.now() };
+    const session = { email: data.email, name: data.name, role: data.role, loginTime: Date.now() };
     try { localStorage.setItem('whizz_session', JSON.stringify(session)); } catch {}
     initApp(session);
   } catch(err) {
-    showLoginError('Sign-in error: ' + (err.message || 'Unknown error. Please reload.'));
+    showLoginError('Sign-in error: ' + (err.message || 'Please reload the page.'));
   }
 }
 
