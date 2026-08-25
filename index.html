@@ -2861,21 +2861,31 @@ function navigate(page, el) {
   document.getElementById('page-title').textContent=titles[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   S.page=page; closeSidebar(); closeContactDrawer();
+  // Render from cache immediately (instant)
   if(page==='campaigns'&&S.cache.groups){S.groups=S.cache.groups;renderCampGroups(S.cache.groups);hideBanner('camp');}
   if(page==='campaigns'&&S.cache.templates){S.templates=S.cache.templates;renderCampTemplates(S.cache.templates);}
   if(page==='leads'){if(S.cache.groups){renderLeadsPage(S.cache.groups,S.cache.leadsTotal);hideBanner('leads');}refreshMyLeadsWorkspace();loadContactsTable();}
   if(page==='conversations'&&S.cache.conversations){renderConvs(S.cache.conversations);hideBanner('conv');}
   if(page==='enquiries'&&S.cache.enquiries){renderEnquiriesPage(S.cache.enquiries);hideBanner('enquiries');}
   if(page==='templates'&&S.cache.templates){renderTplPage(S.cache.templates);hideBanner('tpl');}
-  if(page==='reports' && (S.cache.stats || S.cache.crossTabMatrix)){renderReports();hideBanner('rep');}
+  if(page==='reports'&&(S.cache.stats||S.cache.crossTabMatrix)){renderReports();hideBanner('rep');}
   if(page==='stock'&&S.cache.stock){renderStockPage();hideBanner('stock');}
   if(page==='suggestions'){refreshSuggestions();}
   if(page==='discovery'){renderDiscoveryResults(S.discoveredContacts||[]);}
   if(page==='users'){renderUsersPage();}
   if(page==='pipeline'){renderPipelinePage();}
   if(page==='history'){renderScheduledList();}
-  if(page==='integrations'){loadIntegrationsStatus();}
   if(page==='tasks'){renderTasksList();}
+  // Background refresh (fresh data without blocking navigation)
+  if(page==='dashboard'){refreshDashboard().catch(()=>{});}
+  if(page==='campaigns'){refreshCampaign().catch(()=>{});}
+  if(page==='templates'){refreshTemplates().catch(()=>{});}
+  if(page==='conversations'){refreshConversations().catch(()=>{});}
+  if(page==='enquiries'){refreshEnquiries().catch(()=>{});}
+  if(page==='reports'){refreshReportsPage().catch(()=>{});}
+  if(page==='stock'){refreshStock().catch(()=>{});}
+  if(page==='users'){loadUsersFromServer().then(()=>renderUsersPage()).catch(()=>{});}
+  if(page==='integrations'){loadIntegrationsStatus();}
   if(page==='reliability'){runSystemHealthChecks();}
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('show');}
