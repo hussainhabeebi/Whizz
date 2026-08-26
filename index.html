@@ -241,6 +241,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .lc-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;transition:all 0.15s var(--ease);}
 .lc-card:hover{border-color:var(--border2);box-shadow:var(--shadow-sm);transform:translateY(-1px);}
 .lc-converted{border-color:rgba(22,163,74,0.35);background:rgba(22,163,74,0.04);}
+.leads-tbl-row:hover{background:var(--accent-dim);}
+.leads-tbl-row.selected{background:var(--accent-light);outline:1px solid var(--accent);}
 .lc-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
 .lc-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#ef4444);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;}
 .lc-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:3px;}
@@ -1303,10 +1305,13 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           </div>
           <div class="card-body">
             <div style="margin-bottom:8px;"><div class="eyebrow">Platform</div><div class="chips" id="leads-platform-chips"></div></div>
-            <div style="margin-bottom:8px;display:flex;gap:8px;"><div style="flex:1"><div class="eyebrow">Region</div><select id="leads-region-sel" onchange="onLeadsRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div><div style="flex:1"><div class="eyebrow">Country</div><select id="leads-country-sel" onchange="onLeadsCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div></div>
-            <div style="margin-bottom:12px;"><div class="eyebrow">Brand Focus</div><div class="chips" id="leads-brand-chips"></div></div>
-            <div class="groups-grid" id="leads-groups">
-              <div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
+            <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:120px;"><div class="eyebrow">Region</div><select id="leads-region-sel" onchange="onLeadsRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div>
+              <div style="flex:1;min-width:120px;"><div class="eyebrow">Country</div><select id="leads-country-sel" onchange="onLeadsCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div>
+              <div style="flex:1;min-width:120px;"><div class="eyebrow">Brand</div><select id="leads-brand-sel" onchange="onLeadsBrandChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Brands</option></select></div>
+            </div>
+            <div id="leads-groups-wrap" style="overflow-x:auto;">
+              <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
             </div>
           </div>
         </div>
@@ -3796,21 +3801,27 @@ function renderLeadsPage(groups,total){
   populateRegionSelect('leads-region-sel',leadsRegions,S.activeLeadsRegion);
   const leadsCountries=(!S.activeLeadsRegion||S.activeLeadsRegion==='ALL')?[...new Set(filteredGroups.map(g=>g.country))].sort():[...new Set(filteredGroups.filter(g=>g.region===S.activeLeadsRegion).map(g=>g.country))].sort();
   populateCountrySelect('leads-country-sel',leadsCountries,S.activeLeadsCountry||'ALL');
-  renderChipsFilter(filteredBrands,'leads-brand-chips','filterLeadsByBrand');
-  renderGroupCards(filteredGroups,'leads-groups',true,'selectLeadsGroup');
+  const brandSel=document.getElementById('leads-brand-sel');
+  if(brandSel){
+    const cur=brandSel.value||'ALL';
+    brandSel.innerHTML=`<option value="ALL">All Brands</option>`+filteredBrands.map(b=>`<option value="${b}"${b===cur?' selected':''}>${b}</option>`).join('');
+  }
+  renderLeadsTable(filteredGroups);
   renderLeadScores(filteredGroups,'lead-score-list');
 }
 function renderChipsFilter(list,id,fn){
   const el=document.getElementById(id);
+  if(!el)return;
   el.innerHTML=['ALL',...list].map(v=>`<div class="chip ${v==='ALL'?'active':''}" onclick="${fn}('${v.replace(/'/g, "\\'")}',this)">${v}</div>`).join('');
 }
 function filterLeadsByPlatform(v,el){document.querySelectorAll('#leads-platform-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyLeadsFilter();}
-function filterLeadsByBrand(v,el){document.querySelectorAll('#leads-brand-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyLeadsFilter();}
+function onLeadsBrandChange(v){S.activeLeadsBrand=v;applyLeadsFilter();}
 function applyLeadsFilter(){
   const p=document.querySelector('#leads-platform-chips .chip.active')?.textContent||'ALL';
   const re=S.activeLeadsRegion||'ALL';
   const co=S.activeLeadsCountry||'ALL';
-  const b=document.querySelector('#leads-brand-chips .chip.active')?.textContent||'ALL';
+  const b=document.getElementById('leads-brand-sel')?.value||'ALL';
+  S.activeLeadsBrand=b;
   const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
   let f=S.cache.groups||[];
   if(allowedBrands.length>0) f=f.filter(g=>allowedBrands.includes(g.brand));
@@ -3818,9 +3829,36 @@ function applyLeadsFilter(){
   if(p!=='ALL') f=f.filter(g=>g.platform===p);
   if(re!=='ALL') f=f.filter(g=>g.region===re);
   if(co!=='ALL') f=f.filter(g=>g.country===co);
-  if(b!=='ALL') f=f.filter(g=>g.brand.toLowerCase().includes(b.toLowerCase()));
-  renderGroupCards(f,'leads-groups',true,'selectLeadsGroup');
+  if(b!=='ALL') f=f.filter(g=>g.brand===b);
+  renderLeadsTable(f);
   closeGroupContacts();
+}
+function renderLeadsTable(groups){
+  const wrap=document.getElementById('leads-groups-wrap');
+  if(!wrap)return;
+  if(!groups||!groups.length){wrap.innerHTML='<div style="text-align:center;color:var(--text3);font-size:12px;padding:28px;">No groups match the selected filters.</div>';return;}
+  wrap.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead><tr style="border-bottom:2px solid var(--border);">
+      <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Platform</th>
+      <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Country</th>
+      <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Brand</th>
+      <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Leads</th>
+      <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Trend</th>
+    </tr></thead>
+    <tbody>${groups.map(g=>{
+      let arrow='→',trendColor='var(--text3)';
+      if(g.trend==='Trending Up'){arrow='▲';trendColor='var(--green)';}
+      if(g.trend==='Trending Down'){arrow='▼';trendColor='var(--red)';}
+      const pct=g.velocity30DayPct??0;
+      return `<tr class="leads-tbl-row" onclick="selectLeadsGroup('${g.platform.replace(/'/g,"\\'")}','${g.country.replace(/'/g,"\\'")}','${g.brand.replace(/'/g,"\\'")}',this)" style="cursor:pointer;border-bottom:1px solid var(--border);">
+        <td style="padding:9px 10px;font-weight:500;color:var(--accent);">${g.platform}</td>
+        <td style="padding:9px 10px;color:var(--text2);">${g.country}</td>
+        <td style="padding:9px 10px;color:var(--text);">${g.brand}</td>
+        <td style="padding:9px 10px;text-align:right;font-weight:700;color:var(--text);">${g.count}</td>
+        <td style="padding:9px 10px;font-size:11px;color:${trendColor};">${arrow} ${pct}%</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
 }
 
 // ── Lead Group Contacts ──
@@ -3828,7 +3866,7 @@ let _currentLeadsGroup=null;
 let _currentLeadsContacts=[];
 
 function selectLeadsGroup(platform,country,brand,el){
-  document.querySelectorAll('#leads-groups .group-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('#leads-groups-wrap .leads-tbl-row, #leads-groups .group-card').forEach(c=>c.classList.remove('selected'));
   el.classList.add('selected');
   _currentLeadsGroup={platform,country,brand};
   openGroupContacts(platform,country,brand);
@@ -3836,7 +3874,7 @@ function selectLeadsGroup(platform,country,brand,el){
 
 function closeGroupContacts(){
   document.getElementById('leads-contacts-panel').style.display='none';
-  document.querySelectorAll('#leads-groups .group-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('#leads-groups-wrap .leads-tbl-row, #leads-groups .group-card').forEach(c=>c.classList.remove('selected'));
   _currentLeadsGroup=null;
   _currentLeadsContacts=[];
 }
