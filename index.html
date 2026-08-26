@@ -2662,8 +2662,9 @@ function downloadPlatformTrackingReport(){
   if(!data.rows.length){showToast('Load leads data (or add closed deals to the Pipeline) first','error');return;}
   const cs=S.cache.conversionStats;
   const canon=p=>data.merges[p]||p;
+  const normP=p=>(p||'').trim().replace(/\s+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
   const convCanon={};
-  (cs?.byPlatform||[]).forEach(r=>{const p=canon(r.platform);if(!convCanon[p])convCanon[p]={converted:0,total:0};convCanon[p].converted+=r.converted;convCanon[p].total+=r.total;});
+  (cs?.byPlatform||[]).forEach(r=>{const p=canon(normP(r.platform));if(!convCanon[p])convCanon[p]={converted:0,total:0};convCanon[p].converted+=r.converted;convCanon[p].total+=r.total;});
   const totalConverted=Object.values(convCanon).reduce((s,v)=>s+v.converted,0);
   const html=buildPlatformTrackingReportHtml({...data,generatedAt:new Date(),convCanon,totalConverted});
   const periodSlug=_platformTrackPeriod==='yearly'?`yearly-${_platformTrackYear}`:'monthly';
@@ -4821,8 +4822,9 @@ function renderPlatformTracking(){
   // Build per-canonical-platform conversion stats
   const cs=S.cache.conversionStats;
   const canon=p=>merges[p]||p;
+  const normP=p=>(p||'').trim().replace(/\s+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
   const convCanon={};
-  (cs?.byPlatform||[]).forEach(r=>{const p=canon(r.platform);if(!convCanon[p])convCanon[p]={converted:0,total:0};convCanon[p].converted+=r.converted;convCanon[p].total+=r.total;});
+  (cs?.byPlatform||[]).forEach(r=>{const p=canon(normP(r.platform));if(!convCanon[p])convCanon[p]={converted:0,total:0};convCanon[p].converted+=r.converted;convCanon[p].total+=r.total;});
   const totalConverted=Object.values(convCanon).reduce((s,v)=>s+v.converted,0);
   const totalLeadsForConv=cs?.total||0;
   const overallRate=totalLeadsForConv?Math.round(totalConverted/totalLeadsForConv*100):0;
