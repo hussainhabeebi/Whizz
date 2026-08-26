@@ -243,6 +243,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .lc-converted{border-color:rgba(22,163,74,0.35);background:rgba(22,163,74,0.04);}
 .leads-tbl-row:hover{background:var(--accent-dim);}
 .leads-tbl-row.selected{background:var(--accent-light);outline:1px solid var(--accent);}
+.lc-tbl-converted{background:rgba(22,163,74,0.04);}
+.lc-tbl-converted:hover{background:rgba(22,163,74,0.08);}
 .lc-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
 .lc-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#ef4444);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;}
 .lc-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:3px;}
@@ -1304,6 +1306,9 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
             </div>
           </div>
           <div class="card-body">
+            <div style="margin-bottom:10px;">
+              <input id="leads-search" type="search" placeholder="Search by name, email, phone or brand..." oninput="onLeadsSearch(this.value)" style="width:100%;padding:7px 11px;border-radius:7px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;outline:none;box-sizing:border-box;">
+            </div>
             <div style="margin-bottom:8px;"><div class="eyebrow">Platform</div><div class="chips" id="leads-platform-chips"></div></div>
             <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap;">
               <div style="flex:1;min-width:120px;"><div class="eyebrow">Region</div><select id="leads-region-sel" onchange="onLeadsRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div>
@@ -1313,29 +1318,6 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
             <div id="leads-groups-wrap" style="overflow-x:auto;">
               <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
             </div>
-          </div>
-        </div>
-        <!-- Group Contacts Panel -->
-        <div class="card" id="leads-contacts-panel" style="display:none;margin-top:16px;">
-          <div class="card-head">
-            <div>
-              <div class="card-title" id="leads-contacts-title">Group Contacts</div>
-              <div style="font-size:11px;color:var(--text3);margin-top:2px;" id="leads-contacts-subtitle"></div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <span style="font-size:11px;color:var(--text3);" id="leads-contacts-count"></span>
-              <button class="t-btn btn-primary t-btn-sm" onclick="launchGroupCampaign(_currentLeadsGroup&&_currentLeadsGroup.platform,_currentLeadsGroup&&_currentLeadsGroup.country,_currentLeadsGroup&&_currentLeadsGroup.brand)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                Send Campaign
-              </button>
-              <button class="t-btn btn-ghost t-btn-sm" onclick="closeGroupContacts()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                Close
-              </button>
-            </div>
-          </div>
-          <div class="card-body" id="leads-contacts-body">
-            <div style="text-align:center;padding:32px;color:var(--text3);font-size:12px;">Select a group above to view contacts</div>
           </div>
         </div>
       </div>
@@ -3806,7 +3788,7 @@ function renderLeadsPage(groups,total){
     const cur=brandSel.value||'ALL';
     brandSel.innerHTML=`<option value="ALL">All Brands</option>`+filteredBrands.map(b=>`<option value="${b}"${b===cur?' selected':''}>${b}</option>`).join('');
   }
-  renderLeadsTable(filteredGroups);
+  loadLeadsContacts();
   renderLeadScores(filteredGroups,'lead-score-list');
 }
 function renderChipsFilter(list,id,fn){
@@ -3814,102 +3796,60 @@ function renderChipsFilter(list,id,fn){
   if(!el)return;
   el.innerHTML=['ALL',...list].map(v=>`<div class="chip ${v==='ALL'?'active':''}" onclick="${fn}('${v.replace(/'/g, "\\'")}',this)">${v}</div>`).join('');
 }
-function filterLeadsByPlatform(v,el){document.querySelectorAll('#leads-platform-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyLeadsFilter();}
-function onLeadsBrandChange(v){S.activeLeadsBrand=v;applyLeadsFilter();}
-function applyLeadsFilter(){
-  const p=document.querySelector('#leads-platform-chips .chip.active')?.textContent||'ALL';
-  const re=S.activeLeadsRegion||'ALL';
-  const co=S.activeLeadsCountry||'ALL';
-  const b=document.getElementById('leads-brand-sel')?.value||'ALL';
-  S.activeLeadsBrand=b;
-  const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
-  let f=S.cache.groups||[];
-  if(allowedBrands.length>0) f=f.filter(g=>allowedBrands.includes(g.brand));
-  if(allowedPlatforms.length>0) f=f.filter(g=>allowedPlatforms.includes(g.platform));
-  if(p!=='ALL') f=f.filter(g=>g.platform===p);
-  if(re!=='ALL') f=f.filter(g=>g.region===re);
-  if(co!=='ALL') f=f.filter(g=>g.country===co);
-  if(b!=='ALL') f=f.filter(g=>g.brand===b);
-  renderLeadsTable(f);
-  closeGroupContacts();
+function filterLeadsByPlatform(v,el){document.querySelectorAll('#leads-platform-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');loadLeadsContacts();}
+function onLeadsBrandChange(v){S.activeLeadsBrand=v;loadLeadsContacts();}
+function onLeadsSearch(v){_leadsSearchQuery=v.trim().toLowerCase();renderLeadsContactsTable(applyLeadsSearch(_currentLeadsContacts));}
+function applyLeadsFilter(){loadLeadsContacts();}
+
+let _currentLeadsContacts=[];
+let _leadsSearchQuery='';
+let _currentLeadsGroup=null;
+
+function applyLeadsSearch(contacts){
+  if(!_leadsSearchQuery)return contacts;
+  return contacts.filter(c=>{
+    const q=_leadsSearchQuery;
+    return (c.contactName||'').toLowerCase().includes(q)||(c.company||'').toLowerCase().includes(q)||(c.email||'').toLowerCase().includes(q)||(c.phone||'').toLowerCase().includes(q)||(c.brand||'').toLowerCase().includes(q);
+  });
 }
-function renderLeadsTable(groups){
+
+async function loadLeadsContacts(){
   const wrap=document.getElementById('leads-groups-wrap');
   if(!wrap)return;
-  if(!groups||!groups.length){wrap.innerHTML='<div style="text-align:center;color:var(--text3);font-size:12px;padding:28px;">No groups match the selected filters.</div>';return;}
-  wrap.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px;">
-    <thead><tr style="border-bottom:2px solid var(--border);">
-      <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Platform</th>
-      <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Country</th>
-      <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Brand</th>
-      <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Leads</th>
-      <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Trend</th>
-    </tr></thead>
-    <tbody>${groups.map(g=>{
-      let arrow='→',trendColor='var(--text3)';
-      if(g.trend==='Trending Up'){arrow='▲';trendColor='var(--green)';}
-      if(g.trend==='Trending Down'){arrow='▼';trendColor='var(--red)';}
-      const pct=g.velocity30DayPct??0;
-      return `<tr class="leads-tbl-row" onclick="selectLeadsGroup('${g.platform.replace(/'/g,"\\'")}','${g.country.replace(/'/g,"\\'")}','${g.brand.replace(/'/g,"\\'")}',this)" style="cursor:pointer;border-bottom:1px solid var(--border);">
-        <td style="padding:9px 10px;font-weight:500;color:var(--accent);">${g.platform}</td>
-        <td style="padding:9px 10px;color:var(--text2);">${g.country}</td>
-        <td style="padding:9px 10px;color:var(--text);">${g.brand}</td>
-        <td style="padding:9px 10px;text-align:right;font-weight:700;color:var(--text);">${g.count}</td>
-        <td style="padding:9px 10px;font-size:11px;color:${trendColor};">${arrow} ${pct}%</td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table>`;
-}
-
-// ── Lead Group Contacts ──
-let _currentLeadsGroup=null;
-let _currentLeadsContacts=[];
-
-function selectLeadsGroup(platform,country,brand,el){
-  document.querySelectorAll('#leads-groups-wrap .leads-tbl-row, #leads-groups .group-card').forEach(c=>c.classList.remove('selected'));
-  el.classList.add('selected');
-  _currentLeadsGroup={platform,country,brand};
-  openGroupContacts(platform,country,brand);
-}
-
-function closeGroupContacts(){
-  document.getElementById('leads-contacts-panel').style.display='none';
-  document.querySelectorAll('#leads-groups-wrap .leads-tbl-row, #leads-groups .group-card').forEach(c=>c.classList.remove('selected'));
-  _currentLeadsGroup=null;
-  _currentLeadsContacts=[];
-}
-
-async function openGroupContacts(platform,country,brand){
-  const panel=document.getElementById('leads-contacts-panel');
-  panel.style.display='block';
-  setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
-  document.getElementById('leads-contacts-title').textContent=`${platform} · ${country} · ${brand}`;
-  document.getElementById('leads-contacts-subtitle').textContent='Loading contacts...';
-  document.getElementById('leads-contacts-count').textContent='';
-  document.getElementById('leads-contacts-body').innerHTML='<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px;">Fetching contacts...</div>';
+  wrap.innerHTML='<div style="text-align:center;color:var(--text3);font-size:12px;padding:28px;">Loading contacts...</div>';
+  const p=document.querySelector('#leads-platform-chips .chip.active')?.textContent||'ALL';
+  const co=S.activeLeadsCountry||'ALL';
+  const b=document.getElementById('leads-brand-sel')?.value||'ALL';
+  const params=new URLSearchParams();
+  if(p!=='ALL')params.set('platform',p);
+  if(co!=='ALL')params.set('country',co);
+  if(b!=='ALL')params.set('brand',b);
   try{
-    const d=await apiW(`whizz-get-contacts?platform=${encodeURIComponent(platform)}&country=${encodeURIComponent(country)}&brand=${encodeURIComponent(brand)}`);
-    const contacts=d.contacts||d||[];
-    _currentLeadsContacts=Array.isArray(contacts)?contacts:[];
-    document.getElementById('leads-contacts-subtitle').textContent=`${platform} / ${country} / ${brand}`;
-    document.getElementById('leads-contacts-count').textContent=`${_currentLeadsContacts.length} contact${_currentLeadsContacts.length!==1?'s':''}`;
-    renderLeadContacts(_currentLeadsContacts);
+    const d=await apiW(`whizz-get-contacts${params.toString()?'?'+params:''}`);
+    _currentLeadsContacts=Array.isArray(d.contacts)?d.contacts:[];
+    renderLeadsContactsTable(applyLeadsSearch(_currentLeadsContacts));
   }catch(e){
-    document.getElementById('leads-contacts-subtitle').textContent='';
-    document.getElementById('leads-contacts-body').innerHTML='<div style="text-align:center;padding:32px;color:var(--red);font-size:12px;">Failed to load contacts — the <strong>whizz-get-contacts</strong> endpoint is unavailable.</div>';
+    wrap.innerHTML=`<div style="text-align:center;color:var(--red);font-size:12px;padding:28px;">${e.message||'Failed to load contacts'}</div>`;
   }
 }
 
-function renderLeadContacts(contacts){
-  const body=document.getElementById('leads-contacts-body');
-  if(!contacts.length){body.innerHTML='<div style="text-align:center;padding:32px;color:var(--text3);font-size:12px;">No contacts in this group yet. Use <strong>Add Contact</strong> above to add some.</div>';return;}
+function _hesc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function renderLeadsContactsTable(contacts){
+  const wrap=document.getElementById('leads-groups-wrap');
+  if(!wrap)return;
+  const total=_currentLeadsContacts.length,shown=contacts.length;
   const converted=contacts.filter(c=>c.convertedAt).length;
-  const ratio=contacts.length?Math.round(converted/contacts.length*100):0;
-  body.innerHTML=`
-    <div style="display:flex;align-items:center;gap:12px;padding:8px 0 12px;margin-bottom:4px;border-bottom:1px solid var(--border);flex-wrap:wrap;">
-      <span style="font-size:11px;color:var(--text3);">Conversion ratio for this group:</span>
-      <span style="font-size:13px;font-weight:700;color:${ratio>=50?'var(--green)':ratio>=20?'var(--amber)':'var(--text3)'};">${ratio}%</span>
-      <span style="font-size:11px;color:var(--text3);">${converted} of ${contacts.length} converted</span>
+  const ratio=shown?Math.round(converted/shown*100):0;
+  const ratioColor=ratio>=50?'var(--green)':ratio>=20?'var(--amber)':'var(--text3)';
+  const emptyMsg=total===0?'No contacts match the selected filters.':shown===0?'No contacts match your search.':null;
+  if(emptyMsg&&total===0){wrap.innerHTML=`<div style="text-align:center;color:var(--text3);font-size:12px;padding:28px;">${emptyMsg}</div>`;return;}
+  wrap.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 2px 10px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:10px;">
+      <span style="font-size:11px;color:var(--text3);">Conversion ratio:</span>
+      <span style="font-size:13px;font-weight:700;color:${ratioColor};">${ratio}%</span>
+      <span style="font-size:11px;color:var(--text3);">${converted} of ${shown} converted</span>
+      ${_leadsSearchQuery?`<span style="font-size:11px;color:var(--text3);">(${shown} of ${total} shown)</span>`:''}
       <label class="t-btn btn-ghost" style="padding:4px 10px;font-size:10px;cursor:pointer;margin-left:auto;" title="Upload a CSV/Excel export as a reference while marking conversions">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Upload Reference CSV
@@ -3917,38 +3857,43 @@ function renderLeadContacts(contacts){
       </label>
     </div>
     <div id="conv-ref-panel" style="display:none;margin-bottom:12px;"></div>
-    <div class="lead-contacts-grid">${contacts.map((c,i)=>{
-    const name=c.contactName||c.company||c.name||'Unknown';
-    const initials=name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?';
-    const isConverted=!!c.convertedAt;
-    return `<div class="lc-card${isConverted?' lc-converted':''}">
-      <div class="lc-header">
-        <div class="lc-avatar">${initials}</div>
-        <div style="flex:1;min-width:0;">
-          <div class="lc-name">${name}</div>
-          ${c.category?`<span class="cc-cat">${c.category}</span>`:''}
-        </div>
-        <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
-          <button class="t-btn ${isConverted?'btn-success':'btn-ghost'}" style="padding:4px 8px;font-size:10px;${isConverted?'':'opacity:.7;'}" onclick="toggleConversion(${i})" title="${isConverted?'Mark as not converted':'Mark as converted'}">
-            ${isConverted?'✓ Converted':'◯ Convert'}
-          </button>
-          <button class="t-btn btn-primary" style="padding:4px 8px;font-size:10px;" onclick="openLeadProfile(${i})">View</button>
-          <button class="t-btn btn-ghost" style="padding:4px 8px;font-size:10px;" onclick="openEditLeadContact(${i})" title="Edit contact">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Edit
-          </button>
-          ${CURRENT_SESSION?.role!=='Sales'?`<button class="t-btn" style="padding:4px 8px;font-size:10px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteLeadContact(${i})" title="Delete contact">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-          </button>`:''}
-        </div>
-      </div>
-      ${c.phone?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8 19.79 19.79 0 0 1 1.61 1.12 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg><a href="tel:${c.phone}" onclick="event.stopPropagation()">${c.phone}</a></div>`:''}
-      ${c.email?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${c.email}" onclick="event.stopPropagation()">${c.email}</a></div>`:''}
-      ${c.source?`<div class="cc-detail" style="font-size:10px;color:var(--text3);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${c.source}</div>`:''}
-      ${isConverted?`<div class="cc-detail" style="color:var(--green);font-weight:600;font-size:10px;">✓ Converted ${c.convertedAt?new Date(c.convertedAt).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'2-digit'}):''}</div>`:''}
-      ${(()=>{const deals=getClosedDealsForContact(c);const total=deals.reduce((s,d)=>s+(Number(d.value)||0),0);return total?`<div class="cc-detail" style="color:var(--green);font-weight:600;">✓ ${total.toLocaleString()} closed${deals.length>1?` (${deals.length} deals)`:''}</div>`:'';})()}
-    </div>`;
-  }).join('')}</div>`;
+    ${shown===0?`<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">No contacts match your search.</div>`:`<table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="border-bottom:2px solid var(--border);">
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Name</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Phone</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Platform</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Country</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Brand</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Converted</th>
+        <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Actions</th>
+      </tr></thead>
+      <tbody>${contacts.map((c,i)=>{
+        const name=c.contactName||c.company||c.name||'Unknown';
+        const isConverted=!!c.convertedAt;
+        return `<tr class="leads-tbl-row${isConverted?' lc-tbl-converted':''}" style="border-bottom:1px solid var(--border);">
+          <td style="padding:9px 10px;">
+            <div style="font-weight:500;color:var(--text);">${_hesc(name)}</div>
+            ${c.company&&c.contactName?`<div style="font-size:10px;color:var(--text3);">${_hesc(c.company)}</div>`:''}
+            ${c.category?`<span class="cc-cat">${_hesc(c.category)}</span>`:''}
+          </td>
+          <td style="padding:9px 10px;color:var(--text2);">${c.phone?`<a href="tel:${_hesc(c.phone)}" style="color:inherit;text-decoration:none;">${_hesc(c.phone)}</a>`:''}</td>
+          <td style="padding:9px 10px;font-weight:500;color:var(--accent);">${_hesc(c.platform)}</td>
+          <td style="padding:9px 10px;color:var(--text2);">${_hesc(c.country)}</td>
+          <td style="padding:9px 10px;color:var(--text);">${_hesc(c.brand)}</td>
+          <td style="padding:9px 10px;">
+            <button class="t-btn ${isConverted?'btn-success':'btn-ghost'}" style="padding:3px 8px;font-size:10px;${isConverted?'':'opacity:.7;'}" onclick="toggleConversion(${i})" title="${isConverted?'Mark as not converted':'Mark as converted'}">${isConverted?'✓':'◯'}</button>
+            ${isConverted&&c.convertedAt?`<span style="font-size:10px;color:var(--green);margin-left:4px;">${new Date(c.convertedAt).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'2-digit'})}</span>`:''}
+          </td>
+          <td style="padding:9px 10px;">
+            <div style="display:flex;gap:4px;justify-content:flex-end;">
+              <button class="t-btn btn-primary" style="padding:3px 8px;font-size:10px;" onclick="openLeadProfile(${i})">View</button>
+              <button class="t-btn btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="openEditLeadContact(${i})">Edit</button>
+              ${CURRENT_SESSION?.role!=='Sales'?`<button class="t-btn" style="padding:3px 8px;font-size:10px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteLeadContact(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`:``}
+            </div>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`}`;
 }
 
 async function toggleConversion(i){
@@ -3958,7 +3903,7 @@ async function toggleConversion(i){
   try{
     const res=await apiFetch('/whizz-mark-conversion',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:c.id,converted:nowConverted})});
     _currentLeadsContacts[i]={...c,convertedAt:res.convertedAt||''};
-    renderLeadContacts(_currentLeadsContacts);
+    renderLeadsContactsTable(applyLeadsSearch(_currentLeadsContacts));
     showToast(nowConverted?'Marked as converted':'Conversion removed','success');
   }catch(e){showToast(e.message||'Failed to update','error');}
 }
@@ -4036,7 +3981,7 @@ async function submitEditLeadContact(){
     await api('whizz-update-contact','POST',contact);
     showToast('Contact updated!','success');
     closeModal('modal-edit-contact');
-    if(_currentLeadsGroup)openGroupContacts(_currentLeadsGroup.platform,_currentLeadsGroup.country,_currentLeadsGroup.brand);
+    loadLeadsContacts();
   }catch(e){showToast('Failed to update — ensure whizz-update-contact webhook is active','error');}
 }
 
@@ -4076,7 +4021,7 @@ function submitAddClosedDeal(){
   closeModal('modal-add-closed-deal');
   showToast('Closed deal recorded','success');
   _acdContact=null;
-  if(_currentLeadsGroup)renderLeadContacts(_currentLeadsContacts);
+  renderLeadsContactsTable(applyLeadsSearch(_currentLeadsContacts));
   if(S.page==='reports')renderPlatformTracking();
   if(S.page==='pipeline')renderPipelinePage();
 }
@@ -4089,10 +4034,8 @@ async function deleteLeadContact(i){
   try{
     await api('whizz-delete-contact','POST',{id:c.id});
     showToast(`${name} deleted`,'success');
-    if(_currentLeadsGroup){
-      openGroupContacts(_currentLeadsGroup.platform,_currentLeadsGroup.country,_currentLeadsGroup.brand);
-      refreshLeads();
-    }
+    loadLeadsContacts();
+    refreshLeads();
   }catch(e){showToast('Failed to delete — ensure whizz-delete-contact webhook is active','error');}
 }
 
