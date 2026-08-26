@@ -1,4 +1,6 @@
 import { handleGetContacts } from './routes/getContacts.js';
+import { handleMarkConversion } from './routes/markConversion.js';
+import { handleGetConversionStats } from './routes/getConversionStats.js';
 import { handleGetEnquiries } from './routes/getEnquiries.js';
 import { handleAppendMemory } from './routes/appendMemory.js';
 import { handleMe, handleUsers, handleCreateUser, handleUpdateUser, handleDeleteUser, handleResetUserAccess, handleSyncUserAccess } from './routes/users.js';
@@ -10,6 +12,8 @@ import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
   { method: 'GET', path: '/whizz-get-contacts', handler: handleGetContacts },
+  { method: 'POST', path: '/whizz-mark-conversion', handler: handleMarkConversion },
+  { method: 'GET', path: '/api/conversion-stats', handler: handleGetConversionStats },
   { method: 'GET', path: '/whizz-get-enquiries', handler: handleGetEnquiries },
   { method: 'POST', path: '/whizz-append-memory', handler: handleAppendMemory },
   { method: 'GET', path: '/api/me', handler: handleMe },

@@ -42,6 +42,7 @@ async function repairSchema(env) {
     ['updatedAt', 'TEXT'], ['lastContactedAt', 'TEXT'], ['nextFollowUpAt', 'TEXT'],
     ['dealExpectedAt', 'TEXT'], ['leadScore', 'INTEGER NOT NULL DEFAULT 0'],
     ['telegramChatId', 'TEXT'], ['telegramUsername', 'TEXT'],
+    ['convertedAt', 'TEXT'],
   ]);
   await env.DB.prepare('UPDATE contacts SET createdAt=COALESCE(createdAt,CURRENT_TIMESTAMP), updatedAt=COALESCE(updatedAt,CURRENT_TIMESTAMP)').run();
 

@@ -240,6 +240,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .lead-contacts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;}
 .lc-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;transition:all 0.15s var(--ease);}
 .lc-card:hover{border-color:var(--border2);box-shadow:var(--shadow-sm);transform:translateY(-1px);}
+.lc-converted{border-color:rgba(22,163,74,0.35);background:rgba(22,163,74,0.04);}
 .lc-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
 .lc-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#ef4444);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;}
 .lc-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:3px;}
@@ -1158,6 +1159,22 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
             <div class="s-label">Total Leads</div>
             <div class="s-value" id="rep-sum-leads">—</div>
             <div class="s-sub">All-time database total</div>
+          </div>
+          <div class="stat-card green">
+            <div class="s-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div class="s-label">Conversion Rate</div>
+            <div class="s-value" id="rep-sum-conv-rate">—</div>
+            <div class="s-sub" id="rep-sum-conv-sub">Leads marked as converted</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Lead Conversion Report</div>
+            <span style="font-size:11px;color:var(--text3);">Based on contacts manually marked as converted</span>
+          </div>
+          <div class="card-body" id="rep-conversion-body">
+            <div class="empty-state">Click Refresh to load</div>
           </div>
         </div>
 
@@ -3147,8 +3164,15 @@ async function loadWpTrafficForPeriod(){
 }
 async function refreshReportsPage(){
   populateReportsPeriodSelect();
-  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod()]);
+  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshConversionStats()]);
   renderReports();
+}
+
+async function refreshConversionStats(){
+  try{
+    const data=await apiFetch('/api/conversion-stats');
+    S.cache.conversionStats=data;
+  }catch(e){S.cache.conversionStats=null;}
 }
 
 // ── Dashboard Core logic ──
@@ -3841,17 +3865,35 @@ async function openGroupContacts(platform,country,brand){
 function renderLeadContacts(contacts){
   const body=document.getElementById('leads-contacts-body');
   if(!contacts.length){body.innerHTML='<div style="text-align:center;padding:32px;color:var(--text3);font-size:12px;">No contacts in this group yet. Use <strong>Add Contact</strong> above to add some.</div>';return;}
-  body.innerHTML=`<div class="lead-contacts-grid">${contacts.map((c,i)=>{
+  const converted=contacts.filter(c=>c.convertedAt).length;
+  const ratio=contacts.length?Math.round(converted/contacts.length*100):0;
+  body.innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 0 12px;margin-bottom:4px;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--text3);">Conversion ratio for this group:</span>
+      <span style="font-size:13px;font-weight:700;color:${ratio>=50?'var(--green)':ratio>=20?'var(--amber)':'var(--text3)'};">${ratio}%</span>
+      <span style="font-size:11px;color:var(--text3);">${converted} of ${contacts.length} converted</span>
+      <label class="t-btn btn-ghost" style="padding:4px 10px;font-size:10px;cursor:pointer;margin-left:auto;" title="Upload a CSV/Excel export as a reference while marking conversions">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Upload Reference CSV
+        <input type="file" accept=".csv,.txt" style="display:none;" onchange="loadConversionRef(this)">
+      </label>
+    </div>
+    <div id="conv-ref-panel" style="display:none;margin-bottom:12px;"></div>
+    <div class="lead-contacts-grid">${contacts.map((c,i)=>{
     const name=c.contactName||c.company||c.name||'Unknown';
     const initials=name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?';
-    return `<div class="lc-card">
+    const isConverted=!!c.convertedAt;
+    return `<div class="lc-card${isConverted?' lc-converted':''}">
       <div class="lc-header">
         <div class="lc-avatar">${initials}</div>
         <div style="flex:1;min-width:0;">
           <div class="lc-name">${name}</div>
           ${c.category?`<span class="cc-cat">${c.category}</span>`:''}
         </div>
-        <div style="display:flex;gap:5px;flex-shrink:0;">
+        <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="t-btn ${isConverted?'btn-success':'btn-ghost'}" style="padding:4px 8px;font-size:10px;${isConverted?'':'opacity:.7;'}" onclick="toggleConversion(${i})" title="${isConverted?'Mark as not converted':'Mark as converted'}">
+            ${isConverted?'✓ Converted':'◯ Convert'}
+          </button>
           <button class="t-btn btn-primary" style="padding:4px 8px;font-size:10px;" onclick="openLeadProfile(${i})">View</button>
           <button class="t-btn btn-ghost" style="padding:4px 8px;font-size:10px;color:var(--green);" onclick="openAddClosedDealModal(${i})" title="Record this lead as a closed deal">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -3869,9 +3911,48 @@ function renderLeadContacts(contacts){
       ${c.phone?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.67 9.8 19.79 19.79 0 0 1 1.61 1.12 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6 6z"/></svg><a href="tel:${c.phone}" onclick="event.stopPropagation()">${c.phone}</a></div>`:''}
       ${c.email?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${c.email}" onclick="event.stopPropagation()">${c.email}</a></div>`:''}
       ${c.source?`<div class="cc-detail" style="font-size:10px;color:var(--text3);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${c.source}</div>`:''}
+      ${isConverted?`<div class="cc-detail" style="color:var(--green);font-weight:600;font-size:10px;">✓ Converted ${c.convertedAt?new Date(c.convertedAt).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'2-digit'}):''}</div>`:''}
       ${(()=>{const deals=getClosedDealsForContact(c);const total=deals.reduce((s,d)=>s+(Number(d.value)||0),0);return total?`<div class="cc-detail" style="color:var(--green);font-weight:600;">✓ ${total.toLocaleString()} closed${deals.length>1?` (${deals.length} deals)`:''}</div>`:'';})()}
     </div>`;
   }).join('')}</div>`;
+}
+
+async function toggleConversion(i){
+  const c=_currentLeadsContacts[i];
+  if(!c)return;
+  const nowConverted=!c.convertedAt;
+  try{
+    const res=await apiFetch('/whizz-mark-conversion',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:c.id,converted:nowConverted})});
+    _currentLeadsContacts[i]={...c,convertedAt:res.convertedAt||''};
+    renderLeadContacts(_currentLeadsContacts);
+    showToast(nowConverted?'Marked as converted':'Conversion removed','success');
+  }catch(e){showToast(e.message||'Failed to update','error');}
+}
+
+function loadConversionRef(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const lines=e.target.result.split(/\r?\n/).filter(Boolean);
+    const panel=document.getElementById('conv-ref-panel');
+    if(!panel)return;
+    const rows=lines.slice(0,200).map(l=>l.split(',').map(v=>v.replace(/^"|"$/g,'').trim()));
+    panel.style.display='block';
+    panel.innerHTML=`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:4px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:11px;font-weight:600;color:var(--text);">Reference: ${file.name} (${lines.length-1} rows)</span>
+        <button class="t-btn btn-ghost" style="padding:2px 8px;font-size:10px;" onclick="document.getElementById('conv-ref-panel').style.display='none'">Hide</button>
+      </div>
+      <div style="overflow-x:auto;max-height:160px;overflow-y:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:10px;">
+          ${rows.map((r,ri)=>`<tr style="border-bottom:1px solid var(--border);">${r.slice(0,6).map(v=>`<td style="padding:3px 8px;${ri===0?'font-weight:600;color:var(--text3);':''}">${v}</td>`).join('')}</tr>`).join('')}
+        </table>
+      </div>
+    </div>`;
+  };
+  reader.readAsText(file);
+  input.value='';
 }
 function leadTemperature(c){const deals=getClosedDealsForContact(c);if(deals.length)return'Customer';const stage=(c.stage||c.status||'').toLowerCase();if(stage.includes('qualified')||stage.includes('quotation'))return'Hot';if(c.phone||c.email)return'Warm';return'Cold';}
 function leadScore(c){let score=20;if(c.phone)score+=20;if(c.email)score+=10;if(c.brand||c.productInterest)score+=15;if(c.country)score+=10;if((c.stage||'').toLowerCase().includes('qualified'))score+=20;if(getClosedDealsForContact(c).length)score=100;return Math.min(score,100);}
@@ -4819,11 +4900,56 @@ function renderSummaryStats(){
 
   document.getElementById('rep-sum-leads').textContent=(S.cache.leadsTotal||0).toLocaleString();
 }
+function renderConversionReport(){
+  const cs=S.cache.conversionStats;
+  const rateEl=document.getElementById('rep-sum-conv-rate');
+  const subEl=document.getElementById('rep-sum-conv-sub');
+  const bodyEl=document.getElementById('rep-conversion-body');
+  if(!cs){
+    if(rateEl)rateEl.textContent='—';
+    if(bodyEl)bodyEl.innerHTML='<div class="empty-state">No conversion data yet — mark contacts as converted from the Leads page.</div>';
+    return;
+  }
+  const total=cs.total||0,converted=cs.converted||0;
+  const rate=total?Math.round(converted/total*100):0;
+  if(rateEl)rateEl.textContent=`${rate}%`;
+  if(subEl)subEl.textContent=`${converted} of ${total} leads converted`;
+  if(!bodyEl)return;
+  const bar=(pct,color)=>`<div style="background:var(--border);border-radius:4px;height:6px;flex:1;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .4s;"></div></div>`;
+  const rows=(arr,key)=>arr.slice(0,10).map(r=>{const p=r.total?Math.round(r.converted/r.total*100):0;return`<div class="metric-row" style="gap:10px;align-items:center;">
+    <div class="m-label" style="min-width:100px;">${r[key]||'—'}</div>
+    ${bar(p,'var(--green)')}
+    <div style="font-size:11px;font-weight:600;color:var(--green);min-width:34px;text-align:right;">${p}%</div>
+    <div style="font-size:10px;color:var(--text3);min-width:60px;text-align:right;">${r.converted}/${r.total}</div>
+  </div>`}).join('');
+  bodyEl.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+      <div style="text-align:center;padding:14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+        <div style="font-size:28px;font-weight:800;color:var(--green);">${rate}%</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Overall Rate</div>
+      </div>
+      <div style="text-align:center;padding:14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+        <div style="font-size:28px;font-weight:800;color:var(--accent);">${converted}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Converted</div>
+      </div>
+      <div style="text-align:center;padding:14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+        <div style="font-size:28px;font-weight:800;color:var(--text2);">${total}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Total Leads</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
+      ${cs.byPlatform?.length?`<div><div class="eyebrow" style="margin-bottom:8px;">By Platform</div>${rows(cs.byPlatform,'platform')}</div>`:''}
+      ${cs.byBrand?.length?`<div><div class="eyebrow" style="margin-bottom:8px;">By Brand</div>${rows(cs.byBrand,'brand')}</div>`:''}
+      ${cs.byCountry?.length?`<div><div class="eyebrow" style="margin-bottom:8px;">By Country</div>${rows(cs.byCountry,'country')}</div>`:''}
+    </div>`;
+}
+
 function renderReports(){
   const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
   const d=S.cache.stats||{};
 
   renderSummaryStats();
+  renderConversionReport();
   renderPlatformTracking();
 
   let groups=S.cache.groups||[];
