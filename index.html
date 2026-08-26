@@ -1174,17 +1174,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 
         <div class="card" style="margin-bottom:16px;">
           <div class="card-head">
-            <div class="card-title">Lead Conversion Report</div>
-            <span style="font-size:11px;color:var(--text3);">Based on contacts manually marked as converted</span>
-          </div>
-          <div class="card-body" id="rep-conversion-body">
-            <div class="empty-state">Click Refresh to load</div>
-          </div>
-        </div>
-
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-head">
-            <div class="card-title">Lead Platform Tracking</div>
+            <div class="card-title">Lead Platform Tracking &amp; Conversion</div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <button class="t-btn btn-ghost" style="padding:5px 10px;font-size:11px;" onclick="openMergePlatformsModal()">Merge Platforms</button>
               <div class="chip-group" id="ptrack-period-toggle" style="display:flex;gap:6px;">
@@ -4813,6 +4803,15 @@ function renderPlatformTracking(){
   renderPtrackHidden(hiddenPlatforms);
   renderPtrackMergedGroups(merges);
 
+  // Build per-canonical-platform conversion stats
+  const cs=S.cache.conversionStats;
+  const canon=p=>merges[p]||p;
+  const convCanon={};
+  (cs?.byPlatform||[]).forEach(r=>{const p=canon(r.platform);if(!convCanon[p])convCanon[p]={converted:0,total:0};convCanon[p].converted+=r.converted;convCanon[p].total+=r.total;});
+  const totalConverted=Object.values(convCanon).reduce((s,v)=>s+v.converted,0);
+  const totalLeadsForConv=cs?.total||0;
+  const overallRate=totalLeadsForConv?Math.round(totalConverted/totalLeadsForConv*100):0;
+
   if(!rows.length){
     tableEl.innerHTML='<div class="empty-state">Load leads data (or add closed deals to the Pipeline) to see platform tracking.</div>';
     summaryEl.innerHTML='';
@@ -4821,20 +4820,26 @@ function renderPlatformTracking(){
 
   summaryEl.innerHTML=`
     <div class="stat-card amber"><div class="s-label">Total Spend (${periodContext})</div><div class="s-value">${totalCost.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="s-sub">across ${rows.length} platform${rows.length!==1?'s':''}</div></div>
-    <div class="stat-card green"><div class="s-label">Conversion Value</div><div class="s-value">${totalValue.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="s-sub">closed deals ${platformTrackPeriodLabel()}</div></div>
+    <div class="stat-card green"><div class="s-label">Conv. Value</div><div class="s-value">${totalValue.toLocaleString(undefined,{maximumFractionDigits:0})}</div><div class="s-sub">closed deals ${platformTrackPeriodLabel()}</div></div>
     <div class="stat-card blue"><div class="s-label">Blended ROAS</div><div class="s-value">${blendedRoas===null?'—':blendedRoas.toFixed(2)+'x'}</div><div class="s-sub">value ÷ spend</div></div>
-    <div class="stat-card red"><div class="s-label">Avg Cost / Lead</div><div class="s-value">${avgCostPerLead===null?'—':avgCostPerLead.toFixed(2)}</div><div class="s-sub">${periodLabel.toLowerCase()} spend ÷ all-time leads</div></div>`;
+    <div class="stat-card red"><div class="s-label">Avg Cost / Lead</div><div class="s-value">${avgCostPerLead===null?'—':avgCostPerLead.toFixed(2)}</div><div class="s-sub">${periodLabel.toLowerCase()} spend ÷ all-time leads</div></div>
+    <div class="stat-card green"><div class="s-label">Lead Conversion Rate</div><div class="s-value">${overallRate}%</div><div class="s-sub">${totalConverted} of ${totalLeadsForConv} manually converted</div></div>`;
 
   tableEl.innerHTML=`<div class="heatmap-wrap"><table class="heatmap-tbl ptrack-tbl">
     <thead><tr>
-      <th class="row-h">Platform</th><th>Leads</th><th>Yearly Cost</th><th>Cost / Lead</th><th>Closed Deals</th><th>Conv. Value</th><th>Efficiency (ROAS)</th><th>Add-on Benefits</th><th></th>
+      <th class="row-h">Platform</th><th>Leads</th><th>Converted</th><th>Conv. Rate</th><th>Yearly Cost</th><th>Cost / Lead</th><th>Closed Deals</th><th>Conv. Value</th><th>Efficiency (ROAS)</th><th>Add-on Benefits</th><th></th>
     </tr></thead>
     <tbody>${rows.map(r=>{
       const safeP=r.platform.replace(/'/g,"\\'");
       const roasColor=r.roas===null?'var(--text3)':r.roas>=1?'var(--green)':'var(--red)';
+      const cv=convCanon[r.platform]||{converted:0,total:0};
+      const convRate=cv.total?Math.round(cv.converted/cv.total*100):0;
+      const convColor=convRate>=50?'var(--green)':convRate>=20?'var(--amber)':'var(--text3)';
       return`<tr>
         <td class="row-label">${r.platform}</td>
         <td class="ptrack-num">${r.leads.toLocaleString()}</td>
+        <td class="ptrack-num" style="color:${convColor};font-weight:600;">${cv.converted}</td>
+        <td class="ptrack-num" style="color:${convColor};font-weight:700;">${cv.total?convRate+'%':'—'}</td>
         <td class="ptrack-num"><input class="fi ptrack-input" type="number" min="0" step="0.01" value="${r.yearlyCost||''}" placeholder="0" onchange="updatePlatformCost('${safeP}',this.value)"/></td>
         <td class="ptrack-num">${r.costPerLead===null?'—':r.costPerLead.toFixed(2)}</td>
         <td class="ptrack-num">${r.closedCount}</td>
@@ -4844,7 +4849,11 @@ function renderPlatformTracking(){
         <td class="ptrack-num"><button class="ptrack-remove-btn" title="Remove ${r.platform} from this report" onclick="hidePlatformFromTracking('${safeP}')">✕</button></td>
       </tr>`;
     }).join('')}</tbody>
-  </table></div>`;
+  </table></div>
+  ${cs&&(cs.byBrand?.length||cs.byCountry?.length)?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:16px;">
+    ${cs.byBrand?.length?`<div><div class="eyebrow" style="margin-bottom:8px;">Conversion by Brand</div>${cs.byBrand.slice(0,10).map(r=>{const p=r.total?Math.round(r.converted/r.total*100):0;return`<div class="metric-row" style="gap:8px;align-items:center;"><div class="m-label" style="min-width:90px;font-size:11px;">${r.brand||'—'}</div><div style="background:var(--border);border-radius:4px;height:5px;flex:1;overflow:hidden;"><div style="height:100%;width:${p}%;background:var(--green);border-radius:4px;"></div></div><div style="font-size:11px;font-weight:600;color:var(--green);min-width:30px;text-align:right;">${p}%</div><div style="font-size:10px;color:var(--text3);min-width:50px;text-align:right;">${r.converted}/${r.total}</div></div>`;}).join('')}</div>`:''}
+    ${cs.byCountry?.length?`<div><div class="eyebrow" style="margin-bottom:8px;">Conversion by Country</div>${cs.byCountry.slice(0,10).map(r=>{const p=r.total?Math.round(r.converted/r.total*100):0;return`<div class="metric-row" style="gap:8px;align-items:center;"><div class="m-label" style="min-width:90px;font-size:11px;">${r.country||'—'}</div><div style="background:var(--border);border-radius:4px;height:5px;flex:1;overflow:hidden;"><div style="height:100%;width:${p}%;background:var(--green);border-radius:4px;"></div></div><div style="font-size:11px;font-weight:600;color:var(--green);min-width:30px;text-align:right;">${p}%</div><div style="font-size:10px;color:var(--text3);min-width:50px;text-align:right;">${r.converted}/${r.total}</div></div>`;}).join('')}</div>`:''}
+  </div>`:''}`;
 }
 
 // ── Reports Tab Optimization ──
@@ -4881,44 +4890,11 @@ function renderConversionReport(){
   const cs=S.cache.conversionStats;
   const rateEl=document.getElementById('rep-sum-conv-rate');
   const subEl=document.getElementById('rep-sum-conv-sub');
-  const bodyEl=document.getElementById('rep-conversion-body');
-  if(!cs){
-    if(rateEl)rateEl.textContent='—';
-    if(bodyEl)bodyEl.innerHTML='<div class="empty-state">No conversion data yet — mark contacts as converted from the Leads page.</div>';
-    return;
-  }
+  if(!cs){if(rateEl)rateEl.textContent='—';return;}
   const total=cs.total||0,converted=cs.converted||0;
   const rate=total?Math.round(converted/total*100):0;
   if(rateEl)rateEl.textContent=`${rate}%`;
   if(subEl)subEl.textContent=`${converted} of ${total} leads converted`;
-  if(!bodyEl)return;
-  const bar=(pct,color)=>`<div style="background:var(--border);border-radius:4px;height:6px;flex:1;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .4s;"></div></div>`;
-  const rows=(arr,key)=>arr.slice(0,10).map(r=>{const p=r.total?Math.round(r.converted/r.total*100):0;return`<div class="metric-row" style="gap:10px;align-items:center;">
-    <div class="m-label" style="min-width:100px;">${r[key]||'—'}</div>
-    ${bar(p,'var(--green)')}
-    <div style="font-size:11px;font-weight:600;color:var(--green);min-width:34px;text-align:right;">${p}%</div>
-    <div style="font-size:10px;color:var(--text3);min-width:60px;text-align:right;">${r.converted}/${r.total}</div>
-  </div>`}).join('');
-  bodyEl.innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
-      <div style="text-align:center;padding:14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
-        <div style="font-size:28px;font-weight:800;color:var(--green);">${rate}%</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Overall Rate</div>
-      </div>
-      <div style="text-align:center;padding:14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
-        <div style="font-size:28px;font-weight:800;color:var(--accent);">${converted}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Converted</div>
-      </div>
-      <div style="text-align:center;padding:14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
-        <div style="font-size:28px;font-weight:800;color:var(--text2);">${total}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Total Leads</div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
-      ${cs.byPlatform?.length?`<div><div class="eyebrow" style="margin-bottom:8px;">By Platform</div>${rows(cs.byPlatform,'platform')}</div>`:''}
-      ${cs.byBrand?.length?`<div><div class="eyebrow" style="margin-bottom:8px;">By Brand</div>${rows(cs.byBrand,'brand')}</div>`:''}
-      ${cs.byCountry?.length?`<div><div class="eyebrow" style="margin-bottom:8px;">By Country</div>${rows(cs.byCountry,'country')}</div>`:''}
-    </div>`;
 }
 
 function renderReports(){
