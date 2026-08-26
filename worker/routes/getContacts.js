@@ -40,5 +40,5 @@ export async function handleGetContacts(request, env) {
     convertedAt: r.convertedAt || '',
   }));
 
-  return Response.json({ contacts });
+  return Response.json({ contacts }, { headers: { 'cache-control': 'no-store' } });
 }
