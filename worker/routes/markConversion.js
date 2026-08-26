@@ -14,9 +14,13 @@ export async function handleMarkConversion(request, env) {
     : actor.role === 'Manager' ? '(ownerEmail IS NULL OR teamId = ?3)'
     : 'ownerEmail = ?3';
 
-  const result = await env.DB.prepare(
+  const stmt = env.DB.prepare(
     `UPDATE contacts SET convertedAt=?1, updatedAt=CURRENT_TIMESTAMP WHERE id=?2 AND ${ownership}`
-  ).bind(convertedAt, id, actor.role === 'Sales' ? actor.email : (actor.teamId || '')).run();
+  );
+  const result = await (actor.role === 'Administrator'
+    ? stmt.bind(convertedAt, id)
+    : stmt.bind(convertedAt, id, actor.role === 'Sales' ? actor.email : (actor.teamId || ''))
+  ).run();
 
   if (!result.meta.changes) return Response.json({ error: 'Contact not found or access denied.' }, { status: 404 });
   return Response.json({ success: true, convertedAt });
