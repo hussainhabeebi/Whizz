@@ -37,6 +37,7 @@ export async function handleGetContacts(request, env) {
     createdAt: r.createdAt || '', updatedAt: r.updatedAt || '', lastContactedAt: r.lastContactedAt || '',
     nextFollowUpAt: r.nextFollowUpAt || '', dealExpectedAt: r.dealExpectedAt || '', leadScore: Number(r.leadScore || 0),
     telegramChatId: r.telegramChatId || '', telegramUsername: r.telegramUsername || '',
+    convertedAt: r.convertedAt || '',
   }));
 
   return Response.json({ contacts });
