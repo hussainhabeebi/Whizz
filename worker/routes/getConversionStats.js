@@ -7,12 +7,13 @@ export async function handleGetConversionStats(request, env) {
     : actor.role === 'Manager' ? '(ownerEmail IS NULL OR teamId = ?1)'
     : 'ownerEmail = ?1';
   const bind = actor.role === 'Sales' ? actor.email : (actor.teamId || '');
+  const b = s => actor.role === 'Administrator' ? s : s.bind(bind);
 
   const [totals, byPlatform, byBrand, byCountry] = await Promise.all([
-    env.DB.prepare(`SELECT COUNT(*) total, SUM(CASE WHEN convertedAt IS NOT NULL THEN 1 ELSE 0 END) converted FROM contacts WHERE ${ownership}`).bind(bind).first(),
-    env.DB.prepare(`SELECT platform, COUNT(*) total, SUM(CASE WHEN convertedAt IS NOT NULL THEN 1 ELSE 0 END) converted FROM contacts WHERE ${ownership} AND platform != '' GROUP BY platform ORDER BY total DESC`).bind(bind).all(),
-    env.DB.prepare(`SELECT brand, COUNT(*) total, SUM(CASE WHEN convertedAt IS NOT NULL THEN 1 ELSE 0 END) converted FROM contacts WHERE ${ownership} AND brand != '' GROUP BY brand ORDER BY total DESC`).bind(bind).all(),
-    env.DB.prepare(`SELECT country, COUNT(*) total, SUM(CASE WHEN convertedAt IS NOT NULL THEN 1 ELSE 0 END) converted FROM contacts WHERE ${ownership} AND country != '' GROUP BY country ORDER BY total DESC`).bind(bind).all(),
+    b(env.DB.prepare(`SELECT COUNT(*) total, SUM(CASE WHEN convertedAt IS NOT NULL THEN 1 ELSE 0 END) converted FROM contacts WHERE ${ownership}`)).first(),
+    b(env.DB.prepare(`SELECT platform, COUNT(*) total, SUM(CASE WHEN convertedAt IS NOT NULL THEN 1 ELSE 0 END) converted FROM contacts WHERE ${ownership} AND platform != '' GROUP BY platform ORDER BY total DESC`)).all(),
+    b(env.DB.prepare(`SELECT brand, COUNT(*) total, SUM(CASE WHEN convertedAt IS NOT NULL THEN 1 ELSE 0 END) converted FROM contacts WHERE ${ownership} AND brand != '' GROUP BY brand ORDER BY total DESC`)).all(),
+    b(env.DB.prepare(`SELECT country, COUNT(*) total, SUM(CASE WHEN convertedAt IS NOT NULL THEN 1 ELSE 0 END) converted FROM contacts WHERE ${ownership} AND country != '' GROUP BY country ORDER BY total DESC`)).all(),
   ]);
 
   return Response.json({
