@@ -112,7 +112,7 @@ export default {
     const contentType = assetResponse.headers.get('content-type') || '';
     if (request.method === 'GET' && contentType.includes('text/html') && (url.pathname === '/' || url.pathname === '/index.html')) {
       const html = await assetResponse.text();
-      const injected = html.replace('</body>', '<script src="/js/auto-refresh.js"></script>\n</body>');
+      const injected = html.replace('</body>', '<script src="/js/leads-table-view.js"></script>\n<script src="/js/auto-refresh.js"></script>\n</body>');
       const headers = new Headers(assetResponse.headers);
       headers.delete('content-length');
       return new Response(injected, { status: assetResponse.status, statusText: assetResponse.statusText, headers });
