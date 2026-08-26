@@ -3895,6 +3895,10 @@ async function toggleConversion(i){
     _currentLeadsContacts[i]={...c,convertedAt:res.convertedAt||''};
     renderLeadsContactsTable(applyLeadsSearch(_currentLeadsContacts));
     showToast(nowConverted?'Marked as converted':'Conversion removed','success');
+    S.cache.conversionStats=null;
+    refreshConversionStats().then(()=>{
+      if(S.page==='reports'){renderPlatformTracking();renderConversionReport();}
+    }).catch(()=>{});
   }catch(e){showToast(e.message||'Failed to update','error');}
 }
 
