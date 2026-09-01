@@ -1934,6 +1934,46 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
   </div>
 </div>
 
+<!-- Export Contacts Modal -->
+<div class="modal-overlay" id="modal-export-contacts">
+  <div class="modal" style="width:min(96vw,520px);">
+    <div class="modal-head">
+      <div class="modal-title">Export Contacts</div>
+      <button class="modal-close" onclick="closeModal('modal-export-contacts')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:14px;">
+        <div class="fl" style="margin-bottom:8px;">Export scope</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+            <input type="radio" name="exp-scope" value="shown" id="exp-scope-shown" checked> <span id="exp-scope-shown-label">Current view</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+            <input type="radio" name="exp-scope" value="all" id="exp-scope-all"> <span id="exp-scope-all-label">All loaded</span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span class="fl">Fields to include</span>
+          <div style="display:flex;gap:8px;">
+            <button class="t-btn btn-ghost" style="padding:2px 8px;font-size:10px;" onclick="setAllExportFields(true)">All</button>
+            <button class="t-btn btn-ghost" style="padding:2px 8px;font-size:10px;" onclick="setAllExportFields(false)">None</button>
+          </div>
+        </div>
+        <div id="exp-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-export-contacts')">Cancel</button>
+      <button class="t-btn btn-primary" onclick="exportContactsCSV()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Download CSV
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Add Closed Deal Modal (per-lead level, backdatable) -->
 <div class="modal-overlay" id="modal-add-closed-deal">
   <div class="modal">
@@ -3852,7 +3892,11 @@ function renderLeadsContactsTable(contacts){
       <span style="font-size:13px;font-weight:700;color:${ratioColor};">${ratio}%</span>
       <span style="font-size:11px;color:var(--text3);">${converted} of ${shown} converted</span>
       ${_leadsSearchQuery?`<span style="font-size:11px;color:var(--text3);">(${shown} of ${total} shown)</span>`:''}
-      <label class="t-btn btn-ghost" style="padding:4px 10px;font-size:10px;cursor:pointer;margin-left:auto;" title="Upload a CSV/Excel export as a reference while marking conversions">
+      <button class="t-btn btn-ghost" style="padding:4px 10px;font-size:10px;margin-left:auto;" onclick="openExportContacts()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Export CSV
+      </button>
+      <label class="t-btn btn-ghost" style="padding:4px 10px;font-size:10px;cursor:pointer;" title="Upload a CSV/Excel export as a reference while marking conversions">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Upload Reference CSV
         <input type="file" accept=".csv,.txt" style="display:none;" onchange="loadConversionRef(this)">
@@ -3940,6 +3984,62 @@ function loadConversionRef(input){
   };
   reader.readAsText(file);
   input.value='';
+}
+const EXPORT_FIELDS=[
+  {key:'contactName',label:'Name',def:true},
+  {key:'company',label:'Company',def:true},
+  {key:'phone',label:'Phone',def:true},
+  {key:'email',label:'Email',def:true},
+  {key:'platform',label:'Platform',def:true},
+  {key:'country',label:'Country',def:true},
+  {key:'brand',label:'Brand',def:true},
+  {key:'category',label:'Category',def:true},
+  {key:'source',label:'Source',def:false},
+  {key:'productInterest',label:'Product Interest',def:false},
+  {key:'leadScore',label:'Lead Score',def:false},
+  {key:'convertedAt',label:'Converted At',def:true},
+  {key:'lastContactedAt',label:'Last Contacted',def:false},
+  {key:'nextFollowUpAt',label:'Next Follow-up',def:false},
+  {key:'dealExpectedAt',label:'Deal Expected',def:false},
+  {key:'ownerEmail',label:'Owner Email',def:false},
+  {key:'teamId',label:'Team',def:false},
+  {key:'createdByEmail',label:'Created By',def:false},
+  {key:'createdAt',label:'Created At',def:false},
+  {key:'updatedAt',label:'Updated At',def:false},
+  {key:'telegramChatId',label:'Telegram Chat ID',def:false},
+  {key:'telegramUsername',label:'Telegram Username',def:false},
+];
+let _exportShownContacts=[];
+function openExportContacts(){
+  _exportShownContacts=applyLeadsSearch(_currentLeadsContacts);
+  const allCount=_currentLeadsContacts.length,shownCount=_exportShownContacts.length;
+  document.getElementById('exp-scope-shown-label').textContent=`Current view (${shownCount})`;
+  document.getElementById('exp-scope-all-label').textContent=`All loaded (${allCount})`;
+  document.getElementById('exp-scope-shown').checked=true;
+  const fieldsEl=document.getElementById('exp-fields');
+  fieldsEl.innerHTML=EXPORT_FIELDS.map(f=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+    <input type="checkbox" id="expf-${f.key}" ${f.def?'checked':''}> ${f.label}
+  </label>`).join('');
+  document.getElementById('modal-export-contacts').classList.add('open');
+}
+function setAllExportFields(on){
+  EXPORT_FIELDS.forEach(f=>{const el=document.getElementById('expf-'+f.key);if(el)el.checked=on;});
+}
+function exportContactsCSV(){
+  const scope=document.querySelector('input[name="exp-scope"]:checked')?.value||'shown';
+  const rows=scope==='all'?_currentLeadsContacts:_exportShownContacts;
+  const cols=EXPORT_FIELDS.filter(f=>{const el=document.getElementById('expf-'+f.key);return el&&el.checked;});
+  if(!cols.length){showToast('Select at least one field','error');return;}
+  const esc=v=>{const s=String(v??'');return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s;};
+  const lines=[cols.map(c=>esc(c.label)).join(',')];
+  rows.forEach(r=>lines.push(cols.map(c=>esc(r[c.key]??'')).join(',')));
+  const blob=new Blob([lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`Whizz-Contacts-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  closeModal('modal-export-contacts');
+  showToast(`Exported ${rows.length} contact${rows.length!==1?'s':''}`, 'success');
 }
 function leadTemperature(c){const deals=getClosedDealsForContact(c);if(deals.length)return'Customer';const stage=(c.stage||c.status||'').toLowerCase();if(stage.includes('qualified')||stage.includes('quotation'))return'Hot';if(c.phone||c.email)return'Warm';return'Cold';}
 function leadScore(c){let score=20;if(c.phone)score+=20;if(c.email)score+=10;if(c.brand||c.productInterest)score+=15;if(c.country)score+=10;if((c.stage||'').toLowerCase().includes('qualified'))score+=20;if(getClosedDealsForContact(c).length)score=100;return Math.min(score,100);}
