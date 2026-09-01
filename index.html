@@ -3986,11 +3986,11 @@ async function submitEditLeadContact(){
     brand:document.getElementById('ec-brand').value.trim()
   };
   try{
-    await api('whizz-update-contact','POST',contact);
+    await apiFetch('/whizz-update-contact',{method:'POST',body:JSON.stringify(contact)});
     showToast('Contact updated!','success');
     closeModal('modal-edit-contact');
     loadLeadsContacts();
-  }catch(e){showToast('Failed to update — ensure whizz-update-contact webhook is active','error');}
+  }catch(e){showToast(e.message||'Failed to update contact','error');}
 }
 
 // ── Add Closed Deal (per-lead level, backdatable — e.g. for last year's deals) ──
@@ -4040,11 +4040,11 @@ async function deleteLeadContact(i){
   const name=c.contactName||c.company||c.name||'this contact';
   if(!confirm(`Delete "${name}"? This cannot be undone.`))return;
   try{
-    await api('whizz-delete-contact','POST',{id:c.id});
+    await apiFetch('/whizz-delete-contact',{method:'POST',body:JSON.stringify({id:c.id})});
     showToast(`${name} deleted`,'success');
     loadLeadsContacts();
     refreshLeads();
-  }catch(e){showToast('Failed to delete — ensure whizz-delete-contact webhook is active','error');}
+  }catch(e){showToast(e.message||'Failed to delete contact','error');}
 }
 
 // ── Add Contact (multi-row) ──
