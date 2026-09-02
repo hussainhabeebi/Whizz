@@ -5312,7 +5312,7 @@ th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em
     <div class="kpi-card amber"><div class="kpi-label">Top Platform</div><div class="kpi-value" style="font-size:20px;margin-top:4px;">${d.topPlatform||'—'}</div><div class="kpi-sub">By contact count</div></div>
   </div>
   <div class="section">
-    <div class="section-title">Top 10 Leads by Score</div>
+    <div class="section-title">Latest 10 Leads — Newest First</div>
     <table>
       <thead><tr><th>#</th><th>Contact</th><th>Country</th><th>Brand</th><th>Platform</th><th>Score</th><th>Last Contact</th><th>Chat</th></tr></thead>
       <tbody>${tableRows||'<tr><td colspan="8" style="text-align:center;padding:20px;color:#94a3b8;">No contacts found for this filter</td></tr>'}</tbody>
@@ -5341,7 +5341,7 @@ function downloadLeadIntelligenceReport(){
   const platformMap={};
   contacts.forEach(c=>{if(c.platform)platformMap[c.platform]=(platformMap[c.platform]||0)+1;});
   const topPlatform=Object.entries(platformMap).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
-  const top10=[...contacts].sort((a,b)=>(b.leadScore||0)-(a.leadScore||0)).slice(0,10);
+  const top10=[...contacts].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).slice(0,10);
 
   const html=buildLeadIntelligenceReportHtml({generatedAt:now,country,period:_liPeriod,totalContacts:contacts.length,newWeek,newMonth,topPlatform,top10});
   downloadHTML(html,`Whizz-Lead-Intelligence-${now.toISOString().slice(0,10)}.html`);
