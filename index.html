@@ -392,10 +392,10 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 /* Add Contact Modal */
 .ac-shared-panel{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:16px;}
 .ac-shared-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;}
-.ac-table-head{display:grid;grid-template-columns:1fr 130px 150px 130px 28px;gap:6px;margin-bottom:6px;padding:0 8px;}
+.ac-table-head{display:grid;grid-template-columns:1fr 130px 150px 110px 120px 28px;gap:6px;margin-bottom:6px;padding:0 8px;}
 .ac-table-head div{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;}
 .ac-table-rows{display:flex;flex-direction:column;gap:4px;max-height:340px;overflow-y:auto;padding-right:2px;}
-.ac-row{display:grid;grid-template-columns:1fr 130px 150px 130px 28px;gap:6px;align-items:center;padding:5px 8px;border-radius:8px;transition:background 0.12s;}
+.ac-row{display:grid;grid-template-columns:1fr 130px 150px 110px 120px 28px;gap:6px;align-items:center;padding:5px 8px;border-radius:8px;transition:background 0.12s;}
 .ac-row:hover{background:var(--bg3);}
 .ac-row .fi{padding:7px 9px;font-size:12px;}
 .ptrack-tbl td{text-align:left;}
@@ -1257,6 +1257,32 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
             <div class="empty-state">Connect a WordPress site with a Jetpack Site ID under Settings → Integrations, then Refresh to load traffic stats.</div>
           </div>
         </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head" style="flex-wrap:wrap;gap:10px;">
+            <div>
+              <div class="card-title">Lead Intelligence Report</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px;">Country-specific insights · new leads · top contacts with direct chat</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <select class="fs" id="li-country-sel" style="width:auto;padding:5px 10px;font-size:11px;" onchange="onLICountryChange()">
+                <option value="ALL">All Countries</option>
+              </select>
+              <div class="chip-group" id="li-period-toggle" style="display:flex;gap:6px;">
+                <div class="chip active" onclick="onLIPeriodChange('week',this)">This Week</div>
+                <div class="chip" onclick="onLIPeriodChange('month',this)">This Month</div>
+              </div>
+              <button class="t-btn btn-primary" style="padding:5px 10px;font-size:11px;" onclick="downloadLeadIntelligenceReport()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download PDF Report
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="stats-grid" id="li-kpis" style="margin-bottom:16px;"></div>
+            <div class="eyebrow" style="margin-bottom:8px;">Top 10 Leads by Score</div>
+            <div id="li-top10"><div class="empty-state">Click Refresh to load lead intelligence.</div></div>
+          </div>
+        </div>
       </div>
 
       <div class="page" id="page-leads">
@@ -1836,6 +1862,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <div>Mobile</div>
         <div>Email</div>
         <div>Source</div>
+        <div>Telegram User ID</div>
         <div></div>
       </div>
       <!-- Rows container -->
@@ -1924,6 +1951,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         <div class="fg" style="margin:0;"><label class="fl">Source</label><input class="fi" id="ec-source" placeholder="e.g. Manual Entry"/></div>
         <div class="fg" style="margin:0;"><label class="fl">Platform</label><input class="fi" id="ec-platform"/></div>
         <div class="fg" style="margin:0;"><label class="fl">Country</label><input class="fi" id="ec-country"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Telegram User ID</label><input class="fi" id="ec-telegram" placeholder="@username or numeric ID"/></div>
         <div class="fg" style="margin:0;grid-column:1/-1;"><label class="fl">Brand</label><input class="fi" id="ec-brand"/></div>
       </div>
     </div>
@@ -4067,6 +4095,7 @@ function openEditLeadContact(i){
   document.getElementById('ec-platform').value=c.platform||'';
   document.getElementById('ec-country').value=c.country||'';
   document.getElementById('ec-brand').value=c.brand||'';
+  document.getElementById('ec-telegram').value=c.telegramUsername||c.telegramChatId||'';
   document.getElementById('modal-edit-contact').classList.add('open');
 }
 
@@ -4083,7 +4112,8 @@ async function submitEditLeadContact(){
     source:document.getElementById('ec-source').value.trim(),
     platform:document.getElementById('ec-platform').value.trim(),
     country:document.getElementById('ec-country').value.trim(),
-    brand:document.getElementById('ec-brand').value.trim()
+    brand:document.getElementById('ec-brand').value.trim(),
+    telegramUsername:document.getElementById('ec-telegram').value.trim()
   };
   try{
     await apiFetch('/whizz-update-contact',{method:'POST',body:JSON.stringify(contact)});
@@ -4159,6 +4189,7 @@ function acAddRow(){
     <input class="fi" placeholder="+971..." data-field="phone" oninput="acClearDupFlag(this)"/>
     <input class="fi" placeholder="email@example.com" data-field="email"/>
     <input class="fi" placeholder="Manual Entry" data-field="source"/>
+    <input class="fi" placeholder="@username or ID" data-field="telegram"/>
     <button class="ac-remove-btn" onclick="acRemoveRow(${id})" title="Remove">✕</button>
   `;
   document.getElementById('ac-rows').appendChild(row);
@@ -4234,6 +4265,7 @@ async function submitAddContact(){
       phone,
       email:row.querySelector('[data-field="email"]').value.trim(),
       source:row.querySelector('[data-field="source"]').value.trim()||'Manual Entry',
+      telegramUsername:row.querySelector('[data-field="telegram"]').value.trim(),
       platform:sharedPlatform,
       country:sharedCountry,
       brand:sharedBrand,
@@ -5052,6 +5084,7 @@ function renderReports(){
   renderRegionalHeatmap(groups);
   renderBrevoStats(S.cache.brevoCampaigns||[]);
   renderWpTraffic(S.cache.wpTrafficSites||[]);
+  renderLeadIntelligenceReport();
 
   const matEl=document.getElementById('rep-matrix');
   if(!matrix.length){matEl.innerHTML='<div class="empty-state">No Cross Tab items for your access level.</div>';return;}
@@ -5069,6 +5102,250 @@ function renderReports(){
       <div class="matrix-sub-flex">${platformsBlock||'<span style="color:var(--text3)">None</span>'}</div>
     </div>`;
   }).join('');
+}
+
+// ── Lead Intelligence Report ──
+let _liContacts=[];
+let _liPeriod='week';
+
+async function renderLeadIntelligenceReport(){
+  const kpisEl=document.getElementById('li-kpis');
+  const top10El=document.getElementById('li-top10');
+  if(!kpisEl||!top10El)return;
+  kpisEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px 0;">Loading contact data...</div>';
+  top10El.innerHTML='<div class="empty-state">Loading...</div>';
+  try{
+    const data=await apiW('whizz-get-contacts');
+    _liContacts=data.contacts||[];
+    const countrySel=document.getElementById('li-country-sel');
+    if(countrySel){
+      const prev=countrySel.value;
+      const countries=[...new Set(_liContacts.map(c=>c.country).filter(Boolean))].sort();
+      countrySel.innerHTML='<option value="ALL">All Countries</option>'+countries.map(c=>`<option value="${c}"${c===prev?' selected':''}>${c}</option>`).join('');
+    }
+    _renderLIContent();
+  }catch(e){
+    kpisEl.innerHTML='';
+    top10El.innerHTML='<div class="empty-state" style="color:var(--red);">Failed to load contacts. Ensure the contacts webhook is active.</div>';
+  }
+}
+
+function onLICountryChange(){_renderLIContent();}
+
+function onLIPeriodChange(period,el){
+  _liPeriod=period;
+  document.querySelectorAll('#li-period-toggle .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  _renderLIContent();
+}
+
+function _buildLIChatBtn(c){
+  const phone=(c.phone||'').replace(/\D/g,'');
+  const tgUser=c.telegramUsername||'';
+  if(phone){
+    return `<a href="https://wa.me/${phone}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;font-size:10px;background:rgba(37,211,102,0.12);color:#25d366;border:1px solid rgba(37,211,102,0.3);border-radius:6px;text-decoration:none;font-weight:600;">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.134.558 4.132 1.537 5.868L0 24l6.302-1.514A11.957 11.957 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.817 9.817 0 0 1-5.002-1.368l-.361-.214-3.741.897.933-3.611-.236-.375A9.822 9.822 0 0 1 2.182 12c0-5.42 4.398-9.818 9.818-9.818 5.42 0 9.818 4.398 9.818 9.818 0 5.42-4.398 9.818-9.818 9.818z"/></svg>
+      WhatsApp</a>`;
+  }else if(tgUser){
+    const handle=tgUser.startsWith('@')?tgUser.slice(1):tgUser;
+    return `<a href="https://t.me/${encodeURIComponent(handle)}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;font-size:10px;background:rgba(38,166,209,0.12);color:#26a6d1;border:1px solid rgba(38,166,209,0.3);border-radius:6px;text-decoration:none;font-weight:600;">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.2 14.095l-2.95-.924c-.64-.203-.654-.64.136-.953l11.57-4.461c.533-.194 1-.128 1.14.464z"/></svg>
+      Telegram</a>`;
+  }
+  return '<span style="font-size:10px;color:var(--text3);">—</span>';
+}
+
+function _renderLIContent(){
+  const country=document.getElementById('li-country-sel')?.value||'ALL';
+  let contacts=_liContacts;
+  if(country!=='ALL') contacts=contacts.filter(c=>c.country===country);
+
+  const now=new Date();
+  const weekStart=new Date(now);
+  weekStart.setDate(now.getDate()-((now.getDay()+6)%7));
+  weekStart.setHours(0,0,0,0);
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+
+  const newWeek=contacts.filter(c=>c.createdAt&&new Date(c.createdAt)>=weekStart).length;
+  const newMonth=contacts.filter(c=>c.createdAt&&new Date(c.createdAt)>=monthStart).length;
+
+  const platformMap={};
+  contacts.forEach(c=>{if(c.platform)platformMap[c.platform]=(platformMap[c.platform]||0)+1;});
+  const topPlatform=Object.entries(platformMap).sort((a,b)=>b[1]-a[1])[0];
+
+  document.getElementById('li-kpis').innerHTML=`
+    <div class="stat-card blue">
+      <div class="s-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <div class="s-label">New Leads This Week</div>
+      <div class="s-value">${newWeek}</div>
+      <div class="s-sub">${country==='ALL'?'All countries':country}</div>
+    </div>
+    <div class="stat-card green">
+      <div class="s-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+      <div class="s-label">New Leads This Month</div>
+      <div class="s-value">${newMonth}</div>
+      <div class="s-sub">${country==='ALL'?'All countries':country}</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="s-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <div class="s-label">Total Contacts</div>
+      <div class="s-value">${contacts.length}</div>
+      <div class="s-sub">Top: ${topPlatform?topPlatform[0]:'—'}</div>
+    </div>`;
+
+  const top10=[...contacts].sort((a,b)=>(b.leadScore||0)-(a.leadScore||0)).slice(0,10);
+  if(!top10.length){
+    document.getElementById('li-top10').innerHTML='<div class="empty-state">No contacts found for this filter.</div>';
+    return;
+  }
+  const rows=top10.map((c,i)=>{
+    const name=c.contactName||c.company||'Unknown';
+    const score=c.leadScore||0;
+    const scoreColor=score>=70?'var(--red)':score>=40?'var(--amber)':'var(--text)';
+    const lastContacted=c.lastContactedAt?new Date(c.lastContactedAt).toLocaleDateString('en-AE',{day:'2-digit',month:'short'}):'—';
+    const addedDate=c.createdAt?new Date(c.createdAt).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):'—';
+    const chatBtn=_buildLIChatBtn(c);
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:10px 8px;color:var(--text3);font-weight:700;font-size:13px;">${i+1}</td>
+      <td style="padding:10px 8px;">
+        <div style="font-weight:600;font-size:12px;">${name}</div>
+        ${c.company&&c.company!==name?`<div style="font-size:10px;color:var(--text3);">${c.company}</div>`:''}
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Added ${addedDate}</div>
+      </td>
+      <td style="padding:10px 8px;font-size:11px;color:var(--text3);">${c.country||'—'}</td>
+      <td style="padding:10px 8px;font-size:11px;color:var(--text3);">${c.brand||'—'}</td>
+      <td style="padding:10px 8px;font-size:11px;color:var(--text3);">${c.platform||'—'}</td>
+      <td style="padding:10px 8px;font-weight:700;font-size:13px;color:${scoreColor};">${score}</td>
+      <td style="padding:10px 8px;font-size:11px;color:var(--text3);">${lastContacted}</td>
+      <td style="padding:10px 8px;">${chatBtn}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('li-top10').innerHTML=`<div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="border-bottom:2px solid var(--border);">
+        <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);">#</th>
+        <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);">Contact</th>
+        <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);">Country</th>
+        <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);">Brand</th>
+        <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);">Platform</th>
+        <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);">Score</th>
+        <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);">Last Contact</th>
+        <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);">Chat</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+function buildLeadIntelligenceReportHtml(d){
+  const countryLabel=d.country==='ALL'?'All Countries':d.country;
+  const periodLabel=d.period==='week'?'This Week':'This Month';
+  const tableRows=d.top10.map((c,i)=>{
+    const name=c.contactName||c.company||'Unknown';
+    const score=c.leadScore||0;
+    const scoreColor=score>=70?'#dc2626':score>=40?'#d97706':'#0f172a';
+    const lastContacted=c.lastContactedAt?new Date(c.lastContactedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—';
+    const addedDate=c.createdAt?new Date(c.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—';
+    const phone=(c.phone||'').replace(/\D/g,'');
+    const tgUser=c.telegramUsername||'';
+    let chatLink='—';
+    if(phone) chatLink=`<a href="https://wa.me/${phone}" style="color:#25d366;text-decoration:none;">WhatsApp ↗</a>`;
+    else if(tgUser) chatLink=`<a href="https://t.me/${tgUser.replace('@','')}" style="color:#26a6d1;text-decoration:none;">Telegram ↗</a>`;
+    return `<tr><td style="padding:10px;border-bottom:1px solid #f1f3f7;font-weight:700;color:#94a3b8;">${i+1}</td>
+      <td style="padding:10px;border-bottom:1px solid #f1f3f7;"><strong>${name}</strong>${c.company&&c.company!==name?`<br><span style="font-size:11px;color:#94a3b8;">${c.company}</span>`:''}
+        <br><span style="font-size:11px;color:#94a3b8;">Added ${addedDate}</span></td>
+      <td style="padding:10px;border-bottom:1px solid #f1f3f7;color:#475569;">${c.country||'—'}</td>
+      <td style="padding:10px;border-bottom:1px solid #f1f3f7;color:#475569;">${c.brand||'—'}</td>
+      <td style="padding:10px;border-bottom:1px solid #f1f3f7;color:#475569;">${c.platform||'—'}</td>
+      <td style="padding:10px;border-bottom:1px solid #f1f3f7;font-weight:800;color:${scoreColor};">${score}</td>
+      <td style="padding:10px;border-bottom:1px solid #f1f3f7;color:#475569;">${lastContacted}</td>
+      <td style="padding:10px;border-bottom:1px solid #f1f3f7;">${chatLink}</td></tr>`;
+  }).join('');
+  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lead Intelligence Report</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',Arial,sans-serif;background:#f1f3f7;color:#0f172a;padding:32px;}
+.page{max-width:960px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,0.08);padding:40px;}
+.report-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #f1f3f7;padding-bottom:20px;margin-bottom:28px;}
+.brand{font-family:Georgia,serif;font-weight:800;font-size:26px;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.header-meta{text-align:right;font-size:13px;}
+.header-meta .title{font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px;}
+.muted{color:#94a3b8;font-size:12px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;}
+.kpi-card{border-radius:12px;padding:18px;border:1px solid #e8ecf2;}
+.kpi-card.blue{background:rgba(37,99,235,0.08);}
+.kpi-card.green{background:rgba(22,163,74,0.08);}
+.kpi-card.amber{background:rgba(245,158,11,0.08);}
+.kpi-label{font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+.kpi-value{font-size:32px;font-weight:800;line-height:1;margin-bottom:6px;}
+.kpi-card.blue .kpi-value{color:#2563eb;}
+.kpi-card.green .kpi-value{color:#16a34a;}
+.kpi-card.amber .kpi-value{color:#d97706;}
+.kpi-sub{font-size:11px;color:#94a3b8;}
+.section{margin-bottom:28px;}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#0f172a;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e8ecf2;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:#475569;padding:10px;border-bottom:2px solid #e8ecf2;background:#f8fafc;}
+.filter-bar{display:flex;gap:24px;margin-bottom:20px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;}
+.filter-bar span{font-weight:600;color:#0f172a;}
+.filter-bar .label{color:#94a3b8;}
+.print-btn{display:block;margin:0 auto 20px;padding:10px 20px;background:#f59e0b;color:#000;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;}
+.report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #e8ecf2;}
+@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;padding:0;}}
+</style></head><body>
+<div class="page">
+  <div class="report-header">
+    <div class="brand">Whizz.</div>
+    <div class="header-meta">
+      <div class="title">Lead Intelligence Report</div>
+      <div class="muted">Generated ${d.generatedAt.toLocaleString()}</div>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <div><span class="label">Country: </span><span>${countryLabel}</span></div>
+    <div><span class="label">Period: </span><span>${periodLabel}</span></div>
+    <div><span class="label">Total Contacts: </span><span>${d.totalContacts}</span></div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card blue"><div class="kpi-label">New Leads This Week</div><div class="kpi-value">${d.newWeek}</div><div class="kpi-sub">${countryLabel}</div></div>
+    <div class="kpi-card green"><div class="kpi-label">New Leads This Month</div><div class="kpi-value">${d.newMonth}</div><div class="kpi-sub">${countryLabel}</div></div>
+    <div class="kpi-card amber"><div class="kpi-label">Top Platform</div><div class="kpi-value" style="font-size:20px;margin-top:4px;">${d.topPlatform||'—'}</div><div class="kpi-sub">By contact count</div></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Top 10 Leads by Score</div>
+    <table>
+      <thead><tr><th>#</th><th>Contact</th><th>Country</th><th>Brand</th><th>Platform</th><th>Score</th><th>Last Contact</th><th>Chat</th></tr></thead>
+      <tbody>${tableRows||'<tr><td colspan="8" style="text-align:center;padding:20px;color:#94a3b8;">No contacts found for this filter</td></tr>'}</tbody>
+    </table>
+  </div>
+  <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+  <div class="report-footer">Whizz Marketing Console — Lead Intelligence Snapshot</div>
+</div>
+</body></html>`;
+}
+
+function downloadLeadIntelligenceReport(){
+  const country=document.getElementById('li-country-sel')?.value||'ALL';
+  let contacts=_liContacts;
+  if(country!=='ALL') contacts=contacts.filter(c=>c.country===country);
+  if(!contacts.length){showToast('No contact data loaded yet. Click Refresh first.','error');return;}
+
+  const now=new Date();
+  const weekStart=new Date(now);
+  weekStart.setDate(now.getDate()-((now.getDay()+6)%7));
+  weekStart.setHours(0,0,0,0);
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+
+  const newWeek=contacts.filter(c=>c.createdAt&&new Date(c.createdAt)>=weekStart).length;
+  const newMonth=contacts.filter(c=>c.createdAt&&new Date(c.createdAt)>=monthStart).length;
+  const platformMap={};
+  contacts.forEach(c=>{if(c.platform)platformMap[c.platform]=(platformMap[c.platform]||0)+1;});
+  const topPlatform=Object.entries(platformMap).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+  const top10=[...contacts].sort((a,b)=>(b.leadScore||0)-(a.leadScore||0)).slice(0,10);
+
+  const html=buildLeadIntelligenceReportHtml({generatedAt:now,country,period:_liPeriod,totalContacts:contacts.length,newWeek,newMonth,topPlatform,top10});
+  downloadHTML(html,`Whizz-Lead-Intelligence-${now.toISOString().slice(0,10)}.html`);
+  showToast('Lead Intelligence Report downloaded!','success');
 }
 
 // ── Stock × Leads Overlap ──
