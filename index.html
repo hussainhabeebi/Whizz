@@ -1722,7 +1722,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           <div class="card task-board-card">
             <div class="task-board-toolbar">
               <div class="task-filter-scroll"><button class="t-btn btn-primary" id="tf-upcoming" onclick="setTaskFilter('upcoming',this)">Upcoming</button><button class="t-btn btn-ghost" id="tf-pending" onclick="setTaskFilter('pending',this)">Pending</button><button class="t-btn btn-ghost" id="tf-done" onclick="setTaskFilter('done',this)">Done</button><button class="t-btn btn-ghost" id="tf-all" onclick="setTaskFilter('all',this)">All</button></div>
-              <div class="task-report-controls"><select class="fs task-report-select" id="task-report-range"><option value="last7">Last 7 days</option><option value="next7">Next 7 days</option><option value="month">This month</option><option value="all">All items</option></select><select class="fs task-report-select" id="task-report-scope"><option value="all">Tasks + Events</option><option value="task">Tasks only</option><option value="event">Events only</option></select><button class="t-btn btn-ghost" onclick="downloadTasksWeeklyReport()">PDF</button></div>
+              <div class="task-report-controls"><select class="fs task-report-select" id="task-report-range" onchange="toggleTaskReportDates()"><option value="last7">Last 7 days</option><option value="next7">Next 7 days</option><option value="month">This month</option><option value="sixMonths">Next 6 months</option><option value="year">Next 1 year</option><option value="custom">Custom dates</option><option value="all">All items</option></select><input class="fi task-report-select" type="date" id="task-report-from" style="display:none" title="Report start date"/><input class="fi task-report-select" type="date" id="task-report-to" style="display:none" title="Report end date"/><select class="fs task-report-select" id="task-report-scope"><option value="all">Tasks + Events</option><option value="task">Tasks only</option><option value="event">Events only</option></select><button class="t-btn btn-ghost" onclick="downloadTasksWeeklyReport()">PDF</button></div>
             </div>
             <div class="card-body" id="tasks-list">
             <div class="empty-state">No tasks or events yet. Add one above.</div>
@@ -6665,8 +6665,8 @@ function taskIcon(type) {
 function renderTasksList() {
   const el = document.getElementById('tasks-list');
   if (!el) return;
-  const data = loadTasks();
   const today = todayStr();
+  const data = loadTasks().filter(t => !(t.type === 'event' && t.date < today));
   const in7 = new Date(); in7.setDate(in7.getDate()+7);
   const in7Str = in7.getFullYear() + '-' + String(in7.getMonth()+1).padStart(2,'0') + '-' + String(in7.getDate()).padStart(2,'0');
   const heroDate = document.getElementById('task-hero-date');
@@ -6773,6 +6773,30 @@ function buildTasksWeeklyReportHtml(d) {
   const nextUp=d.items.filter(t=>t.status==='pending'&&t.date>=todayStr()).slice(0,4);
   const highlightList=(items,empty)=>items.length?items.map(t=>`<div class="highlight-item"><span class="highlight-dot" style="background:${t.status==='overdue'?'#dc2626':t.type==='event'?'#2563eb':'#f59e0b'}"></span><div><b>${t.title}</b><small>${new Date(t.date+'T00:00:00').toLocaleDateString('en-AE',{day:'2-digit',month:'short'})}${t.location?' · 📍 '+t.location:''}</small></div></div>`).join(''):`<div class="highlight-empty">${empty}</div>`;
 
+  const calendarMonths=[];
+  const monthCursor=new Date(d.weekStart.getFullYear(),d.weekStart.getMonth(),1);
+  const lastMonth=new Date(d.weekEnd.getFullYear(),d.weekEnd.getMonth(),1);
+  while(monthCursor<=lastMonth&&calendarMonths.length<24){calendarMonths.push(new Date(monthCursor));monthCursor.setMonth(monthCursor.getMonth()+1);}
+  const calendarMonthHtml=monthDate=>{
+    const year=monthDate.getFullYear(),month=monthDate.getMonth();
+    const prefix=`${year}-${String(month+1).padStart(2,'0')}-`;
+    const monthItems=d.items.filter(t=>t.date.startsWith(prefix));
+    const byDay={}; monthItems.forEach(t=>{const day=Number(t.date.slice(-2));(byDay[day]=byDay[day]||[]).push(t);});
+    const firstOffset=(new Date(year,month,1).getDay()+6)%7;
+    const daysInMonth=new Date(year,month+1,0).getDate();
+    const cells=[];
+    for(let i=0;i<firstOffset;i++)cells.push('<span class="cal-day blank"></span>');
+    for(let day=1;day<=daysInMonth;day++){
+      const dayItems=byDay[day]||[],hasEvent=dayItems.some(t=>t.type==='event'),hasTask=dayItems.some(t=>t.type!=='event'),hasOverdue=dayItems.some(t=>t.status==='overdue');
+      cells.push(`<span class="cal-day ${dayItems.length?'active':''} ${hasOverdue?'danger':''}"><b>${day}</b><i>${hasTask?'<em class="task-dot"></em>':''}${hasEvent?'<em class="event-dot"></em>':''}</i></span>`);
+    }
+    const topItems=monthItems.filter(t=>t.status!=='done').slice(0,3);
+    const plan=topItems.length?topItems.map(t=>`<div class="month-plan-item"><b>${String(Number(t.date.slice(-2))).padStart(2,'0')}</b><span>${t.title}${t.location?' · '+t.location:''}</span></div>`).join(''):'<div class="month-plan-empty">Open planning space</div>';
+    return `<div class="calendar-month"><div class="month-head"><div><strong>${monthDate.toLocaleDateString('en-AE',{month:'long'})}</strong><span>${year}</span></div><b>${monthItems.length} planned</b></div><div class="cal-week"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><div class="cal-grid">${cells.join('')}</div><div class="month-plan">${plan}</div></div>`;
+  };
+  const calendarPlanHtml=calendarMonths.map(calendarMonthHtml).join('');
+  const pulseText=total===0?'A clear calendar — use this plan to schedule the next growth actions.':overdueCount?`${overdueCount} overdue item${overdueCount===1?' needs':'s need'} immediate attention. ${pendingCount} item${pendingCount===1?' is':'s are'} still moving forward.`:`Your plan is on track: ${doneCount} completed and ${pendingCount} upcoming, with no overdue work in this period.`;
+
   const groups = {};
   d.items.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
   const sortedDates = Object.keys(groups).sort();
@@ -6846,10 +6870,11 @@ body{font-family:'DM Sans',Arial,sans-serif;background:#eef1f6;color:#0f172a;pad
 .task-card-notes{margin-top:10px;padding:9px 12px;background:#f8fafc;border-radius:8px;font-size:12px;color:#475569;font-style:italic;line-height:1.5;}
 .empty-note{text-align:center;color:#94a3b8;font-size:13px;padding:30px;}
 .highlight-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}.highlight-box{border:1px solid #e8edf4;border-radius:14px;padding:15px;background:#fbfcfe}.highlight-head{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#475569;margin-bottom:11px}.highlight-item{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-top:1px solid #edf0f4}.highlight-item:first-of-type{border-top:0}.highlight-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}.highlight-item b{display:block;font-size:12px}.highlight-item small{display:block;font-size:10px;color:#64748b;margin-top:2px}.highlight-empty{font-size:11px;color:#94a3b8}.location-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.location-row{display:flex;justify-content:space-between;align-items:center;border:1px solid #eef0f4;border-radius:9px;padding:9px 11px;font-size:11px;color:#475569}.location-row b{font-size:10px;color:#2563eb}
+.planning-pulse{display:flex;align-items:center;gap:13px;margin:22px 0 4px;padding:15px 17px;border-radius:14px;background:linear-gradient(110deg,#111827,#312e81);color:#fff;box-shadow:0 8px 24px rgba(49,46,129,.16)}.pulse-mark{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:#f59e0b;color:#111827;font-size:18px;font-weight:900;flex-shrink:0}.pulse-copy b{display:block;font-family:'Syne',sans-serif;font-size:13px}.pulse-copy span{display:block;color:rgba(255,255,255,.72);font-size:11px;margin-top:3px;line-height:1.4}.calendar-legend{display:flex;align-items:center;gap:14px;font-size:10px;color:#64748b;margin:-8px 0 14px}.calendar-legend span{display:flex;align-items:center;gap:5px}.legend-dot{width:7px;height:7px;border-radius:50%}.calendar-plan{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.calendar-month{border:1px solid #e6eaf0;border-radius:14px;padding:13px;background:#fff;page-break-inside:avoid}.month-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.month-head div strong{font-family:'Syne',sans-serif;font-size:14px}.month-head div span{font-size:9px;color:#94a3b8;margin-left:5px}.month-head>b{font-size:9px;color:#7c3aed;background:#f5f3ff;border-radius:20px;padding:3px 8px}.cal-week,.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}.cal-week{margin-bottom:4px}.cal-week span{text-align:center;font-size:7px;font-weight:800;color:#94a3b8}.cal-day{min-height:27px;border-radius:6px;background:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}.cal-day.blank{background:transparent}.cal-day b{font-size:8px;color:#64748b}.cal-day i{height:5px;display:flex;gap:2px;align-items:center}.cal-day em{width:4px;height:4px;border-radius:50%;display:block}.cal-day .task-dot{background:#f59e0b}.cal-day .event-dot{background:#2563eb}.cal-day.active{background:#fffbeb;box-shadow:inset 0 0 0 1px #fde68a}.cal-day.danger{background:#fef2f2;box-shadow:inset 0 0 0 1px #fecaca}.month-plan{margin-top:9px;padding-top:7px;border-top:1px solid #eef0f4}.month-plan-item{display:flex;align-items:center;gap:7px;margin-top:4px;min-width:0}.month-plan-item b{font-size:8px;color:#fff;background:#312e81;border-radius:5px;padding:3px 5px}.month-plan-item span{font-size:8px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.month-plan-empty{font-size:8px;color:#94a3b8;font-style:italic}.calendar-break{break-before:page;margin-top:8px}
 .print-btn{display:block;margin:0 auto 22px;padding:11px 22px;background:linear-gradient(135deg,#f59e0b,#dc2626);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(234,88,12,0.3);}
 .report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #eef0f4;}
 @page{size:A4;margin:9mm}
-@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;border-radius:0;}.hero{padding:28px 30px}.stats-row{padding:18px 30px 4px}.body-pad{padding:6px 30px 24px}}
+@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;border-radius:0;}.hero{padding:28px 30px}.stats-row{padding:18px 30px 4px}.body-pad{padding:6px 30px 24px}.calendar-plan{gap:8px}.calendar-month{padding:10px}}
 </style></head>
 <body>
 <div class="page">
@@ -6878,9 +6903,11 @@ body{font-family:'DM Sans',Arial,sans-serif;background:#eef1f6;color:#0f172a;pad
     <div class="stat-card overdue"><div class="stat-label">Overdue</div><div class="stat-value">${overdueCount}</div></div>
   </div>
   <div class="body-pad">
+    <div class="planning-pulse"><div class="pulse-mark">↗</div><div class="pulse-copy"><b>Planning pulse</b><span>${pulseText}</span></div></div>
     <div class="section-title">Management Highlights</div>
     <div class="highlight-grid"><div class="highlight-box"><div class="highlight-head">Needs attention · ${overdueCount+highCount}</div>${highlightList(attention,'No overdue or high-priority items.')}</div><div class="highlight-box"><div class="highlight-head">Next up</div>${highlightList(nextUp,'No upcoming items in this period.')}</div></div>
     <div class="section-title">Locations</div><div class="location-grid">${locationRows}</div>
+    <div class="calendar-break"><div class="section-title">Calendar Action Plan</div><div class="calendar-legend"><span><i class="legend-dot" style="background:#f59e0b"></i>Task date</span><span><i class="legend-dot" style="background:#2563eb"></i>Event date</span><span><i class="legend-dot" style="background:#dc2626"></i>Overdue</span></div><div class="calendar-plan">${calendarPlanHtml}</div></div>
     <div class="section-title">Timeline — Full Details</div>
     ${timelineHtml}
     <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
@@ -6888,6 +6915,13 @@ body{font-family:'DM Sans',Arial,sans-serif;background:#eef1f6;color:#0f172a;pad
   </div>
 </div>
 </body></html>`;
+}
+function toggleTaskReportDates(){
+  const custom=document.getElementById('task-report-range')?.value==='custom';
+  const from=document.getElementById('task-report-from'),to=document.getElementById('task-report-to');
+  if(!from||!to)return;
+  from.style.display=custom?'block':'none';to.style.display=custom?'block':'none';
+  if(custom&&!from.value){from.value=todayStr();const end=new Date();end.setDate(end.getDate()+30);to.value=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');}
 }
 function downloadTasksWeeklyReport() {
   const now = new Date();
@@ -6898,17 +6932,33 @@ function downloadTasksWeeklyReport() {
   if(range==='last7') weekStart.setDate(weekStart.getDate()-6);
   else if(range==='next7') weekEnd.setDate(weekEnd.getDate()+6);
   else if(range==='month'){weekStart=new Date(now.getFullYear(),now.getMonth(),1);weekEnd=new Date(now.getFullYear(),now.getMonth()+1,0);}
-  else { weekStart=new Date(2000,0,1); weekEnd=new Date(2100,11,31); }
+  else if(range==='sixMonths'){weekStart=new Date(now.getFullYear(),now.getMonth(),1);weekEnd=new Date(now.getFullYear(),now.getMonth()+6,0);}
+  else if(range==='year'){weekStart=new Date(now.getFullYear(),now.getMonth(),1);weekEnd=new Date(now.getFullYear(),now.getMonth()+12,0);}
+  else if(range==='custom'){
+    const from=document.getElementById('task-report-from')?.value,to=document.getElementById('task-report-to')?.value;
+    if(!from||!to){showToast('Select both report dates.','error');return;}
+    if(from>to){showToast('Report start date must be before the end date.','error');return;}
+    weekStart=new Date(from+'T00:00:00');weekEnd=new Date(to+'T00:00:00');
+  }
+  else { weekStart=new Date(now.getFullYear(),now.getMonth(),1);weekEnd=new Date(now.getFullYear(),now.getMonth(),1); }
+  const sourceTasks=loadTasks();
+  if(range==='all'&&sourceTasks.length){
+    const dates=sourceTasks.map(t=>t.date).filter(Boolean).sort();
+    weekStart=new Date(dates[0]+'T00:00:00');weekEnd=new Date(dates[dates.length-1]+'T00:00:00');
+  }
   const startStr = weekStart.getFullYear() + '-' + String(weekStart.getMonth()+1).padStart(2,'0') + '-' + String(weekStart.getDate()).padStart(2,'0');
   const endStr = weekEnd.getFullYear() + '-' + String(weekEnd.getMonth()+1).padStart(2,'0') + '-' + String(weekEnd.getDate()).padStart(2,'0');
   const today = todayStr();
-  const items = loadTasks()
+  const items = sourceTasks
     .filter(t => t.date >= startStr && t.date <= endStr)
+    .filter(t => !(t.type === 'event' && t.date < today))
     .filter(t => scope==='all'||t.type===scope)
     .map(t => ({ ...t, status: t.status === 'done' ? 'done' : (t.date < today ? 'overdue' : 'pending') }))
     .sort((a,b) => (a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
   const rangeLabel=range==='all'?'All scheduled dates':`${weekStart.toLocaleDateString('en-AE',{day:'2-digit',month:'short'})} – ${weekEnd.toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'})}`;
-  const reportTitle=scope==='task'?'Tasks Performance Report':scope==='event'?'Events Schedule Report':'Tasks & Events Report';
+  const horizon=range==='sixMonths'?'6-Month':range==='year'?'1-Year':'';
+  const baseTitle=scope==='task'?'Tasks Performance Plan':scope==='event'?'Events Calendar Plan':'Tasks & Events Action Plan';
+  const reportTitle=horizon?`${horizon} ${baseTitle}`:baseTitle;
   const html = buildTasksWeeklyReportHtml({ generatedAt: now, weekStart, weekEnd, rangeLabel, reportTitle, items });
   const reportWindow=window.open('','_blank');
   if(!reportWindow){showToast('Allow pop-ups to generate the PDF report.','error');return;}
