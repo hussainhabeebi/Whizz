@@ -1,11 +1,14 @@
-const SOURCES = ['pcexporters','handelot','kadorf'];
+const SOURCES = ['pcexporters','handelot','kadorf','kaspi'];
+// Sources in this list are public marketplaces with no login: they're configured with a
+// brand watchlist (e.g. JBL, Dyson) instead of a username/password.
+const BRAND_SEARCH_SOURCES = ['kaspi'];
 
 function json(data, status = 200) {
   return Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
 function sourceName(source) {
-  return ({ pcexporters: 'PC Exporters', handelot: 'Handelot', kadorf: 'Kadorf' })[source] || source;
+  return ({ pcexporters: 'PC Exporters', handelot: 'Handelot', kadorf: 'Kadorf', kaspi: 'Kaspi.kz' })[source] || source;
 }
 
 function requireSource(source) {
@@ -50,8 +53,9 @@ function leadScore(p) {
   if (priorityBrands.some(b => text.includes(b))) score += 25;
   if (/wtb|wanted|buy|request|looking for/.test(text)) score += 25;
   if (p.country) score += 10;
-  if (p.email || p.phone) score += 15;
-  if (p.website) score += 10;
+  if (p.email || p.phone) score += 10;
+  if (p.whatsapp || p.telegram) score += 20; // deep, direct-contact channels outweigh a bare email/phone
+  if (p.website) score += 5;
   if (p.verified) score += 10;
   if (p.lastActivityAt) score += 5;
   return Math.min(score, 100);
@@ -62,8 +66,10 @@ function keyFor(p) {
   const domain = normalize(p.website).toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0];
   const email = normalize(p.email).toLowerCase();
   const phone = normalize(p.phone).replace(/\D/g,'');
+  const whatsapp = normalize(p.whatsapp).replace(/\D/g,'');
+  const telegram = normalize(p.telegram).toLowerCase().replace(/^@/,'');
   const company = normalize(p.company).toLowerCase().replace(/[^a-z0-9]+/g,'');
-  return domain || email || phone || company;
+  return domain || email || phone || whatsapp || telegram || company;
 }
 
 async function listSources(env) {
@@ -82,13 +88,19 @@ async function saveSource(request, env, source) {
   const body = await request.json();
   const existing = await env.DB.prepare('SELECT credentialsEncrypted FROM directory_accounts WHERE source=?').bind(source).first();
   let encrypted = existing?.credentialsEncrypted || null;
-  if (body.password || body.extra) {
+  const isBrandSearch = BRAND_SEARCH_SOURCES.includes(source);
+  const brands = isBrandSearch ? [...new Set((Array.isArray(body.brands) ? body.brands : []).map(normalize).filter(Boolean))].slice(0, 25) : null;
+  if (isBrandSearch) {
+    if (!brands.length) return json({ error: 'Add at least one brand to search for' }, 400);
+    encrypted = await encryptCredentials(env, { password: '', extra: { brands } });
+  } else if (body.password || body.extra) {
     encrypted = await encryptCredentials(env, { password: body.password || '', extra: body.extra || {} });
   }
+  const username = isBrandSearch ? brands.join(', ') : normalize(body.username);
   await env.DB.prepare(`INSERT INTO directory_accounts(source, username, credentialsEncrypted, status, updatedAt)
     VALUES(?,?,?,?,CURRENT_TIMESTAMP)
     ON CONFLICT(source) DO UPDATE SET username=excluded.username, credentialsEncrypted=COALESCE(excluded.credentialsEncrypted,directory_accounts.credentialsEncrypted), status='ready', lastError=NULL, updatedAt=CURRENT_TIMESTAMP`)
-    .bind(source, normalize(body.username), encrypted, 'ready').run();
+    .bind(source, username, encrypted, 'ready').run();
   return json({ ok: true, source, status: 'ready' });
 }
 
@@ -101,6 +113,7 @@ async function importProspects(request, env) {
     const p = {
       company: normalize(raw.company), contactName: normalize(raw.contactName), country: normalize(raw.country),
       email: normalize(raw.email), phone: normalize(raw.phone), website: normalize(raw.website),
+      whatsapp: normalize(raw.whatsapp), telegram: normalize(raw.telegram),
       brand: normalize(raw.brand), productInterest: normalize(raw.productInterest), activity: normalize(raw.activity),
       profileUrl: normalize(raw.profileUrl), verified: raw.verified ? 1 : 0, lastActivityAt: raw.lastActivityAt || null
     };
@@ -108,10 +121,10 @@ async function importProspects(request, env) {
     if (!keyFor(p)) continue;
     const existing = await env.DB.prepare('SELECT id FROM directory_prospects WHERE dedupeKey=?').bind(dedupeKey).first();
     const score = leadScore(p);
-    await env.DB.prepare(`INSERT INTO directory_prospects(source,dedupeKey,company,contactName,country,email,phone,website,brand,productInterest,activity,profileUrl,verified,lastActivityAt,leadScore,status,createdAt,updatedAt)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'new',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
-      ON CONFLICT(dedupeKey) DO UPDATE SET company=excluded.company,contactName=excluded.contactName,country=excluded.country,email=excluded.email,phone=excluded.phone,website=excluded.website,brand=excluded.brand,productInterest=excluded.productInterest,activity=excluded.activity,profileUrl=excluded.profileUrl,verified=excluded.verified,lastActivityAt=excluded.lastActivityAt,leadScore=excluded.leadScore,updatedAt=CURRENT_TIMESTAMP`)
-      .bind(source,dedupeKey,p.company,p.contactName,p.country,p.email,p.phone,p.website,p.brand,p.productInterest,p.activity,p.profileUrl,p.verified,p.lastActivityAt,score).run();
+    await env.DB.prepare(`INSERT INTO directory_prospects(source,dedupeKey,company,contactName,country,email,phone,website,whatsapp,telegram,brand,productInterest,activity,profileUrl,verified,lastActivityAt,leadScore,status,createdAt,updatedAt)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'new',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+      ON CONFLICT(dedupeKey) DO UPDATE SET company=excluded.company,contactName=excluded.contactName,country=excluded.country,email=excluded.email,phone=excluded.phone,website=excluded.website,whatsapp=excluded.whatsapp,telegram=excluded.telegram,brand=excluded.brand,productInterest=excluded.productInterest,activity=excluded.activity,profileUrl=excluded.profileUrl,verified=excluded.verified,lastActivityAt=excluded.lastActivityAt,leadScore=excluded.leadScore,updatedAt=CURRENT_TIMESTAMP`)
+      .bind(source,dedupeKey,p.company,p.contactName,p.country,p.email,p.phone,p.website,p.whatsapp,p.telegram,p.brand,p.productInterest,p.activity,p.profileUrl,p.verified,p.lastActivityAt,score).run();
     existing ? updated++ : inserted++;
   }
   return json({ ok: true, inserted, updated });
@@ -133,16 +146,17 @@ async function listProspects(request, env) {
 async function promote(env, id, ownerEmail = null) {
   const p = await env.DB.prepare('SELECT * FROM directory_prospects WHERE id=?').bind(id).first();
   if (!p) return json({ error: 'Prospect not found' }, 404);
-  const existing = await env.DB.prepare(`SELECT id FROM contacts WHERE (email<>'' AND lower(email)=lower(?)) OR (phone<>'' AND phone=?) OR (company<>'' AND lower(company)=lower(?)) LIMIT 1`).bind(p.email || '', p.phone || '', p.company || '').first();
+  const phone = p.phone || p.whatsapp || ''; // contacts.phone drives the WhatsApp chat button (wa.me/<phone>)
+  const existing = await env.DB.prepare(`SELECT id FROM contacts WHERE (email<>'' AND lower(email)=lower(?)) OR (phone<>'' AND phone=?) OR (company<>'' AND lower(company)=lower(?)) LIMIT 1`).bind(p.email || '', phone, p.company || '').first();
   if (existing) {
-    await env.DB.prepare(`UPDATE contacts SET source=?,platform=?,country=COALESCE(NULLIF(?,''),country),brand=COALESCE(NULLIF(?,''),brand),productInterest=COALESCE(NULLIF(?,''),productInterest),leadScore=MAX(leadScore,?),updatedAt=CURRENT_TIMESTAMP WHERE id=?`)
-      .bind(p.source, sourceName(p.source), p.country, p.brand, p.productInterest, p.leadScore, existing.id).run();
+    await env.DB.prepare(`UPDATE contacts SET source=?,platform=?,country=COALESCE(NULLIF(?,''),country),brand=COALESCE(NULLIF(?,''),brand),productInterest=COALESCE(NULLIF(?,''),productInterest),phone=COALESCE(NULLIF(phone,''),?),telegramUsername=COALESCE(NULLIF(telegramUsername,''),?),leadScore=MAX(leadScore,?),updatedAt=CURRENT_TIMESTAMP WHERE id=?`)
+      .bind(p.source, sourceName(p.source), p.country, p.brand, p.productInterest, phone, p.telegram || '', p.leadScore, existing.id).run();
     await env.DB.prepare(`UPDATE directory_prospects SET status='promoted',contactId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=?`).bind(existing.id,id).run();
     return json({ ok: true, contactId: existing.id, merged: true });
   }
-  const result = await env.DB.prepare(`INSERT INTO contacts(contactName,company,phone,email,category,source,platform,country,brand,productInterest,ownerEmail,leadScore,createdAt,updatedAt)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
-    .bind(p.contactName || '',p.company || '',p.phone || '',p.email || '','Directory Prospect',p.source,sourceName(p.source),p.country || '',p.brand || '',p.productInterest || '',ownerEmail,p.leadScore || 0).run();
+  const result = await env.DB.prepare(`INSERT INTO contacts(contactName,company,phone,email,category,source,platform,country,brand,productInterest,ownerEmail,leadScore,telegramUsername,createdAt,updatedAt)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+    .bind(p.contactName || '',p.company || '',phone,p.email || '','Directory Prospect',p.source,sourceName(p.source),p.country || '',p.brand || '',p.productInterest || '',ownerEmail,p.leadScore || 0,p.telegram || '').run();
   const contactId = result.meta?.last_row_id;
   await env.DB.prepare(`UPDATE directory_prospects SET status='promoted',contactId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=?`).bind(contactId,id).run();
   return json({ ok: true, contactId, merged: false });
@@ -151,7 +165,9 @@ async function promote(env, id, ownerEmail = null) {
 async function runCollector(env, source) {
   source = requireSource(source);
   const account = await env.DB.prepare('SELECT * FROM directory_accounts WHERE source=?').bind(source).first();
-  if (!account?.credentialsEncrypted) return json({ error: 'Configure credentials first' }, 400);
+  if (!account?.credentialsEncrypted) {
+    return json({ error: BRAND_SEARCH_SOURCES.includes(source) ? 'Add at least one brand to search for first' : 'Configure credentials first' }, 400);
+  }
   if (!env.LEAD_COLLECTOR_URL) {
     await env.DB.prepare(`UPDATE directory_accounts SET status='collector_required',lastError='LEAD_COLLECTOR_URL is not configured',updatedAt=CURRENT_TIMESTAMP WHERE source=?`).bind(source).run();
     return json({ ok: false, status: 'collector_required', message: 'Collector service is not configured yet.' }, 409);

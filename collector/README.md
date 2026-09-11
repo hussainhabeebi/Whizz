@@ -16,8 +16,15 @@ Set secrets with your normal Cloudflare deployment process. Do not commit passwo
 - `LEAD_COLLECTOR_TOKEN` — same shared token as the Worker.
 - `SESSION_DIR=/data/sessions` — mount this directory as persistent storage so login sessions survive restarts.
 - `MAX_PROFILES_PER_RUN=40` — safety limit per source/run.
-- `REQUEST_DELAY_MS=1800` — delay between directory page requests.
+- `REQUEST_DELAY_MS=1800` — delay between directory/marketplace page requests.
 - Optional login URL overrides: `PCEXPORTERS_LOGIN_URL`, `HANDELOT_LOGIN_URL`, `KADORF_LOGIN_URL`.
+- `KASPI_MAX_PAGES_PER_BRAND=4` — how many search-result pages to paginate through per brand on Kaspi.kz before moving to the next brand.
+
+## Kaspi.kz (Kazakhstan)
+
+Kaspi.kz is a public marketplace — no `directory_accounts` username/password is used. Instead, save a brand watchlist (e.g. `JBL, Dyson, Samsung`) from the "Directory Sources" tab; each run searches Kaspi.kz for every brand, paginates the results, opens each product page, follows the seller/merchant link(s) it lists, then opens the merchant's own page to pull phone, WhatsApp, Telegram handle, and the registered company name — not just what's visible on the search results page.
+
+The Kaspi `searchUrl`/`productLinkPattern`/`merchantLinkPattern` in `server.js` are based on Kaspi's known public URL structure but have not been verified against the live DOM from this codebase's dev environment (kaspi.kz was unreachable there). Run a test sync and check the collector logs/output items before relying on it — adjust the regex patterns in `CONFIG.kaspi` if Kaspi's markup differs.
 
 ## Verification behavior
 
