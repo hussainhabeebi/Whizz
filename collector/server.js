@@ -12,6 +12,26 @@ const MAX_PROFILES = Math.max(5, Math.min(Number(process.env.MAX_PROFILES_PER_RU
 const DELAY_MS = Math.max(800, Number(process.env.REQUEST_DELAY_MS || 1800));
 const KASPI_MAX_PAGES_PER_BRAND = Math.max(1, Math.min(Number(process.env.KASPI_MAX_PAGES_PER_BRAND || 4), 10));
 
+// Optional: use the Apify "marketplace-seller-leads" actor (apify.com/isolovyev/marketplace-seller-leads)
+// to discover Kaspi.kz sellers for a brand — more reliable than our own search/product crawl, which
+// is liable to break on city/zone cookie state or DOM changes. When configured, this replaces just the
+// *discovery* step; we still visit each returned seller page ourselves with Playwright for the deep
+// contact fields (phone/WhatsApp/Telegram) the actor doesn't provide. Falls back to the direct crawl
+// (collectKaspiProductLinks/collectKaspiMerchantLinks below) when unset or when a call fails.
+const APIFY_TOKEN = process.env.APIFY_TOKEN || '';
+const APIFY_KASPI_ACTOR_ID = process.env.APIFY_KASPI_ACTOR_ID || 'isolovyev~marketplace-seller-leads';
+// NOT verified against the actor's real input schema (apify.com is unreachable from this codebase's
+// dev environment) — this is a best-effort guess from the actor's public listing description
+// (search queries / platforms / max pages / max sellers / cities). If Apify calls return errors or
+// consistently zero sellers, open the actor's "API" tab on apify.com for its real input JSON and set
+// APIFY_KASPI_INPUT_JSON to override this, using "{{brand}}" as the substitution placeholder.
+const DEFAULT_APIFY_KASPI_INPUT = JSON.stringify({
+  searchQueries: ['{{brand}}'],
+  platforms: ['kaspi'],
+  maxPagesPerQuery: 3,
+  maxSellersPerPlatform: 40
+});
+
 const CONFIG = {
   pcexporters: {
     name: 'PC Exporters', home: 'https://www.pcexporters.com/',
@@ -128,21 +148,58 @@ async function collectKaspiMerchantLinks(page, cfg, productUrl) {
   return { links: merchantLinks, challenge: false, productTitle };
 }
 
-async function extractKaspiMerchant(page, brand, productTitle) {
+async function extractKaspiMerchant(page, brand, productTitle, apifyMeta = null) {
   const body = clean(await page.locator('body').innerText().catch(() => ''));
   const hrefs = await pageHrefs(page);
   const title = clean(await page.locator('h1').first().innerText().catch(() => '')) || clean(await page.title().catch(() => ''));
-  const company = title.replace(/\s*[-|].*$/, '').trim();
+  const company = title.replace(/\s*[-|].*$/, '').trim() || apifyMeta?.name || '';
   const telLink = hrefs.find(h => /^tel:/i.test(h));
   const phone = clean((telLink || '').replace(/^tel:/i, '')) || firstMatch(body, /(?:Телефон|Тел\.?|Phone)\s*:?\s*([+()\d][+()\d\s.-]{6,}\d)/i);
+  const activity = apifyMeta?.rating != null
+    ? `Marketplace seller (Kaspi.kz) · ★${apifyMeta.rating}${apifyMeta.reviews != null ? ` (${apifyMeta.reviews} reviews)` : ''}`
+    : 'Marketplace seller (Kaspi.kz)';
   return {
     company, contactName: '', country: 'Kazakhstan',
     email: firstMatch(body, /\b([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\b/i),
     phone, website: '', whatsapp: extractWhatsapp(hrefs, body), telegram: extractTelegram(hrefs, body),
-    brand, productInterest: productTitle || brand, activity: 'Marketplace seller (Kaspi.kz)',
+    brand, productInterest: productTitle || brand, activity,
     profileUrl: page.url(), verified: /официальн|verified|надежный продавец/i.test(body),
     lastActivityAt: new Date().toISOString(), source: 'kaspi'
   };
+}
+
+// Runs the Apify actor synchronously and returns its dataset items, or null if Apify isn't
+// configured / the call fails (caller falls back to the direct crawl in that case).
+async function fetchKaspiSellersFromApify(brand) {
+  if (!APIFY_TOKEN) return null;
+  let input;
+  try {
+    const template = process.env.APIFY_KASPI_INPUT_JSON || DEFAULT_APIFY_KASPI_INPUT;
+    input = JSON.parse(template.replaceAll('{{brand}}', brand));
+  } catch (error) {
+    console.error('Invalid APIFY_KASPI_INPUT_JSON template', error.message);
+    return null;
+  }
+  const url = `https://api.apify.com/v2/acts/${APIFY_KASPI_ACTOR_ID}/run-sync-get-dataset-items?token=${encodeURIComponent(APIFY_TOKEN)}&timeout=120`;
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) });
+    if (!res.ok) {
+      console.error('Apify Kaspi actor call failed', res.status, await res.text().catch(() => ''));
+      return null;
+    }
+    const rows = await res.json().catch(() => []);
+    return (Array.isArray(rows) ? rows : [])
+      .filter(r => !r.platform || /kaspi/i.test(r.platform))
+      .map(r => ({
+        url: r.storeUrl || r.store_url || r.storeURL || r.url,
+        name: r.store || r.name || r.legalFullName || '',
+        rating: r.avgRating ?? r.rating, reviews: r.totalReviews ?? r.reviews
+      }))
+      .filter(r => r.url);
+  } catch (error) {
+    console.error('Apify Kaspi actor call errored', error.message);
+    return null;
+  }
 }
 
 async function runKaspiJob(job, cfg) {
@@ -159,6 +216,25 @@ async function runKaspiJob(job, cfg) {
   try {
     outer: for (const brand of brands) {
       if (items.length >= MAX_PROFILES) break;
+
+      // Prefer Apify for discovery — it doesn't depend on a city/zone cookie the way a fresh
+      // headless session does, and returns a list of real seller pages directly.
+      const apifySellers = await fetchKaspiSellersFromApify(brand);
+      if (apifySellers && apifySellers.length) {
+        for (const seller of apifySellers) {
+          if (items.length >= MAX_PROFILES) break outer;
+          if (seenMerchants.has(seller.url)) continue;
+          seenMerchants.add(seller.url);
+          await sleep(DELAY_MS);
+          await page.goto(seller.url, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => null);
+          if (await hasChallenge(page)) return await bail(page.url());
+          const item = await extractKaspiMerchant(page, brand, '', seller);
+          if (item.company) items.push(item);
+        }
+        continue; // Apify covered discovery for this brand — skip the direct-crawl fallback below
+      }
+
+      // Fallback: Apify not configured (or returned nothing) — crawl search -> product -> merchant.
       const search = await collectKaspiProductLinks(page, cfg, brand);
       if (search.challenge) return await bail(search.verificationUrl);
       for (const productUrl of search.links) {
