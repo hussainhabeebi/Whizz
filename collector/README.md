@@ -25,7 +25,7 @@ Set secrets with your normal Cloudflare deployment process. Do not commit passwo
 
 Kaspi.kz is a public marketplace — no `directory_accounts` username/password is used. Instead, save a brand watchlist (e.g. `JBL, Dyson, Samsung`) from the "Directory Sources" tab; each run searches Kaspi.kz for every brand, paginates the results, opens each product page, follows the seller/merchant link(s) it lists, then opens the merchant's own page to pull phone, WhatsApp, Telegram handle, and the registered company name — not just what's visible on the search results page.
 
-The Kaspi `searchUrl`/`productLinkPattern`/`merchantLinkPattern` in `server.js` are based on Kaspi's known public URL structure but have not been verified against the live DOM from this codebase's dev environment (kaspi.kz was unreachable there). Run a test sync and check the collector logs/output items before relying on it — adjust the regex patterns in `CONFIG.kaspi` if Kaspi's markup differs.
+The `productLinkPattern` and `merchantLinkPattern` in `server.js` have been verified against real Kaspi.kz URLs (`/shop/p/<slug>-<id>/?...&m=<merchantId>&...` for a product, `/shop/m/<merchantId>/...` for its seller). The search URL's pagination (`&page=N`) has **not** been separately confirmed — if a brand search only ever returns page-1 results, that's likely why; the code fails safe in that case (it just stops paginating early rather than erroring) but won't reach deeper pages until confirmed/fixed.
 
 ## Verification behavior
 

@@ -36,10 +36,12 @@ const CONFIG = {
   // the live DOM. Confirm searchUrl/productLinkPattern/merchantLinkPattern against the real site
   // (or adjust from collector logs) before relying on this in production.
   kaspi: {
+    // Verified against the live site: a product page is https://kaspi.kz/shop/p/<slug>-<id>/?c=<cityId>&m=<merchantId>&ms=true
+    // and its seller's storefront is https://kaspi.kz/shop/m/<merchantId>/... — confirmed 2026-09.
     name: 'Kaspi.kz', requiresAuth: false, home: 'https://kaspi.kz/shop',
     searchUrl: (query, pageNum) => `https://kaspi.kz/shop/search/?text=${encodeURIComponent(query)}&page=${pageNum}`,
     productLinkPattern: /\/shop\/p\/[^/?#]+/i,
-    merchantLinkPattern: /\/shop\/(?:info|reviews)\/merchant/i,
+    merchantLinkPattern: /\/shop\/m\/\d+/i,
     maxPagesPerBrand: KASPI_MAX_PAGES_PER_BRAND,
     defaultBrands: ['JBL', 'Dyson', 'Samsung', 'Xiaomi', 'Apple', 'Sony', 'Bosch', 'Philips']
   }
@@ -112,7 +114,17 @@ async function collectKaspiMerchantLinks(page, cfg, productUrl) {
   if (await hasChallenge(page)) return { links: [], challenge: true, verificationUrl: page.url() };
   const hrefs = await pageHrefs(page);
   const productTitle = clean(await page.locator('h1').first().innerText().catch(() => ''));
-  const merchantLinks = [...new Set(hrefs.filter(h => cfg.merchantLinkPattern.test(h)))].slice(0, 3);
+  const merchantIds = new Set();
+  for (const href of hrefs) {
+    const m = href.match(/\/shop\/m\/(\d+)/i);
+    if (m) merchantIds.add(m[1]);
+  }
+  // Kaspi resolves a default seller straight into the product page's own URL (?m=<merchantId>)
+  // once it loads client-side — capture that too, since "other sellers" for a listing aren't
+  // always plain <a href> elements on a JS-rendered page.
+  const resolved = page.url().match(/[?&]m=(\d+)/i);
+  if (resolved) merchantIds.add(resolved[1]);
+  const merchantLinks = [...merchantIds].slice(0, 3).map(id => `https://kaspi.kz/shop/m/${id}/`);
   return { links: merchantLinks, challenge: false, productTitle };
 }
 
