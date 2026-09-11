@@ -168,27 +168,29 @@ async function extractKaspiMerchant(page, brand, productTitle, apifyMeta = null)
   };
 }
 
-// Runs the Apify actor synchronously and returns its dataset items, or null if Apify isn't
-// configured / the call fails (caller falls back to the direct crawl in that case).
+// Runs the Apify actor synchronously and returns its dataset items. Always returns { sellers,
+// error } rather than throwing/swallowing — `error` (when set) is surfaced all the way up into
+// the Whizz UI notice, so a bad actor ID / token / input schema is visible without needing to
+// check the collector's own logs.
 async function fetchKaspiSellersFromApify(brand) {
-  if (!APIFY_TOKEN) return null;
+  if (!APIFY_TOKEN) return { sellers: [], error: null };
   let input;
   try {
     const template = process.env.APIFY_KASPI_INPUT_JSON || DEFAULT_APIFY_KASPI_INPUT;
     input = JSON.parse(template.replaceAll('{{brand}}', brand));
   } catch (error) {
-    console.error('Invalid APIFY_KASPI_INPUT_JSON template', error.message);
-    return null;
+    return { sellers: [], error: `Invalid APIFY_KASPI_INPUT_JSON: ${error.message}` };
   }
   const url = `https://api.apify.com/v2/acts/${APIFY_KASPI_ACTOR_ID}/run-sync-get-dataset-items?token=${encodeURIComponent(APIFY_TOKEN)}&timeout=120`;
   try {
     const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) });
     if (!res.ok) {
-      console.error('Apify Kaspi actor call failed', res.status, await res.text().catch(() => ''));
-      return null;
+      const text = await res.text().catch(() => '');
+      console.error('Apify Kaspi actor call failed', res.status, text);
+      return { sellers: [], error: `HTTP ${res.status} calling actor "${APIFY_KASPI_ACTOR_ID}": ${text.slice(0, 200)}` };
     }
     const rows = await res.json().catch(() => []);
-    return (Array.isArray(rows) ? rows : [])
+    const sellers = (Array.isArray(rows) ? rows : [])
       .filter(r => !r.platform || /kaspi/i.test(r.platform))
       .map(r => ({
         url: r.storeUrl || r.store_url || r.storeURL || r.url,
@@ -196,9 +198,9 @@ async function fetchKaspiSellersFromApify(brand) {
         rating: r.avgRating ?? r.rating, reviews: r.totalReviews ?? r.reviews
       }))
       .filter(r => r.url);
+    return { sellers, error: null };
   } catch (error) {
-    console.error('Apify Kaspi actor call errored', error.message);
-    return null;
+    return { sellers: [], error: `Apify request failed: ${error.message}` };
   }
 }
 
@@ -211,7 +213,7 @@ async function runKaspiJob(job, cfg) {
   const seenMerchants = new Set();
   // Self-diagnosing summary so "why did this run find nothing" doesn't need a log round-trip —
   // it's folded into the completed callback's `note`.
-  const diag = { apifyConfigured: !!APIFY_TOKEN, apifyBrandsUsed: 0, crawlBrandsUsed: 0 };
+  const diag = { apifyConfigured: !!APIFY_TOKEN, apifyBrandsUsed: 0, crawlBrandsUsed: 0, apifyLastError: null };
   const bail = async (verificationUrl) => {
     await callback(job.callbackUrl, { source: 'kaspi', status: 'verification_required', verificationUrl, items });
     return { status: 'verification_required', verificationUrl, itemsCollected: items.length };
@@ -222,10 +224,11 @@ async function runKaspiJob(job, cfg) {
 
       // Prefer Apify for discovery — it doesn't depend on a city/zone cookie the way a fresh
       // headless session does, and returns a list of real seller pages directly.
-      const apifySellers = await fetchKaspiSellersFromApify(brand);
-      if (apifySellers && apifySellers.length) {
+      const apifyResult = await fetchKaspiSellersFromApify(brand);
+      if (apifyResult.error) diag.apifyLastError = apifyResult.error;
+      if (apifyResult.sellers.length) {
         diag.apifyBrandsUsed++;
-        for (const seller of apifySellers) {
+        for (const seller of apifyResult.sellers) {
           if (items.length >= MAX_PROFILES) break outer;
           if (seenMerchants.has(seller.url)) continue;
           seenMerchants.add(seller.url);
@@ -259,7 +262,8 @@ async function runKaspiJob(job, cfg) {
         }
       }
     }
-    const note = `Discovery: ${diag.apifyConfigured ? `Apify used for ${diag.apifyBrandsUsed} brand(s), direct crawl fallback for ${diag.crawlBrandsUsed}` : `APIFY_TOKEN not set — direct crawl only (${diag.crawlBrandsUsed} brand(s))`}.`;
+    const note = `Discovery: ${diag.apifyConfigured ? `Apify used for ${diag.apifyBrandsUsed} brand(s), direct crawl fallback for ${diag.crawlBrandsUsed}` : `APIFY_TOKEN not set — direct crawl only (${diag.crawlBrandsUsed} brand(s))`}.`
+      + (diag.apifyLastError ? ` Apify error: ${diag.apifyLastError}` : '');
     await callback(job.callbackUrl, { source: 'kaspi', status: 'completed', items, note });
     return { status: 'completed', count: items.length, note };
   } catch (error) {
