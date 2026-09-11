@@ -6364,20 +6364,22 @@ function kaspiProspectToContact(p) {
   };
 }
 
-// The collector crawl runs async (search -> product -> seller pages); poll for results instead
-// of blocking on a single request the way the synchronous Apify webhook does.
-async function pollKaspiResults(brand, tries = 12, delayMs = 5000) {
+// The collector crawl runs async (search -> product -> seller pages, up to ~40 sellers with a
+// deliberate delay between requests, so a full run can take several minutes) — poll for results
+// instead of blocking on a single request the way the synchronous Apify webhook does.
+async function pollKaspiResults(brand, tries = 34, delayMs = 5000) {
   for (let i = 0; i < tries; i++) {
     await new Promise(r => setTimeout(r, delayMs));
     const d = await leadApi(`/api/lead-intelligence/prospects?source=kaspi&q=${encodeURIComponent(brand)}`);
     const rows = d.prospects || [];
-    if (rows.length) return rows.map(kaspiProspectToContact);
+    if (rows.length) return { contacts: rows.map(kaspiProspectToContact), stillSyncing: false };
     const sources = await leadApi('/api/lead-intelligence/sources').catch(() => ({ sources: [] }));
     const kaspiSrc = (sources.sources || []).find(s => s.source === 'kaspi');
-    if (kaspiSrc && kaspiSrc.status !== 'syncing') break; // job finished with nothing found — stop polling
+    if (kaspiSrc && kaspiSrc.status !== 'syncing') return { contacts: [], stillSyncing: false }; // finished with nothing found
   }
   const d = await leadApi(`/api/lead-intelligence/prospects?source=kaspi&q=${encodeURIComponent(brand)}`);
-  return (d.prospects || []).map(kaspiProspectToContact);
+  const rows = d.prospects || [];
+  return { contacts: rows.map(kaspiProspectToContact), stillSyncing: rows.length === 0 };
 }
 
 async function runKaspiDiscovery() {
@@ -6405,12 +6407,13 @@ async function runKaspiDiscovery() {
       document.getElementById('disc-results-body').innerHTML = `<div class="disc-empty">Kaspi.kz needs verification — open Lead Intelligence → Directory Sources to resolve it, then search again.</div>`;
       document.getElementById('disc-results-title').textContent = 'Results';
     } else {
-      const contacts = await pollKaspiResults(brand);
+      const { contacts, stillSyncing } = await pollKaspiResults(brand);
       S.discoveredContacts = contacts;
       S.selectedDiscContacts = new Set();
       renderDiscoveryResults(S.discoveredContacts);
       if (contacts.length) showToast(`Found ${contacts.length} Kaspi.kz sellers for "${brand}"`, 'success');
-      else showToast('No sellers found yet — hit Discover again shortly, the crawl may still be finishing', 'info');
+      else if (stillSyncing) showToast('Still crawling — it\'s a deep search, give it a few more minutes then hit Discover again (safe to retry, won\'t start a duplicate run)', 'info');
+      else showToast(`No Kaspi.kz sellers found for "${brand}"`, 'info');
     }
   } catch (e) {
     document.getElementById('disc-results-body').innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${e.message || 'Kaspi search failed'}</div>`;

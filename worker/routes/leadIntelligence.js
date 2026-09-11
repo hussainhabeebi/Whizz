@@ -188,6 +188,11 @@ async function runCollector(request, env, source) {
   if (!account?.credentialsEncrypted) {
     return json({ error: isBrandSearch ? 'Add at least one brand to search for first' : 'Configure credentials first' }, 400);
   }
+  if (account.status === 'syncing') {
+    // A deep crawl can run for minutes — don't let a re-click (or an impatient poll timeout)
+    // queue a duplicate job on top of one still in flight.
+    return json({ ok: true, status: 'syncing', message: 'Already running — hang tight, this can take a few minutes.' });
+  }
   if (!env.LEAD_COLLECTOR_URL) {
     await env.DB.prepare(`UPDATE directory_accounts SET status='collector_required',lastError='LEAD_COLLECTOR_URL is not configured',updatedAt=CURRENT_TIMESTAMP WHERE source=?`).bind(source).run();
     return json({ ok: false, status: 'collector_required', message: 'Collector service is not configured yet.' }, 409);
