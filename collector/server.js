@@ -36,10 +36,12 @@ const CONFIG = {
   // the live DOM. Confirm searchUrl/productLinkPattern/merchantLinkPattern against the real site
   // (or adjust from collector logs) before relying on this in production.
   kaspi: {
+    // Verified against the live site: a product page is https://kaspi.kz/shop/p/<slug>-<id>/?c=<cityId>&m=<merchantId>&ms=true
+    // and its seller's storefront is https://kaspi.kz/shop/m/<merchantId>/... — confirmed 2026-09.
     name: 'Kaspi.kz', requiresAuth: false, home: 'https://kaspi.kz/shop',
     searchUrl: (query, pageNum) => `https://kaspi.kz/shop/search/?text=${encodeURIComponent(query)}&page=${pageNum}`,
     productLinkPattern: /\/shop\/p\/[^/?#]+/i,
-    merchantLinkPattern: /\/shop\/(?:info|reviews)\/merchant/i,
+    merchantLinkPattern: /\/shop\/m\/\d+/i,
     maxPagesPerBrand: KASPI_MAX_PAGES_PER_BRAND,
     defaultBrands: ['JBL', 'Dyson', 'Samsung', 'Xiaomi', 'Apple', 'Sony', 'Bosch', 'Philips']
   }
@@ -112,7 +114,17 @@ async function collectKaspiMerchantLinks(page, cfg, productUrl) {
   if (await hasChallenge(page)) return { links: [], challenge: true, verificationUrl: page.url() };
   const hrefs = await pageHrefs(page);
   const productTitle = clean(await page.locator('h1').first().innerText().catch(() => ''));
-  const merchantLinks = [...new Set(hrefs.filter(h => cfg.merchantLinkPattern.test(h)))].slice(0, 3);
+  const merchantIds = new Set();
+  for (const href of hrefs) {
+    const m = href.match(/\/shop\/m\/(\d+)/i);
+    if (m) merchantIds.add(m[1]);
+  }
+  // Kaspi resolves a default seller straight into the product page's own URL (?m=<merchantId>)
+  // once it loads client-side — capture that too, since "other sellers" for a listing aren't
+  // always plain <a href> elements on a JS-rendered page.
+  const resolved = page.url().match(/[?&]m=(\d+)/i);
+  if (resolved) merchantIds.add(resolved[1]);
+  const merchantLinks = [...merchantIds].slice(0, 3).map(id => `https://kaspi.kz/shop/m/${id}/`);
   return { links: merchantLinks, challenge: false, productTitle };
 }
 
@@ -293,13 +305,33 @@ async function runJob(job) {
   }
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'whizz-lead-collector' }));
+// Each job launches its own headless Chromium instance (a few hundred MB+), so RAM scales with
+// how many jobs run AT ONCE, not with how deep any single crawl goes. Cap concurrency instead of
+// letting simultaneous requests (e.g. a Kaspi search landing next to a directory sync) each spawn
+// their own browser — extra jobs wait in a small in-memory queue instead of piling up.
+const MAX_CONCURRENT_JOBS = Math.max(1, Math.min(Number(process.env.MAX_CONCURRENT_JOBS || 1), 4));
+let runningJobs = 0;
+const jobQueue = [];
+
+function processQueue() {
+  if (runningJobs >= MAX_CONCURRENT_JOBS || !jobQueue.length) return;
+  const job = jobQueue.shift();
+  runningJobs++;
+  runJob(job).catch(err => console.error('collector job failed', err)).finally(() => {
+    runningJobs--;
+    processQueue();
+  });
+}
+
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'whizz-lead-collector', runningJobs, queued: jobQueue.length }));
 app.post('/', async (req, res) => {
   if (!authOk(req)) return res.status(401).json({ error: 'Unauthorized' });
   const job = req.body || {};
   try { sourceConfig(job.source); } catch (e) { return res.status(400).json({ error: e.message }); }
-  res.status(202).json({ ok: true, status: 'syncing' });
-  runJob(job).catch(err => console.error('collector job failed', err));
+  const queued = runningJobs >= MAX_CONCURRENT_JOBS;
+  res.status(202).json({ ok: true, status: queued ? 'queued' : 'syncing' });
+  jobQueue.push(job);
+  processQueue();
 });
 
 app.listen(PORT, '0.0.0.0', () => console.log(`Whizz lead collector listening on ${PORT}`));
