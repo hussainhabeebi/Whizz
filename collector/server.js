@@ -293,13 +293,33 @@ async function runJob(job) {
   }
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'whizz-lead-collector' }));
+// Each job launches its own headless Chromium instance (a few hundred MB+), so RAM scales with
+// how many jobs run AT ONCE, not with how deep any single crawl goes. Cap concurrency instead of
+// letting simultaneous requests (e.g. a Kaspi search landing next to a directory sync) each spawn
+// their own browser — extra jobs wait in a small in-memory queue instead of piling up.
+const MAX_CONCURRENT_JOBS = Math.max(1, Math.min(Number(process.env.MAX_CONCURRENT_JOBS || 1), 4));
+let runningJobs = 0;
+const jobQueue = [];
+
+function processQueue() {
+  if (runningJobs >= MAX_CONCURRENT_JOBS || !jobQueue.length) return;
+  const job = jobQueue.shift();
+  runningJobs++;
+  runJob(job).catch(err => console.error('collector job failed', err)).finally(() => {
+    runningJobs--;
+    processQueue();
+  });
+}
+
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'whizz-lead-collector', runningJobs, queued: jobQueue.length }));
 app.post('/', async (req, res) => {
   if (!authOk(req)) return res.status(401).json({ error: 'Unauthorized' });
   const job = req.body || {};
   try { sourceConfig(job.source); } catch (e) { return res.status(400).json({ error: e.message }); }
-  res.status(202).json({ ok: true, status: 'syncing' });
-  runJob(job).catch(err => console.error('collector job failed', err));
+  const queued = runningJobs >= MAX_CONCURRENT_JOBS;
+  res.status(202).json({ ok: true, status: queued ? 'queued' : 'syncing' });
+  jobQueue.push(job);
+  processQueue();
 });
 
 app.listen(PORT, '0.0.0.0', () => console.log(`Whizz lead collector listening on ${PORT}`));

@@ -15,6 +15,7 @@ Set secrets with your normal Cloudflare deployment process. Do not commit passwo
 
 - `LEAD_COLLECTOR_TOKEN` — same shared token as the Worker.
 - `SESSION_DIR=/data/sessions` — mount this directory as persistent storage so login sessions survive restarts.
+- `MAX_CONCURRENT_JOBS=1` — how many crawl jobs may run at once. Each job launches its own headless Chromium instance (the main RAM cost), so this is the primary lever for controlling peak memory usage — keep it at 1 on a small instance. Extra jobs queue in-memory and run once a slot frees up instead of piling up.
 - `MAX_PROFILES_PER_RUN=40` — safety limit per source/run.
 - `REQUEST_DELAY_MS=1800` — delay between directory/marketplace page requests.
 - Optional login URL overrides: `PCEXPORTERS_LOGIN_URL`, `HANDELOT_LOGIN_URL`, `KADORF_LOGIN_URL`.
