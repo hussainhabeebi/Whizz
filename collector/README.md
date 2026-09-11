@@ -28,7 +28,18 @@ If either of those changes (e.g. the collector moves to a new host), update `wra
 
 ## Kaspi.kz (Kazakhstan)
 
-Kaspi.kz is a public marketplace — no `directory_accounts` username/password is used. Instead, save a brand watchlist (e.g. `JBL, Dyson, Samsung`) from the "Directory Sources" tab; each run searches Kaspi.kz for every brand, paginates the results, opens each product page, follows the seller/merchant link(s) it lists, then opens the merchant's own page to pull phone, WhatsApp, Telegram handle, and the registered company name — not just what's visible on the search results page.
+Kaspi.kz is a public marketplace — no `directory_accounts` username/password is used. Instead, save a brand watchlist (e.g. `JBL, Dyson, Samsung`) from the "Directory Sources" tab (or search one ad hoc from Contact Discovery); each run works per brand in two possible ways:
+
+1. **Apify discovery (preferred, when `APIFY_TOKEN` is set)** — calls the [`isolovyev/marketplace-seller-leads`](https://apify.com/isolovyev/marketplace-seller-leads) actor (Kaspi platform) to get a reliable list of real seller store pages for the brand, sidestepping the issues below with our own search crawl (most likely: a fresh headless session has no city/zone cookie, so Kaspi may show an interstitial or different results than a real browser). We still visit each returned seller page ourselves with Playwright — the actor's own output doesn't include phone/WhatsApp/Telegram, only store identity/rating/review count, which gets merged into the record's `activity` field.
+2. **Direct crawl (fallback, used when Apify isn't configured or a call fails)** — searches Kaspi.kz directly, paginates results, opens each product page, follows the seller link(s) it lists, then opens the seller's own page. This is what's described further below.
+
+### Apify config
+
+- `APIFY_TOKEN` — your Apify API token. Without this, Kaspi runs always use the direct crawl fallback.
+- `APIFY_KASPI_ACTOR_ID` — defaults to `isolovyev~marketplace-seller-leads`.
+- `APIFY_KASPI_INPUT_JSON` — optional override for the actor's input body (JSON string, `{{brand}}` is substituted with the search brand). The built-in default (`{"searchQueries":["{{brand}}"],"platforms":["kaspi"],"maxPagesPerQuery":3,"maxSellersPerPlatform":40}`) is a **best-effort guess** at the actor's real input schema — `apify.com` is unreachable from this codebase's dev environment, so it was never verified against the actor's actual "Input"/"API" tab. If Kaspi runs error out or Apify discovery silently returns nothing (falling back to the direct crawl), open that tab on the actor's Apify page, copy its real input JSON, and set `APIFY_KASPI_INPUT_JSON` to match.
+
+### Direct crawl details
 
 The `productLinkPattern` and `merchantLinkPattern` in `server.js` have been verified against real Kaspi.kz URLs (`/shop/p/<slug>-<id>/?...&m=<merchantId>&...` for a product, `/shop/m/<merchantId>/...` for its seller). The search URL's pagination (`&page=N`) has **not** been separately confirmed — if a brand search only ever returns page-1 results, that's likely why; the code fails safe in that case (it just stops paginating early rather than erroring) but won't reach deeper pages until confirmed/fixed.
 
