@@ -222,8 +222,11 @@ async function collectorCallback(request, env) {
     await importProspects(req, env);
   }
   const status = body.status || 'completed';
+  // Reuse lastError as a general "last run note" slot (surfaced the same way in the UI) so a
+  // non-error diagnostic — e.g. the Kaspi collector's "Apify used for N brands, crawl fallback
+  // for M" summary — is visible without needing to check collector logs.
   await env.DB.prepare(`UPDATE directory_accounts SET status=?,verificationUrl=?,lastError=?,lastSyncAt=CASE WHEN ?='completed' THEN CURRENT_TIMESTAMP ELSE lastSyncAt END,updatedAt=CURRENT_TIMESTAMP WHERE source=?`)
-    .bind(status,body.verificationUrl || null,body.error || null,status,source).run();
+    .bind(status,body.verificationUrl || null,body.error || body.note || null,status,source).run();
   return json({ ok: true });
 }
 

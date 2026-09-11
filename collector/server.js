@@ -209,6 +209,9 @@ async function runKaspiJob(job, cfg) {
   const page = await context.newPage();
   const items = [];
   const seenMerchants = new Set();
+  // Self-diagnosing summary so "why did this run find nothing" doesn't need a log round-trip —
+  // it's folded into the completed callback's `note`.
+  const diag = { apifyConfigured: !!APIFY_TOKEN, apifyBrandsUsed: 0, crawlBrandsUsed: 0 };
   const bail = async (verificationUrl) => {
     await callback(job.callbackUrl, { source: 'kaspi', status: 'verification_required', verificationUrl, items });
     return { status: 'verification_required', verificationUrl, itemsCollected: items.length };
@@ -221,6 +224,7 @@ async function runKaspiJob(job, cfg) {
       // headless session does, and returns a list of real seller pages directly.
       const apifySellers = await fetchKaspiSellersFromApify(brand);
       if (apifySellers && apifySellers.length) {
+        diag.apifyBrandsUsed++;
         for (const seller of apifySellers) {
           if (items.length >= MAX_PROFILES) break outer;
           if (seenMerchants.has(seller.url)) continue;
@@ -235,6 +239,7 @@ async function runKaspiJob(job, cfg) {
       }
 
       // Fallback: Apify not configured (or returned nothing) — crawl search -> product -> merchant.
+      diag.crawlBrandsUsed++;
       const search = await collectKaspiProductLinks(page, cfg, brand);
       if (search.challenge) return await bail(search.verificationUrl);
       for (const productUrl of search.links) {
@@ -254,8 +259,9 @@ async function runKaspiJob(job, cfg) {
         }
       }
     }
-    await callback(job.callbackUrl, { source: 'kaspi', status: 'completed', items });
-    return { status: 'completed', count: items.length };
+    const note = `Discovery: ${diag.apifyConfigured ? `Apify used for ${diag.apifyBrandsUsed} brand(s), direct crawl fallback for ${diag.crawlBrandsUsed}` : `APIFY_TOKEN not set — direct crawl only (${diag.crawlBrandsUsed} brand(s))`}.`;
+    await callback(job.callbackUrl, { source: 'kaspi', status: 'completed', items, note });
+    return { status: 'completed', count: items.length, note };
   } catch (error) {
     await callback(job.callbackUrl, { source: 'kaspi', status: 'error', error: error.message, items });
     throw error;
@@ -399,7 +405,7 @@ function processQueue() {
   });
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'whizz-lead-collector', runningJobs, queued: jobQueue.length }));
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'whizz-lead-collector', runningJobs, queued: jobQueue.length, apifyConfigured: !!APIFY_TOKEN }));
 app.post('/', async (req, res) => {
   if (!authOk(req)) return res.status(401).json({ error: 'Unauthorized' });
   const job = req.body || {};
