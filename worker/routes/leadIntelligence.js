@@ -62,6 +62,20 @@ function leadScore(p) {
 }
 
 function normalize(s) { return String(s || '').trim(); }
+// De-dupes a brand list case-insensitively (JBL/jbl are the same search) while keeping the
+// first-seen casing, so a saved watchlist never accumulates near-duplicate entries.
+function dedupeBrands(list) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of list) {
+    const b = normalize(raw);
+    const key = b.toLowerCase();
+    if (!b || seen.has(key)) continue;
+    seen.add(key);
+    out.push(b);
+  }
+  return out;
+}
 function keyFor(p) {
   const domain = normalize(p.website).toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0];
   const email = normalize(p.email).toLowerCase();
@@ -89,7 +103,7 @@ async function saveSource(request, env, source) {
   const existing = await env.DB.prepare('SELECT credentialsEncrypted FROM directory_accounts WHERE source=?').bind(source).first();
   let encrypted = existing?.credentialsEncrypted || null;
   const isBrandSearch = BRAND_SEARCH_SOURCES.includes(source);
-  const brands = isBrandSearch ? [...new Set((Array.isArray(body.brands) ? body.brands : []).map(normalize).filter(Boolean))].slice(0, 25) : null;
+  const brands = isBrandSearch ? dedupeBrands(Array.isArray(body.brands) ? body.brands : []).slice(0, 25) : null;
   if (isBrandSearch) {
     if (!brands.length) return json({ error: 'Add at least one brand to search for' }, 400);
     encrypted = await encryptCredentials(env, { password: '', extra: { brands } });
@@ -172,10 +186,10 @@ async function runCollector(request, env, source) {
     // configure step first. New brands are folded into the saved watchlist, searched-first, so a
     // brand you just searched isn't starved of the per-run profile budget by older saved brands.
     const body = await request.json().catch(() => ({}));
-    const newBrands = [...new Set((Array.isArray(body.brands) ? body.brands : []).map(normalize).filter(Boolean))];
+    const newBrands = dedupeBrands(Array.isArray(body.brands) ? body.brands : []);
     if (newBrands.length) {
       const savedBrands = account?.credentialsEncrypted ? (await decryptCredentials(env, account.credentialsEncrypted)).extra?.brands || [] : [];
-      const brands = [...new Set([...newBrands, ...savedBrands])].slice(0, 25);
+      const brands = dedupeBrands([...newBrands, ...savedBrands]).slice(0, 25);
       const encrypted = await encryptCredentials(env, { password: '', extra: { brands } });
       await env.DB.prepare(`INSERT INTO directory_accounts(source, username, credentialsEncrypted, status, updatedAt)
         VALUES(?,?,?,?,CURRENT_TIMESTAMP)
