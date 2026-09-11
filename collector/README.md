@@ -2,14 +2,19 @@
 
 This service runs the authenticated browser work for Whizz Lead Intelligence. Keep the main Whizz app on Cloudflare Workers/D1 and deploy this folder as a small Docker service (for example in Coolify).
 
-## Required Whizz Worker secrets
+## Required Whizz Worker config
+
+Two are genuinely sensitive and must be set as **Secrets** (Cloudflare dashboard → Workers & Pages → whizz → Settings → Variables and Secrets, type "Secret", or `wrangler secret put`) — never commit these:
 
 - `LEAD_INTELLIGENCE_KEY` — long random secret used to AES-GCM encrypt directory credentials.
-- `LEAD_COLLECTOR_URL` — public HTTPS URL of this collector service.
 - `LEAD_COLLECTOR_TOKEN` — shared bearer token used in both directions.
+
+The other two are just URLs, not credentials, so they're committed as plain `[vars]` in `wrangler.toml` instead of a dashboard-only variable — this repo auto-deploys via Cloudflare Workers Builds on every push, and a deploy re-applies `wrangler.toml` each time, which silently drops any variable that was only ever added through the dashboard UI (not tracked in the repo) rather than as a Secret:
+
+- `LEAD_COLLECTOR_URL` — public HTTPS URL of this collector service.
 - `LEAD_INTELLIGENCE_CALLBACK_URL` — `https://YOUR-WHIZZ-DOMAIN/api/lead-intelligence/callback`.
 
-Set secrets with your normal Cloudflare deployment process. Do not commit passwords or the encryption key.
+If either of those changes (e.g. the collector moves to a new host), update `wrangler.toml` and redeploy rather than editing it in the dashboard — a dashboard-only edit will be overwritten by the next automated build.
 
 ## Collector environment
 
