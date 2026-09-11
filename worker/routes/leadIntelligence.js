@@ -162,11 +162,31 @@ async function promote(env, id, ownerEmail = null) {
   return json({ ok: true, contactId, merged: false });
 }
 
-async function runCollector(env, source) {
+async function runCollector(request, env, source) {
   source = requireSource(source);
-  const account = await env.DB.prepare('SELECT * FROM directory_accounts WHERE source=?').bind(source).first();
+  const isBrandSearch = BRAND_SEARCH_SOURCES.includes(source);
+  let account = await env.DB.prepare('SELECT * FROM directory_accounts WHERE source=?').bind(source).first();
+
+  if (isBrandSearch) {
+    // A run can carry brands directly (a quick "search JBL now" from the UI) without a separate
+    // configure step first. New brands are folded into the saved watchlist, searched-first, so a
+    // brand you just searched isn't starved of the per-run profile budget by older saved brands.
+    const body = await request.json().catch(() => ({}));
+    const newBrands = [...new Set((Array.isArray(body.brands) ? body.brands : []).map(normalize).filter(Boolean))];
+    if (newBrands.length) {
+      const savedBrands = account?.credentialsEncrypted ? (await decryptCredentials(env, account.credentialsEncrypted)).extra?.brands || [] : [];
+      const brands = [...new Set([...newBrands, ...savedBrands])].slice(0, 25);
+      const encrypted = await encryptCredentials(env, { password: '', extra: { brands } });
+      await env.DB.prepare(`INSERT INTO directory_accounts(source, username, credentialsEncrypted, status, updatedAt)
+        VALUES(?,?,?,?,CURRENT_TIMESTAMP)
+        ON CONFLICT(source) DO UPDATE SET username=excluded.username, credentialsEncrypted=excluded.credentialsEncrypted, status='ready', lastError=NULL, updatedAt=CURRENT_TIMESTAMP`)
+        .bind(source, brands.join(', '), encrypted, 'ready').run();
+      account = await env.DB.prepare('SELECT * FROM directory_accounts WHERE source=?').bind(source).first();
+    }
+  }
+
   if (!account?.credentialsEncrypted) {
-    return json({ error: BRAND_SEARCH_SOURCES.includes(source) ? 'Add at least one brand to search for first' : 'Configure credentials first' }, 400);
+    return json({ error: isBrandSearch ? 'Add at least one brand to search for first' : 'Configure credentials first' }, 400);
   }
   if (!env.LEAD_COLLECTOR_URL) {
     await env.DB.prepare(`UPDATE directory_accounts SET status='collector_required',lastError='LEAD_COLLECTOR_URL is not configured',updatedAt=CURRENT_TIMESTAMP WHERE source=?`).bind(source).run();
@@ -208,7 +228,7 @@ export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'GET' && action === 'prospects') return listProspects(request, env);
   if (request.method === 'POST' && action === 'import') return importProspects(request, env);
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
-  if (request.method === 'POST' && action === 'run') return runCollector(env, arg);
+  if (request.method === 'POST' && action === 'run') return runCollector(request, env, arg);
   if (request.method === 'POST' && action === 'callback') return collectorCallback(request, env);
   return json({ error: 'Not found' }, 404);
 }
