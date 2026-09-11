@@ -94,6 +94,10 @@ async function repairSchema(env) {
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  await addColumns(env, 'directory_prospects', [
+    ['whatsapp', "TEXT NOT NULL DEFAULT ''"],
+    ['telegram', "TEXT NOT NULL DEFAULT ''"]
+  ]);
 
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
