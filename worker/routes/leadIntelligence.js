@@ -202,9 +202,13 @@ async function runCollector(request, env, source) {
   if (!account?.credentialsEncrypted) {
     return json({ error: isBrandSearch ? 'Add at least one brand to search for first' : 'Configure credentials first' }, 400);
   }
-  if (account.status === 'syncing') {
-    // A deep crawl can run for minutes — don't let a re-click (or an impatient poll timeout)
-    // queue a duplicate job on top of one still in flight.
+  // A deep crawl can run for minutes — don't let a re-click (or an impatient poll timeout) queue
+  // a duplicate job on top of one still in flight. But a "syncing" status can also be orphaned
+  // (e.g. the collector container restarted mid-job and never got to post its callback) — treat
+  // it as stale past the collector's own job timeout so it doesn't block runs forever.
+  const STALE_SYNCING_MS = 12 * 60 * 1000;
+  const syncingAgeMs = account.status === 'syncing' && account.updatedAt ? Date.now() - new Date(account.updatedAt).getTime() : 0;
+  if (account.status === 'syncing' && syncingAgeMs < STALE_SYNCING_MS) {
     return json({ ok: true, status: 'syncing', message: 'Already running — hang tight, this can take a few minutes.' });
   }
   if (!env.LEAD_COLLECTOR_URL) {

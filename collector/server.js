@@ -183,7 +183,11 @@ async function fetchKaspiSellersFromApify(brand) {
   }
   const url = `https://api.apify.com/v2/acts/${APIFY_KASPI_ACTOR_ID}/run-sync-get-dataset-items?token=${encodeURIComponent(APIFY_TOKEN)}&timeout=120`;
   try {
-    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) });
+    // &timeout=120 above only bounds how long Apify lets the actor run — it does NOT bound how
+    // long our own fetch() waits for a response. Without a client-side abort, a hung connection
+    // here blocks this job (and everything queued behind it, since only one job runs at a time)
+    // indefinitely instead of erroring out.
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input), signal: AbortSignal.timeout(130000) });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       console.error('Apify Kaspi actor call failed', res.status, text);
@@ -399,14 +403,29 @@ const MAX_CONCURRENT_JOBS = Math.max(1, Math.min(Number(process.env.MAX_CONCURRE
 let runningJobs = 0;
 const jobQueue = [];
 
+// Safety net: with only MAX_CONCURRENT_JOBS running, a single job that hangs (network call with
+// no client-side timeout, an unexpected Playwright wait, etc.) blocks every other source's runs
+// forever with no visible error — exactly what an un-timed-out fetch() did before this was added.
+// This doesn't cancel the underlying work, but it frees the queue slot and reports a real error
+// instead of leaving Whizz stuck on "syncing" indefinitely.
+const JOB_TIMEOUT_MS = Math.max(60000, Number(process.env.JOB_TIMEOUT_MS || 8 * 60 * 1000));
+
 function processQueue() {
   if (runningJobs >= MAX_CONCURRENT_JOBS || !jobQueue.length) return;
   const job = jobQueue.shift();
   runningJobs++;
-  runJob(job).catch(err => console.error('collector job failed', err)).finally(() => {
-    runningJobs--;
-    processQueue();
-  });
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(`Job timed out after ${JOB_TIMEOUT_MS}ms`)), JOB_TIMEOUT_MS));
+  Promise.race([runJob(job), timeout])
+    .catch(async err => {
+      console.error('collector job failed', err);
+      if (/timed out/i.test(err.message)) {
+        await callback(job.callbackUrl, { source: String(job.source || '').toLowerCase(), status: 'error', error: err.message, items: [] }).catch(() => {});
+      }
+    })
+    .finally(() => {
+      runningJobs--;
+      processQueue();
+    });
 }
 
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'whizz-lead-collector', runningJobs, queued: jobQueue.length, apifyConfigured: !!APIFY_TOKEN }));
