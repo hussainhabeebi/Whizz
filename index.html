@@ -2983,7 +2983,7 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 })();
 
 // ── API Gateway Base Call ──
-const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-get-conversations','whizz-get-conversation-messages','whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-save-integration','whizz-delete-integration']);
+const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-get-conversations','whizz-get-conversation-messages','whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-discover-2gis','whizz-save-integration','whizz-delete-integration']);
 async function api(path,method='GET',body=null){const endpoint=String(path).split('?')[0],protectedRoute=WORKER_PROTECTED_ENDPOINTS.has(endpoint);const opts={method,headers:{'Content-Type':'application/json'}};if(protectedRoute)opts.credentials='include';if(body)opts.body=JSON.stringify(body);const url=protectedRoute?`/api/automation/${path}`:`${N8N}/${path}`;const r=await fetch(url,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{success:true};}catch{data={success:true};}if(!r.ok){console.error('[Whizz]',method,path,r.status,txt);throw new Error(data.error||(txt.trim().slice(0,150))||'HTTP '+r.status);}return data;}
 // Endpoints migrated off n8n onto the Cloudflare Worker call this instead — same
 // contract, just same-origin. Migrate call sites one at a time as each route lands.
@@ -6360,9 +6360,8 @@ async function leadApi(url, opts = {}) {
   return d;
 }
 
-// 2GIS is an official REST API called directly from the Worker — synchronous, no collector, no
-// polling needed (unlike Kaspi). Results are mapped into the same shape the Apify Google Maps
-// flow already produces so they render in the existing contact-card grid unchanged.
+// 2GIS goes through n8n + an Apify 2GIS actor, the same shape as the Google Maps flow above —
+// see the whizz-discover-2gis webhook contract documented where it's created in n8n.
 async function run2GisDiscovery() {
   const location = document.getElementById('disc-location').value.trim();
   const brand    = document.getElementById('disc-brand').value.trim();
@@ -6377,29 +6376,27 @@ async function run2GisDiscovery() {
   const label = document.getElementById('disc-run-label');
   btn.disabled = true; icon.classList.add('spin'); label.textContent = 'Searching…';
 
-  const query = [brand, category].filter(Boolean).join(' ');
+  const query = [brand, category, location].filter(Boolean).join(' ');
   document.getElementById('disc-results-body').innerHTML = `
     <div style="padding:40px;text-align:center;">
       <div class="ai-thinking" style="justify-content:center;display:inline-flex;">
         <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
-        <span style="margin-left:8px;color:var(--text2);font-size:12px;">Searching 2GIS for "<strong>${query}</strong>" in "<strong>${location}</strong>"…</span>
+        <span style="margin-left:8px;color:var(--text2);font-size:12px;">Searching 2GIS for "<strong>${query}</strong>"…</span>
       </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px;">Apify is crawling — this takes 20–60 seconds</div>
     </div>`;
   document.getElementById('disc-results-title').textContent = 'Searching…';
 
   try {
-    const d = await leadApi('/api/lead-intelligence/discover/2gis', { method: 'POST', body: JSON.stringify({ query, location, limit }) });
-    const contacts = (d.contacts || []).map(c => ({
-      __source: '2gis', name: c.name, phone: c.phone, email: c.email, website: c.website,
-      address: c.address, categoryName: category, totalScore: c.rating || 0, url: c.url
-    }));
+    const d = await api('whizz-discover-2gis', 'POST', { query, location, brand, category, limit });
+    const contacts = (d.contacts || d.items || (Array.isArray(d) ? d : [])).map(c => ({ __source: '2gis', ...c }));
     S.discoveredContacts = contacts;
     S.selectedDiscContacts = new Set();
     renderDiscoveryResults(S.discoveredContacts);
     if (contacts.length) showToast(`Found ${contacts.length} businesses via 2GIS`, 'success');
     else showToast('No results — try a broader search or a different location', 'info');
   } catch (e) {
-    document.getElementById('disc-results-body').innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${e.message || '2GIS search failed'}</div>`;
+    document.getElementById('disc-results-body').innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>whizz-discover-2gis</strong> webhook is active in n8n.</div>`;
     document.getElementById('disc-results-title').textContent = 'Results';
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
