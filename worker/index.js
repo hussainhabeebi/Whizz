@@ -139,6 +139,10 @@ export default {
         try { return await handleLeadIntelligence(request, env, 'import'); }
         catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
       }
+      if (url.pathname === '/api/lead-intelligence/discover/2gis' && request.method === 'POST') {
+        try { return await handleLeadIntelligence(request, env, 'discover2gis'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
     }
 
     const automationMatch = url.pathname.match(/^\/api\/automation\/([a-z0-9-]+)$/i);
