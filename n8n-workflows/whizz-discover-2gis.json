@@ -1,0 +1,105 @@
+{
+  "name": "whizz-discover-2gis",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Setup checklist\n1. Open **Call Apify 2GIS Actor** and replace `YOUR_APIFY_TOKEN` with a real Apify API token.\n2. Confirm the actor ID in **Build Apify Request** — defaults to `thenetaji~2gis-place-scraper` (apify.com/thenetaji/2gis-place-scraper). Swap it for whichever 2GIS actor you're using.\n3. **The actor input body (`searchStringsArray`/`locationQuery`/`maxCrawledPlaces`) is a best-effort guess** — this was drafted without live access to apify.com to confirm the actor's real Input schema. Run a test execution; if it errors or returns nothing, open the actor's \"API\" tab on Apify for its real input JSON and edit the `actorInput` object in **Build Apify Request** to match.\n4. **Map to Whizz Contacts** tries several likely field names per contact (title/name, phone/phoneNumber/phones[0], etc.) since the actor's exact output field names are equally unverified — adjust there too if real output looks different.\n\nWhizz calls this at POST https://n8n.aiingo.com/webhook/whizz-discover-2gis with body {query, location, brand, category, limit} and expects back {\"contacts\":[{name,phone,email,website,address,totalScore,url}]}.",
+        "height": 380,
+        "width": 460
+      },
+      "id": "b2c4d6e8-0009-0009-0009-000000000000",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 520]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whizz-discover-2gis",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b2c4d6e8-0009-0009-0009-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-discover-2gis"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Build the Apify actor call from Whizz's search request ──\n// NOTE: actorId and actorInput below are a best-effort guess at the 2GIS actor's real schema —\n// see the Setup Notes sticky note. Adjust once you've confirmed the actor's actual Input tab.\nconst body = $('Webhook').first().json.body || {};\nconst query = (body.query || [body.brand, body.category].filter(Boolean).join(' ')).trim();\nconst location = (body.location || '').trim();\nconst limit = Math.max(1, Math.min(Number(body.limit) || 20, 50));\n\nconst ACTOR_ID = 'thenetaji~2gis-place-scraper';\nconst APIFY_TOKEN = 'YOUR_APIFY_TOKEN';\n\nreturn [{\n  json: {\n    actorId: ACTOR_ID,\n    apifyToken: APIFY_TOKEN,\n    actorInput: {\n      searchStringsArray: [query],\n      locationQuery: location,\n      maxCrawledPlaces: limit\n    }\n  }\n}];"
+      },
+      "id": "b2c4d6e8-0009-0009-0009-000000000002",
+      "name": "Build Apify Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/acts/{{ $json.actorId }}/run-sync-get-dataset-items?token={{ $json.apifyToken }}&timeout=120",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.actorInput) }}",
+        "options": { "response": { "response": { "neverError": true } }, "timeout": 130000 }
+      },
+      "id": "b2c4d6e8-0009-0009-0009-000000000003",
+      "name": "Call Apify 2GIS Actor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Normalize the Apify dataset into what Whizz's Contact Discovery UI expects ──\n// Defensive on field names for the same reason as Build Apify Request: unverified live.\nconst items = $input.all();\nlet rawItems = [];\nlet apiError = null;\n\nfor (const item of items) {\n  const j = item.json;\n  if (j && j.error) { apiError = typeof j.error === 'string' ? j.error : (j.error.message || JSON.stringify(j.error)); continue; }\n  if (Array.isArray(j)) rawItems.push(...j);\n  else if (j) rawItems.push(j);\n}\n\nif (apiError) {\n  return [{ json: { contacts: [], error: `2GIS/Apify error: ${apiError}` } }];\n}\n\nconst contacts = rawItems.map(it => ({\n  name: it.title || it.name || it.storeName || it.company || '',\n  phone: it.phone || it.phoneNumber || it.phoneUnformatted || (Array.isArray(it.phones) ? it.phones[0] : '') || '',\n  email: it.email || (Array.isArray(it.emails) ? it.emails[0] : '') || '',\n  website: it.website || it.domain || it.url_website || '',\n  address: it.address || it.full_address || it.location || '',\n  totalScore: it.totalScore || it.rating || it.stars || 0,\n  url: it.url || it.link || it.placeUrl || it.googleMapsUrl || ''\n})).filter(c => c.name);\n\nreturn [{ json: { contacts } }];"
+      },
+      "id": "b2c4d6e8-0009-0009-0009-000000000004",
+      "name": "Map to Whizz Contacts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 502 : 200 }}"
+        }
+      },
+      "id": "b2c4d6e8-0009-0009-0009-000000000005",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Build Apify Request", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Apify Request": {
+      "main": [
+        [{ "node": "Call Apify 2GIS Actor", "type": "main", "index": 0 }]
+      ]
+    },
+    "Call Apify 2GIS Actor": {
+      "main": [
+        [{ "node": "Map to Whizz Contacts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Map to Whizz Contacts": {
+      "main": [
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}
