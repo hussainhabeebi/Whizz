@@ -619,6 +619,24 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 :root{--bg:#f4f6fa;--bg3:#f7f8fb;--border:rgba(15,23,42,.075);--border2:rgba(15,23,42,.13);--shadow-sm:0 1px 3px rgba(15,23,42,.04),0 8px 24px rgba(15,23,42,.035)}
 .sidebar{width:252px;background:#0b1220;border-right:0;box-shadow:10px 0 35px rgba(15,23,42,.06)}.sidebar-logo{padding:22px 18px 15px;border-color:rgba(255,255,255,.08)}.s-logo-mark{width:38px;height:38px;border-radius:12px}.s-logo-text{font-size:15px;color:#fff}.s-logo-sub{color:#78849a}.nav-search-wrap{padding:0 12px 12px}.nav-search{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(255,255,255,.055)}.nav-search:focus-within{border-color:rgba(245,158,11,.48)}.nav-search svg{width:14px;color:#78849a}.nav-search input{width:100%;border:0;outline:0;background:transparent;color:#e5e7eb;font:500 11px var(--font)}.nav-search input::placeholder{color:#667085}.nav-empty{padding:12px 8px 0;color:#64748b;font-size:11px;display:none}.sidebar-nav{padding:2px 10px 18px;scrollbar-width:thin}.nav-section{padding:17px 10px 6px;color:#536078;font-size:9px;letter-spacing:.14em}.nav-item,.nav-ext{min-height:38px;padding:9px 10px;border-radius:9px;color:#94a3b8;font-size:12px;font-weight:500}.nav-item:hover,.nav-ext:hover{background:rgba(255,255,255,.055);color:#f8fafc}.nav-item.active{background:linear-gradient(90deg,rgba(245,158,11,.2),rgba(245,158,11,.08));color:#fbbf24}.nav-item.active::before{left:-10px;height:22px}.sidebar-footer{padding:12px;border-color:rgba(255,255,255,.08);background:rgba(0,0,0,.12)}.user-row{padding:9px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.035)}.u-name{color:#f8fafc}.u-role,.logout-btn{color:#64748b}.topbar{height:72px;padding:0 30px;background:rgba(255,255,255,.88);backdrop-filter:blur(16px)}body.dark .topbar{background:rgba(30,41,59,.88)}.page-title{font-size:18px}.theme-toggle-btn,.notif-btn{width:36px;height:36px;background:transparent}.btn-refresh{height:36px;background:var(--bg2)}.content{padding:28px 32px 44px}.page{max-width:1500px;margin:0 auto}.page.active{animation:workspaceIn .28s ease both}@keyframes workspaceIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}.role-hero{padding:28px 30px;margin-bottom:20px;border-radius:20px;background:radial-gradient(circle at 82% 0,rgba(245,158,11,.28),transparent 34%),linear-gradient(120deg,#0b1220,#172554 62%,#312e81)}.role-title{font-size:28px}.role-copy{font-size:13px}.card,.stat-card,.table-card,.chart-card,.task-composer,.task-board-card,.health-card,.delivery-guard{border-color:var(--border);box-shadow:var(--shadow-sm)}.t-btn{min-height:34px;border-radius:9px}.modal-box{border-radius:20px!important}body.dark .sidebar{background:#080d18}@media(max-width:1100px){.sidebar{width:224px}.content{padding:24px}}@media(max-width:768px){.sidebar{width:268px;left:-268px}.topbar{height:64px;padding:0 14px}.page-title{font-size:15px}.page-subtitle{display:none}.topbar-right .last-upd,.topbar-right .sync-dot,.topbar-right .btn-refresh{display:none}.content{padding:16px 14px 80px}.role-hero{padding:21px 18px}.role-title{font-size:22px}}
 </style>
+<!-- Icon-only sidebar: simplifies the left nav down to icons + tooltips, dropping labels, section
+     headings and the page search so the rail reads at a glance instead of as a wall of text. -->
+<style>
+.sidebar{width:72px}
+.sidebar-logo{padding:18px 0;display:flex;justify-content:center}
+.s-logo-row{gap:0}
+.s-logo-text,.s-logo-sub,.nav-search-wrap{display:none}
+.sidebar-nav{padding:4px 8px 14px}
+.nav-item,.nav-ext{justify-content:center;gap:0;font-size:0;padding:11px 0}
+.nav-ext svg[style*="margin-left"]{display:none}
+.nav-section{font-size:0;height:0;padding:0;margin:12px 16px 10px;border-top:1px solid rgba(255,255,255,.08)}
+.nav-badge{position:absolute;top:7px;right:18px;margin:0;width:7px;height:7px;min-width:0;padding:0;font-size:0;border-radius:50%}
+.sidebar-footer{padding:12px 6px}
+.user-row{flex-direction:column;gap:8px;padding:10px 2px;justify-content:center}
+.user-row>div:nth-child(2){display:none}
+@media(max-width:1100px){.sidebar{width:72px}}
+@media(max-width:768px){.sidebar{width:72px;left:-72px}}
+</style>
 </head>
 <body>
 
@@ -1975,6 +1993,37 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
   </div>
 </div>
 
+<!-- Bulk Edit Leads Modal -->
+<div class="modal-overlay" id="modal-bulk-edit-leads">
+  <div class="modal" style="width:min(96vw,480px);">
+    <div class="modal-head">
+      <div class="modal-title">Bulk Edit Leads</div>
+      <button class="modal-close" onclick="closeModal('modal-bulk-edit-leads')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Updating <strong id="be-count">0</strong> selected lead(s). Check a field to overwrite it on every selected lead — unchecked fields are left as they are.</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="fg" style="margin:0;">
+          <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="be-brand-on" onchange="document.getElementById('be-brand').disabled=!this.checked"> Brand</label>
+          <input class="fi" id="be-brand" placeholder="e.g. HP" disabled/>
+        </div>
+        <div class="fg" style="margin:0;">
+          <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="be-category-on" onchange="document.getElementById('be-category').disabled=!this.checked"> Category</label>
+          <input class="fi" id="be-category" placeholder="e.g. Distributor" disabled/>
+        </div>
+        <div class="fg" style="margin:0;">
+          <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="be-country-on" onchange="document.getElementById('be-country').disabled=!this.checked"> Country</label>
+          <input class="fi" id="be-country" placeholder="e.g. UAE" disabled/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-bulk-edit-leads')">Cancel</button>
+      <button class="t-btn btn-primary" id="bulk-edit-submit-btn" onclick="submitBulkEditLeads()">Apply Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- Export Contacts Modal -->
 <div class="modal-overlay" id="modal-export-contacts">
   <div class="modal" style="width:min(96vw,520px);">
@@ -2847,6 +2896,15 @@ function updateObScore() {
 }
 
 // ── Routing Navigation ──
+// The sidebar shows icons only; give each item its label back as a native hover tooltip
+// (pulled from its own text, so it can't drift out of sync with the on-screen name).
+(function initNavTooltips(){
+  document.querySelectorAll('.sidebar-nav .nav-item, .sidebar-nav .nav-ext').forEach(item=>{
+    if(item.title)return;
+    const label=[...item.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE).map(n=>n.textContent.trim()).filter(Boolean).join(' ');
+    if(label)item.title=label;
+  });
+})();
 function filterNavigation(value=''){
   const query=String(value).trim().toLowerCase();
   const allowed=new Set(currentRoleExperience().pages||[]);
@@ -3887,6 +3945,7 @@ function applyLeadsFilter(){loadLeadsContacts();}
 let _currentLeadsContacts=[];
 let _leadsSearchQuery='';
 let _currentLeadsGroup=null;
+let _leadsSelectedIds=new Set();
 
 function applyLeadsSearch(contacts){
   if(!_leadsSearchQuery)return contacts;
@@ -3910,6 +3969,7 @@ async function loadLeadsContacts(){
   try{
     const d=await apiW(`whizz-get-contacts${params.toString()?'?'+params:''}`);
     _currentLeadsContacts=Array.isArray(d.contacts)?d.contacts:[];
+    _leadsSelectedIds.clear();
     renderLeadsContactsTable(applyLeadsSearch(_currentLeadsContacts));
   }catch(e){
     wrap.innerHTML=`<div style="text-align:center;color:var(--red);font-size:12px;padding:28px;">${e.message||'Failed to load contacts'}</div>`;
@@ -3927,7 +3987,14 @@ function renderLeadsContactsTable(contacts){
   const ratioColor=ratio>=50?'var(--green)':ratio>=20?'var(--amber)':'var(--text3)';
   const emptyMsg=total===0?'No contacts match the selected filters.':shown===0?'No contacts match your search.':null;
   if(emptyMsg&&total===0){wrap.innerHTML=`<div style="text-align:center;color:var(--text3);font-size:12px;padding:28px;">${emptyMsg}</div>`;return;}
+  const selectableShown=contacts.filter(c=>c.id);
+  const allShownSelected=selectableShown.length>0&&selectableShown.every(c=>_leadsSelectedIds.has(c.id));
   wrap.innerHTML=`
+    <div id="leads-bulk-bar" style="display:${_leadsSelectedIds.size?'flex':'none'};align-items:center;gap:10px;padding:8px 12px;margin-bottom:10px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:8px;">
+      <span style="font-size:12px;font-weight:600;color:var(--text);"><span id="leads-bulk-count">${_leadsSelectedIds.size}</span> selected</span>
+      <button class="t-btn btn-primary t-btn-sm" onclick="openBulkEditLeadsModal()">Bulk Edit</button>
+      <button class="t-btn btn-ghost t-btn-sm" onclick="clearLeadsSelection()">Clear selection</button>
+    </div>
     <div style="display:flex;align-items:center;gap:10px;padding:8px 2px 10px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:10px;">
       <span style="font-size:11px;color:var(--text3);">Conversion ratio:</span>
       <span style="font-size:13px;font-weight:700;color:${ratioColor};">${ratio}%</span>
@@ -3946,6 +4013,7 @@ function renderLeadsContactsTable(contacts){
     <div id="conv-ref-panel" style="display:none;margin-bottom:12px;"></div>
     ${shown===0?`<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">No contacts match your search.</div>`:`<table style="width:100%;border-collapse:collapse;font-size:12px;">
       <thead><tr style="border-bottom:2px solid var(--border);">
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);width:30px;"><input type="checkbox" id="leads-select-all" onchange="toggleAllLeadsSelection(this.checked)" ${allShownSelected?'checked':''}></th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Name</th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Phone</th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Email</th>
@@ -3959,6 +4027,7 @@ function renderLeadsContactsTable(contacts){
         const name=c.contactName||c.company||c.name||'Unknown';
         const isConverted=!!c.convertedAt;
         return `<tr class="leads-tbl-row${isConverted?' lc-tbl-converted':''}" style="border-bottom:1px solid var(--border);">
+          <td style="padding:9px 10px;">${c.id?`<input type="checkbox" onchange="toggleLeadSelection(${c.id},this.checked)" ${_leadsSelectedIds.has(c.id)?'checked':''}>`:''}</td>
           <td style="padding:9px 10px;">
             <div style="font-weight:500;color:var(--text);">${_hesc(name)}</div>
             ${c.company&&c.contactName?`<div style="font-size:10px;color:var(--text3);">${_hesc(c.company)}</div>`:''}
@@ -4134,6 +4203,81 @@ async function submitEditLeadContact(){
     closeModal('modal-edit-contact');
     loadLeadsContacts();
   }catch(e){showToast(e.message||'Failed to update contact','error');}
+}
+
+// ── Bulk Edit Leads (Brand / Category / Country) ──
+function toggleLeadSelection(id,checked){
+  if(!id)return;
+  if(checked)_leadsSelectedIds.add(id);else _leadsSelectedIds.delete(id);
+  updateLeadsBulkBar();
+}
+function toggleAllLeadsSelection(checked){
+  applyLeadsSearch(_currentLeadsContacts).forEach(c=>{if(!c.id)return;if(checked)_leadsSelectedIds.add(c.id);else _leadsSelectedIds.delete(c.id);});
+  renderLeadsContactsTable(applyLeadsSearch(_currentLeadsContacts));
+}
+function clearLeadsSelection(){
+  _leadsSelectedIds.clear();
+  renderLeadsContactsTable(applyLeadsSearch(_currentLeadsContacts));
+}
+function updateLeadsBulkBar(){
+  const bar=document.getElementById('leads-bulk-bar');
+  if(!bar)return;
+  bar.style.display=_leadsSelectedIds.size?'flex':'none';
+  const countEl=document.getElementById('leads-bulk-count');
+  if(countEl)countEl.textContent=_leadsSelectedIds.size;
+  const selectAll=document.getElementById('leads-select-all');
+  if(selectAll){
+    const shown=applyLeadsSearch(_currentLeadsContacts).filter(c=>c.id);
+    selectAll.checked=shown.length>0&&shown.every(c=>_leadsSelectedIds.has(c.id));
+  }
+}
+function openBulkEditLeadsModal(){
+  if(!_leadsSelectedIds.size){showToast('Select at least one lead first','error');return;}
+  document.getElementById('be-count').textContent=_leadsSelectedIds.size;
+  ['brand','category','country'].forEach(f=>{
+    document.getElementById(`be-${f}-on`).checked=false;
+    const input=document.getElementById(`be-${f}`);
+    input.value='';
+    input.disabled=true;
+  });
+  document.getElementById('modal-bulk-edit-leads').classList.add('open');
+}
+async function submitBulkEditLeads(){
+  const fields={};
+  if(document.getElementById('be-brand-on').checked)fields.brand=document.getElementById('be-brand').value.trim();
+  if(document.getElementById('be-category-on').checked)fields.category=document.getElementById('be-category').value.trim();
+  if(document.getElementById('be-country-on').checked)fields.country=document.getElementById('be-country').value.trim();
+  if(!Object.keys(fields).length){showToast('Check at least one field to update','error');return;}
+  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id));
+  if(!targets.length){showToast('No selected leads found','error');return;}
+  const btn=document.getElementById('bulk-edit-submit-btn');
+  btn.disabled=true;btn.textContent='Applying…';
+  let ok=0,fail=0;
+  for(const c of targets){
+    const body={
+      id:c.id,
+      contactName:c.contactName||c.company||c.name||'',
+      company:c.company||c.contactName||c.name||'',
+      phone:c.phone||'',
+      email:c.email||'',
+      category:c.category||'',
+      source:c.source||'',
+      platform:c.platform||'',
+      country:c.country||'',
+      brand:c.brand||'',
+      productInterest:c.productInterest||'',
+      ...fields
+    };
+    try{
+      await apiFetch('/whizz-update-contact',{method:'POST',body:JSON.stringify(body)});
+      ok++;
+    }catch(e){fail++;}
+  }
+  btn.disabled=false;btn.textContent='Apply Changes';
+  closeModal('modal-bulk-edit-leads');
+  showToast(fail?`Updated ${ok} lead(s), ${fail} failed`:`Updated ${ok} lead(s)`,fail?'error':'success');
+  _leadsSelectedIds.clear();
+  loadLeadsContacts();
 }
 
 // ── Add Closed Deal (per-lead level, backdatable — e.g. for last year's deals) ──
