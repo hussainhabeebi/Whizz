@@ -2,13 +2,17 @@ const SOURCES = ['pcexporters','handelot','kadorf','kaspi'];
 // Sources in this list are public marketplaces with no login: they're configured with a
 // brand watchlist (e.g. JBL, Dyson) instead of a username/password.
 const BRAND_SEARCH_SOURCES = ['kaspi'];
+// Not a collector-backed source — no directory_accounts row, no card in Directory Sources, no
+// run/brand-watchlist concept. It's just a tag for rows pasted in via the manual CSV importer,
+// which reuses the same dedupe/scoring/promote pipeline as every scraped source.
+const MANUAL_SOURCE = 'manual';
 
 function json(data, status = 200) {
   return Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
 function sourceName(source) {
-  return ({ pcexporters: 'PC Exporters', handelot: 'Handelot', kadorf: 'Kadorf', kaspi: 'Kaspi.kz' })[source] || source;
+  return ({ pcexporters: 'PC Exporters', handelot: 'Handelot', kadorf: 'Kadorf', kaspi: 'Kaspi.kz', manual: 'Manual Import' })[source] || source;
 }
 
 function requireSource(source) {
@@ -120,7 +124,7 @@ async function saveSource(request, env, source) {
 
 async function importProspects(request, env) {
   const body = await request.json();
-  const source = requireSource(body.source);
+  const source = String(body.source || '').toLowerCase() === MANUAL_SOURCE ? MANUAL_SOURCE : requireSource(body.source);
   const items = Array.isArray(body.items) ? body.items : [];
   let inserted = 0, updated = 0;
   for (const raw of items.slice(0, 500)) {
@@ -150,7 +154,7 @@ async function listProspects(request, env) {
   const status = url.searchParams.get('status');
   const q = normalize(url.searchParams.get('q')).toLowerCase();
   const params = []; let where = '1=1';
-  if (source && SOURCES.includes(source)) { where += ' AND source=?'; params.push(source); }
+  if (source && (SOURCES.includes(source) || source === MANUAL_SOURCE)) { where += ' AND source=?'; params.push(source); }
   if (status) { where += ' AND status=?'; params.push(status); }
   if (q) { where += ` AND (lower(company) LIKE ? OR lower(brand) LIKE ? OR lower(productInterest) LIKE ? OR lower(country) LIKE ?)`; params.push(...Array(4).fill(`%${q}%`)); }
   const rows = await env.DB.prepare(`SELECT * FROM directory_prospects WHERE ${where} ORDER BY leadScore DESC, updatedAt DESC LIMIT 300`).bind(...params).all();
