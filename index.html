@@ -643,7 +643,26 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .user-row{flex-direction:column;gap:8px;padding:10px 2px;justify-content:center}
 .user-row>div:nth-child(2){display:none}
 @media(max-width:1100px){.sidebar{width:72px}}
-@media(max-width:768px){.sidebar{width:72px;left:-72px}}
+/* Instant custom tooltip for the icon rail, sourced from data-tip (set in JS from each item's
+   own label) instead of the browser's slow native title tooltip. A fixed-position element (not a
+   ::after on the item) because .sidebar-nav scrolls vertically, which clips horizontal overflow
+   too — an ::after tooltip would get cut off at the sidebar's right edge. */
+#nav-tooltip{position:fixed;transform:translateY(-50%);background:#101828;color:#f8fafc;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;pointer-events:none;z-index:500;box-shadow:0 6px 18px rgba(0,0,0,.28);opacity:0;visibility:hidden;transition:opacity .1s ease;}
+#nav-tooltip.show{opacity:1;visibility:visible;}
+/* Mobile: no left rail — the bottom dock is the only nav, so give the content the full screen. */
+@media(max-width:768px){
+  .sidebar,.sidebar-overlay,.menu-btn{display:none!important}
+  .mobile-dock{grid-template-columns:repeat(6,1fr)!important}
+}
+/* "More" sheet — everything the bottom dock doesn't have room for, opened from its 6th button. */
+#modal-mobile-more.modal-overlay{align-items:flex-end;}
+#modal-mobile-more .modal{width:100%;max-width:520px;max-height:78vh;border-radius:16px 16px 0 0;animation:mmSheetUp .18s ease both;}
+@keyframes mmSheetUp{from{transform:translateY(16px);opacity:.6}to{transform:translateY(0);opacity:1}}
+.mobile-more-section{padding:14px 16px 6px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);}
+.mobile-more-item{display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px;border:0;background:none;color:var(--text);font:500 13px var(--font);text-align:left;text-decoration:none;cursor:pointer;}
+.mobile-more-item:hover,.mobile-more-item:active{background:var(--bg3);}
+.mobile-more-item svg{width:17px;height:17px;flex-shrink:0;color:var(--text2);}
+.mobile-more-empty{padding:28px;text-align:center;color:var(--text3);font-size:12px;}
 </style>
 </head>
 <body>
@@ -2001,6 +2020,17 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
   </div>
 </div>
 
+<!-- Mobile "More" Nav Sheet (pages that don't fit in the bottom dock) -->
+<div class="modal-overlay" id="modal-mobile-more" onclick="if(event.target===this)closeMobileMoreMenu()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">More</div>
+      <button class="modal-close" onclick="closeMobileMoreMenu()">✕</button>
+    </div>
+    <div class="modal-body" id="mobile-more-body" style="padding:6px 0;"></div>
+  </div>
+</div>
+
 <!-- Bulk Edit Leads Modal -->
 <div class="modal-overlay" id="modal-bulk-edit-leads">
   <div class="modal" style="width:min(96vw,480px);">
@@ -2166,7 +2196,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 
 <!-- Injected pages rendered inside .content by navigate() -->
 
-<nav class="mobile-dock" id="mobile-dock"><button data-mobile-page="dashboard" onclick="mobileNavigate('dashboard',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Home</button><button data-mobile-page="conversations" onclick="mobileNavigate('conversations',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Inbox</button><button data-mobile-page="leads" onclick="mobileNavigate('leads',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/></svg>Leads</button><button data-mobile-page="tasks" onclick="mobileNavigate('tasks',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Tasks</button><button data-mobile-page="pipeline" onclick="mobileNavigate('pipeline',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="4" height="18"/><rect x="10" y="3" width="4" height="14"/><rect x="17" y="3" width="4" height="10"/></svg>Pipeline</button></nav>
+<nav class="mobile-dock" id="mobile-dock"><button data-mobile-page="dashboard" onclick="mobileNavigate('dashboard',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Home</button><button data-mobile-page="conversations" onclick="mobileNavigate('conversations',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Inbox</button><button data-mobile-page="leads" onclick="mobileNavigate('leads',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/></svg>Leads</button><button data-mobile-page="tasks" onclick="mobileNavigate('tasks',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Tasks</button><button data-mobile-page="pipeline" onclick="mobileNavigate('pipeline',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="4" height="18"/><rect x="10" y="3" width="4" height="14"/><rect x="17" y="3" width="4" height="10"/></svg>Pipeline</button><button onclick="openMobileMoreMenu()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>More</button></nav>
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
@@ -2299,10 +2329,38 @@ function applyRoleExperience(session){
   document.getElementById('role-title').textContent=`Welcome back, ${session.name.split(' ')[0]}.`;
   document.getElementById('role-copy').textContent=experience.copy;
   document.getElementById('role-actions').innerHTML=experience.actions.map(([label,page],i)=>`<button class="role-action ${i===0?'primary':''}" onclick="goToPage('${page}')">${label}</button>`).join('');
-  document.querySelectorAll('#mobile-dock button').forEach(btn=>btn.style.display=experience.pages.includes(btn.dataset.mobilePage)?'flex':'none');
+  document.querySelectorAll('#mobile-dock button[data-mobile-page]').forEach(btn=>btn.style.display=experience.pages.includes(btn.dataset.mobilePage)?'flex':'none');
 }
 function goToPage(page){const nav=document.querySelector(`.nav-item[data-page="${page}"]`)||document.getElementById('nav-'+page);navigate(page,nav);}
 function mobileNavigate(page,btn){goToPage(page);document.querySelectorAll('#mobile-dock button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
+
+// ── Mobile "More" sheet — everything that doesn't fit in the 5 fixed dock slots. Built live from
+// the sidebar's own nav items each time it opens, so it always matches current role + badges. ──
+const MOBILE_DOCK_PAGES=['dashboard','conversations','leads','tasks','pipeline'];
+function openMobileMoreMenu(){
+  const body=document.getElementById('mobile-more-body');
+  let html='',sectionLabel='',sectionItems=[];
+  const flushSection=()=>{if(sectionItems.length)html+=`<div class="mobile-more-section">${_hesc(sectionLabel)}</div>${sectionItems.join('')}`;sectionItems=[];};
+  document.querySelectorAll('.sidebar-nav > *').forEach(el=>{
+    if(el.classList.contains('nav-section')){flushSection();sectionLabel=el.textContent.trim();return;}
+    if(!(el.classList.contains('nav-item')||el.classList.contains('nav-ext')))return;
+    const page=el.dataset.page;
+    if(page&&MOBILE_DOCK_PAGES.includes(page))return;
+    if(getComputedStyle(el).display==='none')return;
+    const svg=el.querySelector('svg')?.outerHTML||'';
+    const label=el.dataset.tip||el.textContent.trim();
+    if(el.tagName==='A'){
+      const href=el.getAttribute('href')||'#',target=el.getAttribute('target')||'';
+      sectionItems.push(`<a class="mobile-more-item" href="${_hesc(href)}"${target?` target="${_hesc(target)}"`:''} onclick="closeMobileMoreMenu()">${svg}<span>${_hesc(label)}</span></a>`);
+    }else{
+      sectionItems.push(`<button type="button" class="mobile-more-item" onclick="closeMobileMoreMenu();goToPage('${page}')">${svg}<span>${_hesc(label)}</span></button>`);
+    }
+  });
+  flushSection();
+  body.innerHTML=html||'<div class="mobile-more-empty">Nothing else here.</div>';
+  document.getElementById('modal-mobile-more').classList.add('open');
+}
+function closeMobileMoreMenu(){document.getElementById('modal-mobile-more').classList.remove('open');}
 
 window.addEventListener('load', bootAuth);
 
@@ -2908,13 +2966,32 @@ function updateObScore() {
 }
 
 // ── Routing Navigation ──
-// The sidebar shows icons only; give each item its label back as a native hover tooltip
-// (pulled from its own text, so it can't drift out of sync with the on-screen name).
+// The sidebar shows icons only; give each item its label back as an instant custom tooltip on
+// hover and as an aria-label for screen readers — both pulled from the item's own text, so
+// neither can drift out of sync with the on-screen name. Not the native title attribute: browsers
+// delay that by ~1s. The tooltip itself is a single fixed-position element positioned on
+// mouseenter, not a per-item ::after — .sidebar-nav scrolls vertically, which (per the CSS
+// overflow spec) also clips horizontal overflow, so an ::after tooltip would get cut off at the
+// sidebar's right edge.
 (function initNavTooltips(){
+  const tip=document.createElement('div');
+  tip.id='nav-tooltip';
+  document.body.appendChild(tip);
   document.querySelectorAll('.sidebar-nav .nav-item, .sidebar-nav .nav-ext').forEach(item=>{
-    if(item.title)return;
-    const label=[...item.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE).map(n=>n.textContent.trim()).filter(Boolean).join(' ');
-    if(label)item.title=label;
+    if(!item.dataset.tip){
+      const label=[...item.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE).map(n=>n.textContent.trim()).filter(Boolean).join(' ');
+      if(label){item.dataset.tip=label;item.setAttribute('aria-label',label);}
+    }
+    item.addEventListener('mouseenter',()=>{
+      if(!item.dataset.tip||window.innerWidth<=768)return;
+      const r=item.getBoundingClientRect();
+      tip.textContent=item.dataset.tip;
+      tip.style.top=(r.top+r.height/2)+'px';
+      tip.style.left=(r.right+10)+'px';
+      tip.classList.add('show');
+    });
+    item.addEventListener('mouseleave',()=>tip.classList.remove('show'));
+    item.addEventListener('click',()=>tip.classList.remove('show'));
   });
 })();
 function filterNavigation(value=''){
