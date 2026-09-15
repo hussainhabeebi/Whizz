@@ -252,6 +252,57 @@ async function collectorCallback(request, env) {
   return json({ ok: true });
 }
 
+// 2GIS is an official, documented REST API (catalog.api.2gis.com) — unlike Kaspi this needs no
+// browser automation and no collector: the Worker calls it directly and returns results
+// synchronously, the same shape the Apify-backed Google Maps search already returns to the
+// frontend. Response field names (result.items[].contact_groups[].contacts[]) are based on
+// 2GIS's public docs, not verified against a live call from this codebase's dev environment
+// (docs.2gis.com and catalog.api.2gis.com are both unreachable there) — parsing below is
+// deliberately defensive (tries a couple of likely shapes) rather than assuming one exact
+// schema; adjust the mapping in discover2Gis() if a real response looks different.
+async function discover2Gis(request, env) {
+  if (!env.TWOGIS_API_KEY) return json({ error: '2GIS is not configured — set the TWOGIS_API_KEY Worker secret.' }, 400);
+  const body = await request.json().catch(() => ({}));
+  const query = normalize(body.query) || [normalize(body.brand), normalize(body.category)].filter(Boolean).join(' ');
+  const location = normalize(body.location);
+  const limit = Math.max(1, Math.min(Number(body.limit) || 20, 50));
+  if (!query) return json({ error: 'Enter a brand or product to search' }, 400);
+
+  const q = [query, location].filter(Boolean).join(' ');
+  const url = new URL('https://catalog.api.2gis.com/3.0/items');
+  url.searchParams.set('q', q);
+  url.searchParams.set('key', env.TWOGIS_API_KEY);
+  url.searchParams.set('fields', 'items.contact_groups,items.point,items.address_name,items.reviews');
+  url.searchParams.set('page_size', String(limit));
+
+  let res;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+  } catch (error) {
+    return json({ error: `2GIS request failed: ${error.message}` }, 502);
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    return json({ error: `2GIS API error ${res.status}: ${text.slice(0, 300)}` }, 502);
+  }
+  const data = await res.json().catch(() => ({}));
+  const rawItems = data.result?.items || data.items || [];
+  const contacts = rawItems.map(it => {
+    const flatContacts = (it.contact_groups || []).flatMap(g => g.contacts || []);
+    const byType = t => flatContacts.find(c => c.type === t);
+    return {
+      name: it.name || it.name_ex?.primary || '',
+      address: it.address_name || it.address_comment || '',
+      phone: byType('phone')?.value || byType('phone')?.text || '',
+      website: byType('website')?.value || byType('website')?.text || '',
+      email: byType('email')?.value || byType('email')?.text || '',
+      rating: it.reviews?.general_rating || it.reviews?.rating || 0,
+      url: it.id ? `https://2gis.com/firm/${it.id}` : ''
+    };
+  }).filter(c => c.name);
+  return json({ contacts });
+}
+
 export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'GET' && action === 'sources') return json({ sources: await listSources(env) });
   if (request.method === 'PUT' && action === 'source') return saveSource(request, env, arg);
@@ -260,5 +311,6 @@ export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
   if (request.method === 'POST' && action === 'run') return runCollector(request, env, arg);
   if (request.method === 'POST' && action === 'callback') return collectorCallback(request, env);
+  if (request.method === 'POST' && action === 'discover2gis') return discover2Gis(request, env);
   return json({ error: 'Not found' }, 404);
 }

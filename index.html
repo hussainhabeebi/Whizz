@@ -1483,6 +1483,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
               <label class="fl" style="margin-bottom:6px;">Source</label>
               <div class="disc-type-group" id="disc-source-group">
                 <button class="disc-type-btn active" onclick="setDiscSource('maps',this)">Google Maps</button>
+                <button class="disc-type-btn" onclick="setDiscSource('2gis',this)">2GIS</button>
                 <button class="disc-type-btn" onclick="setDiscSource('kaspi',this)">Kaspi.kz (Kazakhstan Marketplace)</button>
               </div>
             </div>
@@ -6296,7 +6297,8 @@ function setDiscSource(source, el) {
   document.querySelectorAll('#disc-source-group .disc-type-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   const isKaspi = source === 'kaspi';
-  document.getElementById('disc-subtitle').textContent = isKaspi ? 'deep crawl · listing → product → seller page' : 'powered by Apify · Google Maps';
+  const subtitles = { maps: 'powered by Apify · Google Maps', '2gis': 'official 2GIS Places API', kaspi: 'deep crawl · listing → product → seller page' };
+  document.getElementById('disc-subtitle').textContent = subtitles[source] || '';
   document.getElementById('disc-location-field').style.display = isKaspi ? 'none' : '';
   document.getElementById('disc-category-field').style.display = isKaspi ? 'none' : '';
   document.getElementById('disc-limit-field').style.display = isKaspi ? 'none' : '';
@@ -6308,6 +6310,7 @@ function setDiscSource(source, el) {
 
 async function runDiscovery() {
   if (S.discSource === 'kaspi') { await runKaspiDiscovery(); return; }
+  if (S.discSource === '2gis') { await run2GisDiscovery(); return; }
   const location = document.getElementById('disc-location').value.trim();
   const brand    = document.getElementById('disc-brand').value.trim();
   const category = document.getElementById('disc-category').value.trim();
@@ -6355,6 +6358,51 @@ async function leadApi(url, opts = {}) {
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(d.error || d.message || `Request failed (${r.status})`), { status: r.status, data: d });
   return d;
+}
+
+// 2GIS is an official REST API called directly from the Worker — synchronous, no collector, no
+// polling needed (unlike Kaspi). Results are mapped into the same shape the Apify Google Maps
+// flow already produces so they render in the existing contact-card grid unchanged.
+async function run2GisDiscovery() {
+  const location = document.getElementById('disc-location').value.trim();
+  const brand    = document.getElementById('disc-brand').value.trim();
+  const category = document.getElementById('disc-category').value.trim();
+  const limit    = parseInt(document.getElementById('disc-limit').value) || 20;
+
+  if (!location) { showToast('Enter a location to search', 'error'); return; }
+  if (!brand && !category) { showToast('Enter a brand or product category', 'error'); return; }
+
+  const btn = document.getElementById('disc-run-btn');
+  const icon = document.getElementById('disc-run-icon');
+  const label = document.getElementById('disc-run-label');
+  btn.disabled = true; icon.classList.add('spin'); label.textContent = 'Searching…';
+
+  const query = [brand, category].filter(Boolean).join(' ');
+  document.getElementById('disc-results-body').innerHTML = `
+    <div style="padding:40px;text-align:center;">
+      <div class="ai-thinking" style="justify-content:center;display:inline-flex;">
+        <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
+        <span style="margin-left:8px;color:var(--text2);font-size:12px;">Searching 2GIS for "<strong>${query}</strong>" in "<strong>${location}</strong>"…</span>
+      </div>
+    </div>`;
+  document.getElementById('disc-results-title').textContent = 'Searching…';
+
+  try {
+    const d = await leadApi('/api/lead-intelligence/discover/2gis', { method: 'POST', body: JSON.stringify({ query, location, limit }) });
+    const contacts = (d.contacts || []).map(c => ({
+      __source: '2gis', name: c.name, phone: c.phone, email: c.email, website: c.website,
+      address: c.address, categoryName: category, totalScore: c.rating || 0, url: c.url
+    }));
+    S.discoveredContacts = contacts;
+    S.selectedDiscContacts = new Set();
+    renderDiscoveryResults(S.discoveredContacts);
+    if (contacts.length) showToast(`Found ${contacts.length} businesses via 2GIS`, 'success');
+    else showToast('No results — try a broader search or a different location', 'info');
+  } catch (e) {
+    document.getElementById('disc-results-body').innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${e.message || '2GIS search failed'}</div>`;
+    document.getElementById('disc-results-title').textContent = 'Results';
+  }
+  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
 
 function kaspiProspectToContact(p) {
@@ -6486,7 +6534,7 @@ function renderDiscoveryResults(contacts) {
       ${c.whatsapp?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--green);min-width:26px;">WA</span><a href="https://wa.me/${c.whatsapp.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()">${c.whatsapp}</a></div>`:''}
       ${c.telegram?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--blue);min-width:26px;">TG</span><a href="https://t.me/${c.telegram.replace(/^@/,'')}" target="_blank" onclick="event.stopPropagation()">${c.telegram}</a></div>`:''}
       <div class="cc-footer">
-        ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${c.__source==='kaspi'?'Seller Page ↗':'Maps ↗'}</a>`:''}
+        ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${c.__source==='kaspi'?'Seller Page ↗':c.__source==='2gis'?'2GIS ↗':'Maps ↗'}</a>`:''}
         <button class="t-btn btn-primary" style="padding:4px 9px;font-size:10px;flex:1;justify-content:center;" onclick="event.stopPropagation();saveOneContact(${i})">+ Add to Leads</button>
       </div>
     </div>`;
