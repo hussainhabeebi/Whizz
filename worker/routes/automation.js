@@ -1,5 +1,6 @@
 const WRITE_ROLES = {
   'whizz-discover-contacts': ['Administrator', 'Manager'],
+  'whizz-discover-2gis': ['Administrator', 'Manager'],
   'whizz-save-integration': ['Administrator'],
   'whizz-delete-integration': ['Administrator'],
 };
