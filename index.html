@@ -666,6 +666,57 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .mobile-more-item svg{width:17px;height:17px;flex-shrink:0;color:var(--text2);}
 .mobile-more-empty{padding:28px;text-align:center;color:var(--text3);font-size:12px;}
 </style>
+<style>
+/* ── Conversations: WhatsApp-style polish ── */
+.conv-toolbar-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+.conv-search-wrap{position:relative;flex:1;min-width:160px;max-width:260px;}
+.conv-search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--text3);pointer-events:none;}
+.conv-search-wrap input{width:100%;padding:6px 10px 6px 28px;font-size:11px;border-radius:var(--r-pill);border:1px solid var(--border2);background:var(--bg3);color:var(--text);outline:0;transition:border-color .15s;font-family:var(--font);}
+.conv-search-wrap input:focus{border-color:var(--accent);}
+.c-avatar-wrap{position:relative;flex-shrink:0;}
+.c-channel-dot{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;border:2px solid var(--bg2);}
+.c-channel-dot.ch-wa{background:#25d366;}
+.c-channel-dot.ch-em{background:var(--accent);}
+.c-channel-dot.ch-wc{background:var(--blue);}
+.conv-item.has-unread .c-name{color:var(--text);font-weight:700;}
+.conv-item.has-unread .c-msg{color:var(--text);font-weight:600;}
+.conv-item.has-unread .c-time{color:var(--green);font-weight:700;}
+
+.conv-thread-card{position:relative;}
+.conv-thread-body{background-color:var(--bg);background-image:radial-gradient(rgba(15,23,42,.045) 1px,transparent 1px);background-size:16px 16px;scroll-behavior:smooth;}
+body.dark .conv-thread-body{background-image:radial-gradient(rgba(255,255,255,.045) 1px,transparent 1px);}
+
+/* Message bubbles */
+.t-bubble-row{margin-top:10px;}
+.t-bubble-row.t-grouped{margin-top:2px;}
+.t-bubble{display:inline-flex;flex-direction:column;padding:7px 13px 6px;position:relative;}
+.t-bubble-text{white-space:pre-wrap;}
+.t-bubble-meta{align-self:flex-end;display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--text3);margin-top:2px;line-height:1;white-space:nowrap;}
+.t-bubble-row.t-out .t-bubble{background:#dcf8c6;color:#0b141a;border-color:rgba(0,0,0,.06);}
+.t-bubble-row.t-out .t-bubble-meta{color:rgba(11,20,26,.55);}
+body.dark .t-bubble-row.t-out .t-bubble{background:#025144;color:#e9edef;border-color:rgba(255,255,255,.07);}
+body.dark .t-bubble-row.t-out .t-bubble-meta{color:rgba(233,237,239,.62);}
+.t-tick-read{color:#34b7f1!important;}
+.t-bubble-row.t-out:not(.t-grouped) .t-bubble{border-bottom-right-radius:4px;}
+.t-bubble-row.t-in:not(.t-grouped) .t-bubble{border-bottom-left-radius:4px;}
+.t-bubble-row.t-out.t-grouped .t-bubble,
+.t-bubble-row.t-in.t-grouped .t-bubble{border-bottom-right-radius:14px;border-bottom-left-radius:14px;}
+.t-bubble-row.t-out:not(.t-grouped) .t-bubble::after,
+.t-bubble-row.t-in:not(.t-grouped) .t-bubble::after{content:'';position:absolute;bottom:0;width:10px;height:13px;background:inherit;}
+.t-bubble-row.t-out:not(.t-grouped) .t-bubble::after{right:-6px;clip-path:polygon(0 0,0 100%,100% 100%);}
+.t-bubble-row.t-in:not(.t-grouped) .t-bubble::after{left:-6px;clip-path:polygon(100% 0,0 100%,100% 100%);}
+
+.thread-date-sep{align-self:center;background:var(--bg3);color:var(--text3);font-size:10.5px;font-weight:600;padding:4px 12px;border-radius:var(--r-pill);margin:6px 0;box-shadow:var(--shadow-sm);}
+.thread-trunc-note{text-align:center;color:var(--text3);font-size:11px;padding-bottom:4px;align-self:center;}
+.thread-cta{display:inline-flex;align-items:center;gap:6px;margin-top:14px;text-decoration:none;}
+.thread-scroll-btn{position:absolute;right:24px;bottom:88px;width:34px;height:34px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;transform:translateY(6px);}
+.thread-scroll-btn.show{opacity:1;pointer-events:auto;transform:none;}
+
+/* Leads → WhatsApp quick action */
+.wa-quick-btn{background:rgba(37,211,102,.12);color:#1a9c4e;border:1px solid rgba(37,211,102,.28);}
+body.dark .wa-quick-btn{color:#3ddc78;}
+.wa-quick-btn:hover{background:rgba(37,211,102,.2);}
+</style>
 </head>
 <body>
 
@@ -1085,11 +1136,15 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
         </div>
         <div class="card" style="margin-bottom:14px;">
           <div class="card-body" style="padding:10px 16px;">
-            <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+            <div class="conv-toolbar-row">
               <button class="t-btn btn-primary" id="f-all" onclick="filterConv('all',this)" style="padding:5px 12px;font-size:11px;">All</button>
               <button class="t-btn btn-ghost" id="f-open" onclick="filterConv('open',this)" style="padding:5px 12px;font-size:11px;">Open</button>
               <button class="t-btn btn-ghost" id="f-pending" onclick="filterConv('pending',this)" style="padding:5px 12px;font-size:11px;">Pending</button>
               <button class="t-btn btn-ghost" id="f-resolved" onclick="filterConv('resolved',this)" style="padding:5px 12px;font-size:11px;">Resolved</button>
+              <div class="conv-search-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input id="conv-search-input" placeholder="Search name or number…" oninput="filterConvSearch(this.value)"/>
+              </div>
               <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
                 <div class="live-toggle" id="live-toggle" onclick="toggleLiveSync()" title="Auto-refresh conversations">
                   <span class="sync-dot sync-idle" id="live-dot"></span>
@@ -1121,8 +1176,11 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
                 </a>
               </div>
             </div>
-            <div id="thread-body" class="conv-thread-body">
+            <div id="thread-body" class="conv-thread-body" onscroll="handleThreadScroll()">
               <div class="thread-empty">Select a conversation to view the message thread.</div>
+            </div>
+            <div class="thread-scroll-btn" id="thread-scroll-btn" onclick="scrollThreadToBottom(true)" title="Jump to latest">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
           </div>
         </div>
@@ -3594,13 +3652,21 @@ function renderDashCountries(groups){
 function renderConvs(convs){
   convs=convs||[];
   const el=document.getElementById('conv-list');
-  const filtered=(S.convStatus&&S.convStatus!=='all')?convs.filter(c=>c.status===S.convStatus):convs;
+  let filtered=(S.convStatus&&S.convStatus!=='all')?convs.filter(c=>c.status===S.convStatus):convs;
+  if(S.convSearch){
+    const q=S.convSearch;
+    filtered=filtered.filter(c=>(c.contact_name||'').toLowerCase().includes(q)||String(convPhone(c)).toLowerCase().includes(q)||(c.last_message||'').toLowerCase().includes(q));
+  }
   document.getElementById('conv-count').textContent=`${filtered.length} operational records`;
-  if(!filtered.length){el.innerHTML='<div class="thread-empty">No interactions logged under this state filter</div>';return;}
+  if(!filtered.length){el.innerHTML=`<div class="thread-empty">${S.convSearch?'No conversations match your search.':'No interactions logged under this state filter'}</div>`;return;}
   el.innerHTML=filtered.map(c=>convHtml(c)).join('');
   if(S.selectedConvId && !filtered.some(c=>String(c.id)===String(S.selectedConvId))){
     S.selectedConvId=null; renderThreadEmpty();
   }
+}
+function filterConvSearch(q){
+  S.convSearch=(q||'').trim().toLowerCase();
+  renderConvs(S.cache.conversations||[]);
 }
 // Chatwoot conversation payloads vary in how the contact's phone number is named
 // (and whichever workflow builds whizz-get-conversations may already flatten it
@@ -3623,7 +3689,8 @@ function convHtml(c){
   const assignment=c.assignment?.userName||'Unassigned';
   const canAssign=['Administrator','Manager'].includes(CURRENT_SESSION?.role);
   const assignmentAction=canAssign?`<span class="open-cw" onclick="event.stopPropagation();assignConversation('${c.id}')">Assign</span>`:'';
-  return`<div class="conv-item${sel}${inquiryCls}" onclick="selectConv('${c.id}')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${inquiryBadge}<span class="ch-badge" title="Conversation owner">${assignment}</span>${assignmentAction}${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
+  const hasUnread=c.unread>0?' has-unread':'';
+  return`<div class="conv-item${sel}${inquiryCls}${hasUnread}" onclick="selectConv('${c.id}')"><div class="c-avatar-wrap"><div class="c-avatar">${init}</div><span class="c-channel-dot ${cls}"></span></div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${inquiryBadge}<span class="ch-badge" title="Conversation owner">${assignment}</span>${assignmentAction}${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
 }
 async function assignConversation(id){
   const users=S.conversationAssignees||[];
@@ -3645,6 +3712,36 @@ function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=
 
 // ── Conversation Thread Panel ──
 function findConv(id){return (S.cache.conversations||[]).find(c=>String(c.id)===String(id));}
+function findConvByPhone(phone){
+  const key=normalizePhone(phone);
+  if(!key)return null;
+  return (S.cache.conversations||[]).find(c=>normalizePhone(convPhone(c))===key)||null;
+}
+// ── Leads → Conversations bridge ──
+// Jumps a lead's phone number straight into the Conversations tab: opens the
+// matching WhatsApp thread if one already exists, or shows a "not started yet"
+// state (with a wa.me fallback) so the agent isn't stuck on a dead end.
+async function messageLeadOnWhatsApp(phone,name){
+  if(!phone){showToast('No phone number on file for this lead','error');return;}
+  goToPage('conversations');
+  const tryMatch=()=>{const m=findConvByPhone(phone);if(m){selectConv(m.id);return true;}return false;};
+  if(tryMatch())return;
+  S.selectedConvId=null;
+  document.getElementById('thread-contact-name').textContent=name||'New WhatsApp contact';
+  document.getElementById('thread-sub').textContent='No conversation yet';
+  document.getElementById('replay-btn').disabled=true;
+  const link=document.getElementById('open-cw-link');
+  link.removeAttribute('href');link.style.opacity=0.4;link.style.pointerEvents='none';
+  document.getElementById('thread-body').innerHTML=`<div class="thread-empty">
+    <div style="font-weight:700;color:var(--text);margin-bottom:6px;font-size:13px;">${name?_hesc(name):'This lead'} hasn't messaged in yet</div>
+    Start the chat on WhatsApp — once they reply, the conversation will appear here automatically.
+    <div><a class="t-btn wa-quick-btn thread-cta" href="https://wa.me/${normalizePhone(phone)}" target="_blank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+      Message ${_hesc(phone)} on WhatsApp
+    </a></div>
+  </div>`;
+  try{ await refreshConversations(); tryMatch(); }catch(e){}
+}
 
 function renderThreadEmpty(){
   document.getElementById('thread-contact-name').textContent='Select a conversation';
@@ -3696,18 +3793,55 @@ function normalizeMsg(m){
   return{
     text:m.content||m.body||m.text||'',
     outgoing,
+    status:(m.status||'').toLowerCase(),
     time:m.created_at?new Date((m.created_at>1e12?m.created_at:m.created_at*1000)).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''
   };
 }
-function threadBubbleHtml(raw){
+function threadTickSvg(status){
+  const read=status==='read'||status==='seen';
+  const single=status==='sending'||status==='error'||status==='failed';
+  if(single)return'<svg class="t-tick" viewBox="0 0 16 11" width="13" height="9" fill="none"><path d="M1 5.5 4.5 9 10 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return`<svg class="t-tick${read?' t-tick-read':''}" viewBox="0 0 16 11" width="13" height="9" fill="none"><path d="M1 5.5 4.5 9 10 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 5.5 9 9 14.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function threadDateLabel(raw){
+  if(!raw)return'';
+  const d=new Date(raw>1e12?raw:raw*1000),today=new Date(),yest=new Date();yest.setDate(today.getDate()-1);
+  const sameDay=(a,b)=>a.toDateString()===b.toDateString();
+  if(sameDay(d,today))return'Today';
+  if(sameDay(d,yest))return'Yesterday';
+  return d.toLocaleDateString([],{day:'2-digit',month:'short',year:d.getFullYear()!==today.getFullYear()?'numeric':undefined});
+}
+function threadBubbleHtml(raw,grouped){
   const m=normalizeMsg(raw);
-  return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}"><div class="t-bubble">${m.text}</div><div class="t-bubble-time">${m.time}</div></div>`;
+  return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}${grouped?' t-grouped':''}"><div class="t-bubble"><span class="t-bubble-text">${m.text}</span><span class="t-bubble-meta">${m.time}${m.outgoing?threadTickSvg(m.status):''}</span></div></div>`;
 }
 function renderThread(messages,truncated){
-  const note=truncated?'<div style="text-align:center;color:var(--text3);font-size:11px;padding-bottom:4px;">Showing last 5 messages — use "Open in Chatwoot" for full history.</div>':'';
+  const note=truncated?'<div class="thread-trunc-note">Showing last 5 messages — use "Open in Chatwoot" for full history.</div>':'';
   const body=document.getElementById('thread-body');
-  body.innerHTML=note+messages.map(threadBubbleHtml).join('');
-  body.scrollTop=body.scrollHeight;
+  let html=note,lastDate='',lastOutgoing=null;
+  messages.forEach(raw=>{
+    const m=normalizeMsg(raw);
+    const dateLabel=threadDateLabel(raw.created_at);
+    if(dateLabel&&dateLabel!==lastDate){html+=`<div class="thread-date-sep">${dateLabel}</div>`;lastDate=dateLabel;lastOutgoing=null;}
+    html+=threadBubbleHtml(raw,lastOutgoing===m.outgoing);
+    lastOutgoing=m.outgoing;
+  });
+  body.innerHTML=html;
+  scrollThreadToBottom(false);
+}
+function scrollThreadToBottom(smooth){
+  const body=document.getElementById('thread-body');
+  if(!body)return;
+  if(smooth)body.scrollTo({top:body.scrollHeight,behavior:'smooth'});
+  else body.scrollTop=body.scrollHeight;
+  const btn=document.getElementById('thread-scroll-btn');
+  if(btn)btn.classList.remove('show');
+}
+function handleThreadScroll(){
+  const body=document.getElementById('thread-body'),btn=document.getElementById('thread-scroll-btn');
+  if(!body||!btn)return;
+  const nearBottom=body.scrollHeight-body.scrollTop-body.clientHeight<80;
+  btn.classList.toggle('show',!nearBottom&&body.scrollHeight>body.clientHeight);
 }
 
 // ── Replay ──
@@ -4305,6 +4439,7 @@ function renderLeadsContactsTable(contacts){
           </td>
           <td style="padding:9px 10px;">
             <div style="display:flex;gap:4px;justify-content:flex-end;">
+              ${(c.phone||c.phoneNumber)?`<button class="t-btn wa-quick-btn" style="padding:3px 8px;font-size:10px;" onclick="event.stopPropagation();messageLeadOnWhatsApp('${(c.phone||c.phoneNumber).replace(/'/g,"\\'")}','${name.replace(/'/g,"\\'")}')" title="Message on WhatsApp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></button>`:''}
               <button class="t-btn btn-primary" style="padding:3px 8px;font-size:10px;" onclick="openLeadProfile('${idAttr}')">View</button>
               <button class="t-btn btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="openEditLeadContact('${idAttr}')">Edit</button>
               ${CURRENT_SESSION?.role!=='Sales'?`<button class="t-btn" style="padding:3px 8px;font-size:10px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteLeadContact('${idAttr}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`:``}
@@ -4433,7 +4568,10 @@ function openLeadProfile(id){
   const c=_currentLeadsContacts.find(c=>c.id===id);if(!c)return;const name=c.contactName||c.company||c.name||'Unknown',phone=c.phone||c.phoneNumber||'',score=leadScore(c),temp=leadTemperature(c);
   const idAttr=_hesc(id);
   document.getElementById('lp-name').textContent=name;document.getElementById('lp-sub').textContent=[c.company,c.country,c.brand].filter(Boolean).join(' · ');
-  document.getElementById('lp-body').innerHTML=`<div class="lead-profile-grid"><div class="profile-panel"><div class="eyebrow">Complete customer view</div><div class="profile-field"><span>Phone</span><b>${phone||'Not provided'}</b></div><div class="profile-field"><span>Email</span><b>${c.email||'Not provided'}</b></div><div class="profile-field"><span>Platform</span><b>${c.platform||_currentLeadsGroup?.platform||'—'}</b></div><div class="profile-field"><span>Country</span><b>${c.country||_currentLeadsGroup?.country||'—'}</b></div><div class="profile-field"><span>Interest</span><b>${c.productInterest||c.category||c.brand||'Not classified'}</b></div><div class="profile-field"><span>Source</span><b>${c.source||'—'}</b></div></div><div><div class="profile-panel"><div class="eyebrow">Sales intelligence</div><div class="profile-field"><span>Temperature</span><b>${temp}</b></div><div class="profile-field"><span>Lead score</span><b style="color:var(--green)">${score}/100</b></div><div class="profile-field"><span>Buyer type</span><b>${c.buyerType||c.buyer_nature||'Unclassified'}</b></div><div class="profile-field"><span>Campaign status</span><b>${c.optedOut?'Suppressed':'Eligible'}</b></div></div><div class="profile-actions">${phone?`<a class="t-btn btn-success" style="justify-content:center;text-decoration:none" href="https://wa.me/${normalizePhone(phone)}" target="_blank">WhatsApp</a><a class="t-btn btn-ghost" style="justify-content:center;text-decoration:none" href="tel:${phone}">Call</a>`:''}<button class="t-btn btn-primary" onclick="closeModal('modal-lead-profile');openEditLeadContact('${idAttr}')">Edit lead</button><button class="t-btn btn-ghost" onclick="closeModal('modal-lead-profile');openAddClosedDealModal('${idAttr}')">Record deal</button></div></div></div>`;
+  document.getElementById('lp-body').innerHTML=`<div class="lead-profile-grid"><div class="profile-panel"><div class="eyebrow">Complete customer view</div><div class="profile-field"><span>Phone</span><b>${phone||'Not provided'}</b></div><div class="profile-field"><span>Email</span><b>${c.email||'Not provided'}</b></div><div class="profile-field"><span>Platform</span><b>${c.platform||_currentLeadsGroup?.platform||'—'}</b></div><div class="profile-field"><span>Country</span><b>${c.country||_currentLeadsGroup?.country||'—'}</b></div><div class="profile-field"><span>Interest</span><b>${c.productInterest||c.category||c.brand||'Not classified'}</b></div><div class="profile-field"><span>Source</span><b>${c.source||'—'}</b></div></div><div><div class="profile-panel"><div class="eyebrow">Sales intelligence</div><div class="profile-field"><span>Temperature</span><b>${temp}</b></div><div class="profile-field"><span>Lead score</span><b style="color:var(--green)">${score}/100</b></div><div class="profile-field"><span>Buyer type</span><b>${c.buyerType||c.buyer_nature||'Unclassified'}</b></div><div class="profile-field"><span>Campaign status</span><b>${c.optedOut?'Suppressed':'Eligible'}</b></div></div><div class="profile-actions">${phone?`<button class="t-btn wa-quick-btn" style="justify-content:center" onclick="closeModal('modal-lead-profile');messageLeadOnWhatsApp('${phone.replace(/'/g,"\\'")}','${name.replace(/'/g,"\\'")}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        Message on WhatsApp
+      </button><a class="t-btn btn-ghost" style="justify-content:center;text-decoration:none" href="tel:${phone}">Call</a>`:''}<button class="t-btn btn-primary" onclick="closeModal('modal-lead-profile');openEditLeadContact('${idAttr}')">Edit lead</button><button class="t-btn btn-ghost" onclick="closeModal('modal-lead-profile');openAddClosedDealModal('${idAttr}')">Record deal</button></div></div></div>`;
   document.getElementById('modal-lead-profile').classList.add('open');
 }
 function getClosedDealsForContact(c){
