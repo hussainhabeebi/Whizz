@@ -1576,6 +1576,12 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
                   <button class="disc-type-btn" onclick="setDiscBizType('',this)">All Types</button>
                 </div>
               </div>
+              <div style="margin-top:12px;">
+                <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="disc-enrich-social-maps"> Also fetch Telegram &amp; LinkedIn (from each business's website)
+                </label>
+                <div class="fi-hint">Best-effort: fetches each result's homepage and looks for a t.me or linkedin.com link — adds a few extra seconds and only works for results that have a website. Capped at 20 sites per search.</div>
+              </div>
             </div>
           </div>
           <div class="card">
@@ -1607,7 +1613,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           <div class="card" style="margin-bottom:14px;">
             <div class="card-head">
               <div class="card-title">2GIS Discovery
-                <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">powered by Apify · strongest coverage in Russia, Kazakhstan &amp; the CIS</span>
+                <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">official 2GIS Catalog API · strongest coverage in Russia, Kazakhstan &amp; the CIS</span>
               </div>
             </div>
             <div class="card-body">
@@ -4360,6 +4366,8 @@ const EXPORT_FIELDS=[
   {key:'updatedAt',label:'Updated At',def:false},
   {key:'telegramChatId',label:'Telegram Chat ID',def:false},
   {key:'telegramUsername',label:'Telegram Username',def:false},
+  {key:'linkedin',label:'LinkedIn',def:false},
+  {key:'website',label:'Website',def:false},
 ];
 let _exportShownContacts=[];
 function openExportContacts(){
@@ -6761,8 +6769,10 @@ function renderWeekSummary() {
 // own selection state — S.disc[source]) instead of one shared form toggled between sources, so
 // switching tabs never clobbers another source's in-progress results.
 const DISC_CFG = {
-  maps: { label: 'Google Maps', platform: 'Google Maps', endpoint: 'whizz-discover-contacts', scanLabel: 'Google Maps' },
-  gis2: { label: '2GIS', platform: '2GIS', endpoint: 'whizz-discover-2gis', scanLabel: '2GIS' },
+  maps: { label: 'Google Maps', platform: 'Google Maps', endpoint: 'whizz-discover-contacts', scanLabel: 'Google Maps', loadingNote: 'Apify is crawling — this takes 20–60 seconds' },
+  // 2GIS calls the official Catalog API directly (Worker route, no Apify/proxy involved) —
+  // see discover2Gis() in worker/routes/leadIntelligence.js. Needs the TWOGIS_API_KEY secret.
+  gis2: { label: '2GIS', platform: '2GIS', direct: '/api/lead-intelligence/discover/2gis', scanLabel: '2GIS', loadingNote: 'Calling the official 2GIS Catalog API — usually a few seconds' },
   kaspi: { label: 'Kaspi.kz', platform: 'Kaspi.kz', endpoint: null, scanLabel: 'Kaspi.kz' },
 };
 
@@ -6817,21 +6827,66 @@ async function runDiscovery(source) {
         <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
         <span style="margin-left:8px;color:var(--text2);font-size:12px;">Scanning ${cfg.scanLabel} for "<strong>${query}</strong>"…</span>
       </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:10px;">Apify is crawling — this takes 20–60 seconds</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px;">${cfg.loadingNote || ''}</div>
     </div>`;
   document.getElementById(`disc-results-title-${source}`).textContent = 'Searching…';
 
   try {
-    const d = await api(cfg.endpoint, 'POST', { query, location, brand, category, type, limit });
+    // cfg.direct hits a Worker route directly (e.g. 2GIS's official Catalog API); cfg.endpoint
+    // goes through the generic n8n/Apify proxy (Google Maps).
+    const d = cfg.direct
+      ? await leadApi(cfg.direct, { method: 'POST', body: JSON.stringify({ query, location, brand, category, limit }) })
+      : await api(cfg.endpoint, 'POST', { query, location, brand, category, type, limit });
     const contacts = (d.contacts || d.items || (Array.isArray(d) ? d : [])).map(c => ({ __source: source, __searchLocation: location, ...c }));
     S.disc[source].contacts = contacts;
     S.disc[source].selected = new Set();
     renderDiscoveryResults(source);
     if (contacts.length) showToast(`Found ${contacts.length} contacts via ${cfg.label}`, 'success');
     else showToast('No results — try broader filters', 'info');
+
+    const enrichBox = document.getElementById('disc-enrich-social-maps');
+    if (source === 'maps' && contacts.length && enrichBox && enrichBox.checked) {
+      await enrichMapsSocialLinks();
+    }
   } catch(e) {
-    document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n.</div>`;
+    const failHint = cfg.direct ? (e.message || `Discovery failed — check the ${cfg.direct} route is configured (TWOGIS_API_KEY secret set).`) : `Discovery failed — ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n.`;
+    document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${failHint}</div>`;
     document.getElementById(`disc-results-title-${source}`).textContent = 'Results';
+  }
+  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
+}
+
+// Google Maps has no Telegram/LinkedIn field of its own — this is a best-effort second pass
+// that fetches each result's own website and looks for a t.me or linkedin.com link on it (see
+// enrichSocialLinks() in worker/routes/leadIntelligence.js). Opt-in via the checkbox since it
+// adds real time (one fetch per site, capped at 20) on top of the initial search.
+async function enrichMapsSocialLinks() {
+  const win = S.disc.maps;
+  const websites = [...new Set(win.contacts.filter(c => c.website).map(c => c.website))];
+  if (!websites.length) { showToast('No websites in these results to check for Telegram/LinkedIn', 'info'); return; }
+
+  const btn = document.getElementById('disc-run-btn-maps');
+  const icon = document.getElementById('disc-run-icon-maps');
+  const label = document.getElementById('disc-run-label-maps');
+  btn.disabled = true; icon.classList.add('spin');
+  label.textContent = `Checking ${Math.min(websites.length, 20)} sites…`;
+
+  try {
+    const d = await leadApi('/api/lead-intelligence/enrich-social', { method: 'POST', body: JSON.stringify({ websites }) });
+    const results = d.results || {};
+    let found = 0;
+    win.contacts.forEach(c => {
+      const hit = c.website && results[c.website];
+      if (!hit) return;
+      if (hit.telegram) { c.telegram = hit.telegram; found++; }
+      if (hit.linkedin) { c.linkedin = hit.linkedin; found++; }
+    });
+    renderDiscoveryResults('maps');
+    if (found) showToast(`Found ${found} Telegram/LinkedIn link${found>1?'s':''}`, 'success');
+    else showToast('No Telegram or LinkedIn links found on those websites', 'info');
+    if (d.truncated) showToast(`Only checked the first 20 of ${websites.length} websites (per-search cap)`, 'info');
+  } catch (e) {
+    showToast(e.message || 'Telegram/LinkedIn lookup failed', 'error');
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
@@ -6968,6 +7023,7 @@ function renderDiscoveryResults(source) {
       ${website?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><a href="${website}" target="_blank" onclick="event.stopPropagation()">${website.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
       ${c.whatsapp?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--green);min-width:26px;">WA</span><a href="https://wa.me/${c.whatsapp.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()">${c.whatsapp}</a></div>`:''}
       ${c.telegram?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--blue);min-width:26px;">TG</span><a href="https://t.me/${c.telegram.replace(/^@/,'')}" target="_blank" onclick="event.stopPropagation()">${c.telegram}</a></div>`:''}
+      ${c.linkedin?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:#0a66c2;min-width:26px;">in</span><a href="${c.linkedin}" target="_blank" onclick="event.stopPropagation()">${c.linkedin.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
       <div class="cc-footer">
         ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${source==='kaspi'?'Seller Page ↗':source==='gis2'?'2GIS ↗':'Maps ↗'}</a>`:''}
         <button class="t-btn btn-primary" style="padding:4px 9px;font-size:10px;flex:1;justify-content:center;" onclick="event.stopPropagation();saveOneContact('${source}',${i})">+ Add to Leads</button>
@@ -7070,7 +7126,9 @@ function formatContactForLeads(source, c) {
     country,
     rating: c.totalScore||c.rating||'',
     mapsUrl: c.url||'',
-    sourceId: c.sourceId||c.placeId||c.cid||c.fid||c.id||''
+    sourceId: c.sourceId||c.placeId||c.cid||c.fid||c.id||'',
+    telegramUsername: (c.telegramUsername||c.telegram||'').replace(/^@/,''),
+    linkedin: c.linkedin||''
   };
 }
 
@@ -7079,9 +7137,9 @@ function exportDiscCSV(source) {
   if (!contacts.length) { showToast('No contacts to export','error'); return; }
   const rows = contacts.map(c => {
     const f = formatContactForLeads(source, c);
-    return `"${f.contactName}","${f.company}","${f.phone}","${f.email}","${f.website}","${f.address}","${f.category}","${f.rating}"`;
+    return `"${f.contactName}","${f.company}","${f.phone}","${f.email}","${f.website}","${f.address}","${f.category}","${f.rating}","${f.telegramUsername}","${f.linkedin}"`;
   });
-  downloadCSV(['Name,Company,Phone,Email,Website,Address,Category,Rating',...rows].join('\n'),`whizz_discovered_contacts_${source}.csv`);
+  downloadCSV(['Name,Company,Phone,Email,Website,Address,Category,Rating,Telegram,LinkedIn',...rows].join('\n'),`whizz_discovered_contacts_${source}.csv`);
   showToast('Export complete!','success');
 }
 

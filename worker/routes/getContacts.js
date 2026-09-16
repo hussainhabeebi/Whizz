@@ -38,6 +38,8 @@ export async function handleGetContacts(request, env) {
     nextFollowUpAt: r.nextFollowUpAt || '', dealExpectedAt: r.dealExpectedAt || '', leadScore: Number(r.leadScore || 0),
     telegramChatId: r.telegramChatId || '', telegramUsername: r.telegramUsername || '',
     convertedAt: r.convertedAt || '',
+    website: r.website || '', address: r.address || '', rating: Number(r.rating || 0),
+    mapsUrl: r.mapsUrl || '', sourceId: r.sourceId || '', linkedin: r.linkedin || '',
   }));
 
   return Response.json({ contacts }, { headers: { 'cache-control': 'no-store' } });

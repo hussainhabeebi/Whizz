@@ -58,6 +58,8 @@ async function saveOwnedContacts(request, env, user) {
     const mapsUrl = String(contact.mapsUrl || '').trim();
     const rating = Number(contact.rating) || 0;
     const category = String(contact.category || '');
+    const telegramUsername = String(contact.telegramUsername || contact.telegram || '').trim().replace(/^@/, '');
+    const linkedin = String(contact.linkedin || '').trim();
 
     // Re-discovering the same listing (same platform + external id) refreshes it instead of
     // being silently dropped as a phone/email duplicate — keeps rating/website/category current.
@@ -67,8 +69,9 @@ async function saveOwnedContacts(request, env, user) {
     if (existing) {
       await env.DB.prepare(`UPDATE contacts SET website=?,address=?,rating=?,mapsUrl=?,
         category=COALESCE(NULLIF(?,''),category),phone=COALESCE(NULLIF(?,''),phone),email=COALESCE(NULLIF(?,''),email),
+        telegramUsername=COALESCE(NULLIF(?,''),telegramUsername),linkedin=COALESCE(NULLIF(?,''),linkedin),
         updatedAt=CURRENT_TIMESTAMP WHERE id=?`)
-        .bind(website, address, rating, mapsUrl, category, phone, email, existing.id).run();
+        .bind(website, address, rating, mapsUrl, category, phone, email, telegramUsername, linkedin, existing.id).run();
       updated++; continue;
     }
 
@@ -78,13 +81,13 @@ async function saveOwnedContacts(request, env, user) {
     if (duplicate) { duplicates++; continue; }
     await env.DB.prepare(`INSERT INTO contacts
       (contactName,company,phone,email,category,source,platform,country,brand,productInterest,
-       website,address,rating,mapsUrl,sourceId,
+       website,address,rating,mapsUrl,sourceId,telegramUsername,linkedin,
        ownerEmail,teamId,createdByEmail,leadScore,lastContactedAt,nextFollowUpAt,dealExpectedAt,createdAt,updatedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
       .bind(String(contact.contactName || contact.name || contact.company || ''), String(contact.company || contact.contactName || contact.name || ''),
         phone, email, category, String(contact.source || ''), platform,
         String(contact.country || ''), String(contact.brand || ''), String(contact.productInterest || ''),
-        website, address, rating, mapsUrl, sourceId,
+        website, address, rating, mapsUrl, sourceId, telegramUsername, linkedin,
         user.email, user.teamId || 'sales', user.email, scoreLead(contact), contact.lastContactedAt || null,
         contact.nextFollowUpAt || null, contact.dealExpectedAt || null).run();
     inserted++;

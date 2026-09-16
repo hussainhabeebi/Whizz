@@ -252,11 +252,110 @@ async function collectorCallback(request, env) {
   return json({ ok: true });
 }
 
+// 2GIS is an official, documented REST API (catalog.api.2gis.com) — unlike Google Maps/Kaspi
+// this needs no scraping actor and no proxy: the Worker calls it directly and returns results
+// synchronously, in the same shape the Apify-backed sources already return to the frontend.
+// This replaced an Apify actor (thenetaji~2gis-search-scraper) that turned out to need
+// residential proxies to get past 2GIS's anti-bot wall — a plan/cost problem the direct API
+// sidesteps entirely. Response field names (result.items[].contact_groups[].contacts[]) are
+// based on 2GIS's public docs, not verified against a live call from this codebase's dev
+// environment (docs.2gis.com and catalog.api.2gis.com are both unreachable there) — parsing
+// below is deliberately defensive rather than assuming one exact schema; adjust the mapping if
+// a real response looks different.
+async function discover2Gis(request, env) {
+  if (!env.TWOGIS_API_KEY) return json({ error: '2GIS is not configured — set the TWOGIS_API_KEY Worker secret.' }, 400);
+  const body = await request.json().catch(() => ({}));
+  const query = normalize(body.query) || [normalize(body.brand), normalize(body.category)].filter(Boolean).join(' ');
+  const location = normalize(body.location);
+  const limit = Math.max(1, Math.min(Number(body.limit) || 20, 50));
+  if (!query) return json({ error: 'Enter a brand or product to search' }, 400);
+
+  const q = [query, location].filter(Boolean).join(' ');
+  const url = new URL('https://catalog.api.2gis.com/3.0/items');
+  url.searchParams.set('q', q);
+  url.searchParams.set('key', env.TWOGIS_API_KEY);
+  url.searchParams.set('fields', 'items.contact_groups,items.point,items.address_name,items.reviews,items.rubrics');
+  url.searchParams.set('page_size', String(limit));
+
+  let res;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+  } catch (error) {
+    return json({ error: `2GIS request failed: ${error.message}` }, 502);
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    return json({ error: `2GIS API error ${res.status}: ${text.slice(0, 300)}` }, 502);
+  }
+  const data = await res.json().catch(() => ({}));
+  const rawItems = data.result?.items || data.items || [];
+  const contacts = rawItems.map(it => {
+    const flatContacts = (it.contact_groups || []).flatMap(g => g.contacts || []);
+    const byType = t => flatContacts.find(c => c.type === t);
+    return {
+      name: it.name || it.name_ex?.primary || '',
+      address: it.address_name || it.address_comment || '',
+      city: it.address?.city || '',
+      countryCode: it.address?.country_code || '',
+      categoryName: (it.rubrics || [])[0]?.name || '',
+      phone: byType('phone')?.value || byType('phone')?.text || '',
+      website: byType('website')?.value || byType('website')?.text || '',
+      email: byType('email')?.value || byType('email')?.text || '',
+      rating: it.reviews?.general_rating || it.reviews?.rating || 0,
+      url: it.id ? `https://2gis.com/firm/${it.id}` : '',
+      sourceId: it.id || ''
+    };
+  }).filter(c => c.name);
+  return json({ contacts });
+}
+
+const ENRICH_MAX_SITES = 20;
+const ENRICH_FETCH_TIMEOUT_MS = 8000;
+
+function extractSocialLinks(html) {
+  const telegramMatch = html.match(/https?:\/\/(?:t|telegram)\.me\/([A-Za-z0-9_]{4,32})/i);
+  const linkedinMatch = html.match(/https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/(?:company|in|school)\/[A-Za-z0-9\-_%.]+/i);
+  return {
+    telegram: telegramMatch ? telegramMatch[1] : '',
+    linkedin: linkedinMatch ? linkedinMatch[0].replace(/^http:/i, 'https:') : ''
+  };
+}
+
+// Google Maps/2GIS listings don't carry a Telegram or LinkedIn field themselves — the only
+// signal available is the business's own website, so this fetches each one's homepage and
+// regex-scans the raw HTML for a t.me/telegram.me link and a linkedin.com/company|in|school
+// link (usually in the footer or a "follow us" block). Best-effort: a site with no such link
+// on its homepage, behind a cookie wall, or too slow to respond within the timeout just comes
+// back empty for that field rather than failing the whole batch.
+async function enrichSocialLinks(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const requested = Array.isArray(body.websites) ? body.websites : [];
+  const unique = [...new Set(requested.map(w => String(w || '').trim()).filter(Boolean))];
+  const batch = unique.slice(0, ENRICH_MAX_SITES);
+  if (!batch.length) return json({ results: {} });
+
+  const entries = await Promise.all(batch.map(async site => {
+    const target = /^https?:\/\//i.test(site) ? site : `https://${site}`;
+    try {
+      const res = await fetch(target, { signal: AbortSignal.timeout(ENRICH_FETCH_TIMEOUT_MS), redirect: 'follow' });
+      if (!res.ok) return [site, { telegram: '', linkedin: '' }];
+      const html = await res.text();
+      return [site, extractSocialLinks(html)];
+    } catch (error) {
+      return [site, { telegram: '', linkedin: '' }];
+    }
+  }));
+
+  return json({ results: Object.fromEntries(entries), truncated: unique.length > ENRICH_MAX_SITES });
+}
+
 export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'GET' && action === 'sources') return json({ sources: await listSources(env) });
   if (request.method === 'PUT' && action === 'source') return saveSource(request, env, arg);
   if (request.method === 'GET' && action === 'prospects') return listProspects(request, env);
   if (request.method === 'POST' && action === 'import') return importProspects(request, env);
+  if (request.method === 'POST' && action === 'discover2gis') return discover2Gis(request, env);
+  if (request.method === 'POST' && action === 'enrichSocial') return enrichSocialLinks(request, env);
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
   if (request.method === 'POST' && action === 'run') return runCollector(request, env, arg);
   if (request.method === 'POST' && action === 'callback') return collectorCallback(request, env);
