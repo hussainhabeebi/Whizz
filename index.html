@@ -5517,9 +5517,24 @@ function _renderLIContent(){
   </div>`;
 }
 
+function liTrendBadge(pct){
+  if(!isFinite(pct))return'';
+  const up=pct>=0;
+  return`<span style="color:${up?'#16a34a':'#dc2626'};font-weight:700;">${up?'▲':'▼'} ${Math.abs(pct)}%</span> vs prior period`;
+}
+function liBreakdownRows(entries,total,color){
+  if(!entries||!entries.length)return'<div class="muted">No data available</div>';
+  const max=entries[0][1]||1;
+  return entries.slice(0,8).map(([k,v])=>reportBarRow(`${k} (${total?Math.round(v/total*100):0}%)`,v,max,color)).join('');
+}
 function buildLeadIntelligenceReportHtml(d){
   const countryLabel=d.country==='ALL'?'All Countries':d.country;
   const periodLabel=d.period==='week'?'This Week':'This Month';
+  const total=d.totalContacts||0;
+  const platformRows=liBreakdownRows(d.platformBreakdown,total,'#2563eb');
+  const sourceRows=liBreakdownRows(d.sourceBreakdown,total,'#f59e0b');
+  const countryRows=liBreakdownRows(d.countryBreakdown,total,'#16a34a');
+  const brandRows=liBreakdownRows(d.brandBreakdown,total,'#8b5cf6');
   const tableRows=d.top10.map((c,i)=>{
     const name=c.contactName||c.company||'Unknown';
     const score=c.leadScore||0;
@@ -5569,6 +5584,12 @@ th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em
 .filter-bar{display:flex;gap:24px;margin-bottom:20px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;}
 .filter-bar span{font-weight:600;color:#0f172a;}
 .filter-bar .label{color:#94a3b8;}
+.two-col-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+.bar-row{display:grid;grid-template-columns:120px 1fr 40px;align-items:center;gap:10px;margin-bottom:10px;}
+.bar-label{font-size:11px;color:#475569;}
+.bar-track{height:8px;border-radius:4px;background:#f1f3f7;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;}
+.bar-value{font-size:12px;font-weight:700;text-align:right;}
 .print-btn{display:block;margin:0 auto 20px;padding:10px 20px;background:#f59e0b;color:#000;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;}
 .report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #e8ecf2;}
 @media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;padding:0;}}
@@ -5587,9 +5608,38 @@ th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em
     <div><span class="label">Total Contacts: </span><span>${d.totalContacts}</span></div>
   </div>
   <div class="kpi-grid">
-    <div class="kpi-card blue"><div class="kpi-label">New Leads This Week</div><div class="kpi-value">${d.newWeek}</div><div class="kpi-sub">${countryLabel}</div></div>
-    <div class="kpi-card green"><div class="kpi-label">New Leads This Month</div><div class="kpi-value">${d.newMonth}</div><div class="kpi-sub">${countryLabel}</div></div>
-    <div class="kpi-card amber"><div class="kpi-label">Top Platform</div><div class="kpi-value" style="font-size:20px;margin-top:4px;">${d.topPlatform||'—'}</div><div class="kpi-sub">By contact count</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">New Leads This Week</div><div class="kpi-value">${d.newWeek}</div><div class="kpi-sub">${liTrendBadge(d.weekChange)}</div></div>
+    <div class="kpi-card green"><div class="kpi-label">New Leads This Month</div><div class="kpi-value">${d.newMonth}</div><div class="kpi-sub">${liTrendBadge(d.monthChange)}</div></div>
+    <div class="kpi-card amber"><div class="kpi-label">Top Platform</div><div class="kpi-value" style="font-size:20px;margin-top:4px;">${d.topPlatform||'—'}</div><div class="kpi-sub">By contact count · ${countryLabel}</div></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Lead Quality &amp; Conversion</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="kpi-card" style="background:rgba(220,38,38,0.08);"><div class="kpi-label">Hot Leads (70+)</div><div class="kpi-value" style="color:#dc2626;">${d.hot}</div><div class="kpi-sub">${total?Math.round(d.hot/total*100):0}% of total</div></div>
+      <div class="kpi-card amber"><div class="kpi-label">Warm Leads (40-69)</div><div class="kpi-value">${d.warm}</div><div class="kpi-sub">${total?Math.round(d.warm/total*100):0}% of total</div></div>
+      <div class="kpi-card" style="background:rgba(100,116,139,0.08);"><div class="kpi-label">Cold Leads (&lt;40)</div><div class="kpi-value" style="color:#475569;">${d.cold}</div><div class="kpi-sub">${total?Math.round(d.cold/total*100):0}% of total</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Conversion Rate</div><div class="kpi-value">${d.conversionRate}%</div><div class="kpi-sub">${d.convertedCount} converted${d.convertedCount?` · avg ${d.avgDaysToConvert}d to close`:''}</div></div>
+    </div>
+  </div>
+  <div class="two-col-section section">
+    <div>
+      <div class="section-title">Lead Sources — Platform</div>
+      ${platformRows}
+    </div>
+    <div>
+      <div class="section-title">Lead Sources — Origin</div>
+      ${sourceRows}
+    </div>
+  </div>
+  <div class="two-col-section section">
+    <div>
+      <div class="section-title">Geographic Distribution</div>
+      ${countryRows}
+    </div>
+    <div>
+      <div class="section-title">Brand Distribution</div>
+      ${brandRows}
+    </div>
   </div>
   <div class="section">
     <div class="section-title">Latest 10 Leads — Newest First</div>
@@ -5614,16 +5664,48 @@ function downloadLeadIntelligenceReport(){
   const weekStart=new Date(now);
   weekStart.setDate(now.getDate()-((now.getDay()+6)%7));
   weekStart.setHours(0,0,0,0);
+  const prevWeekStart=new Date(weekStart);
+  prevWeekStart.setDate(prevWeekStart.getDate()-7);
   const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const prevMonthStart=new Date(now.getFullYear(),now.getMonth()-1,1);
 
-  const newWeek=contacts.filter(c=>c.createdAt&&new Date(c.createdAt)>=weekStart).length;
-  const newMonth=contacts.filter(c=>c.createdAt&&new Date(c.createdAt)>=monthStart).length;
-  const platformMap={};
-  contacts.forEach(c=>{if(c.platform)platformMap[c.platform]=(platformMap[c.platform]||0)+1;});
-  const topPlatform=Object.entries(platformMap).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+  const inRange=(c,from,to)=>{if(!c.createdAt)return false;const t=new Date(c.createdAt);return t>=from&&(!to||t<to);};
+  const newWeek=contacts.filter(c=>inRange(c,weekStart)).length;
+  const prevWeekCount=contacts.filter(c=>inRange(c,prevWeekStart,weekStart)).length;
+  const newMonth=contacts.filter(c=>inRange(c,monthStart)).length;
+  const prevMonthCount=contacts.filter(c=>inRange(c,prevMonthStart,monthStart)).length;
+  const pctChange=(cur,prev)=>prev>0?Math.round((cur-prev)/prev*100):(cur>0?100:0);
+
+  const countBy=key=>{
+    const m={};
+    contacts.forEach(c=>{const v=c[key]||'Unknown';m[v]=(m[v]||0)+1;});
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  };
+  const platformBreakdown=countBy('platform');
+  const sourceBreakdown=countBy('source');
+  const countryBreakdown=countBy('country');
+  const brandBreakdown=countBy('brand');
+  const topPlatform=platformBreakdown[0]?.[0]||'';
+
+  const hot=contacts.filter(c=>(c.leadScore||0)>=70).length;
+  const warm=contacts.filter(c=>(c.leadScore||0)>=40&&(c.leadScore||0)<70).length;
+  const cold=contacts.length-hot-warm;
+
+  const converted=contacts.filter(c=>c.convertedAt);
+  const conversionRate=contacts.length?Math.round(converted.length/contacts.length*100):0;
+  const avgDaysToConvert=converted.length?Math.round(converted.reduce((s,c)=>{
+    const days=c.createdAt?(new Date(c.convertedAt)-new Date(c.createdAt))/86400000:0;
+    return s+days;
+  },0)/converted.length):0;
+
   const top10=[...contacts].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).slice(0,10);
 
-  const html=buildLeadIntelligenceReportHtml({generatedAt:now,country,period:_liPeriod,totalContacts:contacts.length,newWeek,newMonth,topPlatform,top10});
+  const html=buildLeadIntelligenceReportHtml({
+    generatedAt:now,country,period:_liPeriod,totalContacts:contacts.length,
+    newWeek,newMonth,weekChange:pctChange(newWeek,prevWeekCount),monthChange:pctChange(newMonth,prevMonthCount),
+    topPlatform,top10,platformBreakdown,sourceBreakdown,countryBreakdown,brandBreakdown,
+    hot,warm,cold,convertedCount:converted.length,conversionRate,avgDaysToConvert
+  });
   downloadHTML(html,`Whizz-Lead-Intelligence-${now.toISOString().slice(0,10)}.html`);
   showToast('Lead Intelligence Report downloaded!','success');
 }
