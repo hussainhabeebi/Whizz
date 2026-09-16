@@ -1607,7 +1607,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
           <div class="card" style="margin-bottom:14px;">
             <div class="card-head">
               <div class="card-title">2GIS Discovery
-                <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">powered by Apify · strongest coverage in Russia, Kazakhstan &amp; the CIS</span>
+                <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">official 2GIS Catalog API · strongest coverage in Russia, Kazakhstan &amp; the CIS</span>
               </div>
             </div>
             <div class="card-body">
@@ -6761,8 +6761,10 @@ function renderWeekSummary() {
 // own selection state — S.disc[source]) instead of one shared form toggled between sources, so
 // switching tabs never clobbers another source's in-progress results.
 const DISC_CFG = {
-  maps: { label: 'Google Maps', platform: 'Google Maps', endpoint: 'whizz-discover-contacts', scanLabel: 'Google Maps' },
-  gis2: { label: '2GIS', platform: '2GIS', endpoint: 'whizz-discover-2gis', scanLabel: '2GIS' },
+  maps: { label: 'Google Maps', platform: 'Google Maps', endpoint: 'whizz-discover-contacts', scanLabel: 'Google Maps', loadingNote: 'Apify is crawling — this takes 20–60 seconds' },
+  // 2GIS calls the official Catalog API directly (Worker route, no Apify/proxy involved) —
+  // see discover2Gis() in worker/routes/leadIntelligence.js. Needs the TWOGIS_API_KEY secret.
+  gis2: { label: '2GIS', platform: '2GIS', direct: '/api/lead-intelligence/discover/2gis', scanLabel: '2GIS', loadingNote: 'Calling the official 2GIS Catalog API — usually a few seconds' },
   kaspi: { label: 'Kaspi.kz', platform: 'Kaspi.kz', endpoint: null, scanLabel: 'Kaspi.kz' },
 };
 
@@ -6817,12 +6819,16 @@ async function runDiscovery(source) {
         <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
         <span style="margin-left:8px;color:var(--text2);font-size:12px;">Scanning ${cfg.scanLabel} for "<strong>${query}</strong>"…</span>
       </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:10px;">Apify is crawling — this takes 20–60 seconds</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px;">${cfg.loadingNote || ''}</div>
     </div>`;
   document.getElementById(`disc-results-title-${source}`).textContent = 'Searching…';
 
   try {
-    const d = await api(cfg.endpoint, 'POST', { query, location, brand, category, type, limit });
+    // cfg.direct hits a Worker route directly (e.g. 2GIS's official Catalog API); cfg.endpoint
+    // goes through the generic n8n/Apify proxy (Google Maps).
+    const d = cfg.direct
+      ? await leadApi(cfg.direct, { method: 'POST', body: JSON.stringify({ query, location, brand, category, limit }) })
+      : await api(cfg.endpoint, 'POST', { query, location, brand, category, type, limit });
     const contacts = (d.contacts || d.items || (Array.isArray(d) ? d : [])).map(c => ({ __source: source, __searchLocation: location, ...c }));
     S.disc[source].contacts = contacts;
     S.disc[source].selected = new Set();
@@ -6830,7 +6836,8 @@ async function runDiscovery(source) {
     if (contacts.length) showToast(`Found ${contacts.length} contacts via ${cfg.label}`, 'success');
     else showToast('No results — try broader filters', 'info');
   } catch(e) {
-    document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n.</div>`;
+    const failHint = cfg.direct ? (e.message || `Discovery failed — check the ${cfg.direct} route is configured (TWOGIS_API_KEY secret set).`) : `Discovery failed — ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n.`;
+    document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${failHint}</div>`;
     document.getElementById(`disc-results-title-${source}`).textContent = 'Results';
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
