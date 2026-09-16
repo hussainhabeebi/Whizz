@@ -309,12 +309,53 @@ async function discover2Gis(request, env) {
   return json({ contacts });
 }
 
+const ENRICH_MAX_SITES = 20;
+const ENRICH_FETCH_TIMEOUT_MS = 8000;
+
+function extractSocialLinks(html) {
+  const telegramMatch = html.match(/https?:\/\/(?:t|telegram)\.me\/([A-Za-z0-9_]{4,32})/i);
+  const linkedinMatch = html.match(/https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/(?:company|in|school)\/[A-Za-z0-9\-_%.]+/i);
+  return {
+    telegram: telegramMatch ? telegramMatch[1] : '',
+    linkedin: linkedinMatch ? linkedinMatch[0].replace(/^http:/i, 'https:') : ''
+  };
+}
+
+// Google Maps/2GIS listings don't carry a Telegram or LinkedIn field themselves — the only
+// signal available is the business's own website, so this fetches each one's homepage and
+// regex-scans the raw HTML for a t.me/telegram.me link and a linkedin.com/company|in|school
+// link (usually in the footer or a "follow us" block). Best-effort: a site with no such link
+// on its homepage, behind a cookie wall, or too slow to respond within the timeout just comes
+// back empty for that field rather than failing the whole batch.
+async function enrichSocialLinks(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const requested = Array.isArray(body.websites) ? body.websites : [];
+  const unique = [...new Set(requested.map(w => String(w || '').trim()).filter(Boolean))];
+  const batch = unique.slice(0, ENRICH_MAX_SITES);
+  if (!batch.length) return json({ results: {} });
+
+  const entries = await Promise.all(batch.map(async site => {
+    const target = /^https?:\/\//i.test(site) ? site : `https://${site}`;
+    try {
+      const res = await fetch(target, { signal: AbortSignal.timeout(ENRICH_FETCH_TIMEOUT_MS), redirect: 'follow' });
+      if (!res.ok) return [site, { telegram: '', linkedin: '' }];
+      const html = await res.text();
+      return [site, extractSocialLinks(html)];
+    } catch (error) {
+      return [site, { telegram: '', linkedin: '' }];
+    }
+  }));
+
+  return json({ results: Object.fromEntries(entries), truncated: unique.length > ENRICH_MAX_SITES });
+}
+
 export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'GET' && action === 'sources') return json({ sources: await listSources(env) });
   if (request.method === 'PUT' && action === 'source') return saveSource(request, env, arg);
   if (request.method === 'GET' && action === 'prospects') return listProspects(request, env);
   if (request.method === 'POST' && action === 'import') return importProspects(request, env);
   if (request.method === 'POST' && action === 'discover2gis') return discover2Gis(request, env);
+  if (request.method === 'POST' && action === 'enrichSocial') return enrichSocialLinks(request, env);
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
   if (request.method === 'POST' && action === 'run') return runCollector(request, env, arg);
   if (request.method === 'POST' && action === 'callback') return collectorCallback(request, env);

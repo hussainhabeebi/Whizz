@@ -1,0 +1,1 @@
+ALTER TABLE contacts ADD COLUMN linkedin TEXT NOT NULL DEFAULT '';
