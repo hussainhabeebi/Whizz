@@ -12,11 +12,15 @@ export async function handleGetContacts(request, env) {
   const ownership = actor.role === 'Administrator' ? '(?4 IS NOT NULL)'
     : actor.role === 'Manager' ? '(ownerEmail IS NULL OR teamId = ?4)'
     : 'ownerEmail = ?4';
+  // brand can be a comma-separated list on a single contact (e.g. an exhibitor carrying
+  // several brands), so match ?3 as one item in that list rather than requiring an exact
+  // equal string — otherwise picking any brand but the first from a multi-brand contact
+  // would never match.
   const { results } = await env.DB.prepare(
     `SELECT * FROM contacts
      WHERE (?1 = '' OR LOWER(platform) = LOWER(?1))
        AND (?2 = '' OR LOWER(country) = LOWER(?2))
-       AND (?3 = '' OR LOWER(brand) = LOWER(?3))
+       AND (?3 = '' OR (',' || REPLACE(LOWER(brand), ', ', ',') || ',') LIKE ('%,' || LOWER(?3) || ',%'))
        AND ${ownership}
      ORDER BY createdAt DESC, id DESC`
   ).bind(platform, country, brand, actor.role === 'Sales' ? actor.email : (actor.teamId || '')).all();
