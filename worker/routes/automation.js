@@ -113,9 +113,13 @@ function normalizeCountry(raw) {
   return s || 'Unknown';
 }
 
-function normalizeBrand(raw) {
-  const first = (raw || 'Unspecified').split(/[,;\/]/)[0];
-  return _titleCase(_normStr(first)) || 'Unspecified';
+// A contact's brand field can hold a comma-separated list (e.g. an exhibitor carrying
+// "JBL, Dyson, Canon"). Split on comma/semicolon only (not slash — values like
+// "Dyson (EU 2-pin / 3-pin)" use "/" inside a single brand) so every brand becomes its
+// own searchable/filterable entry instead of only the first one.
+function normalizeBrands(raw) {
+  const parts = String(raw || '').split(/[,;]/).map(s => _titleCase(_normStr(s))).filter(Boolean);
+  return parts.length ? parts : ['Unspecified'];
 }
 
 const REGION_MAP = {
@@ -157,18 +161,21 @@ async function ownedLeadSummary(env, user) {
   const result = await env.DB.prepare(`SELECT platform,country,brand,COUNT(*) count FROM contacts WHERE ${clause}
     GROUP BY platform,country,brand ORDER BY count DESC`).bind(scope).all();
 
-  // Normalize and re-aggregate (merge synonyms, title-case, split comma-brands)
+  // Normalize and re-aggregate (merge synonyms, title-case, split comma-brands). A row whose
+  // brand field lists several brands contributes its count to each brand's own group, so a
+  // multi-brand contact is findable under every brand it carries, not just the first.
   const aggMap = new Map();
   for (const row of (result.results || [])) {
     const platform = _titleCase(_normStr(row.platform || 'Unknown'));
     const country = normalizeCountry(row.country);
-    const brand = normalizeBrand(row.brand);
     const count = Number(row.count || 0);
-    const key = `${platform}||${country}||${brand}`;
-    if (aggMap.has(key)) {
-      aggMap.get(key).count += count;
-    } else {
-      aggMap.set(key, { platform, country, brand, count, region: regionForCountry(country), trend: 'Stable', velocity30DayPct: 0 });
+    for (const brand of normalizeBrands(row.brand)) {
+      const key = `${platform}||${country}||${brand}`;
+      if (aggMap.has(key)) {
+        aggMap.get(key).count += count;
+      } else {
+        aggMap.set(key, { platform, country, brand, count, region: regionForCountry(country), trend: 'Stable', velocity30DayPct: 0 });
+      }
     }
   }
   const groups = [...aggMap.values()].sort((a, b) => b.count - a.count);
@@ -213,7 +220,7 @@ async function resolveContactsForCampaign(env, user, body) {
       `SELECT id,contactName,phone,email,platform,country,brand,leadScore,lastContactedAt FROM contacts
        WHERE (? = 'ALL' OR LOWER(platform) = LOWER(?))
          AND (? = 'ALL' OR LOWER(country) = LOWER(?))
-         AND (? = 'ALL' OR LOWER(brand) = LOWER(?))
+         AND (? = 'ALL' OR (',' || REPLACE(LOWER(brand), ', ', ',') || ',') LIKE ('%,' || LOWER(?) || ',%'))
          ${ownerFilter}
        ORDER BY leadScore DESC`
     ).bind(...binds).all();
