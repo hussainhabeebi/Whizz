@@ -303,17 +303,26 @@ async function runKaspiJob(job, cfg) {
 }
 
 // Search once (query + location folded into the free-text query — see the config comment above)
-// and collect firm/listing links from the results page. Unlike Kaspi's numbered ?page=N
-// pagination, 2GIS's search results are commonly infinite-scroll — this only reads what's
-// present after the initial load, which is a real limitation (fewer results than paging through
-// would give) until confirmed against the live site and adjusted (e.g. scrolling/clicking "more").
+// and collect firm/listing links from the results page. 2GIS is a heavy client-side-rendered
+// SPA, so 'domcontentloaded' alone likely fires before results actually paint — this waits for
+// 'networkidle' too (falls back gracefully if that times out) and gives the page an extra beat
+// before reading links, rather than assuming the DOM is done the instant the HTML arrives.
+// Also: 2GIS's search results are commonly infinite-scroll rather than Kaspi's numbered ?page=N —
+// this only reads what's present after that initial settle, which is a real limitation (fewer
+// results than paging/scrolling through would give) until confirmed against the live site.
 async function collect2GisListingLinks(page, cfg, query, location, maxItems) {
-  await page.goto(cfg.searchUrl(query, location), { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => null);
+  const url = cfg.searchUrl(query, location);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => null);
+  await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => null);
   await sleep(DELAY_MS);
   if (await hasChallenge(page)) return { links: [], challenge: true, verificationUrl: page.url() };
   const hrefs = await pageHrefs(page);
   const links = [...new Set(hrefs.filter(h => cfg.listingLinkPattern.test(h)))].slice(0, maxItems);
-  return { links, challenge: false };
+  const pageTitle = clean(await page.title().catch(() => ''));
+  return {
+    links, challenge: false,
+    diag: { requestedUrl: url, finalUrl: page.url(), pageTitle, hrefsSeen: hrefs.length, listingLinksMatched: links.length }
+  };
 }
 
 // Pulls contact details off a single 2GIS firm page. Phone numbers on directory sites like this
@@ -353,8 +362,10 @@ async function run2GisJob(job, cfg) {
       await callback(job.callbackUrl, { source: '2gis', status: 'verification_required', verificationUrl: search.verificationUrl, items });
       return { status: 'verification_required', verificationUrl: search.verificationUrl, itemsCollected: 0 };
     }
+    let listingsAttempted = 0, listingsWithCompany = 0;
     for (const listingUrl of search.links) {
       if (items.length >= maxItems) break;
+      listingsAttempted++;
       await sleep(DELAY_MS);
       await page.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => null);
       if (await hasChallenge(page)) {
@@ -362,10 +373,19 @@ async function run2GisJob(job, cfg) {
         return { status: 'verification_required', verificationUrl: page.url(), itemsCollected: items.length };
       }
       const item = await extract2GisListing(page, query);
-      if (item.company) items.push(item);
+      if (item.company) { items.push(item); listingsWithCompany++; }
     }
-    await callback(job.callbackUrl, { source: '2gis', status: 'completed', items });
-    return { status: 'completed', count: items.length };
+    // Self-diagnosing summary so "why did this find nothing" doesn't need a raw log round-trip —
+    // same idea as Kaspi's own run note. Especially useful here since every URL/selector in this
+    // job is an unverified guess at 2GIS's real page structure (see collector/README.md).
+    const note = `Search URL: ${search.diag.requestedUrl} → landed on ${search.diag.finalUrl} (title: "${search.diag.pageTitle}"). `
+      + `Found ${search.diag.hrefsSeen} links on the page, ${search.diag.listingLinksMatched} matched the /firm/\\d+ pattern. `
+      + `Opened ${listingsAttempted} listing(s), ${listingsWithCompany} yielded a company name.`
+      + (items.length === 0 && search.diag.hrefsSeen > 0 && search.diag.listingLinksMatched === 0
+        ? ' Zero matches suggests the listingLinkPattern guess is wrong for this page — check finalUrl/pageTitle above for what 2GIS actually returned (redirect, CAPTCHA-free block page, different URL structure, etc.) and adjust it in collector/server.js.'
+        : '');
+    await callback(job.callbackUrl, { source: '2gis', status: 'completed', items, note });
+    return { status: 'completed', count: items.length, note };
   } catch (error) {
     await callback(job.callbackUrl, { source: '2gis', status: 'error', error: error.message, items });
     throw error;

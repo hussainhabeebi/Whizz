@@ -7023,7 +7023,17 @@ async function run2GisDiscovery() {
       renderDiscoveryResults(source);
       if (contacts.length) showToast(`Found ${contacts.length} businesses via 2GIS`, 'success');
       else if (stillSyncing) showToast('Still crawling — give it a few more minutes then hit Discover again (safe to retry, won\'t start a duplicate run)', 'info');
-      else showToast('No results — try a broader search or a different location', 'info');
+      else {
+        // The collector job returns a self-diagnosing note (search URL it hit, page title it
+        // landed on, links seen vs. matched) even on a genuine zero-result completion — surface
+        // it instead of just "no results", since every URL/selector here is an unverified guess.
+        const sources = await leadApi('/api/lead-intelligence/sources').catch(() => ({ sources: [] }));
+        const gisSrc = (sources.sources || []).find(s => s.source === '2gis');
+        if (gisSrc?.lastError) {
+          document.getElementById('disc-results-body-gis2').innerHTML = `<div class="disc-empty">No results. Collector diagnostic:<br><span style="font-size:11px;color:var(--text3);display:inline-block;margin-top:8px;max-width:480px;">${gisSrc.lastError}</span></div>`;
+        }
+        showToast('No results — try a broader search or a different location', 'info');
+      }
     }
   } catch (e) {
     document.getElementById('disc-results-body-gis2').innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${e.message || '2GIS search failed'}</div>`;
