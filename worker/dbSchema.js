@@ -43,8 +43,12 @@ async function repairSchema(env) {
     ['dealExpectedAt', 'TEXT'], ['leadScore', 'INTEGER NOT NULL DEFAULT 0'],
     ['telegramChatId', 'TEXT'], ['telegramUsername', 'TEXT'],
     ['convertedAt', 'TEXT'],
+    ['website', "TEXT NOT NULL DEFAULT ''"], ['address', "TEXT NOT NULL DEFAULT ''"],
+    ['rating', 'REAL NOT NULL DEFAULT 0'], ['mapsUrl', "TEXT NOT NULL DEFAULT ''"],
+    ['sourceId', "TEXT NOT NULL DEFAULT ''"],
   ]);
   await env.DB.prepare('UPDATE contacts SET createdAt=COALESCE(createdAt,CURRENT_TIMESTAMP), updatedAt=COALESCE(updatedAt,CURRENT_TIMESTAMP)').run();
+  await safeRun(env, 'CREATE INDEX IF NOT EXISTS idx_contacts_platform_source_id ON contacts(platform, sourceId)');
 
   await safeRun(env, `CREATE TABLE IF NOT EXISTS conversation_assignments (
     conversationId TEXT PRIMARY KEY, assignedUserEmail TEXT, assignedTeamId TEXT,

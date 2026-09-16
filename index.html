@@ -514,6 +514,8 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .disc-type-btn{flex:1;padding:8px 4px;border-radius:var(--r-sm);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:12px;font-weight:500;font-family:var(--font);cursor:pointer;text-align:center;transition:all 0.12s;}
 .disc-type-btn.active{background:var(--accent);color:#000;border-color:var(--accent);}
 .disc-type-btn:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+.disc-tabcount{opacity:0.65;font-weight:400;margin-left:4px;}
+.disc-window{display:block;}
 .contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;margin-top:16px;}
 .contact-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px;transition:border-color 0.12s;position:relative;}
 .contact-card:hover{border-color:var(--border2);}
@@ -1516,86 +1518,201 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
       <!-- Contact Discovery Page -->
       <div class="page" id="page-discovery">
 
-        <!-- Search Filters -->
-        <div class="card" style="margin-bottom:14px;">
-          <div class="card-head">
-            <div class="card-title">Contact Discovery
-              <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;" id="disc-subtitle">powered by Apify · Google Maps</span>
+        <!-- Each source is a fully separate window: its own filters, its own results, its own
+             selection state — switching tabs never loses another source's results. -->
+        <div class="disc-type-group" id="disc-window-tabs" style="margin-bottom:14px;">
+          <button class="disc-type-btn active" onclick="setDiscWindow('maps',this)">Google Maps<span class="disc-tabcount" id="disc-tabcount-maps"></span></button>
+          <button class="disc-type-btn" onclick="setDiscWindow('gis2',this)">2GIS<span class="disc-tabcount" id="disc-tabcount-gis2"></span></button>
+          <button class="disc-type-btn" onclick="setDiscWindow('kaspi',this)">Kaspi.kz (Kazakhstan Marketplace)<span class="disc-tabcount" id="disc-tabcount-kaspi"></span></button>
+        </div>
+
+        <!-- ── Google Maps window ── -->
+        <div class="disc-window" id="discwin-maps">
+          <div class="card" style="margin-bottom:14px;">
+            <div class="card-head">
+              <div class="card-title">Google Maps Discovery
+                <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">powered by Apify · richest field coverage worldwide</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="disc-filters">
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Location</label>
+                  <input class="fi" id="disc-location-maps" placeholder="e.g. Dubai, Mumbai, Riyadh" value="Dubai"/>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Brand / Product</label>
+                  <input class="fi" id="disc-brand-maps" placeholder="e.g. HP, Canon, Epson"/>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Category</label>
+                  <input class="fi" id="disc-category-maps" placeholder="e.g. printer, scanner, copier" value="printer"/>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Max Results</label>
+                  <select class="fs" id="disc-limit-maps">
+                    <option value="10">10 contacts</option>
+                    <option value="20" selected>20 contacts</option>
+                    <option value="40">40 contacts</option>
+                    <option value="60">60 contacts</option>
+                    <option value="100">100 contacts</option>
+                  </select>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl" style="opacity:0;">Run</label>
+                  <button class="t-btn btn-primary" id="disc-run-btn-maps" onclick="runDiscovery('maps')" style="width:100%;justify-content:center;gap:6px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" id="disc-run-icon-maps"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <span id="disc-run-label-maps">Discover</span>
+                  </button>
+                </div>
+              </div>
+              <div style="margin-top:12px;">
+                <label class="fl" style="margin-bottom:6px;">Business Type</label>
+                <div class="disc-type-group" id="disc-type-group-maps">
+                  <button class="disc-type-btn active" onclick="setDiscBizType('wholesaler',this)">Wholesaler</button>
+                  <button class="disc-type-btn" onclick="setDiscBizType('retailer',this)">Retailer</button>
+                  <button class="disc-type-btn" onclick="setDiscBizType('distributor',this)">Distributor</button>
+                  <button class="disc-type-btn" onclick="setDiscBizType('supplier',this)">Supplier</button>
+                  <button class="disc-type-btn" onclick="setDiscBizType('',this)">All Types</button>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="card-body">
-            <div style="margin-bottom:12px;">
-              <label class="fl" style="margin-bottom:6px;">Source</label>
-              <div class="disc-type-group" id="disc-source-group">
-                <button class="disc-type-btn active" onclick="setDiscSource('maps',this)">Google Maps</button>
-                <button class="disc-type-btn" onclick="setDiscSource('2gis',this)">2GIS</button>
-                <button class="disc-type-btn" onclick="setDiscSource('kaspi',this)">Kaspi.kz (Kazakhstan Marketplace)</button>
-              </div>
-            </div>
-            <div class="disc-filters">
-              <div class="fg" style="margin:0;" id="disc-location-field">
-                <label class="fl">Location</label>
-                <input class="fi" id="disc-location" placeholder="e.g. Dubai, Mumbai, Riyadh" value="Dubai"/>
-              </div>
-              <div class="fg" style="margin:0;">
-                <label class="fl" id="disc-brand-label">Brand / Product</label>
-                <input class="fi" id="disc-brand" placeholder="e.g. HP, Canon, Epson"/>
-              </div>
-              <div class="fg" style="margin:0;" id="disc-category-field">
-                <label class="fl">Category</label>
-                <input class="fi" id="disc-category" placeholder="e.g. printer, scanner, copier" value="printer"/>
-              </div>
-              <div class="fg" style="margin:0;" id="disc-limit-field">
-                <label class="fl">Max Results</label>
-                <select class="fs" id="disc-limit">
-                  <option value="10">10 contacts</option>
-                  <option value="20" selected>20 contacts</option>
-                  <option value="40">40 contacts</option>
-                  <option value="60">60 contacts</option>
-                </select>
-              </div>
-              <div class="fg" style="margin:0;">
-                <label class="fl" style="opacity:0;">Run</label>
-                <button class="t-btn btn-primary" id="disc-run-btn" onclick="runDiscovery()" style="width:100%;justify-content:center;gap:6px;">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" id="disc-run-icon"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                  <span id="disc-run-label">Discover</span>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title" id="disc-results-title-maps">Results</div>
+              <div style="display:none;gap:7px;align-items:center;" id="disc-actions-maps">
+                <button class="t-btn btn-ghost t-btn-sm" onclick="selectAllDisc('maps')">Select All</button>
+                <button class="t-btn btn-ghost t-btn-sm" onclick="exportDiscCSV('maps')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export CSV
+                </button>
+                <button class="t-btn btn-success t-btn-sm" id="disc-save-btn-maps" onclick="saveSelectedContacts('maps')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/><circle cx="16" cy="4" r="3"/></svg>
+                  Add Selected to Leads
                 </button>
               </div>
             </div>
-            <div style="margin-top:12px;" id="disc-type-field">
-              <label class="fl" style="margin-bottom:6px;">Business Type</label>
-              <div class="disc-type-group" id="disc-type-group">
-                <button class="disc-type-btn active" onclick="setDiscType('wholesaler',this)">Wholesaler</button>
-                <button class="disc-type-btn" onclick="setDiscType('retailer',this)">Retailer</button>
-                <button class="disc-type-btn" onclick="setDiscType('distributor',this)">Distributor</button>
-                <button class="disc-type-btn" onclick="setDiscType('supplier',this)">Supplier</button>
-                <button class="disc-type-btn" onclick="setDiscType('',this)">All Types</button>
+            <div class="card-body" id="disc-results-body-maps">
+              <div class="disc-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+                Set your filters and click <strong>Discover</strong> to scan Google Maps via Apify.
               </div>
             </div>
-            <div class="fi-hint" id="disc-kaspi-hint" style="display:none;margin-top:10px;">Searches Kaspi.kz for the brand, then goes listing → product → seller page for phone, WhatsApp, Telegram and the registered company name — not just what's on the search results page.</div>
           </div>
         </div>
 
-        <!-- Results Area -->
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title" id="disc-results-title">Results</div>
-            <div style="display:flex;gap:7px;align-items:center;" id="disc-actions" style="display:none;">
-              <button class="t-btn btn-ghost t-btn-sm" onclick="selectAllDisc()">Select All</button>
-              <button class="t-btn btn-ghost t-btn-sm" onclick="exportDiscCSV()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Export CSV
-              </button>
-              <button class="t-btn btn-success t-btn-sm" id="disc-save-btn" onclick="saveSelectedContacts()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/><circle cx="16" cy="4" r="3"/></svg>
-                Add Selected to Leads
-              </button>
+        <!-- ── 2GIS window ── -->
+        <div class="disc-window" id="discwin-gis2" style="display:none;">
+          <div class="card" style="margin-bottom:14px;">
+            <div class="card-head">
+              <div class="card-title">2GIS Discovery
+                <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">powered by Apify · strongest coverage in Russia, Kazakhstan &amp; the CIS</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="disc-filters">
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Location</label>
+                  <input class="fi" id="disc-location-gis2" placeholder="e.g. Almaty, Astana, Moscow" value="Almaty"/>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Brand / Product</label>
+                  <input class="fi" id="disc-brand-gis2" placeholder="e.g. HP, Canon, Epson"/>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Category</label>
+                  <input class="fi" id="disc-category-gis2" placeholder="e.g. printer, scanner, copier" value="printer"/>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Max Results</label>
+                  <select class="fs" id="disc-limit-gis2">
+                    <option value="10">10 contacts</option>
+                    <option value="20" selected>20 contacts</option>
+                    <option value="40">40 contacts</option>
+                    <option value="60">60 contacts</option>
+                    <option value="100">100 contacts</option>
+                  </select>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl" style="opacity:0;">Run</label>
+                  <button class="t-btn btn-primary" id="disc-run-btn-gis2" onclick="runDiscovery('gis2')" style="width:100%;justify-content:center;gap:6px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" id="disc-run-icon-gis2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <span id="disc-run-label-gis2">Discover</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="card-body" id="disc-results-body">
-            <div class="disc-empty">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
-              Pick a source above, set your filters, and click <strong>Discover</strong> — Google Maps via Apify, or a deep Kaspi.kz marketplace crawl.
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title" id="disc-results-title-gis2">Results</div>
+              <div style="display:none;gap:7px;align-items:center;" id="disc-actions-gis2">
+                <button class="t-btn btn-ghost t-btn-sm" onclick="selectAllDisc('gis2')">Select All</button>
+                <button class="t-btn btn-ghost t-btn-sm" onclick="exportDiscCSV('gis2')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export CSV
+                </button>
+                <button class="t-btn btn-success t-btn-sm" id="disc-save-btn-gis2" onclick="saveSelectedContacts('gis2')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/><circle cx="16" cy="4" r="3"/></svg>
+                  Add Selected to Leads
+                </button>
+              </div>
+            </div>
+            <div class="card-body" id="disc-results-body-gis2">
+              <div class="disc-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+                Set your filters and click <strong>Discover</strong> to scan 2GIS via Apify.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Kaspi.kz window ── -->
+        <div class="disc-window" id="discwin-kaspi" style="display:none;">
+          <div class="card" style="margin-bottom:14px;">
+            <div class="card-head">
+              <div class="card-title">Kaspi.kz Discovery
+                <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">deep crawl · listing → product → seller page</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="disc-filters" style="grid-template-columns:1fr 120px;">
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Brand</label>
+                  <input class="fi" id="disc-brand-kaspi" placeholder="e.g. JBL, Dyson, Samsung"/>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl" style="opacity:0;">Run</label>
+                  <button class="t-btn btn-primary" id="disc-run-btn-kaspi" onclick="runDiscovery('kaspi')" style="width:100%;justify-content:center;gap:6px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" id="disc-run-icon-kaspi"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <span id="disc-run-label-kaspi">Discover</span>
+                  </button>
+                </div>
+              </div>
+              <div class="fi-hint" style="margin-top:10px;">Searches Kaspi.kz for the brand, then goes listing → product → seller page for phone, WhatsApp, Telegram and the registered company name — not just what's on the search results page.</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title" id="disc-results-title-kaspi">Results</div>
+              <div style="display:none;gap:7px;align-items:center;" id="disc-actions-kaspi">
+                <button class="t-btn btn-ghost t-btn-sm" onclick="selectAllDisc('kaspi')">Select All</button>
+                <button class="t-btn btn-ghost t-btn-sm" onclick="exportDiscCSV('kaspi')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export CSV
+                </button>
+                <button class="t-btn btn-success t-btn-sm" id="disc-save-btn-kaspi" onclick="saveSelectedContacts('kaspi')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/><circle cx="16" cy="4" r="3"/></svg>
+                  Add Selected to Leads
+                </button>
+              </div>
+            </div>
+            <div class="card-body" id="disc-results-body-kaspi">
+              <div class="disc-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+                Enter a brand and click <strong>Discover</strong> to run a deep Kaspi.kz marketplace crawl.
+              </div>
             </div>
           </div>
         </div>
@@ -2242,7 +2359,12 @@ let S = {
   activePlatform: 'ALL', activeCountry: 'ALL', activeBrand: 'ALL', activeCampaignRegion: 'ALL', activeLeadsRegion: 'ALL', activeLeadsCountry: 'ALL',
   stock: [], stockCrossTab: [], stockBrands: [], stockRegions: [], stockParentGroups: [],
   activeStockBrand: 'ALL', activeStockRegion: 'ALL', activeStockParentGroup: 'ALL', activeStockStatus: 'ALL',
-  discoveredContacts: [], selectedDiscContacts: new Set(), discType: 'wholesaler', discSource: 'maps',
+  discActiveWindow: 'maps',
+  disc: {
+    maps: { contacts: [], selected: new Set(), bizType: 'wholesaler' },
+    gis2: { contacts: [], selected: new Set() },
+    kaspi: { contacts: [], selected: new Set() },
+  },
   cache: {}, notifications: [], history: [],
   selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: []
 };
@@ -3043,7 +3165,7 @@ function navigate(page, el) {
   if(page==='reports'&&(S.cache.stats||S.cache.crossTabMatrix)){renderReports();hideBanner('rep');}
   if(page==='stock'&&S.cache.stock){renderStockPage();hideBanner('stock');}
   if(page==='suggestions'){refreshSuggestions();}
-  if(page==='discovery'){renderDiscoveryResults(S.discoveredContacts||[]);}
+  if(page==='discovery'){Object.keys(S.disc).forEach(renderDiscoveryResults);}
   if(page==='users'){renderUsersPage();}
   if(page==='pipeline'){renderPipelinePage();}
   if(page==='history'){renderScheduledList();}
@@ -3152,7 +3274,7 @@ async function refreshPage() {
     else if(p==='history')renderHistoryList();
     else if(p==='stock')await refreshStock();
     else if(p==='suggestions'){await refreshStock();refreshSuggestions();}
-    else if(p==='discovery')runDiscovery();
+    else if(p==='discovery')runDiscovery(S.discActiveWindow);
     saveCache();
     document.getElementById('last-upd').textContent='Updated '+new Date().toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
     hideBanner(p==='dashboard'?'dash':p==='campaigns'?'camp':p);
@@ -6553,71 +6675,27 @@ function renderWeekSummary() {
 }
 
 // ── Contact Discovery (Apify) Module ──
-function setDiscType(type, el) {
-  S.discType = type;
-  document.querySelectorAll('#disc-type-group .disc-type-btn').forEach(b => b.classList.remove('active'));
+// Google Maps, 2GIS and Kaspi.kz are three fully separate windows (own filters, own results,
+// own selection state — S.disc[source]) instead of one shared form toggled between sources, so
+// switching tabs never clobbers another source's in-progress results.
+const DISC_CFG = {
+  maps: { label: 'Google Maps', platform: 'Google Maps', endpoint: 'whizz-discover-contacts', scanLabel: 'Google Maps' },
+  gis2: { label: '2GIS', platform: '2GIS', endpoint: 'whizz-discover-2gis', scanLabel: '2GIS' },
+  kaspi: { label: 'Kaspi.kz', platform: 'Kaspi.kz', endpoint: null, scanLabel: 'Kaspi.kz' },
+};
+
+function setDiscWindow(source, el) {
+  S.discActiveWindow = source;
+  document.querySelectorAll('#disc-window-tabs .disc-type-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
+  document.querySelectorAll('.disc-window').forEach(w => w.style.display = 'none');
+  document.getElementById('discwin-' + source).style.display = '';
 }
 
-function setDiscSource(source, el) {
-  S.discSource = source;
-  document.querySelectorAll('#disc-source-group .disc-type-btn').forEach(b => b.classList.remove('active'));
+function setDiscBizType(type, el) {
+  S.disc.maps.bizType = type;
+  document.querySelectorAll('#disc-type-group-maps .disc-type-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
-  const isKaspi = source === 'kaspi';
-  const subtitles = { maps: 'powered by Apify · Google Maps', '2gis': 'official 2GIS Places API', kaspi: 'deep crawl · listing → product → seller page' };
-  document.getElementById('disc-subtitle').textContent = subtitles[source] || '';
-  document.getElementById('disc-location-field').style.display = isKaspi ? 'none' : '';
-  document.getElementById('disc-category-field').style.display = isKaspi ? 'none' : '';
-  document.getElementById('disc-limit-field').style.display = isKaspi ? 'none' : '';
-  document.getElementById('disc-type-field').style.display = isKaspi ? 'none' : '';
-  document.getElementById('disc-kaspi-hint').style.display = isKaspi ? '' : 'none';
-  document.getElementById('disc-brand-label').textContent = isKaspi ? 'Brand' : 'Brand / Product';
-  document.getElementById('disc-brand').placeholder = isKaspi ? 'e.g. JBL, Dyson, Samsung' : 'e.g. HP, Canon, Epson';
-}
-
-async function runDiscovery() {
-  if (S.discSource === 'kaspi') { await runKaspiDiscovery(); return; }
-  if (S.discSource === '2gis') { await run2GisDiscovery(); return; }
-  const location = document.getElementById('disc-location').value.trim();
-  const brand    = document.getElementById('disc-brand').value.trim();
-  const category = document.getElementById('disc-category').value.trim();
-  const limit    = parseInt(document.getElementById('disc-limit').value) || 20;
-  const type     = S.discType;
-
-  if (!location) { showToast('Enter a location to search', 'error'); return; }
-  if (!brand && !category) { showToast('Enter a brand or product category', 'error'); return; }
-
-  const btn   = document.getElementById('disc-run-btn');
-  const icon  = document.getElementById('disc-run-icon');
-  const label = document.getElementById('disc-run-label');
-  btn.disabled = true; icon.classList.add('spin'); label.textContent = 'Searching…';
-
-  const parts = [brand, category, type, location].filter(Boolean);
-  const query = parts.join(' ');
-
-  document.getElementById('disc-results-body').innerHTML = `
-    <div style="padding:40px;text-align:center;">
-      <div class="ai-thinking" style="justify-content:center;display:inline-flex;">
-        <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
-        <span style="margin-left:8px;color:var(--text2);font-size:12px;">Scanning Google Maps for "<strong>${query}</strong>"…</span>
-      </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:10px;">Apify is crawling — this takes 20–60 seconds</div>
-    </div>`;
-  document.getElementById('disc-results-title').textContent = 'Searching…';
-
-  try {
-    const d = await api('whizz-discover-contacts', 'POST', { query, location, brand, category, type, limit });
-    const contacts = d.contacts || d.items || (Array.isArray(d) ? d : []);
-    S.discoveredContacts = contacts;
-    S.selectedDiscContacts = new Set();
-    renderDiscoveryResults(S.discoveredContacts);
-    if (S.discoveredContacts.length) showToast(`Found ${S.discoveredContacts.length} contacts`, 'success');
-    else showToast('No results — try broader filters', 'info');
-  } catch(e) {
-    document.getElementById('disc-results-body').innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>whizz-discover-contacts</strong> webhook is active in n8n.</div>`;
-    document.getElementById('disc-results-title').textContent = 'Results';
-  }
-  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
 
 async function leadApi(url, opts = {}) {
@@ -6627,44 +6705,51 @@ async function leadApi(url, opts = {}) {
   return d;
 }
 
-// 2GIS goes through n8n + an Apify 2GIS actor, the same shape as the Google Maps flow above —
-// see the whizz-discover-2gis webhook contract documented where it's created in n8n.
-async function run2GisDiscovery() {
-  const location = document.getElementById('disc-location').value.trim();
-  const brand    = document.getElementById('disc-brand').value.trim();
-  const category = document.getElementById('disc-category').value.trim();
-  const limit    = parseInt(document.getElementById('disc-limit').value) || 20;
+// Shared engine for the Google Maps and 2GIS windows — same request/response contract
+// ({query,location,brand,category,limit} in, {contacts:[...]} out), just a different n8n
+// webhook + Apify actor behind each. Kaspi is different enough (async collector job, its own
+// prospects table) that it keeps its own runKaspiDiscovery below.
+async function runDiscovery(source) {
+  if (source === 'kaspi') { await runKaspiDiscovery(); return; }
+  const cfg = DISC_CFG[source];
+  const location = document.getElementById(`disc-location-${source}`).value.trim();
+  const brand    = document.getElementById(`disc-brand-${source}`).value.trim();
+  const category = document.getElementById(`disc-category-${source}`).value.trim();
+  const limit    = parseInt(document.getElementById(`disc-limit-${source}`).value) || 20;
+  const type     = source === 'maps' ? S.disc.maps.bizType : '';
 
   if (!location) { showToast('Enter a location to search', 'error'); return; }
   if (!brand && !category) { showToast('Enter a brand or product category', 'error'); return; }
 
-  const btn = document.getElementById('disc-run-btn');
-  const icon = document.getElementById('disc-run-icon');
-  const label = document.getElementById('disc-run-label');
+  const btn   = document.getElementById(`disc-run-btn-${source}`);
+  const icon  = document.getElementById(`disc-run-icon-${source}`);
+  const label = document.getElementById(`disc-run-label-${source}`);
   btn.disabled = true; icon.classList.add('spin'); label.textContent = 'Searching…';
 
-  const query = [brand, category, location].filter(Boolean).join(' ');
-  document.getElementById('disc-results-body').innerHTML = `
+  const parts = [brand, category, type, location].filter(Boolean);
+  const query = parts.join(' ');
+
+  document.getElementById(`disc-results-body-${source}`).innerHTML = `
     <div style="padding:40px;text-align:center;">
       <div class="ai-thinking" style="justify-content:center;display:inline-flex;">
         <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
-        <span style="margin-left:8px;color:var(--text2);font-size:12px;">Searching 2GIS for "<strong>${query}</strong>"…</span>
+        <span style="margin-left:8px;color:var(--text2);font-size:12px;">Scanning ${cfg.scanLabel} for "<strong>${query}</strong>"…</span>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:10px;">Apify is crawling — this takes 20–60 seconds</div>
     </div>`;
-  document.getElementById('disc-results-title').textContent = 'Searching…';
+  document.getElementById(`disc-results-title-${source}`).textContent = 'Searching…';
 
   try {
-    const d = await api('whizz-discover-2gis', 'POST', { query, location, brand, category, limit });
-    const contacts = (d.contacts || d.items || (Array.isArray(d) ? d : [])).map(c => ({ __source: '2gis', ...c }));
-    S.discoveredContacts = contacts;
-    S.selectedDiscContacts = new Set();
-    renderDiscoveryResults(S.discoveredContacts);
-    if (contacts.length) showToast(`Found ${contacts.length} businesses via 2GIS`, 'success');
-    else showToast('No results — try a broader search or a different location', 'info');
-  } catch (e) {
-    document.getElementById('disc-results-body').innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>whizz-discover-2gis</strong> webhook is active in n8n.</div>`;
-    document.getElementById('disc-results-title').textContent = 'Results';
+    const d = await api(cfg.endpoint, 'POST', { query, location, brand, category, type, limit });
+    const contacts = (d.contacts || d.items || (Array.isArray(d) ? d : [])).map(c => ({ __source: source, __searchLocation: location, ...c }));
+    S.disc[source].contacts = contacts;
+    S.disc[source].selected = new Set();
+    renderDiscoveryResults(source);
+    if (contacts.length) showToast(`Found ${contacts.length} contacts via ${cfg.label}`, 'success');
+    else showToast('No results — try broader filters', 'info');
+  } catch(e) {
+    document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n.</div>`;
+    document.getElementById(`disc-results-title-${source}`).textContent = 'Results';
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
@@ -6699,15 +6784,16 @@ async function pollKaspiResults(brand, tries = 34, delayMs = 5000) {
 }
 
 async function runKaspiDiscovery() {
-  const brand = document.getElementById('disc-brand').value.trim();
+  const source = 'kaspi';
+  const brand = document.getElementById('disc-brand-kaspi').value.trim();
   if (!brand) { showToast('Enter a brand to search, e.g. JBL', 'error'); return; }
 
-  const btn = document.getElementById('disc-run-btn');
-  const icon = document.getElementById('disc-run-icon');
-  const label = document.getElementById('disc-run-label');
+  const btn = document.getElementById('disc-run-btn-kaspi');
+  const icon = document.getElementById('disc-run-icon-kaspi');
+  const label = document.getElementById('disc-run-label-kaspi');
   btn.disabled = true; icon.classList.add('spin'); label.textContent = 'Searching…';
 
-  document.getElementById('disc-results-body').innerHTML = `
+  document.getElementById('disc-results-body-kaspi').innerHTML = `
     <div style="padding:40px;text-align:center;">
       <div class="ai-thinking" style="justify-content:center;display:inline-flex;">
         <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
@@ -6715,38 +6801,41 @@ async function runKaspiDiscovery() {
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:10px;">This is a deep crawl and can take a minute or two</div>
     </div>`;
-  document.getElementById('disc-results-title').textContent = 'Searching…';
+  document.getElementById('disc-results-title-kaspi').textContent = 'Searching…';
 
   try {
     const run = await leadApi('/api/lead-intelligence/run/kaspi', { method: 'POST', body: JSON.stringify({ brands: [brand] }) });
     if (run.status === 'verification_required') {
-      document.getElementById('disc-results-body').innerHTML = `<div class="disc-empty">Kaspi.kz needs verification — open Lead Intelligence → Directory Sources to resolve it, then search again.</div>`;
-      document.getElementById('disc-results-title').textContent = 'Results';
+      document.getElementById('disc-results-body-kaspi').innerHTML = `<div class="disc-empty">Kaspi.kz needs verification — open Lead Intelligence → Directory Sources to resolve it, then search again.</div>`;
+      document.getElementById('disc-results-title-kaspi').textContent = 'Results';
     } else {
       const { contacts, stillSyncing } = await pollKaspiResults(brand);
-      S.discoveredContacts = contacts;
-      S.selectedDiscContacts = new Set();
-      renderDiscoveryResults(S.discoveredContacts);
+      S.disc.kaspi.contacts = contacts;
+      S.disc.kaspi.selected = new Set();
+      renderDiscoveryResults(source);
       if (contacts.length) showToast(`Found ${contacts.length} Kaspi.kz sellers for "${brand}"`, 'success');
       else if (stillSyncing) showToast('Still crawling — it\'s a deep search, give it a few more minutes then hit Discover again (safe to retry, won\'t start a duplicate run)', 'info');
       else showToast(`No Kaspi.kz sellers found for "${brand}"`, 'info');
     }
   } catch (e) {
-    document.getElementById('disc-results-body').innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${e.message || 'Kaspi search failed'}</div>`;
-    document.getElementById('disc-results-title').textContent = 'Results';
+    document.getElementById('disc-results-body-kaspi').innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${e.message || 'Kaspi search failed'}</div>`;
+    document.getElementById('disc-results-title-kaspi').textContent = 'Results';
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
 
-function renderDiscoveryResults(contacts) {
-  const body    = document.getElementById('disc-results-body');
-  const title   = document.getElementById('disc-results-title');
-  const actions = document.getElementById('disc-actions');
+function renderDiscoveryResults(source) {
+  const contacts = (S.disc[source] && S.disc[source].contacts) || [];
+  const body    = document.getElementById(`disc-results-body-${source}`);
+  const title   = document.getElementById(`disc-results-title-${source}`);
+  const actions = document.getElementById(`disc-actions-${source}`);
+  if (!body) return;
 
-  if (!contacts || !contacts.length) {
+  if (!contacts.length) {
     title.textContent = 'Results';
     if (actions) actions.style.display = 'none';
     body.innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>Set your filters and click <strong>Discover</strong>.</div>`;
+    updateDiscSelCount(source);
     return;
   }
 
@@ -6765,7 +6854,7 @@ function renderDiscoveryResults(contacts) {
     <div class="disc-stat" style="color:var(--blue)">✉ <strong>${withEmail}</strong> email</div>
     <div class="disc-stat">🌐 <strong>${withWebsite}</strong> website</div>
     <div class="disc-stat" style="color:var(--amber)">★ <strong>${avgRating}</strong> avg</div>
-    <div class="disc-stat" style="margin-left:auto;color:var(--accent);" id="disc-sel-count">0 selected</div>
+    <div class="disc-stat" style="margin-left:auto;color:var(--accent);" id="disc-sel-count-${source}">0 selected</div>
   </div>`;
 
   const cardsHtml = contacts.map((c, i) => {
@@ -6780,7 +6869,7 @@ function renderDiscoveryResults(contacts) {
     const stars    = rating ? '★ ' + Number(rating).toFixed(1) : '';
     const mapsUrl  = c.url || '';
 
-    return `<div class="contact-card" id="dcard-${i}" onclick="toggleDiscContact(${i},this)">
+    return `<div class="contact-card" id="dcard-${source}-${i}" onclick="toggleDiscContact('${source}',${i},this)">
       <div class="cc-header">
         <div class="cc-avatar">${initials}</div>
         <div style="flex:1;min-width:0;">
@@ -6798,78 +6887,94 @@ function renderDiscoveryResults(contacts) {
       ${c.whatsapp?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--green);min-width:26px;">WA</span><a href="https://wa.me/${c.whatsapp.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()">${c.whatsapp}</a></div>`:''}
       ${c.telegram?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--blue);min-width:26px;">TG</span><a href="https://t.me/${c.telegram.replace(/^@/,'')}" target="_blank" onclick="event.stopPropagation()">${c.telegram}</a></div>`:''}
       <div class="cc-footer">
-        ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${c.__source==='kaspi'?'Seller Page ↗':c.__source==='2gis'?'2GIS ↗':'Maps ↗'}</a>`:''}
-        <button class="t-btn btn-primary" style="padding:4px 9px;font-size:10px;flex:1;justify-content:center;" onclick="event.stopPropagation();saveOneContact(${i})">+ Add to Leads</button>
+        ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${source==='kaspi'?'Seller Page ↗':source==='gis2'?'2GIS ↗':'Maps ↗'}</a>`:''}
+        <button class="t-btn btn-primary" style="padding:4px 9px;font-size:10px;flex:1;justify-content:center;" onclick="event.stopPropagation();saveOneContact('${source}',${i})">+ Add to Leads</button>
       </div>
     </div>`;
   }).join('');
 
   body.innerHTML = statsHtml + `<div class="contact-grid">${cardsHtml}</div>`;
-  updateDiscSelCount();
+  updateDiscSelCount(source);
 }
 
-function toggleDiscContact(i, el) {
-  if (S.selectedDiscContacts.has(i)) S.selectedDiscContacts.delete(i);
-  else S.selectedDiscContacts.add(i);
-  el.classList.toggle('selected', S.selectedDiscContacts.has(i));
-  updateDiscSelCount();
+function toggleDiscContact(source, i, el) {
+  const sel = S.disc[source].selected;
+  if (sel.has(i)) sel.delete(i); else sel.add(i);
+  el.classList.toggle('selected', sel.has(i));
+  updateDiscSelCount(source);
 }
 
-function selectAllDisc() {
-  const all = S.discoveredContacts.length;
-  if (S.selectedDiscContacts.size === all) {
-    S.selectedDiscContacts.clear();
-    document.querySelectorAll('.contact-card').forEach(c=>c.classList.remove('selected'));
+function selectAllDisc(source) {
+  const win = S.disc[source];
+  const scope = document.getElementById(`discwin-${source}`);
+  if (win.selected.size === win.contacts.length) {
+    win.selected.clear();
+    scope.querySelectorAll('.contact-card').forEach(c=>c.classList.remove('selected'));
   } else {
-    S.selectedDiscContacts = new Set(S.discoveredContacts.map((_,i)=>i));
-    document.querySelectorAll('.contact-card').forEach(c=>c.classList.add('selected'));
+    win.selected = new Set(win.contacts.map((_,i)=>i));
+    scope.querySelectorAll('.contact-card').forEach(c=>c.classList.add('selected'));
   }
-  updateDiscSelCount();
+  updateDiscSelCount(source);
 }
 
-function updateDiscSelCount() {
-  const el = document.getElementById('disc-sel-count');
-  if (el) el.textContent = `${S.selectedDiscContacts.size} selected`;
+function updateDiscSelCount(source) {
+  const win = S.disc[source];
+  const el = document.getElementById(`disc-sel-count-${source}`);
+  if (el) el.textContent = `${win.selected.size} selected`;
+  const tabcount = document.getElementById(`disc-tabcount-${source}`);
+  if (tabcount) tabcount.textContent = win.contacts.length ? ` (${win.contacts.length})` : '';
+  const total = Object.values(S.disc).reduce((n,w)=>n+w.contacts.length,0);
   const badge = document.getElementById('disc-badge');
-  if (S.discoveredContacts && S.discoveredContacts.length) { badge.textContent = S.discoveredContacts.length; badge.style.display='inline'; }
-  else badge.style.display = 'none';
+  if (badge) { if (total) { badge.textContent = total; badge.style.display='inline'; } else badge.style.display = 'none'; }
 }
 
-async function saveOneContact(i) {
-  const c = S.discoveredContacts[i];
+async function saveOneContact(source, i) {
+  const c = S.disc[source].contacts[i];
   if (!c) return;
   try {
     if (c.__prospectId) {
       const d = await leadApi(`/api/lead-intelligence/prospects/${c.__prospectId}/promote`, { method: 'POST', body: '{}' });
       showToast(d.merged ? 'Matched an existing CRM contact' : `${c.name || 'Contact'} added to Leads`, 'success');
     } else {
-      await api('whizz-save-contact','POST',{contacts:[formatContactForLeads(c)]});
+      await api('whizz-save-contact','POST',{contacts:[formatContactForLeads(source,c)]});
       showToast(`${c.name||c.title||'Contact'} added to Leads`,'success');
     }
   } catch(e){ showToast(e.message || 'Save failed','error'); }
 }
 
-async function saveSelectedContacts() {
-  const selected = [...S.selectedDiscContacts].map(i=>S.discoveredContacts[i]).filter(Boolean);
+async function saveSelectedContacts(source) {
+  const win = S.disc[source];
+  const selected = [...win.selected].map(i=>win.contacts[i]).filter(Boolean);
   if (!selected.length) { showToast('Select contacts first (click cards)','error'); return; }
-  const btn = document.getElementById('disc-save-btn');
+  const btn = document.getElementById(`disc-save-btn-${source}`);
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
     const promoted = selected.filter(c => c.__prospectId);
     const generic = selected.filter(c => !c.__prospectId);
     if (promoted.length) await Promise.all(promoted.map(c => leadApi(`/api/lead-intelligence/prospects/${c.__prospectId}/promote`, { method: 'POST', body: '{}' })));
-    if (generic.length) await api('whizz-save-contact','POST',{contacts:generic.map(formatContactForLeads)});
-    showToast(`${selected.length} contact${selected.length>1?'s':''} added to Leads`,'success');
-    addNotif(`${selected.length} discovered contacts saved to leads`);
-    S.selectedDiscContacts.clear();
-    document.querySelectorAll('.contact-card').forEach(c=>c.classList.remove('selected'));
-    updateDiscSelCount();
+    let saveResult = null;
+    if (generic.length) saveResult = await api('whizz-save-contact','POST',{contacts:generic.map(c=>formatContactForLeads(source,c))});
+    const savedMsg = saveResult && (saveResult.updated || saveResult.duplicates)
+      ? `${saveResult.inserted||0} new, ${saveResult.updated||0} refreshed, ${saveResult.duplicates||0} already in Leads`
+      : `${selected.length} contact${selected.length>1?'s':''} added to Leads`;
+    showToast(savedMsg,'success');
+    addNotif(`${selected.length} discovered contacts saved to leads (${DISC_CFG[source].label})`);
+    win.selected.clear();
+    document.getElementById(`discwin-${source}`).querySelectorAll('.contact-card').forEach(c=>c.classList.remove('selected'));
+    updateDiscSelCount(source);
   } catch(e){ showToast(e.message || 'Save failed','error'); }
   btn.disabled = false;
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/><circle cx="16" cy="4" r="3"/></svg> Add Selected to Leads';
 }
 
-function formatContactForLeads(c) {
+// Tags every saved lead with the right platform and a best-effort country, so the Lead
+// Intelligence platform/country breakdown doesn't lump every discovered contact under
+// "Unknown" the way it silently did before — and carries website/rating/mapsUrl and a stable
+// sourceId through so the backend can refresh an already-imported listing instead of just
+// dropping it as a duplicate.
+function formatContactForLeads(source, c) {
+  const platform = (DISC_CFG[source] && DISC_CFG[source].platform) || (c.__source === 'kaspi' ? 'Kaspi.kz' : '');
+  const country = c.countryCode || c.country || c.__searchLocation || '';
   return {
     contactName: c.name||c.title||'',
     company: c.name||c.title||'',
@@ -6878,19 +6983,23 @@ function formatContactForLeads(c) {
     website: c.website||'',
     address: [c.address||'',c.city||'',c.countryCode||''].filter(Boolean).join(', '),
     category: c.categoryName||c.category||'',
-    source: 'Apify Discovery',
+    source: platform ? `${platform} Discovery` : 'Apify Discovery',
+    platform,
+    country,
     rating: c.totalScore||c.rating||'',
-    mapsUrl: c.url||''
+    mapsUrl: c.url||'',
+    sourceId: c.sourceId||c.placeId||c.cid||c.fid||c.id||''
   };
 }
 
-function exportDiscCSV() {
-  if (!S.discoveredContacts.length) { showToast('No contacts to export','error'); return; }
-  const rows = S.discoveredContacts.map(c => {
-    const f = formatContactForLeads(c);
+function exportDiscCSV(source) {
+  const contacts = S.disc[source].contacts;
+  if (!contacts.length) { showToast('No contacts to export','error'); return; }
+  const rows = contacts.map(c => {
+    const f = formatContactForLeads(source, c);
     return `"${f.contactName}","${f.company}","${f.phone}","${f.email}","${f.website}","${f.address}","${f.category}","${f.rating}"`;
   });
-  downloadCSV(['Name,Company,Phone,Email,Website,Address,Category,Rating',...rows].join('\n'),'whizz_discovered_contacts.csv');
+  downloadCSV(['Name,Company,Phone,Email,Website,Address,Category,Rating',...rows].join('\n'),`whizz_discovered_contacts_${source}.csv`);
   showToast('Export complete!','success');
 }
 

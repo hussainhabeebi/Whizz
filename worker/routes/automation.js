@@ -46,27 +46,50 @@ async function saveOwnedContacts(request, env, user) {
   const body = await request.json().catch(() => ({}));
   const contacts = Array.isArray(body.contacts) ? body.contacts : [];
   if (!contacts.length) return Response.json({ error: 'At least one contact is required.' }, { status: 400 });
-  let inserted = 0, duplicates = 0;
+  let inserted = 0, updated = 0, duplicates = 0;
   for (const raw of contacts.slice(0, 1000)) {
     const contact = raw || {};
     const phone = String(contact.phone || '').trim();
     const email = String(contact.email || '').trim().toLowerCase();
+    const platform = String(contact.platform || '').trim();
+    const sourceId = String(contact.sourceId || '').trim();
+    const website = String(contact.website || '').trim();
+    const address = String(contact.address || '').trim();
+    const mapsUrl = String(contact.mapsUrl || '').trim();
+    const rating = Number(contact.rating) || 0;
+    const category = String(contact.category || '');
+
+    // Re-discovering the same listing (same platform + external id) refreshes it instead of
+    // being silently dropped as a phone/email duplicate — keeps rating/website/category current.
+    const existing = sourceId && platform
+      ? await env.DB.prepare('SELECT id FROM contacts WHERE platform=? AND sourceId=? LIMIT 1').bind(platform, sourceId).first()
+      : null;
+    if (existing) {
+      await env.DB.prepare(`UPDATE contacts SET website=?,address=?,rating=?,mapsUrl=?,
+        category=COALESCE(NULLIF(?,''),category),phone=COALESCE(NULLIF(?,''),phone),email=COALESCE(NULLIF(?,''),email),
+        updatedAt=CURRENT_TIMESTAMP WHERE id=?`)
+        .bind(website, address, rating, mapsUrl, category, phone, email, existing.id).run();
+      updated++; continue;
+    }
+
     const duplicate = phone
       ? await env.DB.prepare("SELECT id FROM contacts WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','')=REPLACE(REPLACE(REPLACE(?,'+',''),' ',''),'-','') LIMIT 1").bind(phone).first()
       : email ? await env.DB.prepare('SELECT id FROM contacts WHERE LOWER(email)=LOWER(?) LIMIT 1').bind(email).first() : null;
     if (duplicate) { duplicates++; continue; }
     await env.DB.prepare(`INSERT INTO contacts
       (contactName,company,phone,email,category,source,platform,country,brand,productInterest,
+       website,address,rating,mapsUrl,sourceId,
        ownerEmail,teamId,createdByEmail,leadScore,lastContactedAt,nextFollowUpAt,dealExpectedAt,createdAt,updatedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
       .bind(String(contact.contactName || contact.name || contact.company || ''), String(contact.company || contact.contactName || contact.name || ''),
-        phone, email, String(contact.category || ''), String(contact.source || ''), String(contact.platform || ''),
+        phone, email, category, String(contact.source || ''), platform,
         String(contact.country || ''), String(contact.brand || ''), String(contact.productInterest || ''),
+        website, address, rating, mapsUrl, sourceId,
         user.email, user.teamId || 'sales', user.email, scoreLead(contact), contact.lastContactedAt || null,
         contact.nextFollowUpAt || null, contact.dealExpectedAt || null).run();
     inserted++;
   }
-  return Response.json({ success: true, inserted, duplicates, ownerEmail: user.email, teamId: user.teamId || 'sales' });
+  return Response.json({ success: true, inserted, updated, duplicates, ownerEmail: user.email, teamId: user.teamId || 'sales' });
 }
 
 function _normStr(s) { return (s || '').trim().replace(/\s+/g, ' '); }
