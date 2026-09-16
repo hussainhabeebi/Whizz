@@ -100,13 +100,31 @@ function sourceConfig(source) {
   return cfg;
 }
 
+// A failed callback here is invisible everywhere else — Whizz's directory_accounts row just
+// stays "syncing" forever with no lastError, exactly as if the crawl were still running, because
+// the crawl's outcome never made it back. This used to swallow BOTH a missing callbackUrl and a
+// non-2xx response (fetch() only rejects on network-level failure, never on HTTP status) with no
+// log at all — logging both explicitly so a misconfigured LEAD_INTELLIGENCE_CALLBACK_URL, a
+// LEAD_COLLECTOR_TOKEN mismatch (401), or something in front of the Worker intercepting the
+// request (a Cloudflare Access policy protecting the whole domain would return a redirect/403
+// before ever reaching the Worker's own token check) shows up here instead of nowhere.
 async function callback(url, payload) {
-  if (!url) return;
-  await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}) },
-    body: JSON.stringify(payload)
-  }).catch(() => {});
+  if (!url) { console.error(`[callback] No callbackUrl provided for source=${payload.source} — check LEAD_INTELLIGENCE_CALLBACK_URL on the Worker.`); return; }
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}) },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error(`[callback] ${url} responded ${res.status} for source=${payload.source} status=${payload.status}: ${text.slice(0, 300)}`);
+    } else {
+      console.log(`[callback] Delivered source=${payload.source} status=${payload.status} (${(payload.items || []).length} items) to ${url}`);
+    }
+  } catch (error) {
+    console.error(`[callback] Request to ${url} failed for source=${payload.source}: ${error.message}`);
+  }
 }
 
 function extractWhatsapp(hrefs, text) {
