@@ -1,0 +1,113 @@
+{
+  "name": "whizz-discover-google-maps",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Setup checklist\n1. This replaces whatever `whizz-discover-contacts` webhook currently exists in n8n — Whizz's Contact Discovery UI already calls that exact path, so import this workflow, point it at your Apify credential below, then deactivate/delete the old one so there's only one webhook owning `whizz-discover-contacts`.\n2. Open **Call Apify Google Maps Actor** → Authentication is Predefined Credential Type → Apify API. Select/create your Apify credential there (no token pasted in code).\n3. Actor ID in **Build Apify Request** is `compass~crawler-google-places` (apify.com/compass/crawler-google-places) — the standard, widely-documented Google Maps scraper actor (searchStringsArray/locationQuery/maxCrawledPlacesPerSearch input, and title/phone/website/address/totalScore/placeId/cid output). Unlike the 2GIS actor this schema is well established, so field names below should need little to no adjustment — still worth a test run before relying on it.\n4. **Map to Whizz Contacts** captures `placeId`/`cid` as a stable `sourceId` and `countryCode`/`city` — Whizz uses `sourceId`+platform to refresh an already-imported listing (rating, phone, website) instead of just dropping it as a duplicate on re-search, and uses the country signal so leads land under the right country in Lead Intelligence instead of \"Unknown\".\n5. `maxCrawledPlacesPerSearch` allows up to 100 per run — raise `APIFY_MAPS_HARD_CAP` below if your Apify plan can take more.\n\nWhizz calls this at POST https://n8n.aiingo.com/webhook/whizz-discover-contacts with body {query, location, brand, category, type, limit} and expects back {\"contacts\":[{name,phone,email,website,address,totalScore,url,sourceId,countryCode,city,categoryName}]}.",
+        "height": 460,
+        "width": 480
+      },
+      "id": "c3d5e7f9-0010-0010-0010-000000000000",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 520]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whizz-discover-contacts",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c3d5e7f9-0010-0010-0010-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-discover-contacts"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Build the Apify actor call from Whizz's search request ──\n// compass/crawler-google-places is the standard Google Maps scraper actor on Apify — its\n// searchStringsArray/locationQuery/maxCrawledPlacesPerSearch input shape is well documented,\n// unlike the 2GIS actor (see the sibling whizz-discover-2gis workflow's notes on that one).\n// No API token here — Call Apify Google Maps Actor authenticates via n8n's native Apify\n// credential (Authentication: Predefined Credential Type → Apify API) instead of a token in code.\nconst body = $('Webhook').first().json.body || {};\nconst brand = (body.brand || '').trim();\nconst category = (body.category || '').trim();\nconst type = (body.type || '').trim();\nconst location = (body.location || '').trim();\nconst query = (body.query || [brand, category, type].filter(Boolean).join(' ')).trim();\n\n// A single run can crawl deep into Google Maps' result list — 100 gives real breadth on a\n// broad category/city without over-running Apify usage on every click of \"Discover\".\nconst APIFY_MAPS_HARD_CAP = 100;\nconst limit = Math.max(1, Math.min(Number(body.limit) || 20, APIFY_MAPS_HARD_CAP));\n\nconst ACTOR_ID = 'compass~crawler-google-places';\n\nreturn [{\n  json: {\n    actorId: ACTOR_ID,\n    actorInput: {\n      searchStringsArray: [query],\n      locationQuery: location,\n      maxCrawledPlacesPerSearch: limit,\n      language: 'en',\n      skipClosedPlaces: true\n    }\n  }\n}];"
+      },
+      "id": "c3d5e7f9-0010-0010-0010-000000000002",
+      "name": "Build Apify Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/acts/{{ $json.actorId }}/run-sync-get-dataset-items?timeout=120",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "apifyApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.actorInput) }}",
+        "options": { "response": { "response": { "neverError": true } }, "timeout": 130000 }
+      },
+      "id": "c3d5e7f9-0010-0010-0010-000000000003",
+      "name": "Call Apify Google Maps Actor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "credentials": {
+        "apifyApi": {
+          "id": "YOUR_APIFY_CREDENTIAL_ID",
+          "name": "Apify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Normalize the Apify dataset into what Whizz's Contact Discovery UI expects ──\nconst items = $input.all();\nlet rawItems = [];\nlet apiError = null;\n\nfor (const item of items) {\n  const j = item.json;\n  if (j && j.error) { apiError = typeof j.error === 'string' ? j.error : (j.error.message || JSON.stringify(j.error)); continue; }\n  if (Array.isArray(j)) rawItems.push(...j);\n  else if (j) rawItems.push(j);\n}\n\nif (apiError) {\n  return [{ json: { contacts: [], error: `Google Maps/Apify error: ${apiError}` } }];\n}\n\n// dedupe within a single run — the actor can repeat a place across paginated result pages\nconst seen = new Set();\nconst contacts = [];\nfor (const it of rawItems) {\n  const name = it.title || it.name || '';\n  if (!name) continue;\n  // placeId/cid is a stable per-place id from Google itself — the strongest possible key so\n  // Whizz can tell \"already imported, refresh it\" from \"brand new\" on repeated searches\n  const sourceId = String(it.placeId || it.cid || it.fid || it.url || '').trim();\n  const dedupeKey = sourceId || name.toLowerCase();\n  if (seen.has(dedupeKey)) continue;\n  seen.add(dedupeKey);\n\n  contacts.push({\n    name,\n    phone: it.phone || it.phoneUnformatted || (Array.isArray(it.phones) ? it.phones[0] : '') || '',\n    email: it.email || (Array.isArray(it.emails) ? it.emails[0] : '') || '',\n    website: it.website || it.domain || '',\n    address: it.address || it.fullAddress || it.neighborhood || '',\n    city: it.city || it.neighborhood || '',\n    countryCode: it.countryCode || it.country || '',\n    categoryName: it.categoryName || (Array.isArray(it.categories) ? it.categories[0] : '') || '',\n    totalScore: it.totalScore || it.rating || 0,\n    reviewsCount: it.reviewsCount || it.reviewsCount === 0 ? it.reviewsCount : (it.userRatingsTotal || 0),\n    url: it.url || it.googleMapsUrl || '',\n    sourceId\n  });\n}\n\nreturn [{ json: { contacts } }];"
+      },
+      "id": "c3d5e7f9-0010-0010-0010-000000000004",
+      "name": "Map to Whizz Contacts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 502 : 200 }}"
+        }
+      },
+      "id": "c3d5e7f9-0010-0010-0010-000000000005",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Build Apify Request", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Apify Request": {
+      "main": [
+        [{ "node": "Call Apify Google Maps Actor", "type": "main", "index": 0 }]
+      ]
+    },
+    "Call Apify Google Maps Actor": {
+      "main": [
+        [{ "node": "Map to Whizz Contacts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Map to Whizz Contacts": {
+      "main": [
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}

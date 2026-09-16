@@ -1,0 +1,7 @@
+ALTER TABLE contacts ADD COLUMN website TEXT NOT NULL DEFAULT '';
+ALTER TABLE contacts ADD COLUMN address TEXT NOT NULL DEFAULT '';
+ALTER TABLE contacts ADD COLUMN rating REAL NOT NULL DEFAULT 0;
+ALTER TABLE contacts ADD COLUMN mapsUrl TEXT NOT NULL DEFAULT '';
+ALTER TABLE contacts ADD COLUMN sourceId TEXT NOT NULL DEFAULT '';
+
+CREATE INDEX IF NOT EXISTS idx_contacts_platform_source_id ON contacts(platform, sourceId);
