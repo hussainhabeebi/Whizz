@@ -2374,16 +2374,14 @@ const USERS_DEFAULT = {
   'waqas@whizz.com':      { name: 'Waqas',         role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Waqas'] }
 };
 let USERS = {};
-async function usersRequest(path='', options={}) {
-  const response = await fetch('/api/users' + path, { credentials:'include', headers:{'content-type':'application/json',...(options.headers||{})}, ...options });
-  const data = await response.json().catch(()=>({}));
-  if(!response.ok) throw new Error(data.error||`User request failed (${response.status})`);
-  return data;
+const USERS_KEY = 'whizz_users_v1';
+function loadUsers(){
+  let raw=null;
+  try{ raw=localStorage.getItem(USERS_KEY); }catch(e){}
+  try{ USERS=raw?JSON.parse(raw):{...USERS_DEFAULT}; }catch(e){ USERS={...USERS_DEFAULT}; }
+  if(!raw)saveUsers();
 }
-async function loadUsersFromServer(){
-  const data=await usersRequest();
-  USERS=Object.fromEntries((data.users||[]).map(user=>[user.email,user]));
-}
+function saveUsers(){ try{localStorage.setItem(USERS_KEY,JSON.stringify(USERS));}catch(e){} }
 
 let S = {
   page: 'dashboard', convStatus: 'all',
@@ -2467,6 +2465,7 @@ function initApp(session) {
   const navIntegrations = document.getElementById('nav-integrations');
   if (navIntegrations) navIntegrations.style.display = session.role === 'Administrator' ? 'flex' : 'none';
   applyRoleExperience(session);
+  loadUsers();
   loadCache(); loadOnboarding(); loadNotifications();
   startAutoSync();
   startScheduler();
@@ -3199,7 +3198,7 @@ function navigate(page, el) {
   if(page==='stock'&&S.cache.stock){renderStockPage();hideBanner('stock');}
   if(page==='suggestions'){refreshSuggestions();}
   if(page==='discovery'){Object.keys(S.disc).forEach(renderDiscoveryResults);}
-  if(page==='users'){renderUsersPage();}
+  if(page==='users'){loadUsers();renderUsersPage();}
   if(page==='pipeline'){renderPipelinePage();}
   if(page==='history'){renderScheduledList();}
   if(page==='tasks'){renderTasksList();}
@@ -3211,7 +3210,6 @@ function navigate(page, el) {
   if(page==='enquiries'){refreshEnquiries().catch(()=>{});}
   if(page==='reports'){refreshReportsPage().catch(()=>{});}
   if(page==='stock'){refreshStock().catch(()=>{});}
-  if(page==='users'){loadUsersFromServer().then(()=>renderUsersPage()).catch(()=>{});}
   if(page==='integrations'){loadIntegrationsStatus();}
   if(page==='reliability'){runSystemHealthChecks();}
 }
@@ -6190,8 +6188,6 @@ function renderUsersPage(){
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit
           </button>
-          ${!isMe?`<button class="t-btn btn-ghost" style="padding:5px 10px;font-size:11px;" onclick="resetUserAccess('${esc(email)}')" title="End the user's current sign-in session">Reset sign-in</button>`:''}
-          ${!isMe&&!u.accessPolicySynced?`<button class="t-btn btn-ghost" style="padding:5px 10px;font-size:11px;color:var(--amber);" onclick="syncUserAccess('${esc(email)}')" title="Create this user's Cloudflare Access allow policy">Sync Access</button>`:''}
           ${!isMe?`<button class="t-btn" style="padding:5px 10px;font-size:11px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteUser('${esc(email)}')" title="Delete user">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             Delete
@@ -6235,7 +6231,7 @@ function openAddUserModal(){
   document.getElementById('modal-add-user').classList.add('open');
 }
 
-async function submitAddUser(){
+function submitAddUser(){
   const name=document.getElementById('au-name').value.trim();
   const email=document.getElementById('au-email').value.trim().toLowerCase();
   const role=document.getElementById('au-role').value;
@@ -6245,12 +6241,10 @@ async function submitAddUser(){
   if(!name||!email){showToast('Name and email are required','error');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Please enter a valid email address','error');return;}
   if(USERS[email]){showToast('A user with this email already exists','error');return;}
-  try{
-    const result=await usersRequest('',{method:'POST',body:JSON.stringify({email,name,role,teamId,allowedBrands,allowedPlatforms})});
-    USERS[email]=result.user;
-    showToast(result.access&&result.access.synced?`User "${name}" and Access policy created.`:`User added, but Access policy is pending: ${result.access?.reason||'not configured'}`,result.access&&result.access.synced?'success':'error');
-    closeModal('modal-add-user'); renderUsersPage();
-  }catch(error){showToast(error.message,'error');}
+  USERS[email]={name,role,teamId,allowedBrands,allowedPlatforms};
+  saveUsers();
+  showToast(`User "${name}" added. Remember to also add them to the Cloudflare Access allow policy so they can sign in.`,'success');
+  closeModal('modal-add-user'); renderUsersPage();
 }
 
 function openEditUserModal(email){
@@ -6266,7 +6260,7 @@ function openEditUserModal(email){
   document.getElementById('modal-edit-user').classList.add('open');
 }
 
-async function submitEditUser(){
+function submitEditUser(){
   const email=document.getElementById('eu-email-key').value;
   const u=USERS[email];
   if(!u){showToast('User not found','error');return;}
@@ -6276,9 +6270,8 @@ async function submitEditUser(){
   const allowedPlatforms=getSelectedChips('eu-platform-chips');
   const allowedBrands=getSelectedChips('eu-brand-chips');
   if(!name){showToast('Name is required','error');return;}
-  try{await usersRequest('/'+encodeURIComponent(email),{method:'PUT',body:JSON.stringify({name,role,teamId,allowedPlatforms,allowedBrands})});}
-  catch(error){showToast(error.message,'error');return;}
   u.name=name; u.role=role; u.teamId=teamId; u.allowedPlatforms=allowedPlatforms; u.allowedBrands=allowedBrands;
+  saveUsers();
   showToast(`User "${name}" updated successfully!`,'success');
   closeModal('modal-edit-user');
   renderUsersPage();
@@ -6286,35 +6279,13 @@ async function submitEditUser(){
   if(sess){const se=JSON.parse(sess);if(se.email===email){se.name=name;se.role=role;localStorage.setItem('whizz_session',JSON.stringify(se));document.getElementById('u-name').textContent=name;document.getElementById('u-role').textContent=role;const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase();document.getElementById('u-avatar').textContent=initials;}}
 }
 
-async function deleteUser(email){
+function deleteUser(email){
   const u=USERS[email];
   if(!u)return;
   if(!confirm(`Delete "${u.name}" (${email})?\n\nThis cannot be undone.`))return;
-  try{
-    await usersRequest('/'+encodeURIComponent(email),{method:'DELETE'});
-    delete USERS[email];
-    showToast(`User "${u.name}" deleted successfully.`,'success'); renderUsersPage();
-  }catch(error){showToast(error.message,'error');}
-}
-
-async function resetUserAccess(email){
-  const u=USERS[email];
-  if(!u||!confirm(`Reset sign-in for ${u.name}?\n\nTheir current session will end. Cloudflare Access will require a fresh OTP.`))return;
-  try{
-    const result=await usersRequest('/'+encodeURIComponent(email)+'/reset-access',{method:'POST',body:'{}'});
-    u.resetAt=result.resetAt;
-    showToast(`Sign-in reset for ${u.name}. They must use a new Cloudflare Access OTP.`,'success');
-  }catch(error){showToast(error.message,'error');}
-}
-
-async function syncUserAccess(email){
-  const u=USERS[email]; if(!u)return;
-  try{
-    await usersRequest('/'+encodeURIComponent(email)+'/sync-access',{method:'POST',body:'{}'});
-    u.accessPolicySynced=true;
-    showToast(`Cloudflare Access policy created for ${u.name}.`,'success');
-    renderUsersPage();
-  }catch(error){showToast(error.message,'error');}
+  delete USERS[email];
+  saveUsers();
+  showToast(`User "${u.name}" deleted successfully.`,'success'); renderUsersPage();
 }
 
 // ── Integrations (Brevo / WordPress) ──
