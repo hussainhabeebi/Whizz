@@ -15,7 +15,8 @@ export async function handleUpdateContact(request, env) {
   const stmt = env.DB.prepare(
     `UPDATE contacts SET
       contactName=?, company=?, phone=?, email=?, category=?, source=?,
-      platform=?, country=?, brand=?, productInterest=?, updatedAt=CURRENT_TIMESTAMP
+      platform=?, country=?, brand=?, productInterest=?,
+      telegramUsername=?, linkedin=?, updatedAt=CURRENT_TIMESTAMP
      WHERE id=? AND ${ownership}`
   );
 
@@ -30,6 +31,8 @@ export async function handleUpdateContact(request, env) {
     String(body.country || ''),
     String(body.brand || ''),
     String(body.productInterest || ''),
+    String(body.telegramUsername || '').trim().replace(/^@/, ''),
+    String(body.linkedin || '').trim(),
     id,
   ];
   if (actor.role !== 'Administrator') binds.push(ownerParam);

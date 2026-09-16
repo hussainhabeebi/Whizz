@@ -2189,6 +2189,33 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
   </div>
 </div>
 
+<!-- Enrich Telegram Modal -->
+<div class="modal-overlay" id="modal-enrich-telegram">
+  <div class="modal" style="width:min(96vw,520px);">
+    <div class="modal-head">
+      <div class="modal-title">Enrich Telegram IDs</div>
+      <button class="modal-close" onclick="closeModal('modal-enrich-telegram')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Adding Telegram (and LinkedIn) to <strong id="et-count">0</strong> selected lead(s).</div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
+        <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Auto-check from website</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;"><strong id="et-site-count">0</strong> of the selected lead(s) have a website and no Telegram yet — scans each homepage for a t.me link.</div>
+        <button class="t-btn btn-primary t-btn-sm" id="et-auto-btn" onclick="runAutoEnrichTelegram()">Auto-check websites</button>
+      </div>
+      <div>
+        <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Paste manually</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">One per line: <code>phone or email, @telegram_handle</code> — matched against the selected leads.</div>
+        <textarea class="fi" id="et-paste" style="width:100%;min-height:110px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;resize:vertical;" placeholder="+9715xxxxxxx, @megastore_kz&#10;lead@example.com, @some_handle"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-enrich-telegram')">Cancel</button>
+      <button class="t-btn btn-primary" id="et-paste-btn" onclick="applyPastedTelegramIds()">Apply Pasted IDs</button>
+    </div>
+  </div>
+</div>
+
 <!-- Export Contacts Modal -->
 <div class="modal-overlay" id="modal-export-contacts">
   <div class="modal" style="width:min(96vw,520px);">
@@ -4227,6 +4254,7 @@ function renderLeadsContactsTable(contacts){
     <div id="leads-bulk-bar" style="display:${_leadsSelectedIds.size?'flex':'none'};align-items:center;gap:10px;padding:8px 12px;margin-bottom:10px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:8px;">
       <span style="font-size:12px;font-weight:600;color:var(--text);"><span id="leads-bulk-count">${_leadsSelectedIds.size}</span> selected</span>
       <button class="t-btn btn-primary t-btn-sm" onclick="openBulkEditLeadsModal()">Bulk Edit</button>
+      <button class="t-btn btn-ghost t-btn-sm" onclick="openEnrichTelegramModal()">Enrich Telegram</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="clearLeadsSelection()">Clear selection</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;padding:8px 2px 10px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:10px;">
@@ -4531,6 +4559,76 @@ async function submitBulkEditLeads(){
   showToast(fail?`Updated ${ok} lead(s), ${fail} failed`:`Updated ${ok} lead(s)`,fail?'error':'success');
   _leadsSelectedIds.clear();
   loadLeadsContacts();
+}
+
+// ── Enrich Telegram (existing leads) ──
+function openEnrichTelegramModal(){
+  if(!_leadsSelectedIds.size){showToast('Select at least one lead first','error');return;}
+  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id));
+  const withSite=targets.filter(c=>c.website&&!c.telegramUsername);
+  document.getElementById('et-count').textContent=targets.length;
+  document.getElementById('et-site-count').textContent=withSite.length;
+  document.getElementById('et-auto-btn').disabled=!withSite.length;
+  document.getElementById('et-paste').value='';
+  document.getElementById('modal-enrich-telegram').classList.add('open');
+}
+function saveContactField(c,fields){
+  return apiFetch('/whizz-update-contact',{method:'POST',body:JSON.stringify({
+    id:c.id,contactName:c.contactName||c.company||c.name||'',company:c.company||c.contactName||c.name||'',
+    phone:c.phone||'',email:c.email||'',category:c.category||'',source:c.source||'',platform:c.platform||'',
+    country:c.country||'',brand:c.brand||'',productInterest:c.productInterest||'',
+    telegramUsername:c.telegramUsername||'',linkedin:c.linkedin||'',
+    ...fields
+  })});
+}
+async function runAutoEnrichTelegram(){
+  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id)&&c.website&&!c.telegramUsername);
+  if(!targets.length){showToast('None of the selected leads have a website to check','info');return;}
+  const btn=document.getElementById('et-auto-btn');
+  btn.disabled=true;btn.textContent='Checking…';
+  try{
+    const websites=[...new Set(targets.map(c=>c.website))];
+    const d=await leadApi('/api/lead-intelligence/enrich-social',{method:'POST',body:JSON.stringify({websites})});
+    const results=d.results||{};
+    let found=0,failed=0;
+    for(const c of targets){
+      const hit=results[c.website];
+      if(!hit||(!hit.telegram&&!hit.linkedin))continue;
+      try{
+        await saveContactField(c,{telegramUsername:hit.telegram||c.telegramUsername||'',linkedin:hit.linkedin||c.linkedin||''});
+        found++;
+      }catch(e){failed++;}
+    }
+    showToast(found?`Found and saved Telegram/LinkedIn for ${found} lead(s)${failed?`, ${failed} failed to save`:''}`:'No Telegram or LinkedIn links found on those websites','info');
+    if(found){closeModal('modal-enrich-telegram');loadLeadsContacts();}
+  }catch(e){showToast(e.message||'Telegram/LinkedIn lookup failed','error');}
+  btn.disabled=false;btn.textContent='Auto-check websites';
+}
+async function applyPastedTelegramIds(){
+  const raw=document.getElementById('et-paste').value.trim();
+  if(!raw){showToast('Paste at least one row first','error');return;}
+  const rows=raw.split('\n').map(l=>l.split(',')).filter(p=>p.length>=2);
+  if(!rows.length){showToast('Could not parse any rows — use "phone or email, telegram" per line','error');return;}
+  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id));
+  const btn=document.getElementById('et-paste-btn');
+  btn.disabled=true;btn.textContent='Applying…';
+  let ok=0,unmatched=0;
+  for(const [keyRaw,...rest] of rows){
+    const key=(keyRaw||'').trim();
+    const telegram=rest.join(',').trim();
+    if(!key||!telegram){unmatched++;continue;}
+    const normKey=normalizePhone(key);
+    const emailKey=key.toLowerCase();
+    const c=targets.find(x=>(normKey&&normalizePhone(x.phone)===normKey)||(x.email&&x.email.toLowerCase()===emailKey));
+    if(!c){unmatched++;continue;}
+    try{
+      await saveContactField(c,{telegramUsername:telegram});
+      ok++;
+    }catch(e){unmatched++;}
+  }
+  btn.disabled=false;btn.textContent='Apply Pasted IDs';
+  showToast(unmatched?`Saved ${ok} Telegram ID(s), ${unmatched} row(s) unmatched or failed`:`Saved ${ok} Telegram ID(s)`,ok?'success':'error');
+  if(ok){closeModal('modal-enrich-telegram');clearLeadsSelection();loadLeadsContacts();}
 }
 
 // ── Add Closed Deal (per-lead level, backdatable — e.g. for last year's deals) ──
