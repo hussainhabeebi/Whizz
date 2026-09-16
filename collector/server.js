@@ -11,6 +11,15 @@ const SESSION_DIR = process.env.SESSION_DIR || '/data/sessions';
 const MAX_PROFILES = Math.max(5, Math.min(Number(process.env.MAX_PROFILES_PER_RUN || 40), 150));
 const DELAY_MS = Math.max(800, Number(process.env.REQUEST_DELAY_MS || 1800));
 const KASPI_MAX_PAGES_PER_BRAND = Math.max(1, Math.min(Number(process.env.KASPI_MAX_PAGES_PER_BRAND || 4), 10));
+// 2GIS runs one country TLD at a time — kz/ru/uz/kg/etc. Default to Kazakhstan since that's this
+// app's primary CIS market (matches Kaspi.kz); override per-deployment if you mostly search a
+// different country.
+const TWOGIS_DOMAIN = process.env.TWOGIS_DOMAIN || '2gis.kz';
+const TWOGIS_MAX_ITEMS = Math.max(1, Math.min(Number(process.env.TWOGIS_MAX_ITEMS || 20), 50));
+// A realistic desktop Chrome UA, unlike the other sources' self-identifying "Whizz-Lead-Collector"
+// UA — 2GIS's anti-bot check is exactly what blocked the Apify actor over a flagged proxy pool, so
+// announcing ourselves as a bot here would likely hit the same wall immediately.
+const TWOGIS_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 // Optional: use the Apify "marketplace-seller-leads" actor (apify.com/isolovyev/marketplace-seller-leads)
 // to discover Kaspi.kz sellers for a brand — more reliable than our own search/product crawl, which
@@ -64,6 +73,20 @@ const CONFIG = {
     merchantLinkPattern: /\/shop\/m\/\d+/i,
     maxPagesPerBrand: KASPI_MAX_PAGES_PER_BRAND,
     defaultBrands: ['JBL', 'Dyson', 'Samsung', 'Xiaomi', 'Apple', 'Sony', 'Bosch', 'Philips']
+  },
+  // 2GIS is a public local-business directory (no login) — replaces both a paid Catalog API key
+  // and an Apify actor that hit a residential-proxy wall (`twogis: transport failure: ProxyError`)
+  // by using our own headless browser instead, the same way Kaspi does.
+  // NOT verified against the live site (2gis.kz is unreachable from this dev sandbox) — the search
+  // URL, result-link pattern and TWOGIS_DOMAIN default are a best-effort guess at 2GIS's public
+  // URL structure. Confirm against a real search (or adjust from collector logs) before relying on
+  // this in production; folding the location into the free-text query avoids having to solve
+  // per-city URL slugs, but is worth checking gives the same results a real user search would.
+  '2gis': {
+    name: '2GIS', requiresAuth: false, home: `https://${TWOGIS_DOMAIN}/`,
+    searchUrl: (query, location) => `https://${TWOGIS_DOMAIN}/search/${encodeURIComponent([query, location].filter(Boolean).join(' '))}`,
+    listingLinkPattern: /\/firm\/\d+/i,
+    maxItemsPerSearch: TWOGIS_MAX_ITEMS
   }
 };
 
@@ -279,6 +302,79 @@ async function runKaspiJob(job, cfg) {
   }
 }
 
+// Search once (query + location folded into the free-text query — see the config comment above)
+// and collect firm/listing links from the results page. Unlike Kaspi's numbered ?page=N
+// pagination, 2GIS's search results are commonly infinite-scroll — this only reads what's
+// present after the initial load, which is a real limitation (fewer results than paging through
+// would give) until confirmed against the live site and adjusted (e.g. scrolling/clicking "more").
+async function collect2GisListingLinks(page, cfg, query, location, maxItems) {
+  await page.goto(cfg.searchUrl(query, location), { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => null);
+  await sleep(DELAY_MS);
+  if (await hasChallenge(page)) return { links: [], challenge: true, verificationUrl: page.url() };
+  const hrefs = await pageHrefs(page);
+  const links = [...new Set(hrefs.filter(h => cfg.listingLinkPattern.test(h)))].slice(0, maxItems);
+  return { links, challenge: false };
+}
+
+// Pulls contact details off a single 2GIS firm page. Phone numbers on directory sites like this
+// are often behind a "show phone" button rather than plain text/tel: links — if extraction keeps
+// coming back empty on real runs, that's the first thing to check (add a page.click() on a
+// "Показать телефон"/"Show phone" button before reading the body text).
+async function extract2GisListing(page, query) {
+  const body = clean(await page.locator('body').innerText().catch(() => ''));
+  const hrefs = await pageHrefs(page);
+  const title = clean(await page.locator('h1').first().innerText().catch(() => '')) || clean(await page.title().catch(() => ''));
+  const company = title.replace(/\s*[-|].*$/, '').trim();
+  const telLink = hrefs.find(h => /^tel:/i.test(h));
+  const phone = clean((telLink || '').replace(/^tel:/i, '')) || firstMatch(body, /(?:Телефон|Тел\.?|Phone)\s*:?\s*([+()\d][+()\d\s.-]{6,}\d)/i);
+  const website = (hrefs.find(h => /^https?:\/\//i.test(h) && !/2gis\.|google\.|apple\.|vk\.com|instagram\.com|facebook\.com/i.test(h)) || '').trim();
+  const email = firstMatch(body, /\b([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\b/i);
+  return {
+    company, contactName: '', country: '',
+    email, phone, website, whatsapp: extractWhatsapp(hrefs, body), telegram: extractTelegram(hrefs, body),
+    brand: '', productInterest: query, activity: 'Local business directory (2GIS)',
+    profileUrl: page.url(), verified: false, lastActivityAt: new Date().toISOString(), source: '2gis'
+  };
+}
+
+async function run2GisJob(job, cfg) {
+  const extra = job.credentials?.extra || {};
+  const query = String(extra.query || '').trim();
+  const location = String(extra.location || '').trim();
+  const maxItems = Math.max(1, Math.min(Number(extra.limit) || cfg.maxItemsPerSearch, MAX_PROFILES));
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ userAgent: TWOGIS_USER_AGENT, locale: 'ru-RU' });
+  const page = await context.newPage();
+  const items = [];
+  try {
+    if (!query) throw new Error('No search query configured for this 2GIS run');
+    const search = await collect2GisListingLinks(page, cfg, query, location, maxItems);
+    if (search.challenge) {
+      await callback(job.callbackUrl, { source: '2gis', status: 'verification_required', verificationUrl: search.verificationUrl, items });
+      return { status: 'verification_required', verificationUrl: search.verificationUrl, itemsCollected: 0 };
+    }
+    for (const listingUrl of search.links) {
+      if (items.length >= maxItems) break;
+      await sleep(DELAY_MS);
+      await page.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => null);
+      if (await hasChallenge(page)) {
+        await callback(job.callbackUrl, { source: '2gis', status: 'verification_required', verificationUrl: page.url(), items });
+        return { status: 'verification_required', verificationUrl: page.url(), itemsCollected: items.length };
+      }
+      const item = await extract2GisListing(page, query);
+      if (item.company) items.push(item);
+    }
+    await callback(job.callbackUrl, { source: '2gis', status: 'completed', items });
+    return { status: 'completed', count: items.length };
+  } catch (error) {
+    await callback(job.callbackUrl, { source: '2gis', status: 'error', error: error.message, items });
+    throw error;
+  } finally {
+    await context.close().catch(() => {});
+    await browser.close().catch(() => {});
+  }
+}
+
 async function hasChallenge(page) {
   const url = page.url().toLowerCase();
   if (/captcha|challenge|verify|turnstile|recaptcha/.test(url)) return true;
@@ -334,7 +430,8 @@ async function extractProfile(page, source, fallbackLabel = '') {
 async function runJob(job) {
   const source = String(job.source || '').toLowerCase();
   const cfg = sourceConfig(source);
-  if (cfg.requiresAuth === false) return runKaspiJob(job, cfg);
+  if (source === 'kaspi') return runKaspiJob(job, cfg);
+  if (source === '2gis') return run2GisJob(job, cfg);
   const sessionFile = path.join(SESSION_DIR, `${source}.json`);
   await fs.mkdir(SESSION_DIR, { recursive: true });
   let storageState;

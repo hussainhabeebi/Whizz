@@ -25,6 +25,8 @@ If either of those changes (e.g. the collector moves to a new host), update `wra
 - `REQUEST_DELAY_MS=1800` — delay between directory/marketplace page requests.
 - Optional login URL overrides: `PCEXPORTERS_LOGIN_URL`, `HANDELOT_LOGIN_URL`, `KADORF_LOGIN_URL`.
 - `KASPI_MAX_PAGES_PER_BRAND=4` — how many search-result pages to paginate through per brand on Kaspi.kz before moving to the next brand.
+- `TWOGIS_DOMAIN=2gis.kz` — which country TLD to crawl (2gis.ru, 2gis.uz, etc.). One TLD per deployment; switch it if you mostly search a different country.
+- `TWOGIS_MAX_ITEMS=20` — default cap on listings collected per 2GIS search (hard-capped at 50 server-side regardless of what Contact Discovery's "Max Results" asks for).
 
 ## Kaspi.kz (Kazakhstan)
 
@@ -42,6 +44,16 @@ Kaspi.kz is a public marketplace — no `directory_accounts` username/password i
 ### Direct crawl details
 
 The `productLinkPattern` and `merchantLinkPattern` in `server.js` have been verified against real Kaspi.kz URLs (`/shop/p/<slug>-<id>/?...&m=<merchantId>&...` for a product, `/shop/m/<merchantId>/...` for its seller). The search URL's pagination (`&page=N`) has **not** been separately confirmed — if a brand search only ever returns page-1 results, that's likely why; the code fails safe in that case (it just stops paginating early rather than erroring) but won't reach deeper pages until confirmed/fixed.
+
+## 2GIS (Russia/Kazakhstan/CIS)
+
+2GIS is a public local-business directory — no login, no watchlist. Unlike Kaspi.kz it's location-scoped, so each Contact Discovery search (brand/category + location) runs as a single ad-hoc job rather than an accumulating brand list: the query and location are folded into one free-text search, then each result's firm page is opened for phone/website/WhatsApp/Telegram.
+
+This exists specifically because two other paths were tried and rejected: 2GIS's official Catalog API is paid, and an Apify actor (`thenetaji~2gis-search-scraper`) hit `twogis: transport failure: ProxyError` — 2GIS blocks non-residential proxies, which most Apify plans don't include. This collector-based crawl uses a realistic Chrome user agent (not the self-identifying "Whizz-Lead-Collector" UA the other sources use) specifically to avoid announcing itself as a bot the way the flagged Apify proxy pool did — but 2GIS's anti-bot check could still block a headless browser from a common cloud IP range; there's no guarantee this evades it, only that it's a materially different approach than the one that already failed.
+
+**Not verified against the live site** (2gis.kz is unreachable from this codebase's dev environment) — the search URL (`https://{TWOGIS_DOMAIN}/search/<query+location>`), the `/firm/\d+` result-link pattern, and the phone/email extraction in `extract2GisListing()` are a best-effort guess at 2GIS's public page structure. Two things worth checking on a first real run:
+- 2GIS's results page may be infinite-scroll rather than paginated — `collect2GisListingLinks()` only reads what's present after the initial page load, so it may under-collect vs. paging/scrolling through more.
+- The phone number may be behind a "show phone" button rather than plain text — if extraction keeps coming back empty, that's the first thing to check and add a click step for.
 
 ## Verification behavior
 
