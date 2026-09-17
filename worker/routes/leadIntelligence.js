@@ -432,6 +432,37 @@ async function enrichSocialSearch(request, env) {
   return json({ results, truncated: requested.length > ENRICH_SEARCH_MAX_LEADS });
 }
 
+const CHECK_EXISTING_MAX_ITEMS = 200;
+
+// Lets Discovery drop results that are already saved leads before showing them, instead of
+// re-surfacing the same businesses on every re-search. Matches the same two signals
+// saveOwnedContacts() already uses to detect "already imported, refresh it" (worker/routes/
+// automation.js): the platform's own stable id (Google's placeId/cid) and a normalized phone
+// number. All candidates in one request share a single platform, since Discovery only ever
+// checks one source's results at a time.
+async function checkExistingContacts(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const platform = String(body.platform || '').trim();
+  const sourceIds = [...new Set((Array.isArray(body.sourceIds) ? body.sourceIds : []).map(s => String(s || '').trim()).filter(Boolean))].slice(0, CHECK_EXISTING_MAX_ITEMS);
+  const phones = [...new Set((Array.isArray(body.phones) ? body.phones : []).map(p => String(p || '').replace(/\D/g, '')).filter(Boolean))].slice(0, CHECK_EXISTING_MAX_ITEMS);
+
+  const existingSourceIds = [];
+  const existingPhones = [];
+
+  if (platform && sourceIds.length) {
+    const placeholders = sourceIds.map(() => '?').join(',');
+    const rows = await env.DB.prepare(`SELECT sourceId FROM contacts WHERE platform=? AND sourceId IN (${placeholders})`).bind(platform, ...sourceIds).all();
+    for (const r of rows.results || []) existingSourceIds.push(r.sourceId);
+  }
+  if (phones.length) {
+    const placeholders = phones.map(() => '?').join(',');
+    const rows = await env.DB.prepare(`SELECT DISTINCT REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','') AS normPhone FROM contacts WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','') IN (${placeholders})`).bind(...phones).all();
+    for (const r of rows.results || []) if (r.normPhone) existingPhones.push(r.normPhone);
+  }
+
+  return json({ existingSourceIds, existingPhones });
+}
+
 export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'GET' && action === 'sources') return json({ sources: await listSources(env) });
   if (request.method === 'PUT' && action === 'source') return saveSource(request, env, arg);
@@ -439,6 +470,7 @@ export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'POST' && action === 'import') return importProspects(request, env);
   if (request.method === 'POST' && action === 'enrichSocial') return enrichSocialLinks(request, env);
   if (request.method === 'POST' && action === 'enrichSocialSearch') return enrichSocialSearch(request, env);
+  if (request.method === 'POST' && action === 'checkExisting') return checkExistingContacts(request, env);
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
   if (request.method === 'POST' && action === 'run') return runCollector(request, env, arg);
   if (request.method === 'POST' && action === 'callback') return collectorCallback(request, env);
