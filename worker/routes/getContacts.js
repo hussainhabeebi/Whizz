@@ -44,6 +44,7 @@ export async function handleGetContacts(request, env) {
     convertedAt: r.convertedAt || '',
     website: r.website || '', address: r.address || '', rating: Number(r.rating || 0),
     mapsUrl: r.mapsUrl || '', sourceId: r.sourceId || '', linkedin: r.linkedin || '',
+    whatsapp: r.whatsapp || '',
   }));
 
   return Response.json({ contacts }, { headers: { 'cache-control': 'no-store' } });

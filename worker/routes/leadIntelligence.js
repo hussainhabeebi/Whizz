@@ -275,23 +275,59 @@ async function collectorCallback(request, env) {
 }
 
 const ENRICH_MAX_SITES = 20;
+const ENRICH_MAX_INSTAGRAM_FOLLOWS = 10;
 const ENRICH_FETCH_TIMEOUT_MS = 8000;
+// Instagram serves its own login-walled HTML to a plain server-side fetch far more often than
+// a normal browser sees it, so a realistic UA meaningfully improves the odds the bio (and any
+// wa.me/t.me link in it) actually shows up in the response instead of a login prompt.
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+const EMPTY_SOCIAL_LINKS = { telegram: '', linkedin: '', whatsapp: '', instagram: '' };
 
 function extractSocialLinks(html) {
   const telegramMatch = html.match(/https?:\/\/(?:t|telegram)\.me\/([A-Za-z0-9_]{4,32})/i);
   const linkedinMatch = html.match(/https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/(?:company|in|school)\/[A-Za-z0-9\-_%.]+/i);
+  const waMeMatch = html.match(/https?:\/\/(?:api\.)?wa\.me\/(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i);
+  const waApiMatch = html.match(/https?:\/\/api\.whatsapp\.com\/send\/?\?phone=(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i);
+  const whatsappRaw = (waMeMatch && waMeMatch[1]) || (waApiMatch && waApiMatch[1]) || '';
+  // Instagram is never surfaced as a lead field — it's only followed as a secondary source to
+  // find a WhatsApp/Telegram link a business put in its bio instead of on its own website.
+  const instagramMatch = html.match(/https?:\/\/(?:www\.)?instagram\.com\/([A-Za-z0-9_.]{2,30})/i);
+  const instagramHandle = instagramMatch && !/^(p|reel|reels|explore|accounts|direct|stories|tv)$/i.test(instagramMatch[1])
+    ? instagramMatch[1] : '';
   return {
     telegram: telegramMatch ? telegramMatch[1] : '',
-    linkedin: linkedinMatch ? linkedinMatch[0].replace(/^http:/i, 'https:') : ''
+    linkedin: linkedinMatch ? linkedinMatch[0].replace(/^http:/i, 'https:') : '',
+    whatsapp: whatsappRaw.replace(/[^0-9+]/g, ''),
+    instagram: instagramHandle
   };
 }
 
-// Google Maps/2GIS listings don't carry a Telegram or LinkedIn field themselves — the only
+async function fetchAndExtract(url, extraHeaders) {
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(ENRICH_FETCH_TIMEOUT_MS),
+      redirect: 'follow',
+      headers: extraHeaders
+    });
+    if (!res.ok) return { ...EMPTY_SOCIAL_LINKS };
+    return extractSocialLinks(await res.text());
+  } catch (error) {
+    return { ...EMPTY_SOCIAL_LINKS };
+  }
+}
+
+// Google Maps/2GIS listings don't carry a Telegram or WhatsApp field themselves — the only
 // signal available is the business's own website, so this fetches each one's homepage and
-// regex-scans the raw HTML for a t.me/telegram.me link and a linkedin.com/company|in|school
-// link (usually in the footer or a "follow us" block). Best-effort: a site with no such link
-// on its homepage, behind a cookie wall, or too slow to respond within the timeout just comes
-// back empty for that field rather than failing the whole batch.
+// regex-scans the raw HTML for a t.me/telegram.me link, a wa.me/api.whatsapp.com link, and a
+// linkedin.com/company|in|school link (usually in the footer or a "follow us" block). When a
+// site links out to Instagram but its homepage itself has no Telegram/WhatsApp link, that
+// Instagram profile is followed as a second source and scanned the same way — many small
+// businesses put their WhatsApp/Telegram link in their Instagram bio instead of on a website.
+// Best-effort throughout: a site with no such link on its homepage, behind a cookie wall, or
+// too slow to respond within the timeout just comes back empty for that field rather than
+// failing the whole batch. Instagram itself is never returned as a contact field/lead source —
+// only whatever Telegram/WhatsApp link it leads to.
 async function enrichSocialLinks(request, env) {
   const body = await request.json().catch(() => ({}));
   const requested = Array.isArray(body.websites) ? body.websites : [];
@@ -299,17 +335,31 @@ async function enrichSocialLinks(request, env) {
   const batch = unique.slice(0, ENRICH_MAX_SITES);
   if (!batch.length) return json({ results: {} });
 
-  const entries = await Promise.all(batch.map(async site => {
+  const firstPass = await Promise.all(batch.map(async site => {
     const target = /^https?:\/\//i.test(site) ? site : `https://${site}`;
-    try {
-      const res = await fetch(target, { signal: AbortSignal.timeout(ENRICH_FETCH_TIMEOUT_MS), redirect: 'follow' });
-      if (!res.ok) return [site, { telegram: '', linkedin: '' }];
-      const html = await res.text();
-      return [site, extractSocialLinks(html)];
-    } catch (error) {
-      return [site, { telegram: '', linkedin: '' }];
-    }
+    const hit = await fetchAndExtract(target, {});
+    return [site, hit];
   }));
+
+  // Second pass, capped separately since it's an extra network hop per site: only chase the
+  // Instagram link when the homepage itself didn't already surface a Telegram or WhatsApp link.
+  const needsInstagramFollow = firstPass.filter(([, hit]) => hit.instagram && !hit.telegram && !hit.whatsapp);
+  const toFollow = needsInstagramFollow.slice(0, ENRICH_MAX_INSTAGRAM_FOLLOWS);
+  const instagramResults = await Promise.all(toFollow.map(async ([site, hit]) => {
+    const igHit = await fetchAndExtract(`https://www.instagram.com/${hit.instagram}/`, { 'User-Agent': BROWSER_UA });
+    return [site, igHit];
+  }));
+  const igBySite = Object.fromEntries(instagramResults);
+
+  const entries = firstPass.map(([site, hit]) => {
+    const igHit = igBySite[site];
+    if (igHit) {
+      hit.telegram = hit.telegram || igHit.telegram;
+      hit.whatsapp = hit.whatsapp || igHit.whatsapp;
+    }
+    const { instagram, ...rest } = hit; // never expose the Instagram handle itself as a result field
+    return [site, rest];
+  });
 
   return json({ results: Object.fromEntries(entries), truncated: unique.length > ENRICH_MAX_SITES });
 }

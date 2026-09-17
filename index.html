@@ -1640,9 +1640,9 @@ body.dark .wa-quick-btn{color:#3ddc78;}
               </div>
               <div style="margin-top:12px;">
                 <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-                  <input type="checkbox" id="disc-enrich-social-maps"> Also fetch Telegram &amp; LinkedIn (from each business's website)
+                  <input type="checkbox" id="disc-enrich-social-maps"> Also fetch Telegram &amp; WhatsApp &amp; LinkedIn (from each business's website, and its Instagram if linked)
                 </label>
-                <div class="fi-hint">Best-effort: fetches each result's homepage and looks for a t.me or linkedin.com link — adds a few extra seconds and only works for results that have a website. Capped at 20 sites per search.</div>
+                <div class="fi-hint">Best-effort: fetches each result's homepage for a t.me, wa.me or linkedin.com link, then follows a linked Instagram profile too if none was found — adds a few extra seconds and only works for results that have a website. Instagram is never added as a lead itself, only whatever WhatsApp/Telegram it leads to. Capped at 20 sites per search.</div>
               </div>
             </div>
           </div>
@@ -2289,14 +2289,14 @@ body.dark .wa-quick-btn{color:#3ddc78;}
 <div class="modal-overlay" id="modal-enrich-telegram">
   <div class="modal" style="width:min(96vw,520px);">
     <div class="modal-head">
-      <div class="modal-title">Enrich Telegram IDs</div>
+      <div class="modal-title">Enrich Telegram &amp; WhatsApp IDs</div>
       <button class="modal-close" onclick="closeModal('modal-enrich-telegram')">✕</button>
     </div>
     <div class="modal-body">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Adding Telegram (and LinkedIn) to <strong id="et-count">0</strong> selected lead(s).</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Adding Telegram/WhatsApp (and LinkedIn) to <strong id="et-count">0</strong> selected lead(s).</div>
       <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
         <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Auto-check from website</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;"><strong id="et-site-count">0</strong> of the selected lead(s) have a website and no Telegram yet — scans each homepage for a t.me link.</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;"><strong id="et-site-count">0</strong> of the selected lead(s) have a website and are missing Telegram or WhatsApp — scans each homepage (and a linked Instagram profile, if any) for a t.me or wa.me link.</div>
         <button class="t-btn btn-primary t-btn-sm" id="et-auto-btn" onclick="runAutoEnrichTelegram()">Auto-check websites</button>
       </div>
       <div>
@@ -4808,11 +4808,11 @@ async function submitBulkEditLeads(){
   loadLeadsContacts();
 }
 
-// ── Enrich Telegram (existing leads) ──
+// ── Enrich Telegram & WhatsApp (existing leads) ──
 function openEnrichTelegramModal(){
   if(!_leadsSelectedIds.size){showToast('Select at least one lead first','error');return;}
   const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id));
-  const withSite=targets.filter(c=>c.website&&!c.telegramUsername);
+  const withSite=targets.filter(c=>c.website&&(!c.telegramUsername||!c.whatsapp));
   document.getElementById('et-count').textContent=targets.length;
   document.getElementById('et-site-count').textContent=withSite.length;
   document.getElementById('et-auto-btn').disabled=!withSite.length;
@@ -4824,12 +4824,12 @@ function saveContactField(c,fields){
     id:c.id,contactName:c.contactName||c.company||c.name||'',company:c.company||c.contactName||c.name||'',
     phone:c.phone||'',email:c.email||'',category:c.category||'',source:c.source||'',platform:c.platform||'',
     country:c.country||'',brand:c.brand||'',productInterest:c.productInterest||'',
-    telegramUsername:c.telegramUsername||'',linkedin:c.linkedin||'',
+    telegramUsername:c.telegramUsername||'',linkedin:c.linkedin||'',whatsapp:c.whatsapp||'',
     ...fields
   })});
 }
 async function runAutoEnrichTelegram(){
-  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id)&&c.website&&!c.telegramUsername);
+  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id)&&c.website&&(!c.telegramUsername||!c.whatsapp));
   if(!targets.length){showToast('None of the selected leads have a website to check','info');return;}
   const btn=document.getElementById('et-auto-btn');
   btn.disabled=true;btn.textContent='Checking…';
@@ -4840,15 +4840,15 @@ async function runAutoEnrichTelegram(){
     let found=0,failed=0;
     for(const c of targets){
       const hit=results[c.website];
-      if(!hit||(!hit.telegram&&!hit.linkedin))continue;
+      if(!hit||(!hit.telegram&&!hit.whatsapp&&!hit.linkedin))continue;
       try{
-        await saveContactField(c,{telegramUsername:hit.telegram||c.telegramUsername||'',linkedin:hit.linkedin||c.linkedin||''});
+        await saveContactField(c,{telegramUsername:hit.telegram||c.telegramUsername||'',whatsapp:hit.whatsapp||c.whatsapp||'',linkedin:hit.linkedin||c.linkedin||''});
         found++;
       }catch(e){failed++;}
     }
-    showToast(found?`Found and saved Telegram/LinkedIn for ${found} lead(s)${failed?`, ${failed} failed to save`:''}`:'No Telegram or LinkedIn links found on those websites','info');
+    showToast(found?`Found and saved Telegram/WhatsApp/LinkedIn for ${found} lead(s)${failed?`, ${failed} failed to save`:''}`:'No Telegram, WhatsApp or LinkedIn links found on those websites (or their Instagram)','info');
     if(found){closeModal('modal-enrich-telegram');loadLeadsContacts();}
-  }catch(e){showToast(e.message||'Telegram/LinkedIn lookup failed','error');}
+  }catch(e){showToast(e.message||'Telegram/WhatsApp/LinkedIn lookup failed','error');}
   btn.disabled=false;btn.textContent='Auto-check websites';
 }
 async function applyPastedTelegramIds(){
@@ -7170,14 +7170,18 @@ async function runDiscovery(source) {
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
 
-// Google Maps has no Telegram/LinkedIn field of its own — this is a best-effort second pass
-// that fetches each result's own website and looks for a t.me or linkedin.com link on it (see
-// enrichSocialLinks() in worker/routes/leadIntelligence.js). Opt-in via the checkbox since it
-// adds real time (one fetch per site, capped at 20) on top of the initial search.
+// Google Maps has no Telegram/WhatsApp/LinkedIn field of its own — this is a best-effort second
+// pass that fetches each result's own website and looks for a t.me, wa.me/api.whatsapp.com, or
+// linkedin.com link on it. When the website itself links out to Instagram but has no
+// Telegram/WhatsApp link, that Instagram profile is followed too and scanned the same way —
+// Instagram itself is never added as a contact field, only whatever WhatsApp/Telegram link its
+// bio leads to (see enrichSocialLinks() in worker/routes/leadIntelligence.js). Opt-in via the
+// checkbox since it adds real time (one or two fetches per site, capped at 20) on top of the
+// initial search.
 async function enrichMapsSocialLinks() {
   const win = S.disc.maps;
   const websites = [...new Set(win.contacts.filter(c => c.website).map(c => c.website))];
-  if (!websites.length) { showToast('No websites in these results to check for Telegram/LinkedIn', 'info'); return; }
+  if (!websites.length) { showToast('No websites in these results to check for Telegram/WhatsApp/LinkedIn', 'info'); return; }
 
   const btn = document.getElementById('disc-run-btn-maps');
   const icon = document.getElementById('disc-run-icon-maps');
@@ -7193,14 +7197,15 @@ async function enrichMapsSocialLinks() {
       const hit = c.website && results[c.website];
       if (!hit) return;
       if (hit.telegram) { c.telegram = hit.telegram; found++; }
+      if (hit.whatsapp) { c.whatsapp = hit.whatsapp; found++; }
       if (hit.linkedin) { c.linkedin = hit.linkedin; found++; }
     });
     renderDiscoveryResults('maps');
-    if (found) showToast(`Found ${found} Telegram/LinkedIn link${found>1?'s':''}`, 'success');
-    else showToast('No Telegram or LinkedIn links found on those websites', 'info');
+    if (found) showToast(`Found ${found} Telegram/WhatsApp/LinkedIn link${found>1?'s':''}`, 'success');
+    else showToast('No Telegram, WhatsApp or LinkedIn links found on those websites (or their Instagram)', 'info');
     if (d.truncated) showToast(`Only checked the first 20 of ${websites.length} websites (per-search cap)`, 'info');
   } catch (e) {
-    showToast(e.message || 'Telegram/LinkedIn lookup failed', 'error');
+    showToast(e.message || 'Telegram/WhatsApp/LinkedIn lookup failed', 'error');
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
@@ -7527,7 +7532,8 @@ function formatContactForLeads(source, c) {
     mapsUrl: c.url||'',
     sourceId: c.sourceId||c.placeId||c.cid||c.fid||c.id||'',
     telegramUsername: (c.telegramUsername||c.telegram||'').replace(/^@/,''),
-    linkedin: c.linkedin||''
+    linkedin: c.linkedin||'',
+    whatsapp: c.whatsapp||''
   };
 }
 
@@ -7536,9 +7542,9 @@ function exportDiscCSV(source) {
   if (!contacts.length) { showToast('No contacts to export','error'); return; }
   const rows = contacts.map(c => {
     const f = formatContactForLeads(source, c);
-    return `"${f.contactName}","${f.company}","${f.phone}","${f.email}","${f.website}","${f.address}","${f.category}","${f.rating}","${f.telegramUsername}","${f.linkedin}"`;
+    return `"${f.contactName}","${f.company}","${f.phone}","${f.email}","${f.website}","${f.address}","${f.category}","${f.rating}","${f.telegramUsername}","${f.whatsapp}","${f.linkedin}"`;
   });
-  downloadCSV(['Name,Company,Phone,Email,Website,Address,Category,Rating,Telegram,LinkedIn',...rows].join('\n'),`whizz_discovered_contacts_${source}.csv`);
+  downloadCSV(['Name,Company,Phone,Email,Website,Address,Category,Rating,Telegram,WhatsApp,LinkedIn',...rows].join('\n'),`whizz_discovered_contacts_${source}.csv`);
   showToast('Export complete!','success');
 }
 
