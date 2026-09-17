@@ -254,6 +254,46 @@ async function sendCampaignWithContacts(request, env, user) {
   return new Response(response.body, { status: response.status, headers: responseHeaders });
 }
 
+// Sends a single WhatsApp template message straight through Meta's Graph API — no n8n
+// hop needed, since this is a one-recipient send rather than a bulk campaign resolve.
+// Requires the WHATSAPP_TOKEN (permanent system-user access token) and
+// WHATSAPP_PHONE_NUMBER_ID secrets to be set on the Worker (`wrangler secret put ...`).
+async function sendTemplateMessageDirect(request, env, user) {
+  const body = await request.json().catch(() => ({}));
+  const phone = String(body.phone || '').trim();
+  const templateName = String(body.template_name || '').trim();
+  const language = String(body.language || 'en_US').trim();
+  const variables = Array.isArray(body.variables) ? body.variables : [];
+  if (!phone || !templateName) {
+    return Response.json({ error: 'phone and template_name are required.' }, { status: 400 });
+  }
+  if (!env.WHATSAPP_TOKEN || !env.WHATSAPP_PHONE_NUMBER_ID) {
+    return Response.json({ error: 'WhatsApp Cloud API is not configured on the server (missing WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID secrets).' }, { status: 503 });
+  }
+  const to = phone.replace(/\D/g, '');
+  const components = variables.length
+    ? [{ type: 'body', parameters: variables.map(v => ({ type: 'text', text: String(v) })) }]
+    : [];
+  const apiVersion = env.WHATSAPP_API_VERSION || 'v20.0';
+  const graphUrl = `https://graph.facebook.com/${apiVersion}/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+  const metaResponse = await fetch(graphUrl, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${env.WHATSAPP_TOKEN}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: { name: templateName, language: { code: language }, components },
+    }),
+  });
+  const result = await metaResponse.json().catch(() => ({}));
+  if (!metaResponse.ok) {
+    const reason = result?.error?.message || `Meta API error (HTTP ${metaResponse.status})`;
+    return Response.json({ error: reason, meta: result }, { status: metaResponse.status === 401 ? 502 : metaResponse.status });
+  }
+  return Response.json({ success: true, messageId: result.messages?.[0]?.id || null, sentBy: user.email }, { headers: { 'cache-control': 'no-store' } });
+}
+
 export async function handleAutomation(request, env, endpoint) {
   const email = emailFromAccess(request);
   const user = email ? await env.DB.prepare('SELECT email,role,teamId FROM users WHERE email=?').bind(email).first() : null;
@@ -267,6 +307,9 @@ export async function handleAutomation(request, env, endpoint) {
   }
   if (endpoint === 'whizz-send-campaign' && request.method === 'POST') {
     return sendCampaignWithContacts(request, env, user);
+  }
+  if (endpoint === 'whizz-send-template-message' && request.method === 'POST') {
+    return sendTemplateMessageDirect(request, env, user);
   }
 
   const allowedRoles = WRITE_ROLES[endpoint];

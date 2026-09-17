@@ -3876,7 +3876,7 @@ async function submitSendTemplateMessage(){
     closeModal('modal-send-template');
     try{await refreshConversations();const m=findConvByPhone(phone);if(m)selectConv(m.id);}catch(e){}
   }catch(e){
-    showToast(e.message||'Failed to send — ensure whizz-send-template-message webhook is active','error');
+    showToast(e.message||'Failed to send template message','error');
   }finally{
     btn.disabled=false;btn.textContent='Send';
   }
