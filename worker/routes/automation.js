@@ -1,3 +1,5 @@
+import { regionForCountry, detectCountryFromPhone, applyDetectedCountry } from './detectCountry.js';
+
 const WRITE_ROLES = {
   'whizz-discover-contacts': ['Administrator', 'Manager'],
   'whizz-discover-2gis': ['Administrator', 'Manager'],
@@ -63,6 +65,8 @@ async function saveOwnedContacts(request, env, user) {
     const whatsapp = String(contact.whatsapp || '').trim();
     const contactPersonName = String(contact.contactPersonName || '').trim();
     const contactPersonTitle = String(contact.contactPersonTitle || '').trim();
+    let country = String(contact.country || '').trim();
+    if (phone) country = applyDetectedCountry(country, await detectCountryFromPhone(env, phone, country));
 
     // Re-discovering the same listing (same platform + external id) refreshes it instead of
     // being silently dropped as a phone/email duplicate — keeps rating/website/category current.
@@ -91,7 +95,7 @@ async function saveOwnedContacts(request, env, user) {
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
       .bind(String(contact.contactName || contact.name || contact.company || ''), String(contact.company || contact.contactName || contact.name || ''),
         phone, email, category, String(contact.source || ''), platform,
-        String(contact.country || ''), String(contact.brand || ''), String(contact.productInterest || ''),
+        country, String(contact.brand || ''), String(contact.productInterest || ''),
         website, address, rating, mapsUrl, sourceId, telegramUsername, linkedin, whatsapp, contactPersonName, contactPersonTitle,
         user.email, user.teamId || 'sales', user.email, scoreLead(contact), contact.lastContactedAt || null,
         contact.nextFollowUpAt || null, contact.dealExpectedAt || null).run();
@@ -129,38 +133,6 @@ function normalizeBrands(raw) {
   const parts = String(raw || '').split(/[,;]/).map(s => _titleCase(_normStr(s))).filter(Boolean);
   return parts.length ? parts : ['Unspecified'];
 }
-
-const REGION_MAP = {
-  'UAE':'Middle East','Saudi Arabia':'Middle East','Qatar':'Middle East','Kuwait':'Middle East',
-  'Bahrain':'Middle East','Oman':'Middle East','Jordan':'Middle East','Lebanon':'Middle East',
-  'Iraq':'Middle East','Egypt':'Middle East','Morocco':'Middle East','Libya':'Middle East',
-  'Tunisia':'Middle East','Algeria':'Middle East','Yemen':'Middle East','Syria':'Middle East',
-  'Israel':'Middle East','Palestine':'Middle East','Turkey':'Middle East','Middle East':'Middle East',
-  'UK':'Europe','Germany':'Europe','France':'Europe','Spain':'Europe','Italy':'Europe',
-  'Netherlands':'Europe','Belgium':'Europe','Poland':'Europe','Portugal':'Europe',
-  'Sweden':'Europe','Norway':'Europe','Denmark':'Europe','Finland':'Europe',
-  'Austria':'Europe','Switzerland':'Europe','Greece':'Europe','Romania':'Europe',
-  'Czech Republic':'Europe','Hungary':'Europe','Slovakia':'Europe','Croatia':'Europe',
-  'Ukraine':'Europe','Serbia':'Europe','Bulgaria':'Europe','Europe':'Europe',
-  'Russia':'CIS','Kazakhstan':'CIS','Uzbekistan':'CIS','Tajikistan':'CIS',
-  'Kyrgyzstan':'CIS','Turkmenistan':'CIS','Azerbaijan':'CIS','Georgia':'CIS',
-  'Armenia':'CIS','Belarus':'CIS','Moldova':'CIS','CIS':'CIS',
-  'India':'Asia','Pakistan':'Asia','Bangladesh':'Asia','Sri Lanka':'Asia',
-  'China':'Asia','Japan':'Asia','South Korea':'Asia','Taiwan':'Asia',
-  'Singapore':'Asia','Malaysia':'Asia','Thailand':'Asia','Indonesia':'Asia',
-  'Philippines':'Asia','Vietnam':'Asia','Myanmar':'Asia','Cambodia':'Asia',
-  'Nepal':'Asia','Afghanistan':'Asia','Southeast Asia':'Asia',
-  'USA':'Americas','Canada':'Americas','Mexico':'Americas','Brazil':'Americas',
-  'Colombia':'Americas','Argentina':'Americas','Chile':'Americas','Peru':'Americas',
-  'North America':'Americas','Latin America':'Americas',
-  'Nigeria':'Africa','Kenya':'Africa','South Africa':'Africa','Ghana':'Africa',
-  'Tanzania':'Africa','Ethiopia':'Africa','Uganda':'Africa','Cameroon':'Africa',
-  'Senegal':'Africa','Zimbabwe':'Africa','Zambia':'Africa','Angola':'Africa',
-  'Africa':'Africa',
-  'Australia':'Oceania','New Zealand':'Oceania','Oceania':'Oceania',
-};
-
-function regionForCountry(country) { return REGION_MAP[country] || 'Other'; }
 
 async function ownedLeadSummary(env, user) {
   const clause = user.role === 'Administrator' ? '(? IS NOT NULL)'

@@ -2213,7 +2213,7 @@ body.dark .wa-quick-btn{color:#3ddc78;}
         <div class="fg" style="margin:0;"><label class="fl">Category</label><input class="fi" id="ec-category" placeholder="e.g. Distributor"/></div>
         <div class="fg" style="margin:0;"><label class="fl">Source</label><input class="fi" id="ec-source" placeholder="e.g. Manual Entry"/></div>
         <div class="fg" style="margin:0;"><label class="fl">Platform</label><input class="fi" id="ec-platform"/></div>
-        <div class="fg" style="margin:0;"><label class="fl">Country</label><input class="fi" id="ec-country"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Country</label><div style="display:flex;gap:6px;align-items:center;"><input class="fi" id="ec-country" style="flex:1;"/><button type="button" class="t-btn btn-ghost" style="padding:6px 10px;font-size:11px;white-space:nowrap;" onclick="detectContactCountry()" title="Identify/correct country from the phone number using Cloudflare AI">📍 Detect</button></div><div id="ec-region-hint" style="font-size:10px;color:var(--text3);margin-top:4px;"></div></div>
         <div class="fg" style="margin:0;"><label class="fl">Telegram User ID</label><input class="fi" id="ec-telegram" placeholder="@username or numeric ID"/></div>
         <div class="fg" style="margin:0;"><label class="fl">WhatsApp</label><input class="fi" id="ec-whatsapp" placeholder="+971 50 123 4567 (if different from Phone)"/></div>
         <div class="fg" style="margin:0;"><label class="fl">Contact Person</label><input class="fi" id="ec-contact-person-name" placeholder="e.g. Ivan Petrov (if different from above)"/></div>
@@ -4825,7 +4825,21 @@ function openEditLeadContact(id){
   document.getElementById('ec-whatsapp').value=c.whatsapp||'';
   document.getElementById('ec-contact-person-name').value=c.contactPersonName||'';
   document.getElementById('ec-contact-person-title').value=c.contactPersonTitle||'';
+  document.getElementById('ec-region-hint').textContent='';
   document.getElementById('modal-edit-contact').classList.add('open');
+}
+
+async function detectContactCountry(){
+  const phone=document.getElementById('ec-phone').value.trim();
+  const hint=document.getElementById('ec-region-hint');
+  if(!phone){showToast('Enter a phone number first','error');return;}
+  hint.textContent='Detecting…';
+  try{
+    const country=document.getElementById('ec-country').value.trim();
+    const r=await apiFetch('/whizz-detect-country',{method:'POST',body:JSON.stringify({phone,country})});
+    document.getElementById('ec-country').value=r.country||'';
+    hint.textContent=r.country?`Region: ${r.region} (${r.method==='ai'?'AI-identified':'from calling code'})`:'Could not identify a country from this number';
+  }catch(e){hint.textContent='';showToast(e.message||'Detection failed','error');}
 }
 
 async function submitEditLeadContact(){
