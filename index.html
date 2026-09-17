@@ -7176,6 +7176,32 @@ async function leadApi(url, opts = {}) {
   return d;
 }
 
+// Drops results already saved as leads, so re-running the same Discovery search doesn't keep
+// resurfacing businesses already in Leads. Matches on the platform's own stable id (Google's
+// placeId/cid) or a normalized phone number — the same two signals saveOwnedContacts() already
+// uses server-side to detect "already imported" (worker/routes/automation.js). Best-effort: if
+// the check itself fails, results are shown as-is rather than hiding everything.
+async function dropExistingLeads(contacts, platform) {
+  const sourceIds = contacts.map(c => c.sourceId || c.placeId || c.cid || c.fid || '').filter(Boolean);
+  const phones = contacts.map(c => (c.phone || c.phoneNumber || '').replace(/\D/g, '')).filter(Boolean);
+  if (!sourceIds.length && !phones.length) return contacts;
+  try {
+    const check = await leadApi('/api/lead-intelligence/check-existing', { method: 'POST', body: JSON.stringify({ platform, sourceIds, phones }) });
+    const existingSourceIds = new Set(check.existingSourceIds || []);
+    const existingPhones = new Set(check.existingPhones || []);
+    const filtered = contacts.filter(c => {
+      const sid = c.sourceId || c.placeId || c.cid || c.fid || '';
+      const phone = (c.phone || c.phoneNumber || '').replace(/\D/g, '');
+      return !((sid && existingSourceIds.has(sid)) || (phone && existingPhones.has(phone)));
+    });
+    const hidden = contacts.length - filtered.length;
+    if (hidden) showToast(`Hid ${hidden} result${hidden > 1 ? 's' : ''} already in Leads`, 'info');
+    return filtered;
+  } catch (e) {
+    return contacts;
+  }
+}
+
 // Google Maps is the one synchronous n8n/Apify webhook left; Kaspi and 2GIS both run as async
 // collector jobs (own headless browser, poll for results) so they keep their own run*Discovery
 // functions below instead of sharing this path.
@@ -7212,7 +7238,8 @@ async function runDiscovery(source) {
 
   try {
     const d = await api(cfg.endpoint, 'POST', { query, location, brand, category, type, limit });
-    const contacts = (d.contacts || d.items || (Array.isArray(d) ? d : [])).map(c => ({ __source: source, __searchLocation: location, ...c }));
+    let contacts = (d.contacts || d.items || (Array.isArray(d) ? d : [])).map(c => ({ __source: source, __searchLocation: location, ...c }));
+    contacts = await dropExistingLeads(contacts, cfg.platform);
     S.disc[source].contacts = contacts;
     S.disc[source].selected = new Set();
     renderDiscoveryResults(source);
