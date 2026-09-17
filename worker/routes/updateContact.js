@@ -16,7 +16,7 @@ export async function handleUpdateContact(request, env) {
     `UPDATE contacts SET
       contactName=?, company=?, phone=?, email=?, category=?, source=?,
       platform=?, country=?, brand=?, productInterest=?,
-      telegramUsername=?, linkedin=?, updatedAt=CURRENT_TIMESTAMP
+      telegramUsername=?, linkedin=?, whatsapp=?, updatedAt=CURRENT_TIMESTAMP
      WHERE id=? AND ${ownership}`
   );
 
@@ -33,6 +33,7 @@ export async function handleUpdateContact(request, env) {
     String(body.productInterest || ''),
     String(body.telegramUsername || '').trim().replace(/^@/, ''),
     String(body.linkedin || '').trim(),
+    String(body.whatsapp || '').trim(),
     id,
   ];
   if (actor.role !== 'Administrator') binds.push(ownerParam);
