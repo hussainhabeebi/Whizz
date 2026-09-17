@@ -383,10 +383,12 @@ function extractWhatsAppNumber(text) {
 }
 
 // Deeper, WhatsApp-only enrichment tier beyond a business's own website/Instagram: runs each
-// lead's name+location through a real Google search via SerpApi (serpapi.com — an official search
+// lead's name+location through a real Yandex search via SerpApi (serpapi.com — an official search
 // API called directly, not a scraper chained through Apify/n8n) and scans whatever comes back —
 // directory listings, marketplace pages, social mentions — for a WhatsApp number, not just what's
-// on the business's own site. WhatsApp-only on purpose: Telegram is already well covered by the
+// on the business's own site. Yandex rather than Google: Whizz's discovery searches skew toward
+// Russia/CIS (Moscow, Minsk, Baku, ...), where Yandex indexes local businesses far more
+// thoroughly than Google does. WhatsApp-only on purpose: Telegram is already well covered by the
 // free website/Instagram tiers, so this paid last-resort tier stays narrow instead of widening the
 // query (and the noise) to also chase Telegram. Costs one SerpApi call per lead, so it's meant to
 // run only for leads the free tiers already came up empty for, not as a first resort.
@@ -405,10 +407,14 @@ async function enrichSocialSearch(request, env) {
 
   const entries = await Promise.all(batch.map(async ({ key, query }) => {
     try {
+      // Yandex's SerpApi params differ from Google's: the query goes in `text` (not `q`), and
+      // `yandex_domain` picks the regional index — yandex.com is the international domain and
+      // still indexes CIS businesses far better than Google does, without needing to guess a
+      // per-lead country-specific domain (yandex.ru/.by/.kz/...).
       const url = new URL('https://serpapi.com/search.json');
-      url.searchParams.set('engine', 'google');
-      url.searchParams.set('q', query);
-      url.searchParams.set('num', '10');
+      url.searchParams.set('engine', 'yandex');
+      url.searchParams.set('text', query);
+      url.searchParams.set('yandex_domain', 'yandex.com');
       url.searchParams.set('api_key', env.SERPAPI_API_KEY);
       const res = await fetch(url, { signal: AbortSignal.timeout(ENRICH_SEARCH_TIMEOUT_MS) });
       const data = await res.json().catch(() => ({}));
