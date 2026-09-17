@@ -366,12 +366,73 @@ async function enrichSocialLinks(request, env) {
   return json({ results: Object.fromEntries(entries), truncated: unique.length > ENRICH_MAX_SITES });
 }
 
+const ENRICH_SEARCH_MAX_LEADS = 15;
+const ENRICH_SEARCH_TIMEOUT_MS = 10000;
+
+const WA_ME_RE = /https?:\/\/(?:api\.)?wa\.me\/(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i;
+const WA_API_RE = /https?:\/\/api\.whatsapp\.com\/send\/?\?phone=(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i;
+// Catches a number spelled out next to the word "WhatsApp" in a search snippet/title even when
+// there's no wa.me link — common on directory and marketplace listing pages.
+const WA_LABELLED_NUMBER_RE = /whatsapp[^0-9+]{0,12}(\+?[0-9][0-9\s\-()]{7,17}[0-9])/i;
+
+function extractWhatsAppNumber(text) {
+  const waMe = text.match(WA_ME_RE) || text.match(WA_API_RE);
+  if (waMe) return waMe[1].replace(/[^0-9+]/g, '');
+  const labelled = text.match(WA_LABELLED_NUMBER_RE);
+  return labelled ? labelled[1].replace(/[^0-9+]/g, '') : '';
+}
+
+// Deeper, WhatsApp-only enrichment tier beyond a business's own website/Instagram: runs each
+// lead's name+location through a real Google search via SerpApi (serpapi.com — an official search
+// API called directly, not a scraper chained through Apify/n8n) and scans whatever comes back —
+// directory listings, marketplace pages, social mentions — for a WhatsApp number, not just what's
+// on the business's own site. WhatsApp-only on purpose: Telegram is already well covered by the
+// free website/Instagram tiers, so this paid last-resort tier stays narrow instead of widening the
+// query (and the noise) to also chase Telegram. Costs one SerpApi call per lead, so it's meant to
+// run only for leads the free tiers already came up empty for, not as a first resort.
+async function enrichSocialSearch(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const requested = Array.isArray(body.leads) ? body.leads : [];
+  const batch = requested
+    .map(l => ({ key: String(l?.key || '').trim(), query: String(l?.query || '').trim() }))
+    .filter(l => l.key && l.query)
+    .slice(0, ENRICH_SEARCH_MAX_LEADS);
+  if (!batch.length) return json({ results: {} });
+
+  if (!env.SERPAPI_API_KEY) {
+    return json({ results: {}, error: 'SERPAPI_API_KEY is not configured on the Worker — set it with `wrangler secret put SERPAPI_API_KEY` (get a key at serpapi.com/manage-api-key).' }, 503);
+  }
+
+  const entries = await Promise.all(batch.map(async ({ key, query }) => {
+    try {
+      const url = new URL('https://serpapi.com/search.json');
+      url.searchParams.set('engine', 'google');
+      url.searchParams.set('q', query);
+      url.searchParams.set('num', '10');
+      url.searchParams.set('api_key', env.SERPAPI_API_KEY);
+      const res = await fetch(url, { signal: AbortSignal.timeout(ENRICH_SEARCH_TIMEOUT_MS) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) return [key, ''];
+      // Scan the whole stringified response — organic results, knowledge panel, "people also
+      // ask" — rather than one specific field, since a WhatsApp mention can land anywhere in it.
+      return [key, extractWhatsAppNumber(JSON.stringify(data))];
+    } catch (error) {
+      return [key, ''];
+    }
+  }));
+
+  const results = {};
+  for (const [key, whatsapp] of entries) if (whatsapp) results[key] = { whatsapp };
+  return json({ results, truncated: requested.length > ENRICH_SEARCH_MAX_LEADS });
+}
+
 export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'GET' && action === 'sources') return json({ sources: await listSources(env) });
   if (request.method === 'PUT' && action === 'source') return saveSource(request, env, arg);
   if (request.method === 'GET' && action === 'prospects') return listProspects(request, env);
   if (request.method === 'POST' && action === 'import') return importProspects(request, env);
   if (request.method === 'POST' && action === 'enrichSocial') return enrichSocialLinks(request, env);
+  if (request.method === 'POST' && action === 'enrichSocialSearch') return enrichSocialSearch(request, env);
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
   if (request.method === 'POST' && action === 'run') return runCollector(request, env, arg);
   if (request.method === 'POST' && action === 'callback') return collectorCallback(request, env);

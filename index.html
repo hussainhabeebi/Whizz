@@ -1644,6 +1644,12 @@ body.dark .wa-quick-btn{color:#3ddc78;}
                 </label>
                 <div class="fi-hint">Best-effort: fetches each result's homepage for a t.me, wa.me or linkedin.com link, then follows a linked Instagram profile too if none was found — adds a few extra seconds and only works for results that have a website. Instagram is never added as a lead itself, only whatever WhatsApp/Telegram it leads to. Capped at 20 sites per search.</div>
               </div>
+              <div style="margin-top:8px;">
+                <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="disc-enrich-deepsearch-maps"> Then run a deeper Google search (SerpApi) for any still missing WhatsApp
+                </label>
+                <div class="fi-hint">Searches Google via SerpApi for each business's name + location, looking for a WhatsApp number mentioned anywhere online — a directory listing, marketplace page, or social mention — not just its own website. WhatsApp only (Telegram is already covered by the free check above). Only runs for results still missing a WhatsApp number. Costs one paid SerpApi search per lead, capped at 15 per search, so leave this off unless you need the extra reach.</div>
+              </div>
             </div>
           </div>
           <div class="card">
@@ -1651,6 +1657,10 @@ body.dark .wa-quick-btn{color:#3ddc78;}
               <div class="card-title" id="disc-results-title-maps">Results</div>
               <div style="display:none;gap:7px;align-items:center;" id="disc-actions-maps">
                 <button class="t-btn btn-ghost t-btn-sm" onclick="selectAllDisc('maps')">Select All</button>
+                <button class="t-btn btn-ghost t-btn-sm" title="Google-search (SerpApi) the results still missing WhatsApp for a number mentioned elsewhere online (paid search)" onclick="deepSearchMapsSocialLinks()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  Deep Search
+                </button>
                 <button class="t-btn btn-ghost t-btn-sm" onclick="exportDiscCSV('maps')">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   Export CSV
@@ -2299,6 +2309,11 @@ body.dark .wa-quick-btn{color:#3ddc78;}
         <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Auto-check from website</div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:10px;"><strong id="et-site-count">0</strong> of the selected lead(s) have a website and are missing Telegram or WhatsApp — scans each homepage (and a linked Instagram profile, if any) for a t.me or wa.me link.</div>
         <button class="t-btn btn-primary t-btn-sm" id="et-auto-btn" onclick="runAutoEnrichTelegram()">Auto-check websites</button>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
+        <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Deeper search (Google via SerpApi, extra cost)</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;"><strong id="et-deepsearch-count">0</strong> of the selected lead(s) are still missing WhatsApp — Google-searches (via SerpApi) each one's name + country for a WhatsApp number mentioned anywhere online, not just its own site. WhatsApp only. Capped at 15 leads per run.</div>
+        <button class="t-btn btn-ghost t-btn-sm" id="et-deepsearch-btn" onclick="runDeepSearchEnrichTelegram()">Run deeper search</button>
       </div>
       <div>
         <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Paste manually</div>
@@ -4827,9 +4842,12 @@ function openEnrichTelegramModal(){
   if(!_leadsSelectedIds.size){showToast('Select at least one lead first','error');return;}
   const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id));
   const withSite=targets.filter(c=>c.website&&(!c.telegramUsername||!c.whatsapp));
+  const stillMissing=targets.filter(c=>!c.whatsapp);
   document.getElementById('et-count').textContent=targets.length;
   document.getElementById('et-site-count').textContent=withSite.length;
   document.getElementById('et-auto-btn').disabled=!withSite.length;
+  document.getElementById('et-deepsearch-count').textContent=stillMissing.length;
+  document.getElementById('et-deepsearch-btn').disabled=!stillMissing.length;
   document.getElementById('et-paste').value='';
   document.getElementById('modal-enrich-telegram').classList.add('open');
 }
@@ -4864,6 +4882,34 @@ async function runAutoEnrichTelegram(){
     if(found){closeModal('modal-enrich-telegram');loadLeadsContacts();}
   }catch(e){showToast(e.message||'Telegram/WhatsApp/LinkedIn lookup failed','error');}
   btn.disabled=false;btn.textContent='Auto-check websites';
+}
+// Deeper, paid, WhatsApp-only tier beyond runAutoEnrichTelegram(): Google-searches (via SerpApi)
+// each selected lead still missing WhatsApp (no website required, unlike the free auto-check
+// above) for a WhatsApp number mentioned anywhere online — see enrichSocialSearch() in
+// worker/routes/leadIntelligence.js.
+async function runDeepSearchEnrichTelegram(){
+  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id)&&!c.whatsapp);
+  if(!targets.length){showToast('None of the selected leads are missing WhatsApp','info');return;}
+  const btn=document.getElementById('et-deepsearch-btn');
+  btn.disabled=true;btn.textContent='Searching…';
+  try{
+    const capped=targets.slice(0,15);
+    const leads=capped.map(c=>({key:String(c.id),query:buildSocialSearchQuery(c.contactName||c.company,c.country)}));
+    const results=await fetchSocialSearchResults(leads);
+    let found=0,failed=0;
+    for(const c of capped){
+      const hit=results[String(c.id)];
+      if(!hit||!hit.whatsapp)continue;
+      try{
+        await saveContactField(c,{whatsapp:hit.whatsapp});
+        found++;
+      }catch(e){failed++;}
+    }
+    const cappedNote=targets.length>15?` (capped at the first 15 of ${targets.length})`:'';
+    showToast(found?`Deeper search found and saved WhatsApp for ${found} lead(s)${failed?`, ${failed} failed to save`:''}${cappedNote}`:`Deeper search found nothing new${cappedNote}`,found?'success':'info');
+    if(found){closeModal('modal-enrich-telegram');loadLeadsContacts();}
+  }catch(e){showToast(e.message||'Deeper search failed','error');}
+  btn.disabled=false;btn.textContent='Run deeper search';
 }
 async function applyPastedTelegramIds(){
   const raw=document.getElementById('et-paste').value.trim();
@@ -7176,6 +7222,8 @@ async function runDiscovery(source) {
     const enrichBox = document.getElementById('disc-enrich-social-maps');
     if (source === 'maps' && contacts.length && enrichBox && enrichBox.checked) {
       await enrichMapsSocialLinks();
+      const deepBox = document.getElementById('disc-enrich-deepsearch-maps');
+      if (deepBox && deepBox.checked) await deepSearchMapsSocialLinks();
     }
   } catch(e) {
     document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n.</div>`;
@@ -7220,6 +7268,57 @@ async function enrichMapsSocialLinks() {
     if (d.truncated) showToast(`Only checked the first 20 of ${websites.length} websites (per-search cap)`, 'info');
   } catch (e) {
     showToast(e.message || 'Telegram/WhatsApp/LinkedIn lookup failed', 'error');
+  }
+  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
+}
+
+// Builds the search text sent to enrichSocialSearch() (worker/routes/leadIntelligence.js), which
+// runs it through SerpApi — a plain Google search for the business's name + location, since a
+// lead with nothing on its own website/Instagram might still have a WhatsApp number mentioned in
+// a directory listing, marketplace page, or social mention elsewhere on the web. WhatsApp-only by
+// design (Telegram is already covered by the free website/Instagram tiers).
+function buildSocialSearchQuery(name, location) {
+  return [`"${(name || '').trim()}"`, (location || '').trim(), '("wa.me" OR whatsapp)'].filter(s => s && s !== '""').join(' ').trim();
+}
+
+async function fetchSocialSearchResults(leads) {
+  if (!leads.length) return {};
+  const d = await leadApi('/api/lead-intelligence/enrich-social-search', { method: 'POST', body: JSON.stringify({ leads }) });
+  if (d.error) throw new Error(d.error);
+  return d.results || {};
+}
+
+// Third, paid, WhatsApp-only tier beyond enrichMapsSocialLinks(): only for results still missing
+// a WhatsApp number after the free website/Instagram pass, runs each one's name+location through
+// a real Google search via SerpApi looking for a WhatsApp number mentioned anywhere else on the
+// web. Opt-in via its own checkbox since it costs a paid SerpApi search per lead.
+async function deepSearchMapsSocialLinks() {
+  const win = S.disc.maps;
+  const targets = win.contacts
+    .map((c, i) => ({ c, key: String(i) }))
+    .filter(({ c }) => !c.whatsapp);
+  if (!targets.length) { showToast('Every result already has a WhatsApp number', 'info'); return; }
+
+  const btn = document.getElementById('disc-run-btn-maps');
+  const icon = document.getElementById('disc-run-icon-maps');
+  const label = document.getElementById('disc-run-label-maps');
+  btn.disabled = true; icon.classList.add('spin');
+  label.textContent = `Deep searching ${Math.min(targets.length, 15)} lead${Math.min(targets.length, 15) > 1 ? 's' : ''}…`;
+
+  const leads = targets.map(({ c, key }) => ({ key, query: buildSocialSearchQuery(c.name || c.title, c.city || c.__searchLocation || c.address) }));
+
+  try {
+    const results = await fetchSocialSearchResults(leads);
+    let found = 0;
+    targets.forEach(({ c, key }) => {
+      const hit = results[key];
+      if (hit && hit.whatsapp && !c.whatsapp) { c.whatsapp = hit.whatsapp; found++; }
+    });
+    renderDiscoveryResults('maps');
+    const cappedNote = leads.length > 15 ? ` (capped at the first 15 of ${leads.length} still missing one)` : '';
+    showToast(found ? `Deeper search found ${found} more WhatsApp number${found > 1 ? 's' : ''}${cappedNote}` : `Deeper search found nothing new${cappedNote}`, found ? 'success' : 'info');
+  } catch (e) {
+    showToast(e.message || 'Deeper search failed', 'error');
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
