@@ -4603,6 +4603,7 @@ function renderLeadsContactsTable(contacts){
       <span style="font-size:12px;font-weight:600;color:var(--text);"><span id="leads-bulk-count">${_leadsSelectedIds.size}</span> selected</span>
       <button class="t-btn btn-primary t-btn-sm" onclick="openBulkEditLeadsModal()">Bulk Edit</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="openEnrichTelegramModal()">Enrich Telegram</button>
+      <button class="t-btn btn-ghost t-btn-sm" id="leads-bulk-detect-btn" onclick="runBulkDetectCountry()" title="Identify/correct Country (and derived Region) from each selected lead's phone number using Cloudflare AI">📍 Detect Country/Region</button>
       <button class="t-btn btn-ghost t-btn-sm" id="leads-find-contact-btn" onclick="runFindContactPersonForSelected()">Find Contact Person</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="openExportContacts('selected')">Export Selected</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="clearLeadsSelection()">Clear selection</button>
@@ -4840,6 +4841,27 @@ async function detectContactCountry(){
     document.getElementById('ec-country').value=r.country||'';
     hint.textContent=r.country?`Region: ${r.region} (${r.method==='ai'?'AI-identified':'from calling code'})`:'Could not identify a country from this number';
   }catch(e){hint.textContent='';showToast(e.message||'Detection failed','error');}
+}
+
+async function runBulkDetectCountry(){
+  if(!_leadsSelectedIds.size){showToast('Select at least one lead first','error');return;}
+  const ids=[..._leadsSelectedIds];
+  const CHUNK=200;
+  const btn=document.getElementById('leads-bulk-detect-btn');
+  if(btn){btn.disabled=true;}
+  let checked=0,updated=0,unchanged=0,noPhone=0,failed=0;
+  try{
+    for(let i=0;i<ids.length;i+=CHUNK){
+      const batch=ids.slice(i,i+CHUNK);
+      if(btn)btn.textContent=ids.length>CHUNK?`Detecting ${Math.min(i+CHUNK,ids.length)}/${ids.length}…`:'Detecting…';
+      try{
+        const r=await apiFetch('/whizz-bulk-detect-country',{method:'POST',body:JSON.stringify({ids:batch})});
+        checked+=r.checked||0;updated+=r.updated||0;unchanged+=r.unchanged||0;noPhone+=r.noPhone||0;
+      }catch(e){failed+=batch.length;}
+    }
+    showToast(`Checked ${checked}: ${updated} corrected, ${unchanged} already correct${noPhone?`, ${noPhone} without phone`:''}${failed?`, ${failed} failed`:''}`,failed?'error':'success');
+    loadLeadsContacts();
+  }finally{if(btn){btn.disabled=false;btn.textContent='📍 Detect Country/Region';}}
 }
 
 async function submitEditLeadContact(){

@@ -138,3 +138,46 @@ export async function handleDetectCountry(request, env) {
   const detected = await detectCountryFromPhone(env, phone, body.country);
   return Response.json({ success: true, ...detected });
 }
+
+// Runs detection across many contacts at once (e.g. a "Detect Country/Region" bulk action on
+// selected leads) and persists any correction. Capped per call — the client chunks larger
+// selections into several calls — since each contact may need a Workers AI round-trip.
+const BULK_DETECT_CAP = 300;
+
+export async function handleBulkDetectCountry(request, env) {
+  const email = (request.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase();
+  const actor = email ? await env.DB.prepare('SELECT email,role,teamId FROM users WHERE email=?').bind(email).first() : null;
+  if (!actor) return Response.json({ error: 'Authenticated user is not provisioned in Whizz.' }, { status: 403 });
+
+  const body = await request.json().catch(() => ({}));
+  const ids = Array.isArray(body.ids) ? [...new Set(body.ids.map(id => Number(id)).filter(Boolean))] : [];
+  if (!ids.length) return Response.json({ error: 'At least one contact id is required.' }, { status: 400 });
+  const capped = ids.slice(0, BULK_DETECT_CAP);
+
+  const ownership = actor.role === 'Administrator' ? '1=1'
+    : actor.role === 'Manager' ? '(ownerEmail IS NULL OR teamId = ?)'
+    : 'ownerEmail = ?';
+  const placeholders = capped.map(() => '?').join(',');
+  const bindArgs = actor.role === 'Administrator' ? capped : [...capped, actor.role === 'Sales' ? actor.email : (actor.teamId || '')];
+  const { results } = await env.DB.prepare(
+    `SELECT id, phone, country FROM contacts WHERE id IN (${placeholders}) AND ${ownership}`
+  ).bind(...bindArgs).all();
+
+  let updated = 0, unchanged = 0, noPhone = 0;
+  const items = [];
+  for (const row of results || []) {
+    const phone = String(row.phone || '').trim();
+    const currentCountry = String(row.country || '').trim();
+    if (!phone) { noPhone++; continue; }
+    const detected = await detectCountryFromPhone(env, phone, currentCountry);
+    const nextCountry = applyDetectedCountry(currentCountry, detected);
+    const changed = nextCountry !== currentCountry;
+    if (changed) {
+      await env.DB.prepare('UPDATE contacts SET country=?, updatedAt=CURRENT_TIMESTAMP WHERE id=?').bind(nextCountry, row.id).run();
+      updated++;
+    } else unchanged++;
+    items.push({ id: String(row.id), country: nextCountry, region: detected.region, changed });
+  }
+
+  return Response.json({ success: true, requested: ids.length, checked: results?.length || 0, updated, unchanged, noPhone, items });
+}
