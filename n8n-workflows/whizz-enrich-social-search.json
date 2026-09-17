@@ -1,0 +1,113 @@
+{
+  "name": "whizz-enrich-social-search",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Setup checklist\n1. This is a new webhook — Whizz's Discovery \"deeper search\" pass and the Leads \"Enrich Telegram\" modal both call it at POST https://n8n.aiingo.com/webhook/whizz-enrich-social-search once the website/Instagram pass (handled entirely in the Cloudflare Worker, no n8n involved) comes up empty for a lead. Import this workflow and activate it; no existing webhook to replace.\n2. Open **Call Apify Google Search Actor** → Authentication is Predefined Credential Type → Apify API. Select the same Apify credential already used by whizz-discover-google-maps (or create one) — this reuses that account/billing, no new API key needed.\n3. Actor ID in **Build Apify Request** is `apify~google-search-scraper` (apify.com/apify/google-search-scraper) — a long-standing, widely-used actor (queries as a newline-separated string, resultsPerPage/maxPagesPerQuery input). Its exact output field names are NOT verified against a live run from this codebase (apify.com is unreachable from this environment) — **Map Results to Whizz** works around that by JSON.stringifying each whole dataset item and regexing for a t.me/wa.me link rather than depending on an exact field name, but still worth a test run before relying on it — check whether it actually finds hits for a business you already know has a public WhatsApp/Telegram link somewhere on the web.\n4. This is an extra Apify run per batch of leads (capped at 15/request by the Worker) on top of Google Maps discovery — it's meant to run only for leads the free website/Instagram scan already came up empty for, not as a first resort, so treat it as a paid, opt-in \"go deeper\" step.\n5. Whizz calls this at POST https://n8n.aiingo.com/webhook/whizz-enrich-social-search with body {leads:[{key,query}]} (key is whatever id the caller wants results matched back to — a lead id or a discovery result's website/name; query is a ready-built search string like `\"Acme Trading LLC\" Dubai (whatsapp OR telegram)`) and expects back {\"results\":{\"<key>\":{\"telegram\":\"handle\",\"whatsapp\":\"+9715...\"}}} — a key with nothing found is simply omitted, not returned empty.",
+        "height": 460,
+        "width": 480
+      },
+      "id": "e5f7a9c1-0020-0020-0020-000000000000",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 520]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whizz-enrich-social-search",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e5f7a9c1-0020-0020-0020-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-enrich-social-search"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Build the Apify actor call from Whizz's deeper-search enrichment request ──\n// apify/google-search-scraper takes a newline-separated block of search queries and returns one\n// dataset item per query (organic results, ads, etc. for that query). No API token here — Call\n// Apify Google Search Actor authenticates via n8n's native Apify credential (Authentication:\n// Predefined Credential Type → Apify API) instead of a token in code.\nconst body = $('Webhook').first().json.body || {};\n\n// Same cap the Worker already applies before calling this webhook — kept here too since this\n// workflow could in principle be called directly.\nconst MAX_LEADS = 15;\nconst leads = (Array.isArray(body.leads) ? body.leads : [])\n  .map(l => ({ key: String(l?.key || '').trim(), query: String(l?.query || '').trim() }))\n  .filter(l => l.key && l.query)\n  .slice(0, MAX_LEADS);\n\nconst ACTOR_ID = 'apify~google-search-scraper';\n\nreturn [{\n  json: {\n    actorId: ACTOR_ID,\n    keys: leads.map(l => l.key),\n    queries: leads.map(l => l.query),\n    actorInput: {\n      queries: leads.map(l => l.query).join('\\n'),\n      resultsPerPage: 10,\n      maxPagesPerQuery: 1,\n      languageCode: 'en',\n      mobileResults: false\n    }\n  }\n}];"
+      },
+      "id": "e5f7a9c1-0020-0020-0020-000000000002",
+      "name": "Build Apify Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/acts/{{ $json.actorId }}/run-sync-get-dataset-items?timeout=120",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "apifyApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.actorInput) }}",
+        "options": { "response": { "response": { "neverError": true } }, "timeout": 130000 }
+      },
+      "id": "e5f7a9c1-0020-0020-0020-000000000003",
+      "name": "Call Apify Google Search Actor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "credentials": {
+        "apifyApi": {
+          "id": "YOUR_APIFY_CREDENTIAL_ID",
+          "name": "Apify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Match Apify's dataset items back to Whizz's leads and pull out any WhatsApp/Telegram link ──\nconst items = $input.all();\nlet rawItems = [];\nlet apiError = null;\n\nfor (const item of items) {\n  const j = item.json;\n  if (j && j.error) { apiError = typeof j.error === 'string' ? j.error : (j.error.message || JSON.stringify(j.error)); continue; }\n  if (Array.isArray(j)) rawItems.push(...j);\n  else if (j) rawItems.push(j);\n}\n\nif (apiError) {\n  return [{ json: { results: {}, error: `Google Search/Apify error: ${apiError}` } }];\n}\n\nconst built = $('Build Apify Request').first().json;\nconst keys = built.keys || [];\nconst queries = built.queries || [];\n\n// google-search-scraper's exact output schema isn't verified against a live run from this\n// codebase (apify.com is unreachable here) — try to match each dataset item back to the lead\n// whose query produced it via whatever query-echo field it carries, and fall back to positional\n// order (the actor is documented to return one item per input query, in order) when that field\n// isn't present under any of the likely names.\nfunction resolveKey(rawItem, index) {\n  const term = rawItem?.searchQuery?.term || rawItem?.searchQuery?.q || rawItem?.term || rawItem?.query || '';\n  if (term) {\n    const qIndex = queries.findIndex(q => q === term);\n    if (qIndex !== -1) return keys[qIndex];\n  }\n  return keys[index] || null;\n}\n\nconst TELEGRAM_RE = /https?:\\/\\/(?:t|telegram)\\.me\\/([A-Za-z0-9_]{4,32})/i;\nconst WA_ME_RE = /https?:\\/\\/(?:api\\.)?wa\\.me\\/(\\+?[0-9][0-9\\s\\-()]{5,17}[0-9])/i;\nconst WA_API_RE = /https?:\\/\\/api\\.whatsapp\\.com\\/send\\/?\\?phone=(\\+?[0-9][0-9\\s\\-()]{5,17}[0-9])/i;\n\n// Scanning the whole stringified item (not a specific 'snippet'/'description' field) is\n// deliberate — it's resilient to this actor's exact field names being wrong/renamed, at the\n// cost of an occasional false match inside an unrelated URL param, which is an acceptable\n// trade for a best-effort enrichment pass.\nconst results = {};\nrawItems.forEach((rawItem, index) => {\n  const key = resolveKey(rawItem, index);\n  if (!key) return;\n  const haystack = JSON.stringify(rawItem);\n  const tg = haystack.match(TELEGRAM_RE);\n  const waMe = haystack.match(WA_ME_RE);\n  const waApi = haystack.match(WA_API_RE);\n  const whatsappRaw = (waMe && waMe[1]) || (waApi && waApi[1]) || '';\n  const hit = {\n    telegram: tg ? tg[1] : '',\n    whatsapp: whatsappRaw.replace(/[^0-9+]/g, '')\n  };\n  if (hit.telegram || hit.whatsapp) results[key] = hit;\n});\n\nreturn [{ json: { results } }];"
+      },
+      "id": "e5f7a9c1-0020-0020-0020-000000000004",
+      "name": "Map Results to Whizz",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 502 : 200 }}"
+        }
+      },
+      "id": "e5f7a9c1-0020-0020-0020-000000000005",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Build Apify Request", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Apify Request": {
+      "main": [
+        [{ "node": "Call Apify Google Search Actor", "type": "main", "index": 0 }]
+      ]
+    },
+    "Call Apify Google Search Actor": {
+      "main": [
+        [{ "node": "Map Results to Whizz", "type": "main", "index": 0 }]
+      ]
+    },
+    "Map Results to Whizz": {
+      "main": [
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}

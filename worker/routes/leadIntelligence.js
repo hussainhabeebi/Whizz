@@ -366,12 +366,49 @@ async function enrichSocialLinks(request, env) {
   return json({ results: Object.fromEntries(entries), truncated: unique.length > ENRICH_MAX_SITES });
 }
 
+const ENRICH_SEARCH_MAX_LEADS = 15;
+const ENRICH_SEARCH_TIMEOUT_MS = 120000;
+
+// Deeper enrichment tier beyond a business's own website/Instagram: runs each lead's name+
+// location through a Google Search (Apify's google-search-scraper actor, chained through the
+// whizz-enrich-social-search n8n workflow the same way Google Maps discovery chains
+// compass/crawler-google-places) and scans whatever comes back — directory listings, marketplace
+// pages, social aggregators that mention the business — for a t.me/wa.me link. Costs a paid Apify
+// run per batch, so this is meant to be called only for leads the website/Instagram pass already
+// came up empty for, not as a first resort. Instagram-style caveat applies here too: best-effort,
+// a lead with nothing findable just comes back empty rather than failing the batch.
+async function enrichSocialSearch(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const requested = Array.isArray(body.leads) ? body.leads : [];
+  const batch = requested
+    .map(l => ({ key: String(l?.key || '').trim(), query: String(l?.query || '').trim() }))
+    .filter(l => l.key && l.query)
+    .slice(0, ENRICH_SEARCH_MAX_LEADS);
+  if (!batch.length) return json({ results: {} });
+
+  const base = (env.N8N_WEBHOOK_BASE || 'https://n8n.aiingo.com/webhook').replace(/\/$/, '');
+  try {
+    const res = await fetch(`${base}/whizz-enrich-social-search`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ leads: batch }),
+      signal: AbortSignal.timeout(ENRICH_SEARCH_TIMEOUT_MS),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return json({ results: {}, error: data.error || `Search enrichment failed (HTTP ${res.status}) — ensure the whizz-enrich-social-search webhook is active in n8n.` }, 502);
+    return json({ results: data.results || {}, truncated: requested.length > ENRICH_SEARCH_MAX_LEADS });
+  } catch (error) {
+    return json({ results: {}, error: `Search enrichment request failed: ${error.message}` }, 502);
+  }
+}
+
 export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'GET' && action === 'sources') return json({ sources: await listSources(env) });
   if (request.method === 'PUT' && action === 'source') return saveSource(request, env, arg);
   if (request.method === 'GET' && action === 'prospects') return listProspects(request, env);
   if (request.method === 'POST' && action === 'import') return importProspects(request, env);
   if (request.method === 'POST' && action === 'enrichSocial') return enrichSocialLinks(request, env);
+  if (request.method === 'POST' && action === 'enrichSocialSearch') return enrichSocialSearch(request, env);
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
   if (request.method === 'POST' && action === 'run') return runCollector(request, env, arg);
   if (request.method === 'POST' && action === 'callback') return collectorCallback(request, env);

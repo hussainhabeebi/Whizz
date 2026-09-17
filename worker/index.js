@@ -143,6 +143,10 @@ export default {
         try { return await handleLeadIntelligence(request, env, 'enrichSocial'); }
         catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
       }
+      if (url.pathname === '/api/lead-intelligence/enrich-social-search' && request.method === 'POST') {
+        try { return await handleLeadIntelligence(request, env, 'enrichSocialSearch'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
     }
 
     const automationMatch = url.pathname.match(/^\/api\/automation\/([a-z0-9-]+)$/i);
