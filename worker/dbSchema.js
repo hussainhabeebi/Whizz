@@ -47,6 +47,7 @@ async function repairSchema(env) {
     ['rating', 'REAL NOT NULL DEFAULT 0'], ['mapsUrl', "TEXT NOT NULL DEFAULT ''"],
     ['sourceId', "TEXT NOT NULL DEFAULT ''"], ['linkedin', "TEXT NOT NULL DEFAULT ''"],
     ['whatsapp', "TEXT NOT NULL DEFAULT ''"],
+    ['contactPersonName', "TEXT NOT NULL DEFAULT ''"], ['contactPersonTitle', "TEXT NOT NULL DEFAULT ''"],
   ]);
   await env.DB.prepare('UPDATE contacts SET createdAt=COALESCE(createdAt,CURRENT_TIMESTAMP), updatedAt=COALESCE(updatedAt,CURRENT_TIMESTAMP)').run();
   await safeRun(env, 'CREATE INDEX IF NOT EXISTS idx_contacts_platform_source_id ON contacts(platform, sourceId)');

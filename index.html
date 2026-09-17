@@ -1650,6 +1650,12 @@ body.dark .wa-quick-btn{color:#3ddc78;}
                 </label>
                 <div class="fi-hint">Searches Yandex via SerpApi for each business's name + location, looking for a WhatsApp number mentioned anywhere online — a directory listing, marketplace page, or social mention — not just its own website. Yandex rather than Google since it indexes Russia/CIS businesses far more thoroughly. WhatsApp only (Telegram is already covered by the free check above). Only runs for results still missing a WhatsApp number. Costs one paid SerpApi search per lead, capped at 15 per search, so leave this off unless you need the extra reach.</div>
               </div>
+              <div style="margin-top:8px;">
+                <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="disc-enrich-contact-person-maps"> Then find the right contact person (LinkedIn via SerpApi, extra cost)
+                </label>
+                <div class="fi-hint">Searches for a public LinkedIn profile (owner, director, purchasing/procurement, sales manager, ...) at each business via SerpApi, so you're not just messaging a front-desk number — pulls a name, title and profile link when a decision-maker's profile turns up. Costs one paid SerpApi search per lead, capped at 15 per search.</div>
+              </div>
             </div>
           </div>
           <div class="card">
@@ -1660,6 +1666,10 @@ body.dark .wa-quick-btn{color:#3ddc78;}
                 <button class="t-btn btn-ghost t-btn-sm" title="Yandex-search (SerpApi) the results still missing WhatsApp for a number mentioned elsewhere online (paid search)" onclick="deepSearchMapsSocialLinks()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   Deep Search
+                </button>
+                <button class="t-btn btn-ghost t-btn-sm" title="Find a decision-maker's LinkedIn profile for each result (paid search)" onclick="findContactPersonsMaps()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  Find Contact
                 </button>
                 <button class="t-btn btn-ghost t-btn-sm" onclick="exportDiscCSV('maps')">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -2206,6 +2216,8 @@ body.dark .wa-quick-btn{color:#3ddc78;}
         <div class="fg" style="margin:0;"><label class="fl">Country</label><input class="fi" id="ec-country"/></div>
         <div class="fg" style="margin:0;"><label class="fl">Telegram User ID</label><input class="fi" id="ec-telegram" placeholder="@username or numeric ID"/></div>
         <div class="fg" style="margin:0;"><label class="fl">WhatsApp</label><input class="fi" id="ec-whatsapp" placeholder="+971 50 123 4567 (if different from Phone)"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Contact Person</label><input class="fi" id="ec-contact-person-name" placeholder="e.g. Ivan Petrov (if different from above)"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Contact Person's Title</label><input class="fi" id="ec-contact-person-title" placeholder="e.g. Purchasing Manager"/></div>
         <div class="fg" style="margin:0;grid-column:1/-1;"><label class="fl">Brand</label><input class="fi" id="ec-brand"/></div>
       </div>
     </div>
@@ -4517,6 +4529,7 @@ function renderLeadsContactsTable(contacts){
       <span style="font-size:12px;font-weight:600;color:var(--text);"><span id="leads-bulk-count">${_leadsSelectedIds.size}</span> selected</span>
       <button class="t-btn btn-primary t-btn-sm" onclick="openBulkEditLeadsModal()">Bulk Edit</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="openEnrichTelegramModal()">Enrich Telegram</button>
+      <button class="t-btn btn-ghost t-btn-sm" id="leads-find-contact-btn" onclick="runFindContactPersonForSelected()">Find Contact Person</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="openExportContacts('selected')">Export Selected</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="clearLeadsSelection()">Clear selection</button>
     </div>
@@ -4559,6 +4572,7 @@ function renderLeadsContactsTable(contacts){
           <td style="padding:9px 10px;">
             <div style="font-weight:500;color:var(--text);">${_hesc(name)}</div>
             ${c.company&&c.contactName?`<div style="font-size:10px;color:var(--text3);">${_hesc(c.company)}</div>`:''}
+            ${c.contactPersonName?`<div style="font-size:10px;color:#0a66c2;">${_hesc(c.contactPersonName)}${c.contactPersonTitle?` — ${_hesc(c.contactPersonTitle)}`:''}</div>`:''}
             ${c.category?`<span class="cc-cat">${_hesc(c.category)}</span>`:''}
           </td>
           <td style="padding:9px 10px;color:var(--text2);">${c.phone?`<a href="tel:${_hesc(c.phone)}" style="color:inherit;text-decoration:none;">${_hesc(c.phone)}</a>`:''}</td>
@@ -4664,6 +4678,8 @@ const EXPORT_FIELDS=[
   {key:'telegramUsername',label:'Telegram Username',def:false},
   {key:'whatsapp',label:'WhatsApp',def:true},
   {key:'linkedin',label:'LinkedIn',def:false},
+  {key:'contactPersonName',label:'Contact Person',def:true},
+  {key:'contactPersonTitle',label:"Contact Person's Title",def:false},
   {key:'website',label:'Website',def:false},
 ];
 let _exportShownContacts=[];
@@ -4704,9 +4720,10 @@ function leadTemperature(c){const deals=getClosedDealsForContact(c);if(deals.len
 function leadScore(c){let score=20;if(c.phone)score+=20;if(c.email)score+=10;if(c.brand||c.productInterest)score+=15;if(c.country)score+=10;if((c.stage||'').toLowerCase().includes('qualified'))score+=20;if(getClosedDealsForContact(c).length)score=100;return Math.min(score,100);}
 function openLeadProfile(id){
   const c=_currentLeadsContacts.find(c=>c.id===id);if(!c)return;const name=c.contactName||c.company||c.name||'Unknown',phone=c.phone||c.phoneNumber||'',waNumber=c.whatsapp||'',tgHandle=c.telegramUsername||'',waMsgTarget=waNumber||phone,score=leadScore(c),temp=leadTemperature(c);
+  const personName=c.contactPersonName||'',personTitle=c.contactPersonTitle||'';
   const idAttr=_hesc(id);
   document.getElementById('lp-name').textContent=name;document.getElementById('lp-sub').textContent=[c.company,c.country,c.brand].filter(Boolean).join(' · ');
-  document.getElementById('lp-body').innerHTML=`<div class="lead-profile-grid"><div class="profile-panel"><div class="eyebrow">Complete customer view</div><div class="profile-field"><span>Phone</span><b>${phone||'Not provided'}</b></div><div class="profile-field"><span>WhatsApp</span><b>${waNumber?`<a href="https://wa.me/${waNumber.replace(/\D/g,'')}" target="_blank" style="color:#25d366;">${waNumber}</a>`:'Not provided'}</b></div><div class="profile-field"><span>Telegram</span><b>${tgHandle?`<a href="https://t.me/${tgHandle.replace(/^@/,'')}" target="_blank" style="color:#26a6d1;">@${tgHandle.replace(/^@/,'')}</a>`:'Not provided'}</b></div><div class="profile-field"><span>Email</span><b>${c.email||'Not provided'}</b></div><div class="profile-field"><span>Platform</span><b>${c.platform||_currentLeadsGroup?.platform||'—'}</b></div><div class="profile-field"><span>Country</span><b>${c.country||_currentLeadsGroup?.country||'—'}</b></div><div class="profile-field"><span>Interest</span><b>${c.productInterest||c.category||c.brand||'Not classified'}</b></div><div class="profile-field"><span>Source</span><b>${c.source||'—'}</b></div></div><div><div class="profile-panel"><div class="eyebrow">Sales intelligence</div><div class="profile-field"><span>Temperature</span><b>${temp}</b></div><div class="profile-field"><span>Lead score</span><b style="color:var(--green)">${score}/100</b></div><div class="profile-field"><span>Buyer type</span><b>${c.buyerType||c.buyer_nature||'Unclassified'}</b></div><div class="profile-field"><span>Campaign status</span><b>${c.optedOut?'Suppressed':'Eligible'}</b></div></div><div class="profile-actions">${waMsgTarget?`<button class="t-btn wa-quick-btn" style="justify-content:center" onclick="closeModal('modal-lead-profile');messageLeadOnWhatsApp('${waMsgTarget.replace(/'/g,"\\'")}','${name.replace(/'/g,"\\'")}')">
+  document.getElementById('lp-body').innerHTML=`<div class="lead-profile-grid"><div class="profile-panel"><div class="eyebrow">Complete customer view</div><div class="profile-field"><span>Contact Person</span><b>${personName?`${_hesc(personName)}${personTitle?` — ${_hesc(personTitle)}`:''}${c.linkedin?` · <a href="${c.linkedin}" target="_blank" style="color:#0a66c2;">LinkedIn ↗</a>`:''}`:'Not found'}</b></div><div class="profile-field"><span>Phone</span><b>${phone||'Not provided'}</b></div><div class="profile-field"><span>WhatsApp</span><b>${waNumber?`<a href="https://wa.me/${waNumber.replace(/\D/g,'')}" target="_blank" style="color:#25d366;">${waNumber}</a>`:'Not provided'}</b></div><div class="profile-field"><span>Telegram</span><b>${tgHandle?`<a href="https://t.me/${tgHandle.replace(/^@/,'')}" target="_blank" style="color:#26a6d1;">@${tgHandle.replace(/^@/,'')}</a>`:'Not provided'}</b></div><div class="profile-field"><span>Email</span><b>${c.email||'Not provided'}</b></div><div class="profile-field"><span>Platform</span><b>${c.platform||_currentLeadsGroup?.platform||'—'}</b></div><div class="profile-field"><span>Country</span><b>${c.country||_currentLeadsGroup?.country||'—'}</b></div><div class="profile-field"><span>Interest</span><b>${c.productInterest||c.category||c.brand||'Not classified'}</b></div><div class="profile-field"><span>Source</span><b>${c.source||'—'}</b></div></div><div><div class="profile-panel"><div class="eyebrow">Sales intelligence</div><div class="profile-field"><span>Temperature</span><b>${temp}</b></div><div class="profile-field"><span>Lead score</span><b style="color:var(--green)">${score}/100</b></div><div class="profile-field"><span>Buyer type</span><b>${c.buyerType||c.buyer_nature||'Unclassified'}</b></div><div class="profile-field"><span>Campaign status</span><b>${c.optedOut?'Suppressed':'Eligible'}</b></div></div><div class="profile-actions">${waMsgTarget?`<button class="t-btn wa-quick-btn" style="justify-content:center" onclick="closeModal('modal-lead-profile');messageLeadOnWhatsApp('${waMsgTarget.replace(/'/g,"\\'")}','${name.replace(/'/g,"\\'")}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         Message on WhatsApp
       </button>`:''}${phone?`<a class="t-btn btn-ghost" style="justify-content:center;text-decoration:none" href="tel:${phone}">Call</a>`:''}<button class="t-btn btn-primary" onclick="closeModal('modal-lead-profile');openEditLeadContact('${idAttr}')">Edit lead</button><button class="t-btn btn-ghost" onclick="closeModal('modal-lead-profile');openAddClosedDealModal('${idAttr}')">Record deal</button></div></div></div>`;
@@ -4732,6 +4749,8 @@ function openEditLeadContact(id){
   document.getElementById('ec-brand').value=c.brand||'';
   document.getElementById('ec-telegram').value=c.telegramUsername||c.telegramChatId||'';
   document.getElementById('ec-whatsapp').value=c.whatsapp||'';
+  document.getElementById('ec-contact-person-name').value=c.contactPersonName||'';
+  document.getElementById('ec-contact-person-title').value=c.contactPersonTitle||'';
   document.getElementById('modal-edit-contact').classList.add('open');
 }
 
@@ -4750,7 +4769,9 @@ async function submitEditLeadContact(){
     country:document.getElementById('ec-country').value.trim(),
     brand:document.getElementById('ec-brand').value.trim(),
     telegramUsername:document.getElementById('ec-telegram').value.trim(),
-    whatsapp:document.getElementById('ec-whatsapp').value.trim()
+    whatsapp:document.getElementById('ec-whatsapp').value.trim(),
+    contactPersonName:document.getElementById('ec-contact-person-name').value.trim(),
+    contactPersonTitle:document.getElementById('ec-contact-person-title').value.trim()
   };
   try{
     await apiFetch('/whizz-update-contact',{method:'POST',body:JSON.stringify(contact)});
@@ -4857,6 +4878,7 @@ function saveContactField(c,fields){
     phone:c.phone||'',email:c.email||'',category:c.category||'',source:c.source||'',platform:c.platform||'',
     country:c.country||'',brand:c.brand||'',productInterest:c.productInterest||'',
     telegramUsername:c.telegramUsername||'',linkedin:c.linkedin||'',whatsapp:c.whatsapp||'',
+    contactPersonName:c.contactPersonName||'',contactPersonTitle:c.contactPersonTitle||'',
     ...fields
   })});
 }
@@ -4910,6 +4932,33 @@ async function runDeepSearchEnrichTelegram(){
     if(found){closeModal('modal-enrich-telegram');loadLeadsContacts();}
   }catch(e){showToast(e.message||'Deeper search failed','error');}
   btn.disabled=false;btn.textContent='Run deeper search';
+}
+// Finds an actual decision-maker for each selected lead still missing one — a public LinkedIn
+// profile (owner, director, purchasing, sales manager, ...) via the same SerpApi/Yandex flow as
+// the WhatsApp deep-search tier. See enrichContactPerson() in worker/routes/leadIntelligence.js.
+async function runFindContactPersonForSelected(){
+  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id)&&!c.contactPersonName);
+  if(!targets.length){showToast('None of the selected leads are missing a contact person','info');return;}
+  const btn=document.getElementById('leads-find-contact-btn');
+  btn.disabled=true;btn.textContent='Searching…';
+  try{
+    const capped=targets.slice(0,15);
+    const leads=capped.map(c=>({key:String(c.id),company:c.company||c.contactName||''}));
+    const results=await fetchContactPersonResults(leads);
+    let found=0,failed=0;
+    for(const c of capped){
+      const hit=results[String(c.id)];
+      if(!hit||!hit.name)continue;
+      try{
+        await saveContactField(c,{contactPersonName:hit.name,contactPersonTitle:hit.title||'',linkedin:hit.linkedin||c.linkedin||''});
+        found++;
+      }catch(e){failed++;}
+    }
+    const cappedNote=targets.length>15?` (capped at the first 15 of ${targets.length})`:'';
+    showToast(found?`Found and saved a contact person for ${found} lead(s)${failed?`, ${failed} failed to save`:''}${cappedNote}`:`No decision-maker profiles found${cappedNote}`,found?'success':'info');
+    if(found)loadLeadsContacts();
+  }catch(e){showToast(e.message||'Contact person search failed','error');}
+  btn.disabled=false;btn.textContent='Find Contact Person';
 }
 async function applyPastedTelegramIds(){
   const raw=document.getElementById('et-paste').value.trim();
@@ -7252,6 +7301,10 @@ async function runDiscovery(source) {
       const deepBox = document.getElementById('disc-enrich-deepsearch-maps');
       if (deepBox && deepBox.checked) await deepSearchMapsSocialLinks();
     }
+    const personBox = document.getElementById('disc-enrich-contact-person-maps');
+    if (source === 'maps' && contacts.length && personBox && personBox.checked) {
+      await findContactPersonsMaps();
+    }
   } catch(e) {
     document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n.</div>`;
     document.getElementById(`disc-results-title-${source}`).textContent = 'Results';
@@ -7347,6 +7400,54 @@ async function deepSearchMapsSocialLinks() {
     showToast(found ? `Deeper search found ${found} more WhatsApp number${found > 1 ? 's' : ''}${cappedNote}` : `Deeper search found nothing new${cappedNote}`, found ? 'success' : 'info');
   } catch (e) {
     showToast(e.message || 'Deeper search failed', 'error');
+  }
+  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
+}
+
+async function fetchContactPersonResults(leads) {
+  if (!leads.length) return {};
+  const d = await leadApi('/api/lead-intelligence/enrich-contact-person', { method: 'POST', body: JSON.stringify({ leads }) });
+  if (d.error) throw new Error(d.error);
+  return d.results || {};
+}
+
+// Fourth, paid tier: finds an actual decision-maker at each business instead of just its
+// front-desk number — searches for a public LinkedIn profile (owner, director, purchasing,
+// sales manager, ...) via the same SerpApi/Yandex flow, see enrichContactPerson() in
+// worker/routes/leadIntelligence.js. Opt-in via its own checkbox since it costs a paid SerpApi
+// search per lead; runs for every result regardless of what the WhatsApp tiers found, since it's
+// answering a different question (who to contact, not how).
+async function findContactPersonsMaps() {
+  const win = S.disc.maps;
+  const targets = win.contacts
+    .map((c, i) => ({ c, key: String(i) }))
+    .filter(({ c }) => !c.contactPersonName);
+  if (!targets.length) { showToast('Every result already has a contact person', 'info'); return; }
+
+  const btn = document.getElementById('disc-run-btn-maps');
+  const icon = document.getElementById('disc-run-icon-maps');
+  const label = document.getElementById('disc-run-label-maps');
+  btn.disabled = true; icon.classList.add('spin');
+  label.textContent = `Finding contacts for ${Math.min(targets.length, 15)} lead${Math.min(targets.length, 15) > 1 ? 's' : ''}…`;
+
+  const leads = targets.map(({ c, key }) => ({ key, company: c.name || c.title || '' }));
+
+  try {
+    const results = await fetchContactPersonResults(leads);
+    let found = 0;
+    targets.forEach(({ c, key }) => {
+      const hit = results[key];
+      if (!hit || !hit.name) return;
+      c.contactPersonName = hit.name;
+      c.contactPersonTitle = hit.title || '';
+      if (hit.linkedin && !c.linkedin) c.linkedin = hit.linkedin;
+      found++;
+    });
+    renderDiscoveryResults('maps');
+    const cappedNote = leads.length > 15 ? ` (capped at the first 15 of ${leads.length})` : '';
+    showToast(found ? `Found ${found} contact person${found > 1 ? 's' : ''}${cappedNote}` : `No decision-maker profiles found${cappedNote}`, found ? 'success' : 'info');
+  } catch (e) {
+    showToast(e.message || 'Contact person search failed', 'error');
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
@@ -7566,6 +7667,7 @@ function renderDiscoveryResults(source) {
       ${email?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${email}" onclick="event.stopPropagation()">${email}</a></div>`:''}
       ${address?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${address}</div>`:''}
       ${website?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><a href="${website}" target="_blank" onclick="event.stopPropagation()">${website.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
+      ${c.contactPersonName?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:#0a66c2;min-width:26px;">PN</span>${c.contactPersonName}${c.contactPersonTitle?` — ${c.contactPersonTitle}`:''}</div>`:''}
       ${c.whatsapp?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--green);min-width:26px;">WA</span><a href="https://wa.me/${c.whatsapp.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()">${c.whatsapp}</a></div>`:''}
       ${c.telegram?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--blue);min-width:26px;">TG</span><a href="https://t.me/${c.telegram.replace(/^@/,'')}" target="_blank" onclick="event.stopPropagation()">${c.telegram}</a></div>`:''}
       ${c.linkedin?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:#0a66c2;min-width:26px;">in</span><a href="${c.linkedin}" target="_blank" onclick="event.stopPropagation()">${c.linkedin.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
@@ -7659,7 +7761,9 @@ function formatContactForLeads(source, c) {
   const platform = (DISC_CFG[source] && DISC_CFG[source].platform) || (c.__source === 'kaspi' ? 'Kaspi.kz' : '');
   const country = c.countryCode || c.country || c.__searchLocation || '';
   return {
-    contactName: c.name||c.title||'',
+    // Prefer an actual decision-maker's name (from the "Find Contact" LinkedIn search) over the
+    // business name — contactName is who you'd actually message, company is always the business.
+    contactName: c.contactPersonName||c.name||c.title||'',
     company: c.name||c.title||'',
     phone: c.phone||c.phoneNumber||'',
     email: c.email||'',
@@ -7674,7 +7778,9 @@ function formatContactForLeads(source, c) {
     sourceId: c.sourceId||c.placeId||c.cid||c.fid||c.id||'',
     telegramUsername: (c.telegramUsername||c.telegram||'').replace(/^@/,''),
     linkedin: c.linkedin||'',
-    whatsapp: c.whatsapp||''
+    whatsapp: c.whatsapp||'',
+    contactPersonName: c.contactPersonName||'',
+    contactPersonTitle: c.contactPersonTitle||''
   };
 }
 
@@ -7683,9 +7789,9 @@ function exportDiscCSV(source) {
   if (!contacts.length) { showToast('No contacts to export','error'); return; }
   const rows = contacts.map(c => {
     const f = formatContactForLeads(source, c);
-    return `"${f.contactName}","${f.company}","${f.phone}","${f.email}","${f.website}","${f.address}","${f.category}","${f.rating}","${f.telegramUsername}","${f.whatsapp}","${f.linkedin}"`;
+    return `"${f.contactName}","${f.company}","${f.contactPersonTitle}","${f.phone}","${f.email}","${f.website}","${f.address}","${f.category}","${f.rating}","${f.telegramUsername}","${f.whatsapp}","${f.linkedin}"`;
   });
-  downloadCSV(['Name,Company,Phone,Email,Website,Address,Category,Rating,Telegram,WhatsApp,LinkedIn',...rows].join('\n'),`whizz_discovered_contacts_${source}.csv`);
+  downloadCSV(['Name,Company,Contact Title,Phone,Email,Website,Address,Category,Rating,Telegram,WhatsApp,LinkedIn',...rows].join('\n'),`whizz_discovered_contacts_${source}.csv`);
   showToast('Export complete!','success');
 }
 
