@@ -2339,6 +2339,9 @@ body.dark .wa-quick-btn{color:#3ddc78;}
       <div style="margin-bottom:14px;">
         <div class="fl" style="margin-bottom:8px;">Export scope</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;" id="exp-scope-selected-wrap">
+            <input type="radio" name="exp-scope" value="selected" id="exp-scope-selected"> <span id="exp-scope-selected-label">Selected</span>
+          </label>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
             <input type="radio" name="exp-scope" value="shown" id="exp-scope-shown" checked> <span id="exp-scope-shown-label">Current view</span>
           </label>
@@ -4514,6 +4517,7 @@ function renderLeadsContactsTable(contacts){
       <span style="font-size:12px;font-weight:600;color:var(--text);"><span id="leads-bulk-count">${_leadsSelectedIds.size}</span> selected</span>
       <button class="t-btn btn-primary t-btn-sm" onclick="openBulkEditLeadsModal()">Bulk Edit</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="openEnrichTelegramModal()">Enrich Telegram</button>
+      <button class="t-btn btn-ghost t-btn-sm" onclick="openExportContacts('selected')">Export Selected</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="clearLeadsSelection()">Clear selection</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;padding:8px 2px 10px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:10px;">
@@ -4663,12 +4667,14 @@ const EXPORT_FIELDS=[
   {key:'website',label:'Website',def:false},
 ];
 let _exportShownContacts=[];
-function openExportContacts(){
+function openExportContacts(scope){
   _exportShownContacts=applyLeadsSearch(_currentLeadsContacts);
-  const allCount=_currentLeadsContacts.length,shownCount=_exportShownContacts.length;
+  const allCount=_currentLeadsContacts.length,shownCount=_exportShownContacts.length,selectedCount=_leadsSelectedIds.size;
   document.getElementById('exp-scope-shown-label').textContent=`Current view (${shownCount})`;
   document.getElementById('exp-scope-all-label').textContent=`All loaded (${allCount})`;
-  document.getElementById('exp-scope-shown').checked=true;
+  document.getElementById('exp-scope-selected-label').textContent=`Selected (${selectedCount})`;
+  document.getElementById('exp-scope-selected-wrap').style.display=selectedCount?'flex':'none';
+  document.getElementById(scope==='selected'&&selectedCount?'exp-scope-selected':'exp-scope-shown').checked=true;
   const fieldsEl=document.getElementById('exp-fields');
   fieldsEl.innerHTML=EXPORT_FIELDS.map(f=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
     <input type="checkbox" id="expf-${f.key}" ${f.def?'checked':''}> ${f.label}
@@ -4680,7 +4686,7 @@ function setAllExportFields(on){
 }
 function exportContactsCSV(){
   const scope=document.querySelector('input[name="exp-scope"]:checked')?.value||'shown';
-  const rows=scope==='all'?_currentLeadsContacts:_exportShownContacts;
+  const rows=scope==='all'?_currentLeadsContacts:scope==='selected'?_currentLeadsContacts.filter(c=>_leadsSelectedIds.has(c.id)):_exportShownContacts;
   const cols=EXPORT_FIELDS.filter(f=>{const el=document.getElementById('expf-'+f.key);return el&&el.checked;});
   if(!cols.length){showToast('Select at least one field','error');return;}
   const esc=v=>{const s=String(v??'');return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s;};
