@@ -2880,6 +2880,40 @@ function buildReportsPageReportHtml(d){
   const taskCards=d.taskList.length?d.taskList.map(taskReportCardHtml).join(''):'<div class="empty-note">No open tasks — nice work.</div>';
   const eventCards=d.upcomingEvents.length?d.upcomingEvents.map(eventCardHtml).join(''):'<div class="empty-note">No upcoming events scheduled.</div>';
 
+  const wl=d.weeklyLeads;
+  const weeklyLeadsSection=wl?(()=>{
+    const maxDaily=Math.max(1,...wl.daily.map(x=>x.count));
+    const dailyBars=wl.daily.map(x=>reportBarRow(new Date(x.date+'T00:00:00').toLocaleDateString('default',{weekday:'short',day:'2-digit'}),x.count,maxDaily,'#16a34a')).join('');
+    const maxWPlatform=wl.platforms[0]?.[1]||1;
+    const maxWCountry=wl.countries[0]?.[1]||1;
+    const wPlatformRows=wl.platforms.map(([k,v])=>reportBarRow(k,v,maxWPlatform,'#f59e0b')).join('')||'<div class="muted">No platform data for this period</div>';
+    const wCountryRows=wl.countries.map(([k,v])=>reportBarRow(k,v,maxWCountry,'#2563eb')).join('')||'<div class="muted">No country data for this period</div>';
+    const changeColor=wl.changePct>0?'#16a34a':wl.changePct<0?'#dc2626':'#94a3b8';
+    const changeSign=wl.changePct>0?'+':'';
+    return`<div class="section-title" style="margin-top:0;">New Leads Collected — Last 7 Days</div>
+    <div class="section-note">Fresh contacts added to the database in the past 7 days, compared with the 7 days before that.</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px;">
+      <div class="kpi-card green"><div class="kpi-label">New Leads This Week</div><div class="kpi-value">${wl.count.toLocaleString()}</div><div class="kpi-sub">Last 7 days</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">Vs. Previous 7 Days</div><div class="kpi-value" style="color:${changeColor};">${changeSign}${wl.changePct}%</div><div class="kpi-sub">Week-over-week trend</div></div>
+      <div class="kpi-card amber"><div class="kpi-label">Avg. Leads / Day</div><div class="kpi-value">${wl.avgPerDay}</div><div class="kpi-sub">This week's daily rate</div></div>
+    </div>
+    <div class="sub-block" style="margin-top:0;">
+      <div class="sub-title">Daily Leads — Last 7 Days</div>
+      ${dailyBars}
+    </div>
+    <div class="two-col-section" style="margin-top:22px;">
+      <div>
+        <div class="sub-title">Top Platforms This Week</div>
+        ${wPlatformRows}
+      </div>
+      <div>
+        <div class="sub-title">Top Countries This Week</div>
+        ${wCountryRows}
+      </div>
+    </div>`;
+  })():`<div class="section-title" style="margin-top:0;">New Leads Collected — Last 7 Days</div>
+    <div class="empty-note">Couldn't load recent lead data. Ensure the contacts webhook is active and try again.</div>`;
+
   return`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Whizz Analytics Report — ${d.generatedAt.toLocaleDateString()}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2954,6 +2988,8 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
     <div class="hero-gen">Generated ${d.generatedAt.toLocaleString()}</div>
   </div>
   <div class="body-pad">
+    ${weeklyLeadsSection}
+
     <div class="section-title">Website Visits — Last 7 Days</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px;">
       <div class="kpi-card blue"><div class="kpi-label">Total Views</div><div class="kpi-value">${totalViews.toLocaleString()}</div><div class="kpi-sub">${sitesOk.length} site${sitesOk.length===1?'':'s'} tracked</div></div>
@@ -3001,11 +3037,11 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
 
     <div class="two-col-section" style="margin-top:30px;">
       <div>
-        <div class="section-title" style="margin-top:0;">Leads by Platform</div>
+        <div class="section-title" style="margin-top:0;">Leads by Platform (All-Time)</div>
         ${platformRows}
       </div>
       <div>
-        <div class="section-title" style="margin-top:0;">Leads by Country</div>
+        <div class="section-title" style="margin-top:0;">Leads by Country (All-Time)</div>
         ${countryRows}
       </div>
     </div>
@@ -3153,7 +3189,43 @@ function downloadPlatformTrackingReport(){
   showToast('Platform tracking report downloaded!','success');
 }
 
-function downloadReportsPageReport(){
+async function downloadReportsPageReport(){
+  const btn=document.getElementById('download-reports-page-btn');
+  if(btn){btn.disabled=true;btn.style.opacity='0.6';}
+  let weeklyLeads=null;
+  try{
+    const data=await apiW('whizz-get-contacts');
+    const contacts=data.contacts||[];
+    const now=new Date();
+    const weekStart=new Date(now);weekStart.setDate(now.getDate()-6);weekStart.setHours(0,0,0,0);
+    const prevWeekStart=new Date(weekStart);prevWeekStart.setDate(prevWeekStart.getDate()-7);
+    const inRange=(c,from,to)=>{if(!c.createdAt)return false;const t=new Date(c.createdAt);return t>=from&&(!to||t<to);};
+    const weekContacts=contacts.filter(c=>inRange(c,weekStart));
+    const prevWeekCount=contacts.filter(c=>inRange(c,prevWeekStart,weekStart)).length;
+    const changePct=prevWeekCount>0?Math.round((weekContacts.length-prevWeekCount)/prevWeekCount*100):(weekContacts.length>0?100:0);
+    const daily=[];
+    for(let i=6;i>=0;i--){
+      const day=new Date(now);day.setDate(now.getDate()-i);
+      const key=day.toISOString().slice(0,10);
+      const count=weekContacts.filter(c=>(c.createdAt||'').slice(0,10)===key).length;
+      daily.push({date:key,count});
+    }
+    const countBy=key=>{
+      const m={};
+      weekContacts.forEach(c=>{const v=c[key]||'Unknown';m[v]=(m[v]||0)+1;});
+      return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    };
+    weeklyLeads={
+      count:weekContacts.length,
+      changePct,
+      avgPerDay:Math.round((weekContacts.length/7)*10)/10,
+      daily,
+      platforms:countBy('platform'),
+      countries:countBy('country')
+    };
+  }catch(e){
+    weeklyLeads=null;
+  }
   const stats=S.cache.stats||{};
   const groups=S.cache.groups||[];
   const platformMap={},countryMap={};
@@ -3205,10 +3277,12 @@ function downloadReportsPageReport(){
     topCountries,
     brevoCampaigns,
     wpTrafficSites:S.cache.wpTrafficSites||[],
-    taskStats,taskList,upcomingEvents
+    taskStats,taskList,upcomingEvents,
+    weeklyLeads
   });
   downloadHTML(html,`Whizz-Analytics-Report-${period}-${now.toISOString().slice(0,10)}.html`);
   showToast('Report downloaded!','success');
+  if(btn){btn.disabled=false;btn.style.opacity='';}
 }
 
 // ── Notifications ──
