@@ -286,12 +286,24 @@ const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
 const EMPTY_SOCIAL_LINKS = { telegram: '', linkedin: '', whatsapp: '', instagram: '' };
 
+// A real WhatsApp number is an E.164 phone number: 8-15 digits, optionally with a leading '+'.
+// The wa.me/api.whatsapp.com regexes' character classes don't actually bound digit count (spaces
+// and dashes inside them don't stop a run of plain digits from going arbitrarily long), so without
+// this a match can grab far more than a phone number — a query string, an ID, or a mismatched
+// number sitting nearby — and save it as if it were real. Reject anything outside the real range
+// rather than store garbage.
+function normalizeWhatsAppMatch(raw) {
+  const digits = String(raw || '').replace(/[^0-9]/g, '');
+  if (digits.length < 8 || digits.length > 15) return '';
+  return (String(raw).trim().startsWith('+') ? '+' : '') + digits;
+}
+
 function extractSocialLinks(html) {
   const telegramMatch = html.match(/https?:\/\/(?:t|telegram)\.me\/([A-Za-z0-9_]{4,32})/i);
   const linkedinMatch = html.match(/https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/(?:company|in|school)\/[A-Za-z0-9\-_%.]+/i);
   const waMeMatch = html.match(/https?:\/\/(?:api\.)?wa\.me\/(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i);
   const waApiMatch = html.match(/https?:\/\/api\.whatsapp\.com\/send\/?\?phone=(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i);
-  const whatsappRaw = (waMeMatch && waMeMatch[1]) || (waApiMatch && waApiMatch[1]) || '';
+  const whatsapp = normalizeWhatsAppMatch((waMeMatch && waMeMatch[1]) || (waApiMatch && waApiMatch[1]) || '');
   // Instagram is never surfaced as a lead field — it's only followed as a secondary source to
   // find a WhatsApp/Telegram link a business put in its bio instead of on its own website.
   const instagramMatch = html.match(/https?:\/\/(?:www\.)?instagram\.com\/([A-Za-z0-9_.]{2,30})/i);
@@ -300,7 +312,7 @@ function extractSocialLinks(html) {
   return {
     telegram: telegramMatch ? telegramMatch[1] : '',
     linkedin: linkedinMatch ? linkedinMatch[0].replace(/^http:/i, 'https:') : '',
-    whatsapp: whatsappRaw.replace(/[^0-9+]/g, ''),
+    whatsapp,
     instagram: instagramHandle
   };
 }
@@ -372,14 +384,21 @@ const ENRICH_SEARCH_TIMEOUT_MS = 10000;
 const WA_ME_RE = /https?:\/\/(?:api\.)?wa\.me\/(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i;
 const WA_API_RE = /https?:\/\/api\.whatsapp\.com\/send\/?\?phone=(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i;
 // Catches a number spelled out next to the word "WhatsApp" in a search snippet/title even when
-// there's no wa.me link — common on directory and marketplace listing pages.
-const WA_LABELLED_NUMBER_RE = /whatsapp[^0-9+]{0,12}(\+?[0-9][0-9\s\-()]{7,17}[0-9])/i;
+// there's no wa.me link — common on directory and marketplace listing pages. The gap after
+// "whatsapp" excludes quotes so it can't wander across a JSON field boundary when scanning a
+// stringified SerpApi response — without that, this regex was matching into an unrelated numeric
+// field sitting near the word "whatsapp" in the JSON and producing 16+ digit garbage that isn't a
+// phone number at all. normalizeWhatsAppMatch() below is the real safety net either way.
+const WA_LABELLED_NUMBER_RE = /whatsapp[^0-9+"]{0,8}(\+?[0-9][0-9\s\-()]{5,13}[0-9])/i;
 
 function extractWhatsAppNumber(text) {
   const waMe = text.match(WA_ME_RE) || text.match(WA_API_RE);
-  if (waMe) return waMe[1].replace(/[^0-9+]/g, '');
+  if (waMe) {
+    const num = normalizeWhatsAppMatch(waMe[1]);
+    if (num) return num;
+  }
   const labelled = text.match(WA_LABELLED_NUMBER_RE);
-  return labelled ? labelled[1].replace(/[^0-9+]/g, '') : '';
+  return labelled ? normalizeWhatsAppMatch(labelled[1]) : '';
 }
 
 // Deeper, WhatsApp-only enrichment tier beyond a business's own website/Instagram: runs each
@@ -419,9 +438,13 @@ async function enrichSocialSearch(request, env) {
       const res = await fetch(url, { signal: AbortSignal.timeout(ENRICH_SEARCH_TIMEOUT_MS) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.error) return [key, ''];
-      // Scan the whole stringified response — organic results, knowledge panel, "people also
-      // ask" — rather than one specific field, since a WhatsApp mention can land anywhere in it.
-      return [key, extractWhatsAppNumber(JSON.stringify(data))];
+      // Scan only the fields that actually describe search hits for this query — organic
+      // results plus any knowledge-panel/local-listing block — not the whole response. Fields
+      // like pagination, related searches, and request metadata carry unrelated numeric noise
+      // (tracking params, result counts, ...) that isn't tied to the business at all, and
+      // scanning them was producing WhatsApp "numbers" for the wrong business or no business.
+      const relevant = [data.organic_results, data.answer_box, data.knowledge_graph, data.local_results].filter(Boolean);
+      return [key, extractWhatsAppNumber(JSON.stringify(relevant))];
     } catch (error) {
       return [key, ''];
     }
