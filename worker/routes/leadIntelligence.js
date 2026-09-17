@@ -401,14 +401,31 @@ function extractWhatsAppNumber(text) {
   return labelled ? normalizeWhatsAppMatch(labelled[1]) : '';
 }
 
+// Shared SerpApi-via-Yandex call used by every deeper-search enrichment tier below. Yandex
+// rather than Google: Whizz's discovery searches skew toward Russia/CIS (Moscow, Minsk, Baku,
+// ...), where Yandex indexes local businesses (and their public web mentions) far more
+// thoroughly than Google does. Yandex's SerpApi params differ from Google's: the query goes in
+// `text` (not `q`), and `yandex_domain` picks the regional index — yandex.com is the
+// international domain, used here rather than guessing a per-lead country-specific domain
+// (yandex.ru/.by/.kz/...). Returns the parsed response, or null on any failure — best-effort,
+// callers treat null the same as "found nothing".
+async function fetchYandexSearch(query, env) {
+  const url = new URL('https://serpapi.com/search.json');
+  url.searchParams.set('engine', 'yandex');
+  url.searchParams.set('text', query);
+  url.searchParams.set('yandex_domain', 'yandex.com');
+  url.searchParams.set('api_key', env.SERPAPI_API_KEY);
+  const res = await fetch(url, { signal: AbortSignal.timeout(ENRICH_SEARCH_TIMEOUT_MS) });
+  const data = await res.json().catch(() => ({}));
+  return (!res.ok || data.error) ? null : data;
+}
+
 // Deeper, WhatsApp-only enrichment tier beyond a business's own website/Instagram: runs each
-// lead's name+location through a real Yandex search via SerpApi (serpapi.com — an official search
-// API called directly, not a scraper chained through Apify/n8n) and scans whatever comes back —
-// directory listings, marketplace pages, social mentions — for a WhatsApp number, not just what's
-// on the business's own site. Yandex rather than Google: Whizz's discovery searches skew toward
-// Russia/CIS (Moscow, Minsk, Baku, ...), where Yandex indexes local businesses far more
-// thoroughly than Google does. WhatsApp-only on purpose: Telegram is already well covered by the
-// free website/Instagram tiers, so this paid last-resort tier stays narrow instead of widening the
+// lead's name+location through fetchYandexSearch() (an official search API called directly, not
+// a scraper chained through Apify/n8n) and scans whatever comes back — directory listings,
+// marketplace pages, social mentions — for a WhatsApp number, not just what's on the business's
+// own site. WhatsApp-only on purpose: Telegram is already well covered by the free
+// website/Instagram tiers, so this paid last-resort tier stays narrow instead of widening the
 // query (and the noise) to also chase Telegram. Costs one SerpApi call per lead, so it's meant to
 // run only for leads the free tiers already came up empty for, not as a first resort.
 async function enrichSocialSearch(request, env) {
@@ -426,18 +443,8 @@ async function enrichSocialSearch(request, env) {
 
   const entries = await Promise.all(batch.map(async ({ key, query }) => {
     try {
-      // Yandex's SerpApi params differ from Google's: the query goes in `text` (not `q`), and
-      // `yandex_domain` picks the regional index — yandex.com is the international domain and
-      // still indexes CIS businesses far better than Google does, without needing to guess a
-      // per-lead country-specific domain (yandex.ru/.by/.kz/...).
-      const url = new URL('https://serpapi.com/search.json');
-      url.searchParams.set('engine', 'yandex');
-      url.searchParams.set('text', query);
-      url.searchParams.set('yandex_domain', 'yandex.com');
-      url.searchParams.set('api_key', env.SERPAPI_API_KEY);
-      const res = await fetch(url, { signal: AbortSignal.timeout(ENRICH_SEARCH_TIMEOUT_MS) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.error) return [key, ''];
+      const data = await fetchYandexSearch(query, env);
+      if (!data) return [key, ''];
       // Scan only the fields that actually describe search hits for this query — organic
       // results plus any knowledge-panel/local-listing block — not the whole response. Fields
       // like pagination, related searches, and request metadata carry unrelated numeric noise
@@ -453,6 +460,69 @@ async function enrichSocialSearch(request, env) {
   const results = {};
   for (const [key, whatsapp] of entries) if (whatsapp) results[key] = { whatsapp };
   return json({ results, truncated: requested.length > ENRICH_SEARCH_MAX_LEADS });
+}
+
+const CONTACT_PERSON_MAX_LEADS = 15;
+
+const LINKEDIN_PROFILE_RE = /^https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/in\/[A-Za-z0-9\-_%]+\/?/i;
+// Titles that suggest someone can actually make or influence a purchasing decision — used to
+// skip a random employee's profile when several people at the same company show up in results.
+const DECISION_MAKER_TITLE_RE = /(owner|founder|\bceo\b|managing director|general manager|\bdirector\b|purchasing|procurement|export manager|import manager|sales manager|business development)/i;
+
+// LinkedIn blocks direct scraping, but its own page <title> ("Name - Job Title - Company |
+// LinkedIn") is what search engines index and return as an organic result's title — so a plain
+// search for a public LinkedIn profile page gets the name/title/company without ever requesting
+// a page from linkedin.com itself. Only returns a match with an explicit decision-maker signal in
+// its title or snippet, rather than just the first LinkedIn profile found for the company at any
+// level (an intern's profile matching the company name isn't useful here).
+function extractContactPerson(organicResults) {
+  for (const r of organicResults || []) {
+    const link = String(r?.link || r?.url || '').trim();
+    if (!LINKEDIN_PROFILE_RE.test(link)) continue;
+    const title = String(r?.title || '');
+    const parts = title.split(/\s[-|–]\s/).map(s => s.trim()).filter(Boolean);
+    const name = parts[0] || '';
+    if (!name || /linkedin/i.test(name)) continue;
+    const roleGuess = parts.slice(1).find(p => DECISION_MAKER_TITLE_RE.test(p)) || '';
+    if (!roleGuess && !DECISION_MAKER_TITLE_RE.test(String(r?.snippet || ''))) continue;
+    return { name, title: roleGuess || (parts[1] || ''), linkedin: link.replace(/^http:/i, 'https:') };
+  }
+  return null;
+}
+
+// Finds the actual decision-maker at a business, not just its front-desk number: searches
+// site:linkedin.com/in for the company name alongside likely decision-maker titles (owner,
+// director, purchasing, ...) via the same SerpApi/Yandex flow as the WhatsApp deep-search tier,
+// and pulls a name + title + profile URL out of whichever public LinkedIn profile page turns up.
+// Costs one SerpApi call per lead, same cadence as the WhatsApp tier — meant as an opt-in,
+// deliberate "find the right person" step, not something run on every search.
+async function enrichContactPerson(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const requested = Array.isArray(body.leads) ? body.leads : [];
+  const batch = requested
+    .map(l => ({ key: String(l?.key || '').trim(), company: String(l?.company || '').trim() }))
+    .filter(l => l.key && l.company)
+    .slice(0, CONTACT_PERSON_MAX_LEADS);
+  if (!batch.length) return json({ results: {} });
+
+  if (!env.SERPAPI_API_KEY) {
+    return json({ results: {}, error: 'SERPAPI_API_KEY is not configured on the Worker — set it with `wrangler secret put SERPAPI_API_KEY` (get a key at serpapi.com/manage-api-key).' }, 503);
+  }
+
+  const entries = await Promise.all(batch.map(async ({ key, company }) => {
+    try {
+      const query = `site:linkedin.com/in "${company}" (owner OR founder OR director OR purchasing OR manager)`;
+      const data = await fetchYandexSearch(query, env);
+      if (!data) return [key, null];
+      return [key, extractContactPerson(data.organic_results)];
+    } catch (error) {
+      return [key, null];
+    }
+  }));
+
+  const results = {};
+  for (const [key, person] of entries) if (person) results[key] = person;
+  return json({ results, truncated: requested.length > CONTACT_PERSON_MAX_LEADS });
 }
 
 const CHECK_EXISTING_MAX_ITEMS = 200;
@@ -493,6 +563,7 @@ export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'POST' && action === 'import') return importProspects(request, env);
   if (request.method === 'POST' && action === 'enrichSocial') return enrichSocialLinks(request, env);
   if (request.method === 'POST' && action === 'enrichSocialSearch') return enrichSocialSearch(request, env);
+  if (request.method === 'POST' && action === 'enrichContactPerson') return enrichContactPerson(request, env);
   if (request.method === 'POST' && action === 'checkExisting') return checkExistingContacts(request, env);
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
   if (request.method === 'POST' && action === 'run') return runCollector(request, env, arg);
