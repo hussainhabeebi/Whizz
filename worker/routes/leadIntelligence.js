@@ -169,17 +169,19 @@ async function listProspects(request, env) {
 async function promote(env, id, ownerEmail = null) {
   const p = await env.DB.prepare('SELECT * FROM directory_prospects WHERE id=?').bind(id).first();
   if (!p) return json({ error: 'Prospect not found' }, 404);
-  const phone = p.phone || p.whatsapp || ''; // contacts.phone drives the WhatsApp chat button (wa.me/<phone>)
-  const existing = await env.DB.prepare(`SELECT id FROM contacts WHERE (email<>'' AND lower(email)=lower(?)) OR (phone<>'' AND phone=?) OR (company<>'' AND lower(company)=lower(?)) LIMIT 1`).bind(p.email || '', phone, p.company || '').first();
+  const phone = p.phone || '';
+  const whatsapp = p.whatsapp || '';
+  const matchPhone = phone || whatsapp; // de-dup lookup only — contacts.phone/whatsapp stay separate below
+  const existing = await env.DB.prepare(`SELECT id FROM contacts WHERE (email<>'' AND lower(email)=lower(?)) OR (phone<>'' AND phone=?) OR (whatsapp<>'' AND whatsapp=?) OR (company<>'' AND lower(company)=lower(?)) LIMIT 1`).bind(p.email || '', matchPhone, whatsapp, p.company || '').first();
   if (existing) {
-    await env.DB.prepare(`UPDATE contacts SET source=?,platform=?,country=COALESCE(NULLIF(?,''),country),brand=COALESCE(NULLIF(?,''),brand),productInterest=COALESCE(NULLIF(?,''),productInterest),phone=COALESCE(NULLIF(phone,''),?),telegramUsername=COALESCE(NULLIF(telegramUsername,''),?),leadScore=MAX(leadScore,?),updatedAt=CURRENT_TIMESTAMP WHERE id=?`)
-      .bind(p.source, sourceName(p.source), p.country, p.brand, p.productInterest, phone, p.telegram || '', p.leadScore, existing.id).run();
+    await env.DB.prepare(`UPDATE contacts SET source=?,platform=?,country=COALESCE(NULLIF(?,''),country),brand=COALESCE(NULLIF(?,''),brand),productInterest=COALESCE(NULLIF(?,''),productInterest),phone=COALESCE(NULLIF(phone,''),?),whatsapp=COALESCE(NULLIF(whatsapp,''),?),telegramUsername=COALESCE(NULLIF(telegramUsername,''),?),leadScore=MAX(leadScore,?),updatedAt=CURRENT_TIMESTAMP WHERE id=?`)
+      .bind(p.source, sourceName(p.source), p.country, p.brand, p.productInterest, phone, whatsapp, p.telegram || '', p.leadScore, existing.id).run();
     await env.DB.prepare(`UPDATE directory_prospects SET status='promoted',contactId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=?`).bind(existing.id,id).run();
     return json({ ok: true, contactId: existing.id, merged: true });
   }
-  const result = await env.DB.prepare(`INSERT INTO contacts(contactName,company,phone,email,category,source,platform,country,brand,productInterest,ownerEmail,leadScore,telegramUsername,createdAt,updatedAt)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
-    .bind(p.contactName || '',p.company || '',phone,p.email || '','Directory Prospect',p.source,sourceName(p.source),p.country || '',p.brand || '',p.productInterest || '',ownerEmail,p.leadScore || 0,p.telegram || '').run();
+  const result = await env.DB.prepare(`INSERT INTO contacts(contactName,company,phone,email,category,source,platform,country,brand,productInterest,ownerEmail,leadScore,telegramUsername,whatsapp,createdAt,updatedAt)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+    .bind(p.contactName || '',p.company || '',phone,p.email || '','Directory Prospect',p.source,sourceName(p.source),p.country || '',p.brand || '',p.productInterest || '',ownerEmail,p.leadScore || 0,p.telegram || '',whatsapp).run();
   const contactId = result.meta?.last_row_id;
   await env.DB.prepare(`UPDATE directory_prospects SET status='promoted',contactId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=?`).bind(contactId,id).run();
   return json({ ok: true, contactId, merged: false });
