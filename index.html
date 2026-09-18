@@ -1842,7 +1842,7 @@ body.dark .wa-quick-btn{color:#3ddc78;}
                   </button>
                 </div>
               </div>
-              <div class="fi-hint">Searches the web (via SerpApi/Yandex) for the company name, picks out its likely official website, phone, WhatsApp and address, then checks that website for a Telegram/WhatsApp/LinkedIn link. Each search adds to the list below rather than replacing it, so you can look up several companies in a row before bulk-adding them to Leads.</div>
+              <div class="fi-hint">Searches the web (via SerpApi/Yandex) for the company name, picks out its likely official website, phone, WhatsApp and address, then checks that website for a Telegram/WhatsApp/LinkedIn link — and cross-references it against Whizz's own already-imported Handelot &amp; Kadorf prospects (Directory Sources in Lead Intelligence), showing any matches as their own cards. Each search adds to the list below rather than replacing it, so you can look up several companies in a row before bulk-adding them to Leads.</div>
               <div style="margin-top:10px;">
                 <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
                   <input type="checkbox" id="disc-enrich-contact-person-company"> Also find the decision-maker (LinkedIn via SerpApi, extra cost)
@@ -7742,6 +7742,38 @@ async function resolveVolzaLead(source, i) {
   }
 }
 
+// The two credentialed B2B directory sources (see Directory Sources in Lead Intelligence) that
+// Company Search also cross-references — display names for formatContactForLeads() below.
+const DIRECTORY_PROSPECT_SOURCE_LABEL = { handelot: 'Handelot', kadorf: 'Kadorf' };
+
+function directoryProspectToContact(p, source) {
+  return {
+    __prospectId: p.id, __source: source,
+    name: p.company, phone: p.phone, email: p.email, website: p.website,
+    whatsapp: p.whatsapp, telegram: p.telegram,
+    address: p.country, category: p.productInterest || p.brand,
+    totalScore: p.leadScore ? p.leadScore / 20 : 0,
+    url: p.profileUrl
+  };
+}
+
+// Cross-references Whizz's own already-imported Handelot/Kadorf prospects (from a prior Directory
+// Sources crawl — these are credentialed, login-gated marketplaces, not something this search can
+// scrape live) against the searched company name, alongside searchCompany()'s live SerpApi lookup.
+// Best-effort per source: a source with nothing imported yet, or a fetch failure, just contributes
+// no matches rather than failing the whole Company Search.
+async function fetchDirectoryProspectMatches(company) {
+  const perSource = await Promise.all(Object.keys(DIRECTORY_PROSPECT_SOURCE_LABEL).map(async source => {
+    try {
+      const d = await leadApi(`/api/lead-intelligence/prospects?source=${source}&q=${encodeURIComponent(company)}`);
+      return (d.prospects || []).map(p => directoryProspectToContact(p, source));
+    } catch (e) {
+      return [];
+    }
+  }));
+  return perSource.flat();
+}
+
 function kaspiProspectToContact(p) {
   return {
     __prospectId: p.id, __source: 'kaspi',
@@ -7930,17 +7962,42 @@ async function runCompanySearch() {
   }
 
   try {
-    const d = await leadApi('/api/lead-intelligence/search-company', { method: 'POST', body: JSON.stringify({ company, location, findContactPerson, findBusinessDirectory }) });
-    if (!d.profile) {
-      showToast(`No results found for "${company}"`, 'info');
-    } else {
-      const entry = { __source: 'company', name: company, __searchLocation: location, ...d.profile, company };
-      const existingIdx = win.contacts.findIndex(c => (c.name || '').toLowerCase() === company.toLowerCase());
+    // Independent failure handling: search-company is a paid SerpApi call and can fail on its own
+    // (e.g. no SERPAPI_API_KEY), but the Handelot/Kadorf prospect lookup is a free local DB read —
+    // one failing shouldn't hide results from the other, so each is caught on its own rather than
+    // through one shared catch.
+    const [profileResult, directoryMatches] = await Promise.all([
+      leadApi('/api/lead-intelligence/search-company', { method: 'POST', body: JSON.stringify({ company, location, findContactPerson, findBusinessDirectory }) }).catch(e => ({ __error: e })),
+      fetchDirectoryProspectMatches(company)
+    ]);
+
+    let profileMessage = '';
+    if (profileResult.__error) {
+      profileMessage = profileResult.__error.message || 'SerpApi company search failed';
+    } else if (profileResult.profile) {
+      const entry = { __source: 'company', name: company, __searchLocation: location, ...profileResult.profile, company };
+      const existingIdx = win.contacts.findIndex(c => c.__source === 'company' && (c.name || '').toLowerCase() === company.toLowerCase());
       if (existingIdx >= 0) win.contacts[existingIdx] = entry;
       else win.contacts.unshift(entry);
-      renderDiscoveryResults(source);
-      showToast(`Built a profile for "${company}"`, 'success');
+      profileMessage = `Built a profile for "${company}"`;
+    } else {
+      profileMessage = `No SerpApi results for "${company}"`;
     }
+
+    let addedFromDirectories = 0;
+    directoryMatches.forEach(m => {
+      const already = win.contacts.some(c => c.__prospectId === m.__prospectId && c.__source === m.__source);
+      if (already) return;
+      win.contacts.push(m);
+      addedFromDirectories++;
+    });
+
+    renderDiscoveryResults(source);
+    const directoryNote = addedFromDirectories
+      ? ` + ${addedFromDirectories} match${addedFromDirectories > 1 ? 'es' : ''} from Handelot/Kadorf`
+      : '';
+    const toastType = profileResult.profile || addedFromDirectories ? 'success' : (profileResult.__error ? 'error' : 'info');
+    showToast(`${profileMessage}${directoryNote}`, toastType);
   } catch (e) {
     if (!win.contacts.length) {
       resultsBody.innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${e.message || 'Company search failed'}</div>`;
@@ -8023,7 +8080,7 @@ function renderDiscoveryResults(source) {
       ${c.directoryDescription?`<div class="cc-detail" style="color:var(--text3);font-size:10px;">${_hesc(c.directoryDescription).slice(0,140)}</div>`:''}
       ${c.description?`<div style="font-size:11px;color:var(--text3);margin-top:4px;line-height:1.4;">${_hesc(c.description).slice(0,180)}</div>`:''}
       <div class="cc-footer">
-        ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${source==='kaspi'?'Seller Page ↗':source==='gis2'?'2GIS ↗':'Maps ↗'}</a>`:''}
+        ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${(c.__source==='kaspi'||source==='kaspi')?'Seller Page ↗':(c.__source==='gis2'||source==='gis2')?'2GIS ↗':DIRECTORY_PROSPECT_SOURCE_LABEL[c.__source]?`${DIRECTORY_PROSPECT_SOURCE_LABEL[c.__source]} ↗`:'Maps ↗'}</a>`:''}
         <button class="t-btn btn-primary" style="padding:4px 9px;font-size:10px;flex:1;justify-content:center;" onclick="event.stopPropagation();saveOneContact('${source}',${i})">+ Add to Leads</button>
       </div>
     </div>`;
@@ -8109,7 +8166,10 @@ async function saveSelectedContacts(source) {
 // sourceId through so the backend can refresh an already-imported listing instead of just
 // dropping it as a duplicate.
 function formatContactForLeads(source, c) {
-  const platform = (DISC_CFG[source] && DISC_CFG[source].platform) || (c.__source === 'kaspi' ? 'Kaspi.kz' : '');
+  // c.__source only differs from the window's own `source` for a Handelot/Kadorf prospect mixed
+  // into the Company Search window (see fetchDirectoryProspectMatches) — its own platform name
+  // takes priority so CSV export doesn't mislabel it as "Company Search (SERP)".
+  const platform = DIRECTORY_PROSPECT_SOURCE_LABEL[c.__source] || (DISC_CFG[source] && DISC_CFG[source].platform) || (c.__source === 'kaspi' ? 'Kaspi.kz' : '');
   const country = c.countryCode || c.country || c.__searchLocation || '';
   return {
     // Prefer an actual decision-maker's name (from the "Find Contact" LinkedIn search) over the
