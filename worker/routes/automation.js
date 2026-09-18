@@ -98,7 +98,7 @@ async function saveOwnedContacts(request, env, user) {
        website,address,rating,mapsUrl,sourceId,telegramUsername,linkedin,whatsapp,contactPersonName,contactPersonTitle,
        volzaUrl,directoryUrl,directoryDescription,
        ownerEmail,teamId,createdByEmail,leadScore,lastContactedAt,nextFollowUpAt,dealExpectedAt,createdAt,updatedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
       .bind(String(contact.contactName || contact.name || contact.company || ''), String(contact.company || contact.contactName || contact.name || ''),
         phone, email, category, String(contact.source || ''), platform,
         country, String(contact.brand || ''), String(contact.productInterest || ''),
