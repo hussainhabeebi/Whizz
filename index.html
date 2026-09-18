@@ -1656,6 +1656,12 @@ body.dark .wa-quick-btn{color:#3ddc78;}
                 </label>
                 <div class="fi-hint">Searches for a public LinkedIn profile (owner, director, purchasing/procurement, sales manager, ...) at each business via SerpApi, so you're not just messaging a front-desk number — pulls a name, title and profile link when a decision-maker's profile turns up. Costs one paid SerpApi search per lead, capped at 15 per search.</div>
               </div>
+              <div style="margin-top:8px;">
+                <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="disc-enrich-directories-maps"> Then check Volza, Yellow Pages &amp; Golden Pages (extra cost)
+                </label>
+                <div class="fi-hint">Searches Volza (import/export trade data), Yellow Pages (US) and Golden Pages (Ireland) via SerpApi for each business's name + location. Volza's real shipment data needs a paid account login, so this only links its public trade profile page when one turns up; Yellow/Golden Pages listings are public, so their phone/email fill in a result still missing one, and their category/description text is added too. Costs one paid SerpApi search per lead (covers all three sources), capped at 15 per search.</div>
+              </div>
             </div>
           </div>
           <div class="card">
@@ -1670,6 +1676,10 @@ body.dark .wa-quick-btn{color:#3ddc78;}
                 <button class="t-btn btn-ghost t-btn-sm" title="Find a decision-maker's LinkedIn profile for each result (paid search)" onclick="findContactPersonsMaps()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                   Find Contact
+                </button>
+                <button class="t-btn btn-ghost t-btn-sm" title="Check Volza, Yellow Pages &amp; Golden Pages for each result (paid search)" onclick="findBusinessDirectoriesMaps()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                  Directories
                 </button>
                 <button class="t-btn btn-ghost t-btn-sm" onclick="exportDiscCSV('maps')">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -4756,6 +4766,9 @@ const EXPORT_FIELDS=[
   {key:'contactPersonName',label:'Contact Person',def:true},
   {key:'contactPersonTitle',label:"Contact Person's Title",def:false},
   {key:'website',label:'Website',def:false},
+  {key:'volzaUrl',label:'Volza Profile',def:false},
+  {key:'directoryUrl',label:'Directory Listing',def:false},
+  {key:'directoryDescription',label:'Directory Description',def:false},
 ];
 let _exportShownContacts=[];
 function openExportContacts(scope){
@@ -4798,7 +4811,7 @@ function openLeadProfile(id){
   const personName=c.contactPersonName||'',personTitle=c.contactPersonTitle||'';
   const idAttr=_hesc(id);
   document.getElementById('lp-name').textContent=name;document.getElementById('lp-sub').textContent=[c.company,c.country,c.brand].filter(Boolean).join(' · ');
-  document.getElementById('lp-body').innerHTML=`<div class="lead-profile-grid"><div class="profile-panel"><div class="eyebrow">Complete customer view</div><div class="profile-field"><span>Contact Person</span><b>${personName?`${_hesc(personName)}${personTitle?` — ${_hesc(personTitle)}`:''}${c.linkedin?` · <a href="${c.linkedin}" target="_blank" style="color:#0a66c2;">LinkedIn ↗</a>`:''}`:'Not found'}</b></div><div class="profile-field"><span>Phone</span><b>${phone||'Not provided'}</b></div><div class="profile-field"><span>WhatsApp</span><b>${waNumber?`<a href="https://wa.me/${waNumber.replace(/\D/g,'')}" target="_blank" style="color:#25d366;">${waNumber}</a>`:'Not provided'}</b></div><div class="profile-field"><span>Telegram</span><b>${tgHandle?`<a href="https://t.me/${tgHandle.replace(/^@/,'')}" target="_blank" style="color:#26a6d1;">@${tgHandle.replace(/^@/,'')}</a>`:'Not provided'}</b></div><div class="profile-field"><span>Email</span><b>${c.email||'Not provided'}</b></div><div class="profile-field"><span>Platform</span><b>${c.platform||_currentLeadsGroup?.platform||'—'}</b></div><div class="profile-field"><span>Country</span><b>${c.country||_currentLeadsGroup?.country||'—'}</b></div><div class="profile-field"><span>Interest</span><b>${c.productInterest||c.category||c.brand||'Not classified'}</b></div><div class="profile-field"><span>Source</span><b>${c.source||'—'}</b></div></div><div><div class="profile-panel"><div class="eyebrow">Sales intelligence</div><div class="profile-field"><span>Temperature</span><b>${temp}</b></div><div class="profile-field"><span>Lead score</span><b style="color:var(--green)">${score}/100</b></div><div class="profile-field"><span>Buyer type</span><b>${c.buyerType||c.buyer_nature||'Unclassified'}</b></div><div class="profile-field"><span>Campaign status</span><b>${c.optedOut?'Suppressed':'Eligible'}</b></div></div><div class="profile-actions">${waMsgTarget?`<button class="t-btn wa-quick-btn" style="justify-content:center" onclick="closeModal('modal-lead-profile');messageLeadOnWhatsApp('${waMsgTarget.replace(/'/g,"\\'")}','${name.replace(/'/g,"\\'")}')">
+  document.getElementById('lp-body').innerHTML=`<div class="lead-profile-grid"><div class="profile-panel"><div class="eyebrow">Complete customer view</div><div class="profile-field"><span>Contact Person</span><b>${personName?`${_hesc(personName)}${personTitle?` — ${_hesc(personTitle)}`:''}${c.linkedin?` · <a href="${c.linkedin}" target="_blank" style="color:#0a66c2;">LinkedIn ↗</a>`:''}`:'Not found'}</b></div><div class="profile-field"><span>Phone</span><b>${phone||'Not provided'}</b></div><div class="profile-field"><span>WhatsApp</span><b>${waNumber?`<a href="https://wa.me/${waNumber.replace(/\D/g,'')}" target="_blank" style="color:#25d366;">${waNumber}</a>`:'Not provided'}</b></div><div class="profile-field"><span>Telegram</span><b>${tgHandle?`<a href="https://t.me/${tgHandle.replace(/^@/,'')}" target="_blank" style="color:#26a6d1;">@${tgHandle.replace(/^@/,'')}</a>`:'Not provided'}</b></div><div class="profile-field"><span>Email</span><b>${c.email||'Not provided'}</b></div><div class="profile-field"><span>Platform</span><b>${c.platform||_currentLeadsGroup?.platform||'—'}</b></div><div class="profile-field"><span>Country</span><b>${c.country||_currentLeadsGroup?.country||'—'}</b></div><div class="profile-field"><span>Interest</span><b>${c.productInterest||c.category||c.brand||'Not classified'}</b></div><div class="profile-field"><span>Source</span><b>${c.source||'—'}</b></div><div class="profile-field"><span>Directories</span><b>${c.volzaUrl||c.directoryUrl?[c.volzaUrl?`<a href="${c.volzaUrl}" target="_blank" style="color:var(--amber);">Volza ↗</a>`:'',c.directoryUrl?`<a href="${c.directoryUrl}" target="_blank" style="color:var(--amber);">${/goldenpages/i.test(c.directoryUrl)?'Golden Pages':'Yellow Pages'} ↗</a>`:''].filter(Boolean).join(' · '):'Not found'}</b></div></div><div><div class="profile-panel"><div class="eyebrow">Sales intelligence</div><div class="profile-field"><span>Temperature</span><b>${temp}</b></div><div class="profile-field"><span>Lead score</span><b style="color:var(--green)">${score}/100</b></div><div class="profile-field"><span>Buyer type</span><b>${c.buyerType||c.buyer_nature||'Unclassified'}</b></div><div class="profile-field"><span>Campaign status</span><b>${c.optedOut?'Suppressed':'Eligible'}</b></div></div><div class="profile-actions">${waMsgTarget?`<button class="t-btn wa-quick-btn" style="justify-content:center" onclick="closeModal('modal-lead-profile');messageLeadOnWhatsApp('${waMsgTarget.replace(/'/g,"\\'")}','${name.replace(/'/g,"\\'")}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         Message on WhatsApp
       </button>`:''}${phone?`<a class="t-btn btn-ghost" style="justify-content:center;text-decoration:none" href="tel:${phone}">Call</a>`:''}<button class="t-btn btn-primary" onclick="closeModal('modal-lead-profile');openEditLeadContact('${idAttr}')">Edit lead</button><button class="t-btn btn-ghost" onclick="closeModal('modal-lead-profile');openAddClosedDealModal('${idAttr}')">Record deal</button></div></div></div>`;
@@ -7415,6 +7428,10 @@ async function runDiscovery(source) {
     if (source === 'maps' && contacts.length && personBox && personBox.checked) {
       await findContactPersonsMaps();
     }
+    const directoriesBox = document.getElementById('disc-enrich-directories-maps');
+    if (source === 'maps' && contacts.length && directoriesBox && directoriesBox.checked) {
+      await findBusinessDirectoriesMaps();
+    }
   } catch(e) {
     document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n.</div>`;
     document.getElementById(`disc-results-title-${source}`).textContent = 'Results';
@@ -7558,6 +7575,56 @@ async function findContactPersonsMaps() {
     showToast(found ? `Found ${found} contact person${found > 1 ? 's' : ''}${cappedNote}` : `No decision-maker profiles found${cappedNote}`, found ? 'success' : 'info');
   } catch (e) {
     showToast(e.message || 'Contact person search failed', 'error');
+  }
+  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
+}
+
+async function fetchBusinessDirectoryResults(leads) {
+  if (!leads.length) return {};
+  const d = await leadApi('/api/lead-intelligence/enrich-business-directory', { method: 'POST', body: JSON.stringify({ leads }) });
+  if (d.error) throw new Error(d.error);
+  return d.results || {};
+}
+
+// Fifth, paid tier: a single combined SerpApi/Yandex search per lead covering Volza (trade-data
+// profile link only — real shipment data needs a paid Volza login), Yellow Pages (US) and Golden
+// Pages (Ireland). See enrichBusinessDirectories() in worker/routes/leadIntelligence.js. Runs for
+// every result missing at least one of volzaUrl/directoryUrl, since it's a different question
+// (public directory presence) than the WhatsApp/LinkedIn tiers above.
+async function findBusinessDirectoriesMaps() {
+  const win = S.disc.maps;
+  const targets = win.contacts
+    .map((c, i) => ({ c, key: String(i) }))
+    .filter(({ c }) => !c.volzaUrl || !c.directoryUrl);
+  if (!targets.length) { showToast('Every result already has a Volza and directory link', 'info'); return; }
+
+  const btn = document.getElementById('disc-run-btn-maps');
+  const icon = document.getElementById('disc-run-icon-maps');
+  const label = document.getElementById('disc-run-label-maps');
+  btn.disabled = true; icon.classList.add('spin');
+  label.textContent = `Checking directories for ${Math.min(targets.length, 15)} lead${Math.min(targets.length, 15) > 1 ? 's' : ''}…`;
+
+  const leads = targets.map(({ c, key }) => ({ key, company: c.name || c.title || '', location: c.city || c.__searchLocation || c.address || '' }));
+
+  try {
+    const results = await fetchBusinessDirectoryResults(leads);
+    let found = 0;
+    targets.forEach(({ c, key }) => {
+      const hit = results[key];
+      if (!hit) return;
+      if (hit.volza && !c.volzaUrl) { c.volzaUrl = hit.volza; found++; }
+      if (hit.directory) {
+        if (hit.directory.url && !c.directoryUrl) { c.directoryUrl = hit.directory.url; found++; }
+        if (hit.directory.phone && !c.phone && !c.phoneNumber) c.phone = hit.directory.phone;
+        if (hit.directory.email && !c.email) c.email = hit.directory.email;
+        if (hit.directory.description && !c.directoryDescription) c.directoryDescription = hit.directory.description;
+      }
+    });
+    renderDiscoveryResults('maps');
+    const cappedNote = leads.length > 15 ? ` (capped at the first 15 of ${leads.length})` : '';
+    showToast(found ? `Found ${found} Volza/directory link${found > 1 ? 's' : ''}${cappedNote}` : `No Volza or Yellow/Golden Pages listings found${cappedNote}`, found ? 'success' : 'info');
+  } catch (e) {
+    showToast(e.message || 'Business directory search failed', 'error');
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
@@ -7781,6 +7848,9 @@ function renderDiscoveryResults(source) {
       ${c.whatsapp?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--green);min-width:26px;">WA</span><a href="https://wa.me/${c.whatsapp.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()">${c.whatsapp}</a></div>`:''}
       ${c.telegram?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--blue);min-width:26px;">TG</span><a href="https://t.me/${c.telegram.replace(/^@/,'')}" target="_blank" onclick="event.stopPropagation()">${c.telegram}</a></div>`:''}
       ${c.linkedin?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:#0a66c2;min-width:26px;">in</span><a href="${c.linkedin}" target="_blank" onclick="event.stopPropagation()">${c.linkedin.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
+      ${c.volzaUrl?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--amber);min-width:26px;">VZ</span><a href="${c.volzaUrl}" target="_blank" onclick="event.stopPropagation()">Volza profile ↗</a></div>`:''}
+      ${c.directoryUrl?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--amber);min-width:26px;">DR</span><a href="${c.directoryUrl}" target="_blank" onclick="event.stopPropagation()">${c.directoryUrl.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
+      ${c.directoryDescription?`<div class="cc-detail" style="color:var(--text3);font-size:10px;">${_hesc(c.directoryDescription).slice(0,140)}</div>`:''}
       <div class="cc-footer">
         ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${source==='kaspi'?'Seller Page ↗':source==='gis2'?'2GIS ↗':'Maps ↗'}</a>`:''}
         <button class="t-btn btn-primary" style="padding:4px 9px;font-size:10px;flex:1;justify-content:center;" onclick="event.stopPropagation();saveOneContact('${source}',${i})">+ Add to Leads</button>
@@ -7890,7 +7960,10 @@ function formatContactForLeads(source, c) {
     linkedin: c.linkedin||'',
     whatsapp: c.whatsapp||'',
     contactPersonName: c.contactPersonName||'',
-    contactPersonTitle: c.contactPersonTitle||''
+    contactPersonTitle: c.contactPersonTitle||'',
+    volzaUrl: c.volzaUrl||'',
+    directoryUrl: c.directoryUrl||'',
+    directoryDescription: c.directoryDescription||''
   };
 }
 

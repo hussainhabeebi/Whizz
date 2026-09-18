@@ -65,6 +65,9 @@ async function saveOwnedContacts(request, env, user) {
     const whatsapp = String(contact.whatsapp || '').trim();
     const contactPersonName = String(contact.contactPersonName || '').trim();
     const contactPersonTitle = String(contact.contactPersonTitle || '').trim();
+    const volzaUrl = String(contact.volzaUrl || '').trim();
+    const directoryUrl = String(contact.directoryUrl || '').trim();
+    const directoryDescription = String(contact.directoryDescription || '').trim();
     let country = String(contact.country || '').trim();
     if (phone) country = applyDetectedCountry(country, await detectCountryFromPhone(env, phone, country));
 
@@ -79,8 +82,10 @@ async function saveOwnedContacts(request, env, user) {
         telegramUsername=COALESCE(NULLIF(?,''),telegramUsername),linkedin=COALESCE(NULLIF(?,''),linkedin),
         whatsapp=COALESCE(NULLIF(?,''),whatsapp),
         contactPersonName=COALESCE(NULLIF(?,''),contactPersonName),contactPersonTitle=COALESCE(NULLIF(?,''),contactPersonTitle),
+        volzaUrl=COALESCE(NULLIF(?,''),volzaUrl),directoryUrl=COALESCE(NULLIF(?,''),directoryUrl),
+        directoryDescription=COALESCE(NULLIF(?,''),directoryDescription),
         updatedAt=CURRENT_TIMESTAMP WHERE id=?`)
-        .bind(website, address, rating, mapsUrl, category, phone, email, telegramUsername, linkedin, whatsapp, contactPersonName, contactPersonTitle, existing.id).run();
+        .bind(website, address, rating, mapsUrl, category, phone, email, telegramUsername, linkedin, whatsapp, contactPersonName, contactPersonTitle, volzaUrl, directoryUrl, directoryDescription, existing.id).run();
       updated++; continue;
     }
 
@@ -91,12 +96,14 @@ async function saveOwnedContacts(request, env, user) {
     await env.DB.prepare(`INSERT INTO contacts
       (contactName,company,phone,email,category,source,platform,country,brand,productInterest,
        website,address,rating,mapsUrl,sourceId,telegramUsername,linkedin,whatsapp,contactPersonName,contactPersonTitle,
+       volzaUrl,directoryUrl,directoryDescription,
        ownerEmail,teamId,createdByEmail,leadScore,lastContactedAt,nextFollowUpAt,dealExpectedAt,createdAt,updatedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
       .bind(String(contact.contactName || contact.name || contact.company || ''), String(contact.company || contact.contactName || contact.name || ''),
         phone, email, category, String(contact.source || ''), platform,
         country, String(contact.brand || ''), String(contact.productInterest || ''),
         website, address, rating, mapsUrl, sourceId, telegramUsername, linkedin, whatsapp, contactPersonName, contactPersonTitle,
+        volzaUrl, directoryUrl, directoryDescription,
         user.email, user.teamId || 'sales', user.email, scoreLead(contact), contact.lastContactedAt || null,
         contact.nextFollowUpAt || null, contact.dealExpectedAt || null).run();
     inserted++;

@@ -525,6 +525,84 @@ async function enrichContactPerson(request, env) {
   return json({ results, truncated: requested.length > CONTACT_PERSON_MAX_LEADS });
 }
 
+const BUSINESS_DIRECTORY_MAX_LEADS = 15;
+// One directory per site — a listing that also happens to be a Volza trade-data profile is
+// treated as Volza only, not double-counted as a Yellow/Golden Pages hit too.
+const VOLZA_HOST_RE = /(^|\.)volza\.com$/i;
+const DIRECTORY_HOST_RE = /(^|\.)(yellowpages\.com|goldenpages\.ie)$/i;
+// Generic enough to catch a US-style "(212) 555-1234" or an Irish "01 234 5678"/"+353 1 234 5678"
+// sitting in a directory listing's title/snippet — same best-effort spirit as the WhatsApp
+// regexes above: a loose match here just means a field comes back empty, never garbage, since
+// normalizeWhatsAppMatch-style digit bounds aren't the concern (this is never treated as a
+// WhatsApp number).
+const DIRECTORY_PHONE_RE = /(\+?[0-9][0-9\-\s().]{6,16}[0-9])/;
+const DIRECTORY_EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+
+// Volza's real import/export shipment data sits behind a paid account login, so this only
+// searches for and links a business's public Volza trade-profile page (via the same
+// SerpApi/Yandex flow as the WhatsApp/LinkedIn tiers) rather than trying to scrape shipment
+// data no anonymous request can actually reach. Golden Pages (Ireland) and Yellow Pages (US)
+// listings, by contrast, are plain public pages — their title/snippet can carry a phone number,
+// email, or category/description text a Google Maps listing didn't already have.
+function extractBusinessDirectoryHit(organicResults) {
+  let volza = '';
+  let directory = null;
+  for (const r of organicResults || []) {
+    const link = String(r?.link || r?.url || '').trim();
+    if (!link) continue;
+    let host = '';
+    try { host = new URL(link).hostname; } catch (error) { continue; }
+    if (!volza && VOLZA_HOST_RE.test(host)) {
+      volza = link.replace(/^http:/i, 'https:');
+    } else if (!directory && DIRECTORY_HOST_RE.test(host)) {
+      const text = `${r?.title || ''} ${r?.snippet || ''}`;
+      const phoneMatch = text.match(DIRECTORY_PHONE_RE);
+      const emailMatch = text.match(DIRECTORY_EMAIL_RE);
+      directory = {
+        url: link.replace(/^http:/i, 'https:'),
+        phone: phoneMatch ? phoneMatch[1].trim() : '',
+        email: emailMatch ? emailMatch[0] : '',
+        description: String(r?.snippet || '').trim()
+      };
+    }
+    if (volza && directory) break;
+  }
+  return { volza, directory };
+}
+
+// Fifth, paid tier: a single combined SerpApi/Yandex search per lead (site:volza.com OR
+// site:yellowpages.com OR site:goldenpages.ie) for the business's name + location — one paid
+// call covers all three sources instead of three, same cost as the WhatsApp/LinkedIn tiers.
+async function enrichBusinessDirectories(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const requested = Array.isArray(body.leads) ? body.leads : [];
+  const batch = requested
+    .map(l => ({ key: String(l?.key || '').trim(), company: String(l?.company || '').trim(), location: String(l?.location || '').trim() }))
+    .filter(l => l.key && l.company)
+    .slice(0, BUSINESS_DIRECTORY_MAX_LEADS);
+  if (!batch.length) return json({ results: {} });
+
+  if (!env.SERPAPI_API_KEY) {
+    return json({ results: {}, error: 'SERPAPI_API_KEY is not configured on the Worker — set it with `wrangler secret put SERPAPI_API_KEY` (get a key at serpapi.com/manage-api-key).' }, 503);
+  }
+
+  const entries = await Promise.all(batch.map(async ({ key, company, location }) => {
+    try {
+      const query = [`(site:volza.com OR site:yellowpages.com OR site:goldenpages.ie)`, `"${company}"`, location].filter(Boolean).join(' ');
+      const data = await fetchYandexSearch(query, env);
+      if (!data) return [key, null];
+      const hit = extractBusinessDirectoryHit(data.organic_results);
+      return [key, (hit.volza || hit.directory) ? hit : null];
+    } catch (error) {
+      return [key, null];
+    }
+  }));
+
+  const results = {};
+  for (const [key, hit] of entries) if (hit) results[key] = hit;
+  return json({ results, truncated: requested.length > BUSINESS_DIRECTORY_MAX_LEADS });
+}
+
 const CHECK_EXISTING_MAX_ITEMS = 200;
 
 // Lets Discovery drop results that are already saved leads before showing them, instead of
@@ -564,6 +642,7 @@ export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'POST' && action === 'enrichSocial') return enrichSocialLinks(request, env);
   if (request.method === 'POST' && action === 'enrichSocialSearch') return enrichSocialSearch(request, env);
   if (request.method === 'POST' && action === 'enrichContactPerson') return enrichContactPerson(request, env);
+  if (request.method === 'POST' && action === 'enrichBusinessDirectory') return enrichBusinessDirectories(request, env);
   if (request.method === 'POST' && action === 'checkExisting') return checkExistingContacts(request, env);
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
   if (request.method === 'POST' && action === 'run') return runCollector(request, env, arg);
