@@ -1842,7 +1842,7 @@ body.dark .wa-quick-btn{color:#3ddc78;}
                   </button>
                 </div>
               </div>
-              <div class="fi-hint">Searches the web (via SerpApi/Yandex) for the company name, picks out its likely official website, phone, WhatsApp and address, then checks that website for a Telegram/WhatsApp/LinkedIn link — and cross-references it against Whizz's own already-imported Handelot &amp; Kadorf prospects (Directory Sources in Lead Intelligence), showing any matches as their own cards. Each search adds to the list below rather than replacing it, so you can look up several companies in a row before bulk-adding them to Leads.</div>
+              <div class="fi-hint">Searches the web (via SerpApi/Yandex) for the company name, picks out its likely official website, phone, WhatsApp and address, then checks that website for a Telegram/WhatsApp/LinkedIn link — and cross-references it against Whizz's own already-imported Handelot prospects (Directory Sources in Lead Intelligence), showing any matches as their own cards. Each search adds to the list below rather than replacing it, so you can look up several companies in a row before bulk-adding them to Leads.</div>
               <div style="margin-top:10px;">
                 <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
                   <input type="checkbox" id="disc-enrich-contact-person-company"> Also find the decision-maker (LinkedIn via SerpApi, extra cost)
@@ -7744,7 +7744,7 @@ async function resolveVolzaLead(source, i) {
 
 // The two credentialed B2B directory sources (see Directory Sources in Lead Intelligence) that
 // Company Search also cross-references — display names for formatContactForLeads() below.
-const DIRECTORY_PROSPECT_SOURCE_LABEL = { handelot: 'Handelot', kadorf: 'Kadorf' };
+const DIRECTORY_PROSPECT_SOURCE_LABEL = { handelot: 'Handelot' };
 
 function directoryProspectToContact(p, source) {
   return {
@@ -7757,11 +7757,12 @@ function directoryProspectToContact(p, source) {
   };
 }
 
-// Cross-references Whizz's own already-imported Handelot/Kadorf prospects (from a prior Directory
-// Sources crawl — these are credentialed, login-gated marketplaces, not something this search can
-// scrape live) against the searched company name, alongside searchCompany()'s live SerpApi lookup.
-// Best-effort per source: a source with nothing imported yet, or a fetch failure, just contributes
-// no matches rather than failing the whole Company Search.
+// Cross-references Whizz's own already-imported Handelot prospects (from a prior Directory
+// Sources crawl — a credentialed, login-gated marketplace, not something this search can scrape
+// live) against the searched company name, alongside searchCompany()'s live SerpApi lookup.
+// Best-effort: nothing imported yet, or a fetch failure, just contributes no matches rather than
+// failing the whole Company Search. Kadorf is deliberately excluded from this lookup (see
+// DIRECTORY_PROSPECT_SOURCE_LABEL above) — Company Search only cross-references Handelot.
 async function fetchDirectoryProspectMatches(company) {
   const perSource = await Promise.all(Object.keys(DIRECTORY_PROSPECT_SOURCE_LABEL).map(async source => {
     try {
@@ -7774,12 +7775,12 @@ async function fetchDirectoryProspectMatches(company) {
   return perSource.flat();
 }
 
-// Zero matches from fetchDirectoryProspectMatches() looks identical on screen whether Handelot/
-// Kadorf were actually searched and came up empty, or whether the source has never been crawled
-// (no directory_accounts credentials configured, or configured but never synced) and so has no
-// prospects in the DB to search in the first place — that ambiguity is exactly what a "why isn't
-// this finding anything" report keeps running into. Called only when there's nothing to show, so
-// the toast can say which case it is.
+// Zero matches from fetchDirectoryProspectMatches() looks identical on screen whether Handelot was
+// actually searched and came up empty, or whether it has never been crawled (no directory_accounts
+// credentials configured, or configured but never synced) and so has no prospects in the DB to
+// search in the first place — that ambiguity is exactly what a "why isn't this finding anything"
+// report keeps running into. Called only when there's nothing to show, so the toast can say which
+// case it is. Only checks sources in DIRECTORY_PROSPECT_SOURCE_LABEL (Handelot), not Kadorf.
 async function checkUnsyncedDirectorySources() {
   try {
     const d = await leadApi('/api/lead-intelligence/sources');
@@ -7980,8 +7981,8 @@ async function runCompanySearch() {
 
   try {
     // Independent failure handling: search-company is a paid SerpApi call and can fail on its own
-    // (e.g. no SERPAPI_API_KEY), but the Handelot/Kadorf prospect lookup is a free local DB read —
-    // one failing shouldn't hide results from the other, so each is caught on its own rather than
+    // (e.g. no SERPAPI_API_KEY), but the Handelot prospect lookup is a free local DB read — one
+    // failing shouldn't hide results from the other, so each is caught on its own rather than
     // through one shared catch.
     const [profileResult, directoryMatches] = await Promise.all([
       leadApi('/api/lead-intelligence/search-company', { method: 'POST', body: JSON.stringify({ company, location, findContactPerson, findBusinessDirectory }) }).catch(e => ({ __error: e })),
@@ -8018,13 +8019,13 @@ async function runCompanySearch() {
 
     renderDiscoveryResults(source);
     let directoryNote = addedFromDirectories
-      ? ` + ${addedFromDirectories} match${addedFromDirectories > 1 ? 'es' : ''} from Handelot/Kadorf`
+      ? ` + ${addedFromDirectories} match${addedFromDirectories > 1 ? 'es' : ''} from Handelot`
       : '';
     if (!addedFromDirectories) {
       const unsynced = await checkUnsyncedDirectorySources();
       directoryNote = unsynced.length
         ? ` (${unsynced.join(' & ')} not yet synced — see Directory Sources in Lead Intelligence)`
-        : ' (no Handelot/Kadorf match)';
+        : ' (no Handelot match)';
     }
     const toastType = profileResult.profile || addedFromDirectories ? 'success' : (profileResult.__error ? 'error' : 'info');
     showToast(`${profileMessage}${directoryNote}`, toastType);
@@ -8196,9 +8197,9 @@ async function saveSelectedContacts(source) {
 // sourceId through so the backend can refresh an already-imported listing instead of just
 // dropping it as a duplicate.
 function formatContactForLeads(source, c) {
-  // c.__source only differs from the window's own `source` for a Handelot/Kadorf prospect mixed
-  // into the Company Search window (see fetchDirectoryProspectMatches) — its own platform name
-  // takes priority so CSV export doesn't mislabel it as "Company Search (SERP)".
+  // c.__source only differs from the window's own `source` for a Handelot prospect mixed into the
+  // Company Search window (see fetchDirectoryProspectMatches) — its own platform name takes
+  // priority so CSV export doesn't mislabel it as "Company Search (SERP)".
   const platform = DIRECTORY_PROSPECT_SOURCE_LABEL[c.__source] || (DISC_CFG[source] && DISC_CFG[source].platform) || (c.__source === 'kaspi' ? 'Kaspi.kz' : '');
   const country = c.countryCode || c.country || c.__searchLocation || '';
   return {
