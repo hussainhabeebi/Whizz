@@ -7774,6 +7774,23 @@ async function fetchDirectoryProspectMatches(company) {
   return perSource.flat();
 }
 
+// Zero matches from fetchDirectoryProspectMatches() looks identical on screen whether Handelot/
+// Kadorf were actually searched and came up empty, or whether the source has never been crawled
+// (no directory_accounts credentials configured, or configured but never synced) and so has no
+// prospects in the DB to search in the first place — that ambiguity is exactly what a "why isn't
+// this finding anything" report keeps running into. Called only when there's nothing to show, so
+// the toast can say which case it is.
+async function checkUnsyncedDirectorySources() {
+  try {
+    const d = await leadApi('/api/lead-intelligence/sources');
+    return (d.sources || [])
+      .filter(s => Object.prototype.hasOwnProperty.call(DIRECTORY_PROSPECT_SOURCE_LABEL, s.source) && (!s.configured || !s.lastSyncAt))
+      .map(s => s.name || DIRECTORY_PROSPECT_SOURCE_LABEL[s.source]);
+  } catch (e) {
+    return [];
+  }
+}
+
 function kaspiProspectToContact(p) {
   return {
     __prospectId: p.id, __source: 'kaspi',
@@ -8000,9 +8017,15 @@ async function runCompanySearch() {
     });
 
     renderDiscoveryResults(source);
-    const directoryNote = addedFromDirectories
+    let directoryNote = addedFromDirectories
       ? ` + ${addedFromDirectories} match${addedFromDirectories > 1 ? 'es' : ''} from Handelot/Kadorf`
       : '';
+    if (!addedFromDirectories) {
+      const unsynced = await checkUnsyncedDirectorySources();
+      directoryNote = unsynced.length
+        ? ` (${unsynced.join(' & ')} not yet synced — see Directory Sources in Lead Intelligence)`
+        : ' (no Handelot/Kadorf match)';
+    }
     const toastType = profileResult.profile || addedFromDirectories ? 'success' : (profileResult.__error ? 'error' : 'info');
     showToast(`${profileMessage}${directoryNote}`, toastType);
   } catch (e) {
