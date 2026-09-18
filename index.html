@@ -7975,11 +7975,18 @@ async function runCompanySearch() {
     if (profileResult.__error) {
       profileMessage = profileResult.__error.message || 'SerpApi company search failed';
     } else if (profileResult.profile) {
-      const entry = { __source: 'company', name: company, __searchLocation: location, ...profileResult.profile, company };
-      const existingIdx = win.contacts.findIndex(c => c.__source === 'company' && (c.name || '').toLowerCase() === company.toLowerCase());
+      // profile.company may be a cleaned-up name resolved server-side from a raw slug (see
+      // searchCompany's SLUG_LIKE_NAME_RE handling) — that resolved name is what should display
+      // and get saved, while __searchedAs keeps the original typed text so a re-search of the same
+      // slug still finds and refreshes this same card instead of adding a duplicate.
+      const resolvedName = profileResult.profile.company || company;
+      const entry = { __source: 'company', __searchLocation: location, __searchedAs: company, ...profileResult.profile, name: resolvedName, company: resolvedName };
+      const existingIdx = win.contacts.findIndex(c => c.__source === 'company' && (c.__searchedAs || c.name || '').toLowerCase() === company.toLowerCase());
       if (existingIdx >= 0) win.contacts[existingIdx] = entry;
       else win.contacts.unshift(entry);
-      profileMessage = `Built a profile for "${company}"`;
+      profileMessage = resolvedName.toLowerCase() !== company.toLowerCase()
+        ? `Built a profile for "${resolvedName}" (resolved from "${company}")`
+        : `Built a profile for "${resolvedName}"`;
     } else {
       profileMessage = `No SerpApi results for "${company}"`;
     }

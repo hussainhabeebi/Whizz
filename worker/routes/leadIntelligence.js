@@ -528,7 +528,32 @@ async function enrichContactPerson(request, env) {
 // Domains that are almost never a business's own official site — skipped when guessing which
 // organic result is the company's homepage, so the guess doesn't land on a directory/social/
 // marketplace listing about the company instead of the company's own site.
-const NON_OFFICIAL_SITE_RE = /(facebook\.com|instagram\.com|linkedin\.com|twitter\.com|x\.com|youtube\.com|wikipedia\.org|yellowpages\.|yelp\.com|goldenpages\.ie|volza\.com|crunchbase\.com|bloomberg\.com|t\.me|telegram\.me|wa\.me|api\.whatsapp\.com|google\.[a-z.]+\/maps|maps\.google|2gis\.|kaspi\.kz)/i;
+const NON_OFFICIAL_SITE_RE = /(facebook\.com|instagram\.com|linkedin\.com|twitter\.com|x\.com|youtube\.com|wikipedia\.org|yellowpages\.|yelp\.com|goldenpages\.ie|volza\.com|crunchbase\.com|bloomberg\.com|t\.me|telegram\.me|wa\.me|api\.whatsapp\.com|google\.[a-z.]+\/maps|maps\.google|2gis\.|kaspi\.kz|opencorporates\.com|dnb\.com|zoominfo\.com|kompass\.com|europages\.|manta\.com|bizapedia\.com|corporationwiki\.com|tradekey\.com|alibaba\.com|made-in-china\.com|ec21\.com|globalsources\.com|indiamart\.com|exportersindia\.com|panjiva\.com|importgenius\.com)/i;
+
+// A company registry/trade-data listing (OpenCorporates, Volza, Panjiva, ...) is exactly the kind
+// of result guessOfficialWebsite() above deliberately skips as "the website" — but when the
+// searched name itself looks like an unprocessed slug ("trade-smart-hk-limited" rather than
+// "Trade Smart (HK) Limited"), that registry hit is often the only place the real, properly
+// formatted name is sitting, so it's still worth fetching for the name alone. All-lowercase,
+// hyphen-joined, no spaces is the signature of a slug pulled straight out of a URL.
+const SLUG_LIKE_NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)+$/;
+
+// Strips a registry/directory page's own boilerplate off whichever of <h1>/<title> comes back,
+// leaving just the company name — same idea as extractVolzaCompanyName below but generic to any
+// site's "Name - Overview - Site Brand" / "Name | Site Brand" title pattern rather than Volza's
+// specific "... Trade Data" phrasing.
+function extractCompanyNameFromPage(html) {
+  const h1Match = html.match(/<h1[^>]*>([^<]*)<\/h1>/i);
+  const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+  let raw = (h1Match && h1Match[1]) || (titleMatch && titleMatch[1]) || '';
+  raw = raw
+    .replace(/&amp;/gi, '&').replace(/&#39;/g, "'").replace(/&quot;/gi, '"')
+    .split(/[|–—]/)[0]
+    .replace(/\s*-\s*(Overview|Company Profile|Company Information|Free Company Information|OpenCorporates|Trade Data|Import Export Data).*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return raw;
+}
 
 // Same "labelled number next to a keyword" approach as WA_LABELLED_NUMBER_RE, but for a general
 // phone number rather than specifically WhatsApp — catches a phone number spelled out next to
@@ -576,8 +601,28 @@ async function searchCompany(request, env) {
   const relevantText = JSON.stringify(relevant);
   const website = normalize(guessOfficialWebsite(data));
 
+  // A raw URL slug typed/pasted into the search box ("trade-smart-hk-limited") won't match well
+  // in the follow-up LinkedIn/directory queries below, which quote it verbatim — so resolve it to
+  // a properly formatted name first. The top organic result is often a registry/directory listing
+  // (OpenCorporates, Volza, ...) that guessOfficialWebsite() above deliberately skipped as "the
+  // website", but its own page still carries the real name, so it's fetched here for the name
+  // alone. Best-effort: any failure just leaves the raw slug in place.
+  let resolvedCompany = company;
+  if (SLUG_LIKE_NAME_RE.test(company)) {
+    const topLink = data.organic_results?.[0]?.link;
+    if (topLink) {
+      try {
+        const res = await fetch(topLink, { signal: AbortSignal.timeout(ENRICH_FETCH_TIMEOUT_MS), redirect: 'follow' });
+        if (res.ok) {
+          const cleaned = extractCompanyNameFromPage(await res.text());
+          if (cleaned && /\s/.test(cleaned)) resolvedCompany = cleaned;
+        }
+      } catch (error) { /* best-effort — keep the raw slug if the fetch/parse fails */ }
+    }
+  }
+
   const profile = {
-    company,
+    company: resolvedCompany,
     website,
     phone: normalize(data.knowledge_graph?.phone) || extractPhoneNumber(relevantText),
     email: '',
@@ -597,7 +642,7 @@ async function searchCompany(request, env) {
   }
 
   if (body.findContactPerson) {
-    const cpQuery = `site:linkedin.com/in "${company}" (owner OR founder OR director OR purchasing OR manager)`;
+    const cpQuery = `site:linkedin.com/in "${resolvedCompany}" (owner OR founder OR director OR purchasing OR manager)`;
     const cpData = await fetchYandexSearch(cpQuery, env);
     const person = cpData ? extractContactPerson(cpData.organic_results) : null;
     if (person) {
@@ -612,7 +657,7 @@ async function searchCompany(request, env) {
   // opt-in, paid, and run last since it's answering a different question (public trade/directory
   // presence) than the tiers above.
   if (body.findBusinessDirectory) {
-    const dirQuery = [`(site:volza.com OR site:yellowpages.com OR site:goldenpages.ie)`, `"${company}"`, location].filter(Boolean).join(' ');
+    const dirQuery = [`(site:volza.com OR site:yellowpages.com OR site:goldenpages.ie)`, `"${resolvedCompany}"`, location].filter(Boolean).join(' ');
     const dirData = await fetchYandexSearch(dirQuery, env);
     const hit = dirData ? extractBusinessDirectoryHit(dirData.organic_results) : null;
     if (hit?.volza) profile.volzaUrl = hit.volza;
