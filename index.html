@@ -1586,6 +1586,7 @@ body.dark .wa-quick-btn{color:#3ddc78;}
           <button class="disc-type-btn active" onclick="setDiscWindow('maps',this)">Google Maps<span class="disc-tabcount" id="disc-tabcount-maps"></span></button>
           <button class="disc-type-btn" onclick="setDiscWindow('gis2',this)">2GIS<span class="disc-tabcount" id="disc-tabcount-gis2"></span></button>
           <button class="disc-type-btn" onclick="setDiscWindow('kaspi',this)">Kaspi.kz (Kazakhstan Marketplace)<span class="disc-tabcount" id="disc-tabcount-kaspi"></span></button>
+          <button class="disc-type-btn" onclick="setDiscWindow('company',this)">Company Search<span class="disc-tabcount" id="disc-tabcount-company"></span></button>
         </div>
 
         <!-- ── Google Maps window ── -->
@@ -1800,6 +1801,65 @@ body.dark .wa-quick-btn{color:#3ddc78;}
               <div class="disc-empty">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
                 Enter a brand and click <strong>Discover</strong> to run a deep Kaspi.kz marketplace crawl.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Company Search window ── -->
+        <div class="disc-window" id="discwin-company" style="display:none;">
+          <div class="card" style="margin-bottom:14px;">
+            <div class="card-head">
+              <div class="card-title">Company Search
+                <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">powered by SerpApi · look up one known company and enhance its profile</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="disc-filters" style="grid-template-columns:1fr 1fr 120px;">
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Company Name</label>
+                  <input class="fi" id="disc-company-name" placeholder="e.g. Al Futtaim Trading" onkeydown="if(event.key==='Enter')runDiscovery('company')"/>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Location <span style="opacity:.6;">(optional, helps disambiguate)</span></label>
+                  <input class="fi" id="disc-company-location" placeholder="e.g. Dubai, UAE" onkeydown="if(event.key==='Enter')runDiscovery('company')"/>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl" style="opacity:0;">Run</label>
+                  <button class="t-btn btn-primary" id="disc-run-btn-company" onclick="runDiscovery('company')" style="width:100%;justify-content:center;gap:6px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" id="disc-run-icon-company"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <span id="disc-run-label-company">Search</span>
+                  </button>
+                </div>
+              </div>
+              <div class="fi-hint">Searches the web (via SerpApi/Yandex) for the company name, picks out its likely official website, phone, WhatsApp and address, then checks that website for a Telegram/WhatsApp/LinkedIn link. Each search adds to the list below rather than replacing it, so you can look up several companies in a row before bulk-adding them to Leads.</div>
+              <div style="margin-top:10px;">
+                <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="disc-enrich-contact-person-company"> Also find the decision-maker (LinkedIn via SerpApi, extra cost)
+                </label>
+                <div class="fi-hint">Searches for a public LinkedIn profile (owner, director, purchasing/procurement, sales manager, ...) at this company via SerpApi, so you're not just left with a general phone/website — pulls a name, title and profile link when a decision-maker's profile turns up. Costs one extra paid SerpApi search per company.</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title" id="disc-results-title-company">Results</div>
+              <div style="display:none;gap:7px;align-items:center;" id="disc-actions-company">
+                <button class="t-btn btn-ghost t-btn-sm" onclick="selectAllDisc('company')">Select All</button>
+                <button class="t-btn btn-ghost t-btn-sm" onclick="exportDiscCSV('company')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export CSV
+                </button>
+                <button class="t-btn btn-success t-btn-sm" id="disc-save-btn-company" onclick="saveSelectedContacts('company')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/><circle cx="16" cy="4" r="3"/></svg>
+                  Add Selected to Leads
+                </button>
+              </div>
+            </div>
+            <div class="card-body" id="disc-results-body-company">
+              <div class="disc-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+                Enter a company name and click <strong>Search</strong> to build an enriched profile via SerpApi.
               </div>
             </div>
           </div>
@@ -2522,6 +2582,7 @@ let S = {
     maps: { contacts: [], selected: new Set(), bizType: 'wholesaler' },
     gis2: { contacts: [], selected: new Set() },
     kaspi: { contacts: [], selected: new Set() },
+    company: { contacts: [], selected: new Set() },
   },
   cache: {}, notifications: [], history: [],
   selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: []
@@ -7312,6 +7373,9 @@ const DISC_CFG = {
   // residential proxies to get past 2GIS's anti-bot check.
   gis2: { label: '2GIS', platform: '2GIS', scanLabel: '2GIS' },
   kaspi: { label: 'Kaspi.kz', platform: 'Kaspi.kz', endpoint: null, scanLabel: 'Kaspi.kz' },
+  // No Apify actor and no collector job — a single SerpApi/Yandex search per click, see
+  // runCompanySearch() below and searchCompany() in worker/routes/leadIntelligence.js.
+  company: { label: 'Company Search', platform: 'Company Search (SERP)', endpoint: null, scanLabel: 'the web via SerpApi' },
 };
 
 function setDiscWindow(source, el) {
@@ -7367,6 +7431,7 @@ async function dropExistingLeads(contacts, platform) {
 async function runDiscovery(source) {
   if (source === 'kaspi') { await runKaspiDiscovery(); return; }
   if (source === 'gis2') { await run2GisDiscovery(); return; }
+  if (source === 'company') { await runCompanySearch(); return; }
   const cfg = DISC_CFG[source];
   const location = document.getElementById(`disc-location-${source}`).value.trim();
   const brand    = document.getElementById(`disc-brand-${source}`).value.trim();
@@ -7717,6 +7782,61 @@ async function run2GisDiscovery() {
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
 
+// One-shot SerpApi lookup for a single known company name — see searchCompany() in
+// worker/routes/leadIntelligence.js. Unlike the other windows, each search here *adds* a profile
+// to the list rather than replacing it, so several companies can be looked up in a row before
+// bulk-adding them to Leads (re-searching the same name refreshes that entry in place instead of
+// duplicating it).
+async function runCompanySearch() {
+  const source = 'company';
+  const company = document.getElementById('disc-company-name').value.trim();
+  const location = document.getElementById('disc-company-location').value.trim();
+  const findContactPerson = document.getElementById('disc-enrich-contact-person-company').checked;
+  if (!company) { showToast('Enter a company name to search', 'error'); return; }
+
+  const btn = document.getElementById('disc-run-btn-company');
+  const icon = document.getElementById('disc-run-icon-company');
+  const label = document.getElementById('disc-run-label-company');
+  btn.disabled = true; icon.classList.add('spin'); label.textContent = 'Searching…';
+
+  const win = S.disc.company;
+  const resultsBody = document.getElementById('disc-results-body-company');
+  const resultsTitle = document.getElementById('disc-results-title-company');
+  if (!win.contacts.length) {
+    resultsBody.innerHTML = `
+      <div style="padding:40px;text-align:center;">
+        <div class="ai-thinking" style="justify-content:center;display:inline-flex;">
+          <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
+          <span style="margin-left:8px;color:var(--text2);font-size:12px;">Searching the web for "<strong>${company}</strong>"…</span>
+        </div>
+      </div>`;
+    resultsTitle.textContent = 'Searching…';
+  }
+
+  try {
+    const d = await leadApi('/api/lead-intelligence/search-company', { method: 'POST', body: JSON.stringify({ company, location, findContactPerson }) });
+    if (!d.profile) {
+      showToast(`No results found for "${company}"`, 'info');
+    } else {
+      const entry = { __source: 'company', name: company, __searchLocation: location, ...d.profile, company };
+      const existingIdx = win.contacts.findIndex(c => (c.name || '').toLowerCase() === company.toLowerCase());
+      if (existingIdx >= 0) win.contacts[existingIdx] = entry;
+      else win.contacts.unshift(entry);
+      renderDiscoveryResults(source);
+      showToast(`Built a profile for "${company}"`, 'success');
+    }
+  } catch (e) {
+    if (!win.contacts.length) {
+      resultsBody.innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${e.message || 'Company search failed'}</div>`;
+      resultsTitle.textContent = 'Results';
+    } else {
+      renderDiscoveryResults(source);
+    }
+    showToast(e.message || 'Company search failed', 'error');
+  }
+  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Search';
+}
+
 function renderDiscoveryResults(source) {
   const contacts = (S.disc[source] && S.disc[source].contacts) || [];
   const body    = document.getElementById(`disc-results-body-${source}`);
@@ -7753,6 +7873,7 @@ function renderDiscoveryResults(source) {
   const cardsHtml = contacts.map((c, i) => {
     const name     = c.name || c.title || 'Unknown Business';
     const initials = name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const nameSafe = _hesc(name);
     const category = c.categoryName || c.category || '';
     const phone    = c.phone || c.phoneNumber || '';
     const email    = c.email || '';
@@ -7766,7 +7887,7 @@ function renderDiscoveryResults(source) {
       <div class="cc-header">
         <div class="cc-avatar">${initials}</div>
         <div style="flex:1;min-width:0;">
-          <div class="cc-name">${name}</div>
+          <div class="cc-name">${nameSafe}</div>
           <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:3px;">
             ${category?`<span class="cc-cat">${category}</span>`:''}
             ${stars?`<span class="cc-rating">${stars}</span>`:''}
@@ -7781,6 +7902,7 @@ function renderDiscoveryResults(source) {
       ${c.whatsapp?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--green);min-width:26px;">WA</span><a href="https://wa.me/${c.whatsapp.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()">${c.whatsapp}</a></div>`:''}
       ${c.telegram?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--blue);min-width:26px;">TG</span><a href="https://t.me/${c.telegram.replace(/^@/,'')}" target="_blank" onclick="event.stopPropagation()">${c.telegram}</a></div>`:''}
       ${c.linkedin?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:#0a66c2;min-width:26px;">in</span><a href="${c.linkedin}" target="_blank" onclick="event.stopPropagation()">${c.linkedin.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
+      ${c.description?`<div style="font-size:11px;color:var(--text3);margin-top:4px;line-height:1.4;">${_hesc(c.description).slice(0,180)}</div>`:''}
       <div class="cc-footer">
         ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${source==='kaspi'?'Seller Page ↗':source==='gis2'?'2GIS ↗':'Maps ↗'}</a>`:''}
         <button class="t-btn btn-primary" style="padding:4px 9px;font-size:10px;flex:1;justify-content:center;" onclick="event.stopPropagation();saveOneContact('${source}',${i})">+ Add to Leads</button>
