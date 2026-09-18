@@ -7504,7 +7504,14 @@ async function runDiscovery(source) {
       await findBusinessDirectoriesMaps();
     }
   } catch(e) {
-    document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n.</div>`;
+    // api() throws with the n8n workflow's own `error` field when the webhook responded but the
+    // run itself failed (e.g. an Apify credential/quota problem) — that's a far more useful
+    // message than a generic "is the webhook active" guess, which really only fits the plain
+    // "HTTP Status Error 404"/network-failure case api() falls back to when n8n has nothing to say.
+    const reason = e.message && !/^HTTP Status Error/.test(e.message)
+      ? e.message
+      : `ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n`;
+    document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ${reason}.</div>`;
     document.getElementById(`disc-results-title-${source}`).textContent = 'Results';
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
