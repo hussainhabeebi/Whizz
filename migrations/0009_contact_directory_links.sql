@@ -1,0 +1,3 @@
+ALTER TABLE contacts ADD COLUMN volzaUrl TEXT NOT NULL DEFAULT '';
+ALTER TABLE contacts ADD COLUMN directoryUrl TEXT NOT NULL DEFAULT '';
+ALTER TABLE contacts ADD COLUMN directoryDescription TEXT NOT NULL DEFAULT '';
