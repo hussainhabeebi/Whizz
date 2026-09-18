@@ -525,6 +525,90 @@ async function enrichContactPerson(request, env) {
   return json({ results, truncated: requested.length > CONTACT_PERSON_MAX_LEADS });
 }
 
+// Domains that are almost never a business's own official site — skipped when guessing which
+// organic result is the company's homepage, so the guess doesn't land on a directory/social/
+// marketplace listing about the company instead of the company's own site.
+const NON_OFFICIAL_SITE_RE = /(facebook\.com|instagram\.com|linkedin\.com|twitter\.com|x\.com|youtube\.com|wikipedia\.org|yellowpages\.|yelp\.com|crunchbase\.com|bloomberg\.com|t\.me|telegram\.me|wa\.me|api\.whatsapp\.com|google\.[a-z.]+\/maps|maps\.google|2gis\.|kaspi\.kz)/i;
+
+// Same "labelled number next to a keyword" approach as WA_LABELLED_NUMBER_RE, but for a general
+// phone number rather than specifically WhatsApp — catches a phone number spelled out next to
+// "phone"/"tel"/"телефон" in a search snippet/title/knowledge-panel field.
+const PHONE_LABELLED_RE = /(?:phone|tel|телефон)[^0-9+"]{0,8}(\+?[0-9][0-9\s\-()]{6,16}[0-9])/i;
+function extractPhoneNumber(text) {
+  const labelled = text.match(PHONE_LABELLED_RE);
+  return labelled ? normalizeWhatsAppMatch(labelled[1]) : '';
+}
+
+// Best-effort guess at the company's own homepage: prefers a knowledge-panel/answer-box website
+// field (Yandex sometimes surfaces one directly for a well-known business) and otherwise falls
+// back to the first organic result whose link isn't a directory/social/marketplace domain.
+function guessOfficialWebsite(data) {
+  const kgSite = data.knowledge_graph?.website || data.answer_box?.website;
+  if (kgSite) return kgSite;
+  const hit = (data.organic_results || []).find(r => r?.link && !NON_OFFICIAL_SITE_RE.test(r.link));
+  return hit ? hit.link : '';
+}
+
+// Search-by-company-name enrichment: the one-shot counterpart to the per-lead enrichment tiers
+// above. Takes just a company name (+ optional location to disambiguate) and builds a single
+// enriched lead profile from it — official website, phone, WhatsApp, address and description from
+// the SerpApi/Yandex search itself, then Telegram/WhatsApp/LinkedIn scraped off that website (free,
+// same as enrichSocialLinks), and optionally the decision-maker's LinkedIn profile (paid, same
+// query enrichContactPerson uses) when the caller opts in. Meant for Discovery's "Company Search"
+// window: a deliberate, one-company-at-a-time search rather than a bulk per-lead pass, so doing the
+// website fetch unconditionally (it's free) and gating only the paid LinkedIn lookup behind a flag
+// matches the cost model of the tiers above.
+async function searchCompany(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const company = normalize(body.company);
+  const location = normalize(body.location);
+  if (!company) return json({ error: 'Enter a company name to search' }, 400);
+
+  if (!env.SERPAPI_API_KEY) {
+    return json({ error: 'SERPAPI_API_KEY is not configured on the Worker — set it with `wrangler secret put SERPAPI_API_KEY` (get a key at serpapi.com/manage-api-key).' }, 503);
+  }
+
+  const query = [`"${company}"`, location].filter(Boolean).join(' ');
+  const data = await fetchYandexSearch(query, env);
+  if (!data) return json({ profile: null });
+
+  const relevant = [data.organic_results, data.answer_box, data.knowledge_graph, data.local_results].filter(Boolean);
+  const relevantText = JSON.stringify(relevant);
+  const website = normalize(guessOfficialWebsite(data));
+
+  const profile = {
+    company,
+    website,
+    phone: normalize(data.knowledge_graph?.phone) || extractPhoneNumber(relevantText),
+    whatsapp: extractWhatsAppNumber(relevantText),
+    telegram: '',
+    linkedin: '',
+    address: normalize(data.knowledge_graph?.address || data.local_results?.[0]?.address),
+    description: normalize(data.knowledge_graph?.description || data.answer_box?.snippet),
+  };
+
+  if (website) {
+    const target = /^https?:\/\//i.test(website) ? website : `https://${website}`;
+    const siteHit = await fetchAndExtract(target, {});
+    profile.telegram = siteHit.telegram;
+    profile.linkedin = siteHit.linkedin;
+    if (!profile.whatsapp) profile.whatsapp = siteHit.whatsapp;
+  }
+
+  if (body.findContactPerson) {
+    const cpQuery = `site:linkedin.com/in "${company}" (owner OR founder OR director OR purchasing OR manager)`;
+    const cpData = await fetchYandexSearch(cpQuery, env);
+    const person = cpData ? extractContactPerson(cpData.organic_results) : null;
+    if (person) {
+      profile.contactPersonName = person.name;
+      profile.contactPersonTitle = person.title;
+      if (person.linkedin && !profile.linkedin) profile.linkedin = person.linkedin;
+    }
+  }
+
+  return json({ profile });
+}
+
 const BUSINESS_DIRECTORY_MAX_LEADS = 15;
 // One directory per site — a listing that also happens to be a Volza trade-data profile is
 // treated as Volza only, not double-counted as a Yellow/Golden Pages hit too.
@@ -642,6 +726,7 @@ export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'POST' && action === 'enrichSocial') return enrichSocialLinks(request, env);
   if (request.method === 'POST' && action === 'enrichSocialSearch') return enrichSocialSearch(request, env);
   if (request.method === 'POST' && action === 'enrichContactPerson') return enrichContactPerson(request, env);
+  if (request.method === 'POST' && action === 'searchCompany') return searchCompany(request, env);
   if (request.method === 'POST' && action === 'enrichBusinessDirectory') return enrichBusinessDirectories(request, env);
   if (request.method === 'POST' && action === 'checkExisting') return checkExistingContacts(request, env);
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
