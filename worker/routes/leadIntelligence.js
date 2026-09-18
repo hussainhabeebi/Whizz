@@ -705,6 +705,83 @@ async function enrichBusinessDirectories(request, env) {
   return json({ results, truncated: requested.length > BUSINESS_DIRECTORY_MAX_LEADS });
 }
 
+const RESOLVE_VOLZA_MAX_LEADS = 15;
+
+// Pulls the registered company name out of a Volza trade-profile page's own <title>/<h1> rather
+// than whatever name the lead was originally saved under — a Volza URL slug (e.g.
+// volza.com/company-profile/too-barla) is a truncated/sanitized version of the real name, so a
+// lead saved from a Volza hit alone can carry a mangled one. Strips Volza's own boilerplate
+// ("... Trade Data | Volza.com", "... Import Export Data", "... Company Profile") off whichever
+// of <h1>/<title> comes back, preferring <h1> since Volza's <title> tends to carry more of that
+// boilerplate.
+function extractVolzaCompanyName(html) {
+  const h1Match = html.match(/<h1[^>]*>([^<]*)<\/h1>/i);
+  const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+  let raw = (h1Match && h1Match[1]) || (titleMatch && titleMatch[1]) || '';
+  raw = raw
+    .replace(/&amp;/gi, '&').replace(/&#39;/g, "'").replace(/&quot;/gi, '"')
+    .split(/[|–—-]\s*Volza/i)[0]
+    .replace(/\bTrade Data\b.*$/i, '')
+    .replace(/\bImport[s]?\s*(&|and)?\s*Export[s]?\s*Data\b.*$/i, '')
+    .replace(/\bCompany Profile\b.*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return raw;
+}
+
+const TELEGRAM_LINK_RE = /https?:\/\/(?:t|telegram)\.me\/([A-Za-z0-9_]{4,32})/i;
+// Same "labelled handle next to a keyword" fallback the WhatsApp tiers use — catches a Telegram
+// handle spelled out in a search snippet/title (e.g. "Telegram: @company_trade") even without a
+// t.me link in the result.
+const TELEGRAM_LABELLED_RE = /telegram[^@"]{0,8}@([A-Za-z0-9_]{4,32})/i;
+function extractTelegramHandle(text) {
+  const linked = text.match(TELEGRAM_LINK_RE);
+  if (linked) return linked[1];
+  const labelled = text.match(TELEGRAM_LABELLED_RE);
+  return labelled ? labelled[1] : '';
+}
+
+// Resolves the exact company name off a Volza trade-profile page, then re-searches under that
+// corrected name (via the same SerpApi/Yandex flow as the other deep-search tiers) for a WhatsApp
+// number or Telegram handle mentioned anywhere online — a fresh, more accurate pass than whatever
+// name the lead already carried when the Volza hit was first found. Free page fetch + one paid
+// SerpApi search per lead, same cadence as the WhatsApp/LinkedIn/directory tiers.
+async function resolveVolzaContact(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const requested = Array.isArray(body.leads) ? body.leads : [];
+  const batch = requested
+    .map(l => ({ key: String(l?.key || '').trim(), volzaUrl: String(l?.volzaUrl || '').trim(), location: String(l?.location || '').trim() }))
+    .filter(l => l.key && l.volzaUrl)
+    .slice(0, RESOLVE_VOLZA_MAX_LEADS);
+  if (!batch.length) return json({ results: {} });
+
+  if (!env.SERPAPI_API_KEY) {
+    return json({ results: {}, error: 'SERPAPI_API_KEY is not configured on the Worker — set it with `wrangler secret put SERPAPI_API_KEY` (get a key at serpapi.com/manage-api-key).' }, 503);
+  }
+
+  const entries = await Promise.all(batch.map(async ({ key, volzaUrl, location }) => {
+    try {
+      const res = await fetch(volzaUrl, { signal: AbortSignal.timeout(ENRICH_FETCH_TIMEOUT_MS), redirect: 'follow' });
+      if (!res.ok) return [key, null];
+      const companyName = extractVolzaCompanyName(await res.text());
+      if (!companyName) return [key, null];
+
+      const query = [`"${companyName}"`, location, '("wa.me" OR whatsapp OR "t.me" OR telegram)'].filter(Boolean).join(' ');
+      const data = await fetchYandexSearch(query, env);
+      if (!data) return [key, { companyName, whatsapp: '', telegram: '' }];
+      const relevant = [data.organic_results, data.answer_box, data.knowledge_graph, data.local_results].filter(Boolean);
+      const relevantText = JSON.stringify(relevant);
+      return [key, { companyName, whatsapp: extractWhatsAppNumber(relevantText), telegram: extractTelegramHandle(relevantText) }];
+    } catch (error) {
+      return [key, null];
+    }
+  }));
+
+  const results = {};
+  for (const [key, hit] of entries) if (hit) results[key] = hit;
+  return json({ results, truncated: requested.length > RESOLVE_VOLZA_MAX_LEADS });
+}
+
 const CHECK_EXISTING_MAX_ITEMS = 200;
 
 // Lets Discovery drop results that are already saved leads before showing them, instead of
@@ -746,6 +823,7 @@ export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'POST' && action === 'enrichContactPerson') return enrichContactPerson(request, env);
   if (request.method === 'POST' && action === 'searchCompany') return searchCompany(request, env);
   if (request.method === 'POST' && action === 'enrichBusinessDirectory') return enrichBusinessDirectories(request, env);
+  if (request.method === 'POST' && action === 'resolveVolza') return resolveVolzaContact(request, env);
   if (request.method === 'POST' && action === 'checkExisting') return checkExistingContacts(request, env);
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
   if (request.method === 'POST' && action === 'run') return runCollector(request, env, arg);

@@ -162,6 +162,10 @@ export default {
         try { return await handleLeadIntelligence(request, env, 'enrichBusinessDirectory'); }
         catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
       }
+      if (url.pathname === '/api/lead-intelligence/resolve-volza' && request.method === 'POST') {
+        try { return await handleLeadIntelligence(request, env, 'resolveVolza'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
       if (url.pathname === '/api/lead-intelligence/check-existing' && request.method === 'POST') {
         try { return await handleLeadIntelligence(request, env, 'checkExisting'); }
         catch (err) { return Response.json({ error: err.message }, { status: 500 }); }

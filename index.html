@@ -7700,6 +7700,35 @@ async function findBusinessDirectoriesMaps() {
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
 
+// Per-card action on a single result's Volza link (any Discovery window — Maps, 2GIS, Kaspi.kz or
+// Company Search all route through this same card template): fetches the Volza profile page
+// itself for the exact registered company name (a Volza URL slug is often a truncated/mangled
+// version of it), then re-searches under that corrected name for a WhatsApp number or Telegram
+// handle. See resolveVolzaContact() in worker/routes/leadIntelligence.js. One at a time by design
+// — it's a deliberate "clean this one lead up" click, not a bulk pass.
+async function resolveVolzaLead(source, i) {
+  const c = S.disc[source] && S.disc[source].contacts[i];
+  if (!c || !c.volzaUrl) return;
+  const btn = document.getElementById(`volza-resolve-${source}-${i}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Resolving…'; }
+  try {
+    const location = c.city || c.__searchLocation || c.address || '';
+    const d = await leadApi('/api/lead-intelligence/resolve-volza', { method: 'POST', body: JSON.stringify({ leads: [{ key: '0', volzaUrl: c.volzaUrl, location }] }) });
+    if (d.error) throw new Error(d.error);
+    const hit = d.results && d.results['0'];
+    if (!hit || !hit.companyName) { showToast('Could not resolve an exact company name from that Volza profile', 'info'); return; }
+    c.name = hit.companyName;
+    let found = '';
+    if (hit.whatsapp && !c.whatsapp) { c.whatsapp = hit.whatsapp; found += ' + WhatsApp'; }
+    if (hit.telegram && !c.telegram) { c.telegram = hit.telegram; found += ' + Telegram'; }
+    renderDiscoveryResults(source);
+    showToast(`Resolved "${hit.companyName}"${found}`, 'success');
+  } catch (e) {
+    showToast(e.message || 'Volza resolve failed', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Resolve name + WA/TG ↻'; }
+  }
+}
+
 function kaspiProspectToContact(p) {
   return {
     __prospectId: p.id, __source: 'kaspi',
@@ -7976,7 +8005,7 @@ function renderDiscoveryResults(source) {
       ${c.whatsapp?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--green);min-width:26px;">WA</span><a href="https://wa.me/${c.whatsapp.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()">${c.whatsapp}</a></div>`:''}
       ${c.telegram?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--blue);min-width:26px;">TG</span><a href="https://t.me/${c.telegram.replace(/^@/,'')}" target="_blank" onclick="event.stopPropagation()">${c.telegram}</a></div>`:''}
       ${c.linkedin?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:#0a66c2;min-width:26px;">in</span><a href="${c.linkedin}" target="_blank" onclick="event.stopPropagation()">${c.linkedin.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
-      ${c.volzaUrl?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--amber);min-width:26px;">VZ</span><a href="${c.volzaUrl}" target="_blank" onclick="event.stopPropagation()">Volza profile ↗</a></div>`:''}
+      ${c.volzaUrl?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--amber);min-width:26px;">VZ</span><a href="${c.volzaUrl}" target="_blank" onclick="event.stopPropagation()">Volza profile ↗</a><button class="t-btn btn-ghost t-btn-sm" id="volza-resolve-${source}-${i}" style="margin-left:6px;padding:1px 6px;font-size:9px;" onclick="event.stopPropagation();resolveVolzaLead('${source}',${i})" title="Fetch the Volza profile page for the exact registered company name, then search for a WhatsApp number/Telegram handle under that name (paid search)">Resolve name + WA/TG ↻</button></div>`:''}
       ${c.directoryUrl?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--amber);min-width:26px;">DR</span><a href="${c.directoryUrl}" target="_blank" onclick="event.stopPropagation()">${c.directoryUrl.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
       ${c.directoryDescription?`<div class="cc-detail" style="color:var(--text3);font-size:10px;">${_hesc(c.directoryDescription).slice(0,140)}</div>`:''}
       ${c.description?`<div style="font-size:11px;color:var(--text3);margin-top:4px;line-height:1.4;">${_hesc(c.description).slice(0,180)}</div>`:''}
