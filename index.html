@@ -7486,8 +7486,14 @@ async function runDiscovery(source) {
     S.disc[source].contacts = contacts;
     S.disc[source].selected = new Set();
     renderDiscoveryResults(source);
-    if (contacts.length) showToast(`Found ${contacts.length} contacts via ${cfg.label}`, 'success');
-    else showToast('No results — try broader filters', 'info');
+    // filteredOfficial: brand-owned "Official/Flagship Store" listings the Google Maps workflow
+    // already skipped server-side (see Map to Whizz Contacts in n8n-workflows/
+    // whizz-discover-google-maps.json) — they're not wholesale prospects, just the manufacturer's
+    // own retail presence, so surfacing the count here explains why fewer results than expected
+    // came back instead of it looking like a bug.
+    const skippedNote = d.filteredOfficial ? ` (skipped ${d.filteredOfficial} official/flagship brand store${d.filteredOfficial > 1 ? 's' : ''})` : '';
+    if (contacts.length) showToast(`Found ${contacts.length} contacts via ${cfg.label}${skippedNote}`, 'success');
+    else showToast(`No results — try broader filters${skippedNote}`, 'info');
 
     const enrichBox = document.getElementById('disc-enrich-social-maps');
     if (source === 'maps' && contacts.length && enrichBox && enrichBox.checked) {
