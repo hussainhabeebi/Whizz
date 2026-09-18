@@ -652,12 +652,14 @@ async function searchCompany(request, env) {
     }
   }
 
-  // Same combined Volza/Yellow Pages/Golden Pages lookup as the Google Maps window's "Find
+  // Same combined Volza/Yellow Pages/Golden Pages/Kadorf lookup as the Google Maps window's "Find
   // Business Directories" tier (see extractBusinessDirectoryHit/enrichBusinessDirectories below) —
   // opt-in, paid, and run last since it's answering a different question (public trade/directory
-  // presence) than the tiers above.
+  // presence) than the tiers above. Kadorf here is a public SerpApi search, not a query against
+  // Whizz's own credentialed Kadorf crawl (see fetchDirectoryProspectMatches in index.html, which
+  // deliberately excludes Kadorf).
   if (body.findBusinessDirectory) {
-    const dirQuery = [`(site:volza.com OR site:yellowpages.com OR site:goldenpages.ie)`, `"${resolvedCompany}"`, location].filter(Boolean).join(' ');
+    const dirQuery = [`(site:volza.com OR site:yellowpages.com OR site:goldenpages.ie OR site:kadorf.com)`, `"${resolvedCompany}"`, location].filter(Boolean).join(' ');
     const dirData = await fetchYandexSearch(dirQuery, env);
     const hit = dirData ? extractBusinessDirectoryHit(dirData.organic_results) : null;
     if (hit?.volza) profile.volzaUrl = hit.volza;
@@ -674,9 +676,15 @@ async function searchCompany(request, env) {
 
 const BUSINESS_DIRECTORY_MAX_LEADS = 15;
 // One directory per site — a listing that also happens to be a Volza trade-data profile is
-// treated as Volza only, not double-counted as a Yellow/Golden Pages hit too.
+// treated as Volza only, not double-counted as a Yellow/Golden/Kadorf hit too.
 const VOLZA_HOST_RE = /(^|\.)volza\.com$/i;
-const DIRECTORY_HOST_RE = /(^|\.)(yellowpages\.com|goldenpages\.ie)$/i;
+// Kadorf's own collector config (collector/server.js) notes its company profiles are exposed
+// publicly (unlike Handelot/PC Exporters, which need a logged-in crawl) — so, like Yellow/Golden
+// Pages, a plain SerpApi site: search reaches real contact data without Whizz's own Kadorf
+// credentials, which is why this sits in the free-to-search DIRECTORY_HOST_RE bucket rather than
+// the link-only VOLZA_HOST_RE one (Volza's real data needs a paid login the profile page doesn't
+// expose).
+const DIRECTORY_HOST_RE = /(^|\.)(yellowpages\.com|goldenpages\.ie|kadorf\.com)$/i;
 // Generic enough to catch a US-style "(212) 555-1234" or an Irish "01 234 5678"/"+353 1 234 5678"
 // sitting in a directory listing's title/snippet — same best-effort spirit as the WhatsApp
 // regexes above: a loose match here just means a field comes back empty, never garbage, since
@@ -688,9 +696,9 @@ const DIRECTORY_EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 // Volza's real import/export shipment data sits behind a paid account login, so this only
 // searches for and links a business's public Volza trade-profile page (via the same
 // SerpApi/Yandex flow as the WhatsApp/LinkedIn tiers) rather than trying to scrape shipment
-// data no anonymous request can actually reach. Golden Pages (Ireland) and Yellow Pages (US)
-// listings, by contrast, are plain public pages — their title/snippet can carry a phone number,
-// email, or category/description text a Google Maps listing didn't already have.
+// data no anonymous request can actually reach. Golden Pages (Ireland), Yellow Pages (US) and
+// Kadorf listings, by contrast, are plain public pages — their title/snippet can carry a phone
+// number, email, or category/description text a Google Maps listing didn't already have.
 function extractBusinessDirectoryHit(organicResults) {
   let volza = '';
   let directory = null;
@@ -718,8 +726,9 @@ function extractBusinessDirectoryHit(organicResults) {
 }
 
 // Fifth, paid tier: a single combined SerpApi/Yandex search per lead (site:volza.com OR
-// site:yellowpages.com OR site:goldenpages.ie) for the business's name + location — one paid
-// call covers all three sources instead of three, same cost as the WhatsApp/LinkedIn tiers.
+// site:yellowpages.com OR site:goldenpages.ie OR site:kadorf.com) for the business's name +
+// location — one paid call covers all four sources instead of four, same cost as the
+// WhatsApp/LinkedIn tiers.
 async function enrichBusinessDirectories(request, env) {
   const body = await request.json().catch(() => ({}));
   const requested = Array.isArray(body.leads) ? body.leads : [];
@@ -735,7 +744,7 @@ async function enrichBusinessDirectories(request, env) {
 
   const entries = await Promise.all(batch.map(async ({ key, company, location }) => {
     try {
-      const query = [`(site:volza.com OR site:yellowpages.com OR site:goldenpages.ie)`, `"${company}"`, location].filter(Boolean).join(' ');
+      const query = [`(site:volza.com OR site:yellowpages.com OR site:goldenpages.ie OR site:kadorf.com)`, `"${company}"`, location].filter(Boolean).join(' ');
       const data = await fetchYandexSearch(query, env);
       if (!data) return [key, null];
       const hit = extractBusinessDirectoryHit(data.organic_results);
