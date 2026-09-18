@@ -1849,6 +1849,12 @@ body.dark .wa-quick-btn{color:#3ddc78;}
                 </label>
                 <div class="fi-hint">Searches for a public LinkedIn profile (owner, director, purchasing/procurement, sales manager, ...) at this company via SerpApi, so you're not just left with a general phone/website — pulls a name, title and profile link when a decision-maker's profile turns up. Costs one extra paid SerpApi search per company.</div>
               </div>
+              <div style="margin-top:8px;">
+                <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="disc-enrich-business-directory-company"> Also check Volza, Yellow Pages &amp; Golden Pages (extra cost)
+                </label>
+                <div class="fi-hint">Searches Volza (trade-profile link — real shipment data needs a paid Volza login), Yellow Pages (US) and Golden Pages (Ireland) for this company via SerpApi, filling in a phone/email/description gap a website search alone might miss. Costs one extra paid SerpApi search per company.</div>
+              </div>
             </div>
           </div>
           <div class="card">
@@ -7859,6 +7865,7 @@ async function runCompanySearch() {
   const company = document.getElementById('disc-company-name').value.trim();
   const location = document.getElementById('disc-company-location').value.trim();
   const findContactPerson = document.getElementById('disc-enrich-contact-person-company').checked;
+  const findBusinessDirectory = document.getElementById('disc-enrich-business-directory-company').checked;
   if (!company) { showToast('Enter a company name to search', 'error'); return; }
 
   const btn = document.getElementById('disc-run-btn-company');
@@ -7881,7 +7888,7 @@ async function runCompanySearch() {
   }
 
   try {
-    const d = await leadApi('/api/lead-intelligence/search-company', { method: 'POST', body: JSON.stringify({ company, location, findContactPerson }) });
+    const d = await leadApi('/api/lead-intelligence/search-company', { method: 'POST', body: JSON.stringify({ company, location, findContactPerson, findBusinessDirectory }) });
     if (!d.profile) {
       showToast(`No results found for "${company}"`, 'info');
     } else {

@@ -528,7 +528,7 @@ async function enrichContactPerson(request, env) {
 // Domains that are almost never a business's own official site — skipped when guessing which
 // organic result is the company's homepage, so the guess doesn't land on a directory/social/
 // marketplace listing about the company instead of the company's own site.
-const NON_OFFICIAL_SITE_RE = /(facebook\.com|instagram\.com|linkedin\.com|twitter\.com|x\.com|youtube\.com|wikipedia\.org|yellowpages\.|yelp\.com|crunchbase\.com|bloomberg\.com|t\.me|telegram\.me|wa\.me|api\.whatsapp\.com|google\.[a-z.]+\/maps|maps\.google|2gis\.|kaspi\.kz)/i;
+const NON_OFFICIAL_SITE_RE = /(facebook\.com|instagram\.com|linkedin\.com|twitter\.com|x\.com|youtube\.com|wikipedia\.org|yellowpages\.|yelp\.com|goldenpages\.ie|volza\.com|crunchbase\.com|bloomberg\.com|t\.me|telegram\.me|wa\.me|api\.whatsapp\.com|google\.[a-z.]+\/maps|maps\.google|2gis\.|kaspi\.kz)/i;
 
 // Same "labelled number next to a keyword" approach as WA_LABELLED_NUMBER_RE, but for a general
 // phone number rather than specifically WhatsApp — catches a phone number spelled out next to
@@ -580,6 +580,7 @@ async function searchCompany(request, env) {
     company,
     website,
     phone: normalize(data.knowledge_graph?.phone) || extractPhoneNumber(relevantText),
+    email: '',
     whatsapp: extractWhatsAppNumber(relevantText),
     telegram: '',
     linkedin: '',
@@ -603,6 +604,23 @@ async function searchCompany(request, env) {
       profile.contactPersonName = person.name;
       profile.contactPersonTitle = person.title;
       if (person.linkedin && !profile.linkedin) profile.linkedin = person.linkedin;
+    }
+  }
+
+  // Same combined Volza/Yellow Pages/Golden Pages lookup as the Google Maps window's "Find
+  // Business Directories" tier (see extractBusinessDirectoryHit/enrichBusinessDirectories below) —
+  // opt-in, paid, and run last since it's answering a different question (public trade/directory
+  // presence) than the tiers above.
+  if (body.findBusinessDirectory) {
+    const dirQuery = [`(site:volza.com OR site:yellowpages.com OR site:goldenpages.ie)`, `"${company}"`, location].filter(Boolean).join(' ');
+    const dirData = await fetchYandexSearch(dirQuery, env);
+    const hit = dirData ? extractBusinessDirectoryHit(dirData.organic_results) : null;
+    if (hit?.volza) profile.volzaUrl = hit.volza;
+    if (hit?.directory) {
+      if (hit.directory.url) profile.directoryUrl = hit.directory.url;
+      if (hit.directory.phone && !profile.phone) profile.phone = hit.directory.phone;
+      if (hit.directory.email && !profile.email) profile.email = hit.directory.email;
+      if (hit.directory.description) profile.directoryDescription = hit.directory.description;
     }
   }
 
