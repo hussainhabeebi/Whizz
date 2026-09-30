@@ -732,13 +732,31 @@ body.dark .t-quote{background:rgba(255,255,255,.07);}
 .t-quote-sender{font-weight:700;display:block;}
 .t-quote-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
 
-/* Reply icon — reveals on bubble hover, WhatsApp-style */
+/* Action icons (reply/forward/pin/delete) — reveal on bubble hover, WhatsApp-style */
 .t-bubble-row{position:relative;}
-.t-reply-btn{position:absolute;top:2px;opacity:0;width:22px;height:22px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);transition:opacity .12s;box-shadow:var(--shadow-sm);}
-.t-bubble-row.t-out .t-reply-btn{left:-28px;}
-.t-bubble-row.t-in .t-reply-btn{right:-28px;}
-.t-bubble-row:hover .t-reply-btn{opacity:1;}
-.t-reply-btn:hover{color:var(--accent);}
+.t-bubble-actions{position:absolute;top:2px;opacity:0;display:flex;gap:3px;transition:opacity .12s;}
+.t-bubble-row.t-out .t-bubble-actions{left:-28px;flex-direction:row-reverse;}
+.t-bubble-row.t-in .t-bubble-actions{right:-28px;}
+.t-bubble-row:hover .t-bubble-actions{opacity:1;}
+.t-action-btn{width:22px;height:22px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);box-shadow:var(--shadow-sm);flex-shrink:0;}
+.t-action-btn:hover{color:var(--accent);}
+.t-action-btn.danger:hover{color:var(--red);}
+.t-bubble-actions{z-index:2;}
+
+/* Pinned-message banner above the thread */
+.thread-pinned-banner{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--accent-dim);border-bottom:1px solid var(--border);font-size:11px;flex-shrink:0;}
+.thread-pinned-banner .tpb-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2);cursor:pointer;}
+.thread-pinned-banner svg.tpb-pin-icon{flex-shrink:0;color:var(--accent);}
+.thread-pinned-banner .tpb-close{flex-shrink:0;color:var(--text3);cursor:pointer;}
+.t-bubble-row.t-pinned-target{animation:pinFlash 1.4s ease;}
+@keyframes pinFlash{0%,100%{background:transparent;}30%{background:var(--accent-dim);border-radius:14px;}}
+
+/* Forward picker rows */
+.fwd-row{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:9px;cursor:pointer;}
+.fwd-row:hover{background:var(--bg3);}
+.fwd-row .fwd-avatar{width:30px;height:30px;border-radius:50%;background:var(--accent-dim);color:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;}
+.fwd-row .fwd-name{font-size:12.5px;font-weight:600;color:var(--text);}
+.fwd-row .fwd-sub{font-size:10.5px;color:var(--text3);}
 
 /* Contact info side panel — slides in over the thread rather than resizing the grid */
 .contact-panel{position:absolute;top:0;right:0;bottom:0;width:280px;background:var(--bg2);border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(0,0,0,.1);transform:translateX(100%);transition:transform .2s ease;z-index:15;overflow-y:auto;display:flex;flex-direction:column;}
@@ -1279,6 +1297,13 @@ body.dark .wa-quick-btn{color:#3ddc78;}
               <span class="thread-search-count" id="thread-search-count"></span>
               <span class="crp-close" onclick="toggleThreadSearch()" title="Close search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </span>
+            </div>
+            <div class="thread-pinned-banner" id="thread-pinned-banner" style="display:none;">
+              <svg class="tpb-pin-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+              <span class="tpb-text" id="thread-pinned-banner-text" onclick="scrollToPinnedMessage()"></span>
+              <span class="tpb-close" onclick="unpinBannerMessage()" title="Unpin">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </span>
             </div>
             <div id="thread-body" class="conv-thread-body" onscroll="handleThreadScroll()">
@@ -2470,6 +2495,24 @@ body.dark .wa-quick-btn{color:#3ddc78;}
   </div>
 </div>
 
+<!-- Forward Message Picker -->
+<div class="modal-overlay" id="modal-forward-message">
+  <div class="modal" style="width:min(96vw,420px);">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Forward Message</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;">Choose a conversation to forward to</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-forward-message')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="t-quote" id="fwd-preview" style="margin-bottom:12px;"></div>
+      <input class="fi" id="fwd-search" placeholder="Search conversations…" oninput="renderForwardPicker(this.value)" style="margin-bottom:10px;"/>
+      <div id="fwd-list" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Mobile "More" Nav Sheet (pages that don't fit in the bottom dock) -->
 <div class="modal-overlay" id="modal-mobile-more" onclick="if(event.target===this)closeMobileMoreMenu()">
   <div class="modal">
@@ -2695,8 +2738,12 @@ const SCHEDULE_KEY = 'whizz_scheduled_v1';
 const TASKS_KEY = 'whizz_tasks_v1';
 const CONV_PINS_KEY = 'whizz_conv_pins_v1';
 const CONV_MUTES_KEY = 'whizz_conv_mutes_v1';
+const PINNED_MSG_KEY = 'whizz_pinned_msgs_v1';
 function loadConvIdSet(key){ try{return new Set(JSON.parse(localStorage.getItem(key)||'[]').map(String));}catch(e){return new Set();} }
 function saveConvIdSet(key,set){ try{localStorage.setItem(key,JSON.stringify([...set]));}catch(e){} }
+// One pinned message per conversation, WhatsApp-banner-style — {convId: messageId}.
+function loadPinnedMsgMap(){ try{return JSON.parse(localStorage.getItem(PINNED_MSG_KEY)||'{}');}catch(e){return{};} }
+function savePinnedMsgMap(map){ try{localStorage.setItem(PINNED_MSG_KEY,JSON.stringify(map));}catch(e){} }
 const ROLE_EXPERIENCES={
   Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
   Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
@@ -2738,7 +2785,8 @@ let S = {
   },
   cache: {}, notifications: [], history: [],
   selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: [],
-  convSearch: '', threadSearch: '', pinnedConvIds: loadConvIdSet(CONV_PINS_KEY), mutedConvIds: loadConvIdSet(CONV_MUTES_KEY), replyTo: null
+  convSearch: '', threadSearch: '', pinnedConvIds: loadConvIdSet(CONV_PINS_KEY), mutedConvIds: loadConvIdSet(CONV_MUTES_KEY), replyTo: null,
+  pinnedMsgMap: loadPinnedMsgMap(), forwardingMsg: null
 };
 
 // ── Auth ──
@@ -3699,7 +3747,7 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 })();
 
 // ── API Gateway Base Call ──
-const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-get-conversations','whizz-get-conversation-messages','whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-send-template-message','whizz-send-conversation-message','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-discover-2gis','whizz-save-integration','whizz-delete-integration']);
+const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-get-conversations','whizz-get-conversation-messages','whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-send-template-message','whizz-send-conversation-message','whizz-delete-conversation-message','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-discover-2gis','whizz-save-integration','whizz-delete-integration']);
 async function api(path,method='GET',body=null){const endpoint=String(path).split('?')[0],protectedRoute=WORKER_PROTECTED_ENDPOINTS.has(endpoint);const opts={method,headers:{'Content-Type':'application/json'}};if(protectedRoute)opts.credentials='include';if(body)opts.body=JSON.stringify(body);const url=protectedRoute?`/api/automation/${path}`:`${N8N}/${path}`;const r=await fetch(url,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{success:true};}catch{data={success:true};}if(!r.ok){console.error('[Whizz]',method,path,r.status,txt);throw new Error(data.error||(txt.trim().slice(0,150))||'HTTP '+r.status);}return data;}
 // Endpoints migrated off n8n onto the Cloudflare Worker call this instead — same
 // contract, just same-origin. Migrate call sites one at a time as each route lands.
@@ -4133,6 +4181,8 @@ function renderThreadEmpty(){
   S.threadContact=null;
   closeThreadSearch();
   updateComposerState();
+  const banner=document.getElementById('thread-pinned-banner');
+  if(banner)banner.style.display='none';
 }
 
 async function selectConv(id){
@@ -4235,6 +4285,8 @@ async function loadThread(c,{silent}={}){
   }else{
     S.convMessages[c.id]=[{content:c.last_message||'No messages logged',sender:'them',created_at:c.last_activity}];
     body.innerHTML=`<div class="thread-empty">Full message thread unavailable from this view — showing latest message only.<br>Use "Open in Chatwoot" for complete history.</div>${threadBubbleHtml(S.convMessages[c.id][0])}`;
+    const banner=document.getElementById('thread-pinned-banner');
+    if(banner)banner.style.display='none';
   }
   updateComposerState();
 }
@@ -4304,17 +4356,27 @@ function quoteSnippetHtml(inReplyToId,allMessages){
 }
 function threadBubbleHtml(raw,grouped,allMessages){
   const m=normalizeMsg(raw);
+  const idAttr=raw.id?` data-msg-id="${_hesc(String(raw.id))}"`:'';
   if(raw.private){
-    return `<div class="t-bubble-row t-private"><div class="t-bubble"><div class="t-note-label">Internal note${raw.sender_name?' — '+_hesc(raw.sender_name):''}</div><span class="t-bubble-text">${highlightSearch(m.text)}</span><span class="t-bubble-meta">${m.time}</span></div></div>`;
+    return `<div class="t-bubble-row t-private"${idAttr}><div class="t-bubble"><div class="t-note-label">Internal note${raw.sender_name?' — '+_hesc(raw.sender_name):''}</div><span class="t-bubble-text">${highlightSearch(m.text)}</span><span class="t-bubble-meta">${m.time}</span></div></div>`;
   }
   const failed=m.status==='failed';
   const searchMiss=S.threadSearch&&!(m.text||'').toLowerCase().includes(S.threadSearch);
   const retryAttr=failed&&raw.id?` onclick="retrySendMessage('${raw.id}')"`:'';
   const textBody=m.text?`<span class="t-bubble-text">${highlightSearch(m.text)}</span>`:'';
   const quote=quoteSnippetHtml(raw.in_reply_to,allMessages);
-  const canReply=raw.id&&m.status!=='sending'&&!failed;
-  const replyBtn=canReply?`<span class="t-reply-btn" onclick="event.stopPropagation();setReplyTo('${raw.id}')" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></span>`:'';
-  return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}${grouped?' t-grouped':''}${m.status==='sending'?' t-sending':''}${failed?' t-failed':''}${searchMiss?' t-search-hidden':''}">${replyBtn}<div class="t-bubble"${retryAttr}>${quote}${attachmentsHtml(raw.attachments)}${textBody}<span class="t-bubble-meta">${m.time}${m.outgoing?threadTickSvg(m.status):''}</span>${failed?'<span class="t-fail-hint">Not delivered — tap to retry</span>':''}</div></div>`;
+  const settled=raw.id&&m.status!=='sending'&&!failed;
+  const actions=[];
+  if(settled){
+    actions.push(`<span class="t-action-btn" onclick="event.stopPropagation();setReplyTo('${raw.id}')" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></span>`);
+    if(m.text)actions.push(`<span class="t-action-btn" onclick="event.stopPropagation();openForwardMessage('${raw.id}')" title="Forward"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg></span>`);
+    actions.push(`<span class="t-action-btn" onclick="event.stopPropagation();togglePinMessage('${raw.id}')" title="Pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg></span>`);
+    if(m.outgoing)actions.push(`<span class="t-action-btn danger" onclick="event.stopPropagation();deleteMessage('${raw.id}')" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>`);
+  }else if(failed){
+    actions.push(`<span class="t-action-btn danger" onclick="event.stopPropagation();deleteMessage('${raw.id}')" title="Discard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>`);
+  }
+  const actionBar=actions.length?`<div class="t-bubble-actions">${actions.join('')}</div>`:'';
+  return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}${grouped?' t-grouped':''}${m.status==='sending'?' t-sending':''}${failed?' t-failed':''}${searchMiss?' t-search-hidden':''}"${idAttr}>${actionBar}<div class="t-bubble"${retryAttr}>${quote}${attachmentsHtml(raw.attachments)}${textBody}<span class="t-bubble-meta">${m.time}${m.outgoing?threadTickSvg(m.status):''}</span>${failed?'<span class="t-fail-hint">Not delivered — tap to retry</span>':''}</div></div>`;
 }
 function renderThread(messages,truncated){
   const note=truncated?'<div class="thread-trunc-note">Showing this page\'s messages — use "Open in Chatwoot" for older history.</div>':'';
@@ -4333,6 +4395,7 @@ function renderThread(messages,truncated){
   const countEl=document.getElementById('thread-search-count');
   if(countEl)countEl.textContent=q?`${matchCount} match${matchCount===1?'':'es'}`:'';
   scrollThreadToBottom(false);
+  renderPinnedBanner(messages);
 }
 function scrollThreadToBottom(smooth){
   const body=document.getElementById('thread-body');
@@ -4575,6 +4638,118 @@ function toggleMuteConv(id,event){
   if(S.mutedConvIds.has(id))S.mutedConvIds.delete(id);else S.mutedConvIds.add(id);
   saveConvIdSet(CONV_MUTES_KEY,S.mutedConvIds);
   renderConvs(S.cache.conversations||[]);
+}
+
+// ── Pin a single message within a conversation (local — one pinned message per
+// conversation, like the WhatsApp banner, not synced to Chatwoot) ──
+function togglePinMessage(msgId){
+  const id=S.selectedConvId;
+  if(!id)return;
+  msgId=String(msgId);
+  if(S.pinnedMsgMap[id]===msgId)delete S.pinnedMsgMap[id];
+  else S.pinnedMsgMap[id]=msgId;
+  savePinnedMsgMap(S.pinnedMsgMap);
+  renderPinnedBanner(S.convMessages[id]||[]);
+}
+function renderPinnedBanner(messages){
+  const id=S.selectedConvId;
+  const banner=document.getElementById('thread-pinned-banner');
+  if(!banner)return;
+  const pinnedId=id?S.pinnedMsgMap[id]:null;
+  const pinned=pinnedId?(messages||[]).find(m=>String(m.id)===pinnedId):null;
+  if(!pinned){banner.style.display='none';return;}
+  const pm=normalizeMsg(pinned);
+  const text=pm.text||(pinned.attachments&&pinned.attachments.length?'📎 Attachment':'');
+  document.getElementById('thread-pinned-banner-text').textContent=text;
+  banner.style.display='flex';
+}
+function scrollToPinnedMessage(){
+  const id=S.selectedConvId;
+  const pinnedId=id?S.pinnedMsgMap[id]:null;
+  if(!pinnedId)return;
+  const el=document.querySelector(`#thread-body [data-msg-id="${CSS.escape(pinnedId)}"]`);
+  if(!el){showToast('That message is outside the currently loaded window','info');return;}
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.classList.add('t-pinned-target');
+  setTimeout(()=>el.classList.remove('t-pinned-target'),1400);
+}
+function unpinBannerMessage(){
+  const id=S.selectedConvId;
+  if(!id)return;
+  delete S.pinnedMsgMap[id];
+  savePinnedMsgMap(S.pinnedMsgMap);
+  renderPinnedBanner(S.convMessages[id]||[]);
+}
+
+// ── Forward a message to a different (or the same) conversation ──
+function openForwardMessage(msgId){
+  const id=S.selectedConvId;
+  if(!id)return;
+  const msg=(S.convMessages[id]||[]).find(m=>String(m.id)===String(msgId));
+  if(!msg)return;
+  const nm=normalizeMsg(msg);
+  if(!nm.text){showToast('Only text messages can be forwarded right now','info');return;}
+  S.forwardingMsg={text:nm.text};
+  document.getElementById('fwd-preview').innerHTML=`<span class="t-quote-sender">Forwarding</span><span class="t-quote-text" style="white-space:normal;">${_hesc(nm.text).slice(0,200)}</span>`;
+  document.getElementById('fwd-search').value='';
+  document.getElementById('modal-forward-message').classList.add('open');
+  renderForwardPicker('');
+}
+function renderForwardPicker(q){
+  const list=document.getElementById('fwd-list');
+  if(!list)return;
+  q=(q||'').trim().toLowerCase();
+  const convs=(S.cache.conversations||[]).filter(c=>!q||(c.contact_name||'').toLowerCase().includes(q)||String(convPhone(c)).toLowerCase().includes(q));
+  if(!convs.length){list.innerHTML='<div style="text-align:center;color:var(--text3);font-size:11px;padding:20px;">No conversations match.</div>';return;}
+  list.innerHTML=convs.slice(0,100).map(c=>{
+    const init=(c.contact_name||'U')[0].toUpperCase();
+    return `<div class="fwd-row" onclick="sendForwardTo('${c.id}')"><div class="fwd-avatar">${_hesc(init)}</div><div><div class="fwd-name">${_hesc(c.contact_name||'Unknown')}</div><div class="fwd-sub">${_hesc(convPhone(c)||c.channel||'')}</div></div></div>`;
+  }).join('');
+}
+async function sendForwardTo(targetId){
+  const msg=S.forwardingMsg;
+  if(!msg)return;
+  closeModal('modal-forward-message');
+  const text=`↪ Forwarded\n${msg.text}`;
+  try{
+    const d=await api('whizz-send-conversation-message','POST',{id:targetId,content:text});
+    if(d.error)throw new Error(d.error);
+    showToast('Message forwarded','success');
+    if(String(targetId)===String(S.selectedConvId)){
+      S.convMessages[targetId]=[...(S.convMessages[targetId]||[]),{...d,message_type:1,sender_type:'agent'}];
+      renderThread(S.convMessages[targetId],false);
+      scrollThreadToBottom(true);
+    }
+  }catch(e){
+    showToast(e.message||'Forward failed','error');
+  }
+  S.forwardingMsg=null;
+}
+
+// ── Delete a message ── Chatwoot-side only: this does NOT unsend it from WhatsApp — the
+// customer's phone still has it. WhatsApp's Business Platform has no "delete for everyone"
+// API at all, so that's not something Whizz can offer regardless of how this is built.
+async function deleteMessage(msgId){
+  const id=S.selectedConvId;
+  if(!id)return;
+  const msg=(S.convMessages[id]||[]).find(m=>String(m.id)===String(msgId));
+  if(!msg)return;
+  if(msg.status==='failed'){
+    S.convMessages[id]=S.convMessages[id].filter(m=>m!==msg);
+    renderThread(S.convMessages[id],false);
+    return;
+  }
+  if(!confirm('Delete this message from Whizz/Chatwoot?\n\nThis does NOT unsend it — the customer\'s phone still has it. WhatsApp has no "delete for everyone" API.'))return;
+  try{
+    const d=await api('whizz-delete-conversation-message','POST',{id,messageId:msgId});
+    if(d.error)throw new Error(d.error);
+    S.convMessages[id]=S.convMessages[id].filter(m=>m!==msg);
+    if(S.pinnedMsgMap[id]===String(msgId)){delete S.pinnedMsgMap[id];savePinnedMsgMap(S.pinnedMsgMap);}
+    renderThread(S.convMessages[id],false);
+    showToast('Message deleted from Whizz/Chatwoot','success');
+  }catch(e){
+    showToast(e.message||'Delete failed','error');
+  }
 }
 
 // ── Replay ──
