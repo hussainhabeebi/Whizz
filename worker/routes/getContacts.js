@@ -8,6 +8,10 @@ export async function handleGetContacts(request, env) {
   const platform = url.searchParams.get('platform') || '';
   const country = url.searchParams.get('country') || '';
   const brand = url.searchParams.get('brand') || '';
+  // Last-9-digits suffix match, same normalization normalizePhone() already uses client-side
+  // (Conversations' findConvByPhone/the new contact side panel) — a country-code prefix
+  // mismatch between how a number was saved and how Chatwoot reports it shouldn't be a miss.
+  const phoneSuffix = (url.searchParams.get('phone') || '').replace(/\D/g, '').slice(-9);
 
   const ownership = actor.role === 'Administrator' ? '(?4 IS NOT NULL)'
     : actor.role === 'Manager' ? '(ownerEmail IS NULL OR teamId = ?4)'
@@ -22,8 +26,9 @@ export async function handleGetContacts(request, env) {
        AND (?2 = '' OR LOWER(country) = LOWER(?2))
        AND (?3 = '' OR (',' || REPLACE(LOWER(brand), ', ', ',') || ',') LIKE ('%,' || LOWER(?3) || ',%'))
        AND ${ownership}
+       AND (?5 = '' OR SUBSTR(REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-',''), -9) = ?5)
      ORDER BY createdAt DESC, id DESC`
-  ).bind(platform, country, brand, actor.role === 'Sales' ? actor.email : (actor.teamId || '')).all();
+  ).bind(platform, country, brand, actor.role === 'Sales' ? actor.email : (actor.teamId || ''), phoneSuffix).all();
 
   const contacts = results.map(r => ({
     id: String(r.id),
