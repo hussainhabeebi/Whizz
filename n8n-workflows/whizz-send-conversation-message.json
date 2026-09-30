@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Setup checklist\n1. Reuses the same \"Chatwoot API\" httpHeaderAuth credential the whizz-get-conversation-messages workflow already has configured — no new credential needed if that one's set up.\n2. Whizz calls this at POST https://n8n.aiingo.com/webhook/whizz-send-conversation-message with body {id, content} (id = the Chatwoot conversation id) and expects back the created message: {id, content, message_type, created_at, status, sender_type} on success, or {error} on failure.\n3. This sends a free-text outgoing message. WhatsApp's own 24-hour customer-service-window rule still applies — Chatwoot will reject the send with an error if the window has closed, which this workflow passes straight back as {error} rather than trying to work around it (the frontend checks the window itself before showing the composer, but this is the real enforcement point).\n4. No content_attributes/in_reply_to support yet — quote-reply is a follow-up, not wired into this workflow.",
+        "content": "## Setup checklist\n1. Reuses the same \"Chatwoot API\" httpHeaderAuth credential the whizz-get-conversation-messages workflow already has configured — no new credential needed if that one's set up.\n2. Whizz calls this at POST https://n8n.aiingo.com/webhook/whizz-send-conversation-message with body {id, content, replyToId?} (id = the Chatwoot conversation id, replyToId = optional id of the message being quote-replied to) and expects back the created message: {id, content, message_type, created_at, status, sender_type} on success, or {error} on failure.\n3. This sends a free-text outgoing message. WhatsApp's own 24-hour customer-service-window rule still applies — Chatwoot will reject the send with an error if the window has closed, which this workflow passes straight back as {error} rather than trying to work around it (the frontend checks the window itself before showing the composer, but this is the real enforcement point).\n4. replyToId maps to Chatwoot's content_attributes.in_reply_to — not verified against a live send from this account; if Chatwoot rejects or ignores it, check the exact field name in Chatwoot's current API docs and adjust the jsonBody below.",
         "height": 300,
         "width": 460
       },
@@ -35,7 +35,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ content: $json.body.content, message_type: 'outgoing', private: false }) }}",
+        "jsonBody": "={{ JSON.stringify({ content: $json.body.content, message_type: 'outgoing', private: false, ...($json.body.replyToId ? { content_attributes: { in_reply_to: $json.body.replyToId } } : {}) }) }}",
         "options": { "response": { "response": { "neverError": true } } }
       },
       "id": "f1a2b3c4-0006-0006-0006-000000000002",
