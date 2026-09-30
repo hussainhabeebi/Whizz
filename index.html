@@ -712,6 +712,61 @@ body.dark .t-bubble-row.t-out .t-bubble-meta{color:rgba(233,237,239,.62);}
 .thread-scroll-btn{position:absolute;right:24px;bottom:88px;width:34px;height:34px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;transform:translateY(6px);}
 .thread-scroll-btn.show{opacity:1;pointer-events:auto;transform:none;}
 
+/* Internal (private) note bubble — Chatwoot's own convention: yellow, full-width, no tail */
+.t-bubble-row.t-private{align-self:center;max-width:88%;}
+.t-bubble-row.t-private .t-bubble{background:#fef3c7;color:#78350f;border-color:rgba(120,53,15,.15);border-radius:10px;}
+body.dark .t-bubble-row.t-private .t-bubble{background:rgba(217,119,6,.18);color:#fde68a;border-color:rgba(253,230,138,.15);}
+.t-bubble-row.t-private:not(.t-grouped) .t-bubble::after{display:none;}
+.t-note-label{font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;opacity:.7;margin-bottom:2px;}
+.t-bubble-attachment{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.85;}
+.t-bubble-attachment svg{flex-shrink:0;}
+
+/* A send still in flight (optimistic) or rejected — WhatsApp-style clock/retry affordance */
+.t-bubble-row.t-sending .t-bubble{opacity:.65;}
+.t-bubble-row.t-failed .t-bubble{cursor:pointer;}
+.t-bubble-row.t-failed .t-bubble-meta{color:var(--red)!important;}
+.t-bubble-row.t-failed .t-fail-hint{font-size:10px;color:var(--red);margin-top:2px;text-align:right;}
+
+/* ── Composer ── */
+.conv-composer{border-top:1px solid var(--border);padding:9px 14px;display:flex;align-items:flex-end;gap:8px;background:var(--bg2);flex-shrink:0;position:relative;}
+.conv-composer.disabled{opacity:.55;}
+.composer-icon-btn{flex-shrink:0;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--text3);cursor:pointer;transition:background .12s,color .12s;}
+.composer-icon-btn:hover{background:var(--bg3);color:var(--text2);}
+.composer-input-wrap{flex:1;min-width:0;}
+#composer-input{width:100%;resize:none;border:1px solid var(--border2);background:var(--bg);color:var(--text);border-radius:20px;padding:9px 15px;font:400 13px var(--font);line-height:1.4;max-height:120px;overflow-y:auto;outline:none;}
+#composer-input:focus{border-color:var(--accent);}
+.composer-send-btn{flex-shrink:0;width:36px;height:36px;border-radius:50%;border:none;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s,opacity .1s;}
+.composer-send-btn:hover{transform:scale(1.05);}
+.composer-send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.composer-window-note{padding:6px 14px;font-size:11px;color:var(--amber);background:rgba(245,158,11,.08);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;}
+.composer-window-note button{flex-shrink:0;}
+.composer-reply-preview{padding:7px 14px;background:var(--bg3);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;font-size:11px;}
+.composer-reply-preview .crp-text{color:var(--text2);border-left:2px solid var(--accent);padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.composer-reply-preview .crp-close{cursor:pointer;color:var(--text3);flex-shrink:0;}
+
+/* Emoji picker */
+.emoji-picker{position:absolute;bottom:52px;left:10px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;box-shadow:var(--shadow-lg,0 10px 30px rgba(0,0,0,.18));padding:8px;display:none;grid-template-columns:repeat(8,1fr);gap:2px;z-index:20;max-height:180px;overflow-y:auto;width:264px;}
+.emoji-picker.open{display:grid;}
+.emoji-picker button{border:none;background:transparent;font-size:18px;line-height:1;padding:5px;border-radius:6px;cursor:pointer;}
+.emoji-picker button:hover{background:var(--bg3);}
+
+/* Thread in-conversation search */
+.thread-search-bar{display:none;align-items:center;gap:7px;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;}
+.thread-search-bar.open{display:flex;}
+.thread-search-bar input{flex:1;border:1px solid var(--border2);background:var(--bg);color:var(--text);border-radius:8px;padding:6px 10px;font:400 12px var(--font);outline:none;}
+.thread-search-bar input:focus{border-color:var(--accent);}
+.thread-search-count{font-size:10px;color:var(--text3);white-space:nowrap;}
+.t-bubble mark{background:rgba(245,158,11,.55);color:inherit;border-radius:2px;}
+.t-bubble-row.t-search-hidden{display:none;}
+
+/* Pin / mute on a conversation list item */
+.conv-pin-btn,.conv-mute-btn{opacity:0;flex-shrink:0;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;color:var(--text3);cursor:pointer;border-radius:5px;}
+.conv-item:hover .conv-pin-btn,.conv-item:hover .conv-mute-btn{opacity:1;}
+.conv-item.pinned .conv-pin-btn{opacity:1;color:var(--accent);}
+.conv-item.muted .conv-mute-btn{opacity:1;color:var(--text2);}
+.conv-pin-btn:hover,.conv-mute-btn:hover{background:var(--bg3);}
+.conv-item.pinned{background:var(--accent-dim);}
+
 /* Leads → WhatsApp quick action */
 .wa-quick-btn{background:rgba(37,211,102,.12);color:#1a9c4e;border:1px solid rgba(37,211,102,.28);}
 body.dark .wa-quick-btn{color:#3ddc78;}
@@ -1166,6 +1221,9 @@ body.dark .wa-quick-btn{color:#3ddc78;}
                 <div style="font-size:11px;color:var(--text3);margin-top:2px;" id="thread-sub"></div>
               </div>
               <div class="thread-actions">
+                <button class="t-btn btn-ghost" id="thread-search-btn" onclick="toggleThreadSearch()" disabled title="Search this conversation">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                </button>
                 <button class="t-btn wa-quick-btn" id="template-msg-btn" onclick="openSendTemplateModalForSelected()" disabled title="Send an approved WhatsApp template message">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                   Template
@@ -1180,11 +1238,35 @@ body.dark .wa-quick-btn{color:#3ddc78;}
                 </a>
               </div>
             </div>
+            <div class="thread-search-bar" id="thread-search-bar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" style="flex-shrink:0;color:var(--text3);"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input id="thread-search-input" placeholder="Search in this conversation…" oninput="applyThreadSearch(this.value)"/>
+              <span class="thread-search-count" id="thread-search-count"></span>
+              <span class="crp-close" onclick="toggleThreadSearch()" title="Close search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </span>
+            </div>
             <div id="thread-body" class="conv-thread-body" onscroll="handleThreadScroll()">
               <div class="thread-empty">Select a conversation to view the message thread.</div>
             </div>
             <div class="thread-scroll-btn" id="thread-scroll-btn" onclick="scrollThreadToBottom(true)" title="Jump to latest">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="composer-window-note" id="composer-window-note" style="display:none;">
+              <span>This conversation's 24-hour WhatsApp window looks closed — a plain message may be rejected.</span>
+              <button class="t-btn btn-ghost t-btn-sm" onclick="openSendTemplateModalForSelected()">Send Template instead</button>
+            </div>
+            <div class="emoji-picker" id="emoji-picker"></div>
+            <div class="conv-composer" id="conv-composer">
+              <button class="composer-icon-btn" id="emoji-toggle-btn" onclick="toggleEmojiPicker()" disabled title="Emoji">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="19" height="19"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+              </button>
+              <div class="composer-input-wrap">
+                <textarea id="composer-input" rows="1" placeholder="Select a conversation to reply…" disabled onkeydown="handleComposerKeydown(event)" oninput="autoGrowComposer(this)"></textarea>
+              </div>
+              <button class="composer-send-btn" id="composer-send-btn" onclick="sendConversationMessage()" disabled title="Send">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -2561,6 +2643,10 @@ const NOTIF_KEY = 'whizz_notifs';
 const OB_KEY = 'whizz_onboarding';
 const SCHEDULE_KEY = 'whizz_scheduled_v1';
 const TASKS_KEY = 'whizz_tasks_v1';
+const CONV_PINS_KEY = 'whizz_conv_pins_v1';
+const CONV_MUTES_KEY = 'whizz_conv_mutes_v1';
+function loadConvIdSet(key){ try{return new Set(JSON.parse(localStorage.getItem(key)||'[]').map(String));}catch(e){return new Set();} }
+function saveConvIdSet(key,set){ try{localStorage.setItem(key,JSON.stringify([...set]));}catch(e){} }
 const ROLE_EXPERIENCES={
   Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
   Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
@@ -2601,7 +2687,8 @@ let S = {
     company: { contacts: [], selected: new Set() },
   },
   cache: {}, notifications: [], history: [],
-  selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: []
+  selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: [],
+  convSearch: '', threadSearch: '', pinnedConvIds: loadConvIdSet(CONV_PINS_KEY), mutedConvIds: loadConvIdSet(CONV_MUTES_KEY)
 };
 
 // ── Auth ──
@@ -3378,6 +3465,7 @@ function renderNotifs() {
 function clearNotifs() { S.notifications=[];localStorage.removeItem(NOTIF_KEY);renderNotifs();document.getElementById('notif-dot').classList.remove('show'); }
 function toggleNotif() { document.getElementById('notif-panel').classList.toggle('open');document.getElementById('notif-dot').classList.remove('show'); }
 document.addEventListener('click',e=>{if(!e.target.closest('#notif-btn')&&!e.target.closest('#notif-panel'))document.getElementById('notif-panel').classList.remove('open');});
+document.addEventListener('click',e=>{if(!e.target.closest('#emoji-toggle-btn')&&!e.target.closest('#emoji-picker'))closeEmojiPicker();});
 
 // ── Onboarding ──
 function loadOnboarding() {
@@ -3561,7 +3649,7 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 })();
 
 // ── API Gateway Base Call ──
-const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-get-conversations','whizz-get-conversation-messages','whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-send-template-message','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-discover-2gis','whizz-save-integration','whizz-delete-integration']);
+const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-get-conversations','whizz-get-conversation-messages','whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-send-template-message','whizz-send-conversation-message','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-discover-2gis','whizz-save-integration','whizz-delete-integration']);
 async function api(path,method='GET',body=null){const endpoint=String(path).split('?')[0],protectedRoute=WORKER_PROTECTED_ENDPOINTS.has(endpoint);const opts={method,headers:{'Content-Type':'application/json'}};if(protectedRoute)opts.credentials='include';if(body)opts.body=JSON.stringify(body);const url=protectedRoute?`/api/automation/${path}`:`${N8N}/${path}`;const r=await fetch(url,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{success:true};}catch{data={success:true};}if(!r.ok){console.error('[Whizz]',method,path,r.status,txt);throw new Error(data.error||(txt.trim().slice(0,150))||'HTTP '+r.status);}return data;}
 // Endpoints migrated off n8n onto the Cloudflare Worker call this instead — same
 // contract, just same-origin. Migrate call sites one at a time as each route lands.
@@ -3879,7 +3967,11 @@ function renderConvs(convs){
   }
   document.getElementById('conv-count').textContent=`${filtered.length} operational records`;
   if(!filtered.length){el.innerHTML=`<div class="thread-empty">${S.convSearch?'No conversations match your search.':'No interactions logged under this state filter'}</div>`;return;}
-  el.innerHTML=filtered.map(c=>convHtml(c)).join('');
+  // Pinned conversations float to the top, like WhatsApp — stable otherwise (no re-sort
+  // by recency here, the incoming order already reflects that).
+  const pinned=filtered.filter(c=>S.pinnedConvIds.has(String(c.id)));
+  const rest=filtered.filter(c=>!S.pinnedConvIds.has(String(c.id)));
+  el.innerHTML=[...pinned,...rest].map(c=>convHtml(c)).join('');
   if(S.selectedConvId && !filtered.some(c=>String(c.id)===String(S.selectedConvId))){
     S.selectedConvId=null; renderThreadEmpty();
   }
@@ -3910,7 +4002,13 @@ function convHtml(c){
   const canAssign=['Administrator','Manager'].includes(CURRENT_SESSION?.role);
   const assignmentAction=canAssign?`<span class="open-cw" onclick="event.stopPropagation();assignConversation('${c.id}')">Assign</span>`:'';
   const hasUnread=c.unread>0?' has-unread':'';
-  return`<div class="conv-item${sel}${inquiryCls}${hasUnread}" onclick="selectConv('${c.id}')"><div class="c-avatar-wrap"><div class="c-avatar">${init}</div><span class="c-channel-dot ${cls}"></span></div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${inquiryBadge}<span class="ch-badge" title="Conversation owner">${assignment}</span>${assignmentAction}${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
+  const isPinned=S.pinnedConvIds.has(String(c.id)),isMuted=S.mutedConvIds.has(String(c.id));
+  // Muted still shows a quiet dot (something happened) but hides the loud numeric badge,
+  // matching WhatsApp's own muted-chat behavior.
+  const unreadBadge=c.unread>0?(isMuted?'<span class="unread" style="background:var(--text3);" title="Muted — has unread messages"></span>':`<span class="unread">${c.unread}</span>`):'';
+  const pinBtn=`<span class="conv-pin-btn" onclick="togglePinConv('${c.id}',event)" title="${isPinned?'Unpin':'Pin'} conversation"><svg viewBox="0 0 24 24" fill="${isPinned?'currentColor':'none'}" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg></span>`;
+  const muteBtn=`<span class="conv-mute-btn" onclick="toggleMuteConv('${c.id}',event)" title="${isMuted?'Unmute':'Mute'} conversation">${isMuted?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 9v3a3 3 0 0 0 6 0V5a3 3 0 0 0-6 0v1"/><path d="M17 12a7 7 0 0 1-14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>'}</span>`;
+  return`<div class="conv-item${sel}${inquiryCls}${hasUnread}${isPinned?' pinned':''}${isMuted?' muted':''}" onclick="selectConv('${c.id}')"><div class="c-avatar-wrap"><div class="c-avatar">${init}</div><span class="c-channel-dot ${cls}"></span></div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${inquiryBadge}<span class="ch-badge" title="Conversation owner">${assignment}</span>${assignmentAction}${pinBtn}${muteBtn}${unreadBadge}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
 }
 async function assignConversation(id){
   const users=S.conversationAssignees||[];
@@ -3954,6 +4052,8 @@ async function messageLeadOnWhatsApp(phone,name){
   document.getElementById('template-msg-btn').disabled=false;
   const link=document.getElementById('open-cw-link');
   link.removeAttribute('href');link.style.opacity=0.4;link.style.pointerEvents='none';
+  closeThreadSearch();
+  updateComposerState();
   document.getElementById('thread-body').innerHTML=`<div class="thread-empty">
     <div style="font-weight:700;color:var(--text);margin-bottom:6px;font-size:13px;">${name?_hesc(name):'This lead'} hasn't messaged in yet</div>
     WhatsApp requires an approved template to start the conversation — send one, or message them directly.
@@ -3981,6 +4081,8 @@ function renderThreadEmpty(){
   document.getElementById('open-cw-link').style.opacity=0.4;
   document.getElementById('open-cw-link').style.pointerEvents='none';
   S.threadContact=null;
+  closeThreadSearch();
+  updateComposerState();
 }
 
 async function selectConv(id){
@@ -3998,7 +4100,9 @@ async function selectConv(id){
   link.style.pointerEvents='auto';
   document.getElementById('replay-btn').disabled=false;
   document.getElementById('template-msg-btn').disabled=!phone;
+  closeThreadSearch();
   await loadThread(c,{silent:false});
+  updateComposerState();
 }
 
 // ── Send Template Message (start/re-engage a WhatsApp thread with an approved template) ──
@@ -4062,7 +4166,11 @@ async function submitSendTemplateMessage(){
   }
 }
 
-const THREAD_PREVIEW_COUNT=5;
+// Chatwoot's messages endpoint returns one page (its own default, typically ~20-25) —
+// this just shows whatever comes back rather than artificially re-truncating it further;
+// TRUNC_HINT_FLOOR is only used to decide whether to hint that older history might exist
+// beyond this page ("Open in Chatwoot" for anything further back — no pagination here yet).
+const TRUNC_HINT_FLOOR=20;
 async function loadThread(c,{silent}={}){
   const body=document.getElementById('thread-body');
   if(!silent)body.innerHTML='<div class="thread-empty">Loading thread…</div>';
@@ -4072,13 +4180,13 @@ async function loadThread(c,{silent}={}){
     messages=d.messages||d.payload||null;
   }catch(e){messages=null;}
   if(Array.isArray(messages)&&messages.length){
-    const recent=messages.slice(-THREAD_PREVIEW_COUNT);
-    S.convMessages[c.id]=recent;
-    renderThread(recent,messages.length>recent.length);
+    S.convMessages[c.id]=messages;
+    renderThread(messages,messages.length>=TRUNC_HINT_FLOOR);
   }else{
     S.convMessages[c.id]=[{content:c.last_message||'No messages logged',sender:'them',created_at:c.last_activity}];
     body.innerHTML=`<div class="thread-empty">Full message thread unavailable from this view — showing latest message only.<br>Use "Open in Chatwoot" for complete history.</div>${threadBubbleHtml(S.convMessages[c.id][0])}`;
   }
+  updateComposerState();
 }
 
 function normalizeMsg(m){
@@ -4104,22 +4212,48 @@ function threadDateLabel(raw){
   if(sameDay(d,yest))return'Yesterday';
   return d.toLocaleDateString([],{day:'2-digit',month:'short',year:d.getFullYear()!==today.getFullYear()?'numeric':undefined});
 }
+// Best-effort text for an attachment-only message (no `content`) — real thumbnail/file
+// rendering is a follow-up; this just keeps the bubble from showing blank now that the
+// backend passes attachments through.
+function attachmentPlaceholderHtml(attachments){
+  if(!attachments||!attachments.length)return'';
+  const type=attachments[0].file_type||'file';
+  const label=type==='image'?'Photo':type==='video'?'Video':type==='audio'?'Voice message':'Attachment';
+  return `<span class="t-bubble-attachment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>${label} — open in Chatwoot to view</span>`;
+}
+function highlightSearch(text){
+  if(!S.threadSearch||!text)return _hesc(text);
+  const escaped=_hesc(text);
+  const q=S.threadSearch.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return escaped.replace(new RegExp(`(${q})`,'ig'),'<mark>$1</mark>');
+}
 function threadBubbleHtml(raw,grouped){
   const m=normalizeMsg(raw);
-  return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}${grouped?' t-grouped':''}"><div class="t-bubble"><span class="t-bubble-text">${m.text}</span><span class="t-bubble-meta">${m.time}${m.outgoing?threadTickSvg(m.status):''}</span></div></div>`;
+  if(raw.private){
+    return `<div class="t-bubble-row t-private"><div class="t-bubble"><div class="t-note-label">Internal note${raw.sender_name?' — '+_hesc(raw.sender_name):''}</div><span class="t-bubble-text">${highlightSearch(m.text)}</span><span class="t-bubble-meta">${m.time}</span></div></div>`;
+  }
+  const failed=m.status==='failed';
+  const searchMiss=S.threadSearch&&!(m.text||'').toLowerCase().includes(S.threadSearch);
+  const retryAttr=failed&&raw.id?` onclick="retrySendMessage('${raw.id}')"`:'';
+  const body=m.text?`<span class="t-bubble-text">${highlightSearch(m.text)}</span>`:attachmentPlaceholderHtml(raw.attachments);
+  return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}${grouped?' t-grouped':''}${m.status==='sending'?' t-sending':''}${failed?' t-failed':''}${searchMiss?' t-search-hidden':''}"><div class="t-bubble"${retryAttr}>${body}<span class="t-bubble-meta">${m.time}${m.outgoing?threadTickSvg(m.status):''}</span>${failed?'<span class="t-fail-hint">Not delivered — tap to retry</span>':''}</div></div>`;
 }
 function renderThread(messages,truncated){
-  const note=truncated?'<div class="thread-trunc-note">Showing last 5 messages — use "Open in Chatwoot" for full history.</div>':'';
+  const note=truncated?'<div class="thread-trunc-note">Showing this page\'s messages — use "Open in Chatwoot" for older history.</div>':'';
   const body=document.getElementById('thread-body');
-  let html=note,lastDate='',lastOutgoing=null;
+  let html=note,lastDate='',lastOutgoing=null,matchCount=0;
+  const q=S.threadSearch;
   messages.forEach(raw=>{
     const m=normalizeMsg(raw);
+    if(q&&!raw.private&&(m.text||'').toLowerCase().includes(q))matchCount++;
     const dateLabel=threadDateLabel(raw.created_at);
     if(dateLabel&&dateLabel!==lastDate){html+=`<div class="thread-date-sep">${dateLabel}</div>`;lastDate=dateLabel;lastOutgoing=null;}
-    html+=threadBubbleHtml(raw,lastOutgoing===m.outgoing);
-    lastOutgoing=m.outgoing;
+    html+=threadBubbleHtml(raw,lastOutgoing===m.outgoing&&!raw.private);
+    lastOutgoing=raw.private?null:m.outgoing;
   });
   body.innerHTML=html;
+  const countEl=document.getElementById('thread-search-count');
+  if(countEl)countEl.textContent=q?`${matchCount} match${matchCount===1?'':'es'}`:'';
   scrollThreadToBottom(false);
 }
 function scrollThreadToBottom(smooth){
@@ -4135,6 +4269,153 @@ function handleThreadScroll(){
   if(!body||!btn)return;
   const nearBottom=body.scrollHeight-body.scrollTop-body.clientHeight<80;
   btn.classList.toggle('show',!nearBottom&&body.scrollHeight>body.clientHeight);
+}
+
+// ── Composer (free-text send) ──
+// WhatsApp's own 24-hour customer-service-window rule means a plain message can be
+// rejected even when this looks open — Chatwoot is the real enforcement point (see
+// whizz-send-conversation-message.json's setup notes). This is a best-effort, advisory
+// check from whatever's already loaded client-side, purely to warn before sending, never
+// to silently block it: if it can't tell, it stays quiet rather than guessing wrong.
+function isConvWindowLikelyClosed(id){
+  const messages=S.convMessages[id]||[];
+  const lastIncoming=[...messages].reverse().find(m=>m.message_type!==1&&!m.private);
+  if(!lastIncoming||!lastIncoming.created_at)return false;
+  const ts=lastIncoming.created_at>1e12?lastIncoming.created_at:lastIncoming.created_at*1000;
+  return (Date.now()-ts)>24*60*60*1000;
+}
+function updateComposerState(){
+  const id=S.selectedConvId;
+  const input=document.getElementById('composer-input'),sendBtn=document.getElementById('composer-send-btn');
+  const emojiBtn=document.getElementById('emoji-toggle-btn'),searchBtn=document.getElementById('thread-search-btn');
+  const note=document.getElementById('composer-window-note'),wrap=document.getElementById('conv-composer');
+  if(!input||!sendBtn||!wrap)return;
+  const enabled=!!id;
+  input.disabled=!enabled;sendBtn.disabled=!enabled;emojiBtn.disabled=!enabled;searchBtn.disabled=!enabled;
+  input.placeholder=enabled?'Type a message':'Select a conversation to reply…';
+  wrap.classList.toggle('disabled',!enabled);
+  if(note)note.style.display=(enabled&&isConvWindowLikelyClosed(id))?'flex':'none';
+  if(!enabled){closeEmojiPicker();}
+}
+function autoGrowComposer(el){
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight,120)+'px';
+}
+function handleComposerKeydown(e){
+  if(e.key==='Enter'&&!e.shiftKey){
+    e.preventDefault();
+    sendConversationMessage();
+  }
+}
+async function sendConversationMessage(){
+  const id=S.selectedConvId;
+  if(!id)return;
+  const input=document.getElementById('composer-input');
+  const text=input.value.trim();
+  if(!text)return;
+  const tempId='tmp-'+Date.now();
+  const optimistic={id:tempId,content:text,message_type:1,sender_type:'agent',created_at:Math.floor(Date.now()/1000),status:'sending'};
+  S.convMessages[id]=[...(S.convMessages[id]||[]),optimistic];
+  input.value='';autoGrowComposer(input);closeEmojiPicker();
+  renderThread(S.convMessages[id],false);
+  scrollThreadToBottom(true);
+  try{
+    const d=await api('whizz-send-conversation-message','POST',{id,content:text});
+    if(d.error)throw new Error(d.error);
+    const idx=S.convMessages[id].findIndex(m=>m.id===tempId);
+    if(idx>-1)S.convMessages[id][idx]={...d,message_type:1,sender_type:'agent'};
+    renderThread(S.convMessages[id],false);
+    scrollThreadToBottom(true);
+    const c=findConv(id);
+    if(c){c.last_message=text;c.last_activity=optimistic.created_at;renderConvs(S.cache.conversations||[]);}
+  }catch(e){
+    const idx=S.convMessages[id].findIndex(m=>m.id===tempId);
+    if(idx>-1)S.convMessages[id][idx]={...optimistic,status:'failed'};
+    renderThread(S.convMessages[id],false);
+    showToast(e.message||'Message failed to send — outside the 24-hour window? Try a Template instead.','error');
+  }
+  updateComposerState();
+}
+async function retrySendMessage(tempId){
+  const id=S.selectedConvId;
+  if(!id)return;
+  const msg=(S.convMessages[id]||[]).find(m=>m.id===tempId);
+  if(!msg||msg.status!=='failed')return;
+  msg.status='sending';
+  renderThread(S.convMessages[id],false);
+  try{
+    const d=await api('whizz-send-conversation-message','POST',{id,content:msg.content});
+    if(d.error)throw new Error(d.error);
+    Object.assign(msg,d,{message_type:1,sender_type:'agent'});
+  }catch(e){
+    msg.status='failed';
+    showToast(e.message||'Retry failed','error');
+  }
+  renderThread(S.convMessages[id],false);
+}
+
+// ── Emoji picker (small hand-picked set — no external library) ──
+const EMOJI_SET=['😀','😂','😊','😍','👍','🙏','🎉','🔥','❤️','😢','😮','😅','🤔','👏','💪','✅','❌','⚠️','📦','🚚','💰','📞','📧','🕐','😁','😉','🙌','👌','💡','⭐'];
+function ensureEmojiPickerBuilt(){
+  const el=document.getElementById('emoji-picker');
+  if(!el||el.dataset.built)return;
+  el.innerHTML=EMOJI_SET.map(e=>`<button type="button" onclick="insertEmoji('${e}')">${e}</button>`).join('');
+  el.dataset.built='1';
+}
+function toggleEmojiPicker(){
+  ensureEmojiPickerBuilt();
+  document.getElementById('emoji-picker')?.classList.toggle('open');
+}
+function closeEmojiPicker(){
+  document.getElementById('emoji-picker')?.classList.remove('open');
+}
+function insertEmoji(char){
+  const input=document.getElementById('composer-input');
+  if(!input)return;
+  const start=input.selectionStart||input.value.length,end=input.selectionEnd||input.value.length;
+  input.value=input.value.slice(0,start)+char+input.value.slice(end);
+  input.focus();
+  input.selectionStart=input.selectionEnd=start+char.length;
+  autoGrowComposer(input);
+}
+
+// ── In-thread search ──
+function toggleThreadSearch(){
+  const bar=document.getElementById('thread-search-bar');
+  if(!bar||document.getElementById('thread-search-btn').disabled)return;
+  if(bar.classList.contains('open')){closeThreadSearch();}
+  else{bar.classList.add('open');document.getElementById('thread-search-input').focus();}
+}
+function closeThreadSearch(){
+  const bar=document.getElementById('thread-search-bar');
+  if(bar)bar.classList.remove('open');
+  const input=document.getElementById('thread-search-input');
+  if(input)input.value='';
+  S.threadSearch='';
+  const countEl=document.getElementById('thread-search-count');
+  if(countEl)countEl.textContent='';
+  if(S.selectedConvId&&S.convMessages[S.selectedConvId])renderThread(S.convMessages[S.selectedConvId],false);
+}
+function applyThreadSearch(q){
+  S.threadSearch=(q||'').trim().toLowerCase();
+  const id=S.selectedConvId;
+  if(id&&S.convMessages[id])renderThread(S.convMessages[id],false);
+}
+
+// ── Pin / mute a conversation (local preference — not synced to Chatwoot) ──
+function togglePinConv(id,event){
+  event.stopPropagation();
+  id=String(id);
+  if(S.pinnedConvIds.has(id))S.pinnedConvIds.delete(id);else S.pinnedConvIds.add(id);
+  saveConvIdSet(CONV_PINS_KEY,S.pinnedConvIds);
+  renderConvs(S.cache.conversations||[]);
+}
+function toggleMuteConv(id,event){
+  event.stopPropagation();
+  id=String(id);
+  if(S.mutedConvIds.has(id))S.mutedConvIds.delete(id);else S.mutedConvIds.add(id);
+  saveConvIdSet(CONV_MUTES_KEY,S.mutedConvIds);
+  renderConvs(S.cache.conversations||[]);
 }
 
 // ── Replay ──

@@ -1,0 +1,98 @@
+{
+  "name": "whizz-send-conversation-message",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Setup checklist\n1. Reuses the same \"Chatwoot API\" httpHeaderAuth credential the whizz-get-conversation-messages workflow already has configured — no new credential needed if that one's set up.\n2. Whizz calls this at POST https://n8n.aiingo.com/webhook/whizz-send-conversation-message with body {id, content} (id = the Chatwoot conversation id) and expects back the created message: {id, content, message_type, created_at, status, sender_type} on success, or {error} on failure.\n3. This sends a free-text outgoing message. WhatsApp's own 24-hour customer-service-window rule still applies — Chatwoot will reject the send with an error if the window has closed, which this workflow passes straight back as {error} rather than trying to work around it (the frontend checks the window itself before showing the composer, but this is the real enforcement point).\n4. No content_attributes/in_reply_to support yet — quote-reply is a follow-up, not wired into this workflow.",
+        "height": 300,
+        "width": 460
+      },
+      "id": "f1a2b3c4-0006-0006-0006-000000000000",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 520]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whizz-send-conversation-message",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f1a2b3c4-0006-0006-0006-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-send-conversation-message"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://chat.whizzfze.com/api/v1/accounts/1/conversations/{{ $json.body.id }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: $json.body.content, message_type: 'outgoing', private: false }) }}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "f1a2b3c4-0006-0006-0006-000000000002",
+      "name": "Send Message (Chatwoot)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_CHATWOOT_CREDENTIAL_ID",
+          "name": "Chatwoot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// neverError above means a rejected send (e.g. outside WhatsApp's 24-hour window, or\n// Chatwoot itself down) lands here as a normal item instead of throwing — Chatwoot's\n// error shape on a failed message create is typically { errors: [\"...\"] } or a plain\n// { error: \"...\" }; not verified against a live rejection from this account, so this\n// checks both and falls back to a generic message rather than silently swallowing an\n// unrecognized shape.\nconst resp = $input.first().json;\nconst errText = Array.isArray(resp.errors) ? resp.errors.join(', ') : (resp.error || resp.message);\nif (errText && !resp.id) {\n  return [{ json: { error: String(errText) } }];\n}\n\nreturn [{ json: {\n  id: resp.id,\n  content: resp.content || '',\n  message_type: resp.message_type,\n  sender_type: resp.sender_type || (resp.sender && resp.sender.type) || 'agent',\n  created_at: resp.created_at,\n  status: resp.status || 'sent'\n} }];"
+      },
+      "id": "f1a2b3c4-0006-0006-0006-000000000003",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 502 : 200 }}"
+        }
+      },
+      "id": "f1a2b3c4-0006-0006-0006-000000000004",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Send Message (Chatwoot)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Message (Chatwoot)": {
+      "main": [
+        [{ "node": "Normalize", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}
