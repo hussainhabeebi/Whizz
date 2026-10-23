@@ -10,6 +10,7 @@ import { handleAutomation } from './routes/automation.js';
 import { handleConversationAssignment } from './routes/conversationAssignments.js';
 import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookings.js';
 import { handleLeadIntelligence } from './routes/leadIntelligence.js';
+import { handleChatwootConfig, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage } from './routes/chatwoot.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -25,6 +26,8 @@ const routes = [
   { method: 'POST', path: '/api/users', handler: handleCreateUser },
   { method: 'POST', path: '/api/ifa-bookings', handler: handleIFABookingCreate },
   { method: 'GET', path: '/api/ifa-bookings', handler: handleIFABookingList },
+  { method: 'GET', path: '/api/chatwoot/config', handler: handleChatwootConfig },
+  { method: 'GET', path: '/api/chatwoot/conversations', handler: handleChatwootConversations },
 ];
 
 async function leadActor(request, env) {
@@ -154,6 +157,13 @@ export default {
     if (assignmentMatch && request.method === 'PUT') {
       try { return await handleConversationAssignment(request, env, decodeURIComponent(assignmentMatch[1])); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const chatwootMessagesMatch = url.pathname.match(/^\/api\/chatwoot\/conversations\/([^/]+)\/messages$/);
+    if (chatwootMessagesMatch) {
+      try {
+        if (request.method === 'GET') return await handleChatwootMessages(request, env, decodeURIComponent(chatwootMessagesMatch[1]));
+        if (request.method === 'POST') return await handleChatwootSendMessage(request, env, decodeURIComponent(chatwootMessagesMatch[1]));
+      } catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access|sync-access))?$/);
     if (userMatch) {

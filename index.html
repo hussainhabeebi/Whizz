@@ -18,6 +18,7 @@
   --r:14px;--r-sm:9px;--r-lg:18px;--r-pill:999px;
   --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;
   --ease:cubic-bezier(0.4,0,0.2,1);
+  --wa-bubble-in:#ffffff;--wa-bubble-out:#d9fdd3;--wa-text-in:#111b21;--wa-text-out:#111b21;
 }
 body.dark{
   --bg:#0f172a;--bg2:#1e293b;--bg3:#1a2540;--bg4:#263352;
@@ -29,6 +30,7 @@ body.dark{
   --text:#f1f5f9;--text2:#94a3b8;--text3:#475569;
   --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.11);
   --shadow:0 4px 24px rgba(0,0,0,0.4);--shadow-sm:0 2px 10px rgba(0,0,0,0.3);--shadow-lift:0 10px 32px rgba(0,0,0,0.45);
+  --wa-bubble-in:#202c33;--wa-bubble-out:#005c4b;--wa-text-in:#e9edef;--wa-text-out:#e9edef;
 }
 .sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-left:4px;transition:background 0.3s;}
 .sync-idle{background:var(--border2);}
@@ -221,6 +223,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .chip{padding:5px 13px;border-radius:var(--r-pill);font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);transition:all 0.12s;}
 .chip:hover{border-color:var(--accent);color:var(--accent2);}
 .chip.active{background:var(--accent);color:#000;border-color:var(--accent);}
+.chip.chip-disabled{opacity:0.45;cursor:not-allowed;}
+.chip.chip-disabled:hover{border-color:var(--border2);color:var(--text2);}
 
 /* Group Cards with Velocity */
 .groups-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:10px;}
@@ -321,22 +325,34 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .live-toggle:hover{border-color:var(--accent);color:var(--text);}
 .live-toggle .sync-dot{margin-left:0;}
 
-/* Conversation Split Layout */
-.conv-split{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start;height:calc(100vh - 230px);min-height:420px;}
+/* Conversation Split Layout — full WhatsApp-style two-pane inbox */
+.conv-split{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start;height:calc(100vh - 200px);min-height:480px;}
 @media(max-width:900px){.conv-split{grid-template-columns:1fr;height:auto;}}
 .conv-list-card{height:100%;overflow-y:auto;margin-bottom:0;}
-.conv-thread-card{height:100%;display:flex;flex-direction:column;margin-bottom:0;}
-.conv-thread-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;}
+.conv-thread-card{height:100%;display:flex;flex-direction:column;margin-bottom:0;overflow:hidden;}
+.conv-thread-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;background:var(--bg2);}
 .thread-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.conv-thread-body{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;background:var(--bg);}
+.conv-thread-body{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:3px;
+  background-color:var(--bg);
+  background-image:radial-gradient(circle at 1px 1px,var(--border) 1px,transparent 0);
+  background-size:22px 22px;}
 .thread-empty{margin:auto;text-align:center;color:var(--text3);font-size:12px;line-height:1.7;padding:24px;}
-.t-bubble-row{display:flex;flex-direction:column;max-width:72%;animation:bubbleIn 0.2s ease;}
+.t-day-sep{align-self:center;margin:8px 0;padding:4px 12px;border-radius:var(--r-pill);background:var(--bg2);color:var(--text3);font-size:10px;font-weight:600;box-shadow:var(--shadow-sm);}
+.t-bubble-row{display:flex;flex-direction:column;max-width:68%;margin:3px 0;animation:bubbleIn 0.15s ease;}
 .t-bubble-row.t-in{align-items:flex-start;align-self:flex-start;}
 .t-bubble-row.t-out{align-items:flex-end;align-self:flex-end;}
-.t-bubble{padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.5;color:var(--text);background:var(--bg2);border:1px solid var(--border);word-break:break-word;}
-.t-bubble-row.t-out .t-bubble{background:var(--accent);color:#000;border-color:var(--accent);border-bottom-right-radius:4px;}
-.t-bubble-row.t-in .t-bubble{border-bottom-left-radius:4px;}
-.t-bubble-time{font-size:10px;color:var(--text3);margin-top:3px;padding:0 4px;}
+.t-bubble{position:relative;padding:7px 42px 7px 11px;border-radius:9px;font-size:13.5px;line-height:1.4;color:var(--wa-text-in);background:var(--wa-bubble-in);box-shadow:var(--shadow-sm);word-break:break-word;}
+.t-bubble-row.t-out .t-bubble{color:var(--wa-text-out);background:var(--wa-bubble-out);border-bottom-right-radius:2px;}
+.t-bubble-row.t-in .t-bubble{border-bottom-left-radius:2px;}
+.t-bubble-time{float:right;margin:4px -34px -2px 6px;font-size:10px;color:var(--text3);display:flex;align-items:center;gap:3px;white-space:nowrap;}
+.t-tick{color:#53bdeb;}
+.conv-compose{flex-shrink:0;display:flex;align-items:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:var(--bg2);}
+.conv-compose-input{flex:1;resize:none;max-height:120px;border:1px solid var(--border2);border-radius:var(--r-lg);padding:10px 14px;font:400 13px var(--font);color:var(--text);background:var(--bg3);outline:none;transition:border-color .12s;}
+.conv-compose-input:focus{border-color:var(--accent);}
+.conv-compose-input:disabled{opacity:0.5;cursor:not-allowed;}
+.conv-compose-send{flex-shrink:0;width:38px;height:38px;border-radius:50%;border:none;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s,opacity .1s;}
+.conv-compose-send:hover:not(:disabled){transform:scale(1.06);}
+.conv-compose-send:disabled{opacity:0.4;cursor:not-allowed;}
 @keyframes bubbleIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 
 /* Form */
@@ -666,6 +682,33 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .mobile-more-item svg{width:17px;height:17px;flex-shrink:0;color:var(--text2);}
 .mobile-more-empty{padding:28px;text-align:center;color:var(--text3);font-size:12px;}
 </style>
+<!-- 2026 visual refresh: softer neutrals, calmer shadows, a touch more breathing room and
+     rounding across cards/buttons/badges. Layered on top (same pattern as the two style
+     blocks above) so every page picks it up through the existing var(--x) tokens. -->
+<style>
+:root{
+  --bg:#f6f7fb;--bg2:#ffffff;--bg3:#eef1f6;--bg4:#e4e8f0;
+  --text:#101828;--text2:#4b5468;--text3:#98a2b8;
+  --border:rgba(16,24,40,.07);--border2:rgba(16,24,40,.12);
+  --shadow:0 10px 32px rgba(16,24,40,.09);--shadow-sm:0 1px 2px rgba(16,24,40,.04),0 4px 14px rgba(16,24,40,.045);--shadow-lift:0 16px 40px rgba(16,24,40,.13);
+  --r:16px;--r-sm:10px;--r-lg:20px;
+}
+body.dark{
+  --bg:#0b1120;--bg2:#161e30;--bg3:#131b2c;--bg4:#1d273b;
+  --text:#f3f5fa;--text2:#9aa4ba;--text3:#5b667e;
+  --border:rgba(255,255,255,.065);--border2:rgba(255,255,255,.105);
+  --shadow:0 10px 32px rgba(0,0,0,.4);--shadow-sm:0 1px 2px rgba(0,0,0,.25),0 6px 18px rgba(0,0,0,.28);--shadow-lift:0 18px 44px rgba(0,0,0,.5);
+}
+.card,.stat-card,.table-card,.chart-card,.task-composer,.task-board-card,.health-card,.delivery-guard,.conv-list-card,.conv-thread-card{border-radius:var(--r);transition:box-shadow .15s ease;}
+.stat-card:hover,.pipe-card:hover{box-shadow:var(--shadow-lift);}
+.t-btn{font-weight:600;letter-spacing:.005em;transition:transform .1s ease,box-shadow .1s ease,background .12s ease;}
+.t-btn.btn-primary,.t-btn.btn-success{box-shadow:0 1px 2px rgba(16,24,40,.06);}
+.t-btn.btn-primary:hover,.t-btn.btn-success:hover{transform:translateY(-1px);}
+.ch-badge,.chip,.unread,.nav-badge{border-radius:var(--r-pill);}
+.topbar{box-shadow:0 1px 0 var(--border);}
+.sidebar-nav::-webkit-scrollbar{width:5px;}
+.sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px;}
+</style>
 </head>
 <body>
 
@@ -933,6 +976,15 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;margin-bottom:12px;">
                 <input type="checkbox" id="all-groups" onchange="toggleAllGroups(this)"> Send to ALL contacts
               </label>
+              <div style="margin-bottom:12px;">
+                <div class="eyebrow">Channel</div>
+                <div class="chips" id="camp-channel-chips">
+                  <div class="chip active" data-channel="whatsapp" onclick="selectCampaignChannel('whatsapp',this)">WhatsApp</div>
+                  <div class="chip chip-disabled" title="Coming soon">SMS</div>
+                  <div class="chip chip-disabled" title="Coming soon">Email</div>
+                  <div class="chip chip-disabled" title="Coming soon">Telegram</div>
+                </div>
+              </div>
               <div style="margin-bottom:8px;">
                 <div class="eyebrow">Filter by Platform</div>
                 <div class="chips" id="platform-chips"></div>
@@ -978,6 +1030,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
                   <div><div class="s-label" style="margin-bottom:4px;">Audience</div><div id="rv-audience" style="font-size:12px;font-weight:600;">—</div></div>
                   <div><div class="s-label" style="margin-bottom:4px;">Recipients</div><div id="rv-count" style="font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--accent);">—</div></div>
+                  <div><div class="s-label" style="margin-bottom:4px;">Channel</div><div id="rv-channel" style="font-size:13px;font-weight:600;">WhatsApp</div></div>
                   <div><div class="s-label" style="margin-bottom:4px;">Template</div><div id="rv-template" style="font-size:13px;font-weight:600;">—</div></div>
                   <div><div class="s-label" style="margin-bottom:4px;">Est. Time</div><div id="rv-time" style="font-size:13px;font-weight:600;">—</div></div>
                 </div>
@@ -1123,6 +1176,12 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
             </div>
             <div id="thread-body" class="conv-thread-body">
               <div class="thread-empty">Select a conversation to view the message thread.</div>
+            </div>
+            <div class="conv-compose">
+              <textarea id="thread-input" class="conv-compose-input" rows="1" placeholder="Type a message…" disabled onkeydown="handleThreadInputKey(event)"></textarea>
+              <button class="conv-compose-send" id="thread-send-btn" onclick="sendThreadMessage()" disabled title="Send">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -2352,7 +2411,14 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 
 <script>
 const N8N = 'https://n8n.aiingo.com/webhook';
-const CW_URL = 'https://chat.whizzfze.com/app/accounts/1/conversations';
+let CW_URL = '';
+async function loadChatwootConfig(){
+  try{
+    const r=await fetch('/api/chatwoot/config',{credentials:'include'});
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d.baseUrl&&d.accountId)CW_URL=`${d.baseUrl}/app/accounts/${d.accountId}/conversations`;
+  }catch(e){}
+}
 const CACHE_KEY = 'whizz_cache_v2';
 const NOTIF_KEY = 'whizz_notifs';
 const OB_KEY = 'whizz_onboarding';
@@ -2466,6 +2532,7 @@ function initApp(session) {
   if (navIntegrations) navIntegrations.style.display = session.role === 'Administrator' ? 'flex' : 'none';
   applyRoleExperience(session);
   loadUsers();
+  loadChatwootConfig();
   loadCache(); loadOnboarding(); loadNotifications();
   startAutoSync();
   startScheduler();
@@ -3283,11 +3350,13 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 })();
 
 // ── API Gateway Base Call ──
-const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-get-conversations','whizz-get-conversation-messages','whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-discover-2gis','whizz-save-integration','whizz-delete-integration']);
+const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-discover-2gis','whizz-save-integration','whizz-delete-integration']);
 async function api(path,method='GET',body=null){const endpoint=String(path).split('?')[0],protectedRoute=WORKER_PROTECTED_ENDPOINTS.has(endpoint);const opts={method,headers:{'Content-Type':'application/json'}};if(protectedRoute)opts.credentials='include';if(body)opts.body=JSON.stringify(body);const url=protectedRoute?`/api/automation/${path}`:`${N8N}/${path}`;const r=await fetch(url,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{success:true};}catch{data={success:true};}if(!r.ok){console.error('[Whizz]',method,path,r.status,txt);throw new Error(data.error||(txt.trim().slice(0,150))||'HTTP '+r.status);}return data;}
 // Endpoints migrated off n8n onto the Cloudflare Worker call this instead — same
 // contract, just same-origin. Migrate call sites one at a time as each route lands.
 async function apiW(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);const txt=await r.text();try{return txt?JSON.parse(txt):{success:true};}catch{return{success:true};}}
+// Chatwoot (app.aiingo.com), proxied by the Worker at /api/chatwoot/*.
+async function cw(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/api/chatwoot/${path}`,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{};}catch{data={};}if(!r.ok)throw new Error(data.error||'HTTP '+r.status);return data;}
 
 // ── Global Refresh Orchestrator ──
 async function refreshPage() {
@@ -3315,7 +3384,7 @@ async function refreshPage() {
 
 async function refreshDashboard(){await Promise.all([refreshStats(),refreshDashConvData(),refreshLeadData()]);}
 async function refreshStats(){const d=await api('whizz-get-stats');S.cache.stats=d;renderStats(d);const cnt=d.open||0;if(cnt>0){document.getElementById('open-count').textContent=cnt;document.getElementById('open-count').style.display='inline';addNotif(`${cnt} operational conversations pending response`);}}
-async function refreshDashConvData(){const d=await api('whizz-get-conversations?status=open');S.cache.conversations=d.conversations||[];renderDashConvs(S.cache.conversations);}
+async function refreshDashConvData(){const d=await cw('conversations?status=open');S.cache.conversations=d.conversations||[];renderDashConvs(S.cache.conversations);}
 // ── Platform name de-duplication ──
 // Lead data often has the same platform typed inconsistently (case, spacing/
 // punctuation, or the occasional one-letter typo — "Instagram" / "instagram" /
@@ -3439,9 +3508,9 @@ async function refreshLeadData(){
 }
 async function refreshConversations(){
   const[o,p,r]=await Promise.all([
-    api('whizz-get-conversations?status=open').catch(()=>({conversations:[]})),
-    api('whizz-get-conversations?status=pending').catch(()=>({conversations:[]})),
-    api('whizz-get-conversations?status=resolved').catch(()=>({conversations:[]}))
+    cw('conversations?status=open').catch(()=>({conversations:[]})),
+    cw('conversations?status=pending').catch(()=>({conversations:[]})),
+    cw('conversations?status=resolved').catch(()=>({conversations:[]}))
   ]);
   const merged=[...(o.conversations||[]),...(p.conversations||[]),...(r.conversations||[])];
   S.conversationAssignees=o.assignees||p.assignees||r.assignees||[];
@@ -3461,7 +3530,7 @@ async function refreshMyLeadsWorkspace(){
     const data=await apiW('whizz-get-contacts');
     const leads=data.contacts||[],now=new Date(),today=now.toISOString().slice(0,10);
     const monthKey=today.slice(0,7),weekAgo=Date.now()-7*86400000;
-    const convData=await api('whizz-get-conversations?status=open').catch(()=>({conversations:S.cache.conversations||[]}));
+    const convData=await cw('conversations?status=open').catch(()=>({conversations:S.cache.conversations||[]}));
     const conversations=convData.conversations||[];S.cache.conversations=conversations;
     const metrics=[
       ['New today',leads.filter(l=>(l.createdAt||'').slice(0,10)===today).length,'var(--blue)'],
@@ -3654,6 +3723,9 @@ function renderThreadEmpty(){
   document.getElementById('open-cw-link').removeAttribute('href');
   document.getElementById('open-cw-link').style.opacity=0.4;
   document.getElementById('open-cw-link').style.pointerEvents='none';
+  const input=document.getElementById('thread-input'),sendBtn=document.getElementById('thread-send-btn');
+  if(input){input.value='';input.disabled=true;}
+  if(sendBtn)sendBtn.disabled=true;
 }
 
 async function selectConv(id){
@@ -3665,29 +3737,29 @@ async function selectConv(id){
   document.getElementById('thread-contact-name').innerHTML=`${c.contact_name||'Unknown'}${phone?`<span style="font-weight:400;color:var(--text3);font-size:11px;margin-left:8px;">${phone}</span>`:''}`;
   document.getElementById('thread-sub').textContent=`${c.channel||'chat'} · ${c.status||''}`;
   const link=document.getElementById('open-cw-link');
-  link.href=`${CW_URL}/${id}`;
-  link.style.opacity=1;
-  link.style.pointerEvents='auto';
+  if(CW_URL){link.href=`${CW_URL}/${id}`;link.style.opacity=1;link.style.pointerEvents='auto';}
+  else{link.removeAttribute('href');link.style.opacity=0.4;link.style.pointerEvents='none';}
   document.getElementById('replay-btn').disabled=false;
+  const input=document.getElementById('thread-input'),sendBtn=document.getElementById('thread-send-btn');
+  if(input){input.disabled=false;}
+  if(sendBtn)sendBtn.disabled=false;
   await loadThread(c,{silent:false});
 }
 
-const THREAD_PREVIEW_COUNT=5;
 async function loadThread(c,{silent}={}){
   const body=document.getElementById('thread-body');
   if(!silent)body.innerHTML='<div class="thread-empty">Loading thread…</div>';
   let messages=null;
   try{
-    const d=await api(`whizz-get-conversation-messages?id=${c.id}`);
-    messages=d.messages||d.payload||null;
+    const d=await cw(`conversations/${encodeURIComponent(c.id)}/messages`);
+    messages=d.messages||null;
   }catch(e){messages=null;}
   if(Array.isArray(messages)&&messages.length){
-    const recent=messages.slice(-THREAD_PREVIEW_COUNT);
-    S.convMessages[c.id]=recent;
-    renderThread(recent,messages.length>recent.length);
+    S.convMessages[c.id]=messages;
+    renderThread(messages);
   }else{
-    S.convMessages[c.id]=[{content:c.last_message||'No messages logged',sender:'them',created_at:c.last_activity}];
-    body.innerHTML=`<div class="thread-empty">Full message thread unavailable from this view — showing latest message only.<br>Use "Open in Chatwoot" for complete history.</div>${threadBubbleHtml(S.convMessages[c.id][0])}`;
+    S.convMessages[c.id]=[{content:c.last_message||'No messages logged',message_type:0,created_at:c.last_activity}];
+    body.innerHTML=`<div class="thread-empty">No messages could be loaded for this conversation.</div>`;
   }
 }
 
@@ -3701,13 +3773,49 @@ function normalizeMsg(m){
 }
 function threadBubbleHtml(raw){
   const m=normalizeMsg(raw);
-  return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}"><div class="t-bubble">${m.text}</div><div class="t-bubble-time">${m.time}</div></div>`;
+  const tick=m.outgoing?'<svg class="t-tick" viewBox="0 0 16 11" width="14" height="10" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 5.5 4.5 9 11 1.5"/><path d="M5.5 5.5 9 9 15.5 1.5"/></svg>':'';
+  return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}"><div class="t-bubble">${m.text}<div class="t-bubble-time">${m.time}${tick}</div></div></div>`;
 }
-function renderThread(messages,truncated){
-  const note=truncated?'<div style="text-align:center;color:var(--text3);font-size:11px;padding-bottom:4px;">Showing last 5 messages — use "Open in Chatwoot" for full history.</div>':'';
+function dayLabel(ts){
+  const d=new Date(ts>1e12?ts:ts*1000);
+  const sameDay=(a,b)=>a.toDateString()===b.toDateString();
+  if(sameDay(d,new Date()))return'Today';
+  if(sameDay(d,new Date(Date.now()-86400000)))return'Yesterday';
+  return d.toLocaleDateString([],{day:'2-digit',month:'short',year:d.getFullYear()!==new Date().getFullYear()?'numeric':undefined});
+}
+function renderThread(messages){
   const body=document.getElementById('thread-body');
-  body.innerHTML=note+messages.map(threadBubbleHtml).join('');
+  let html='',lastDay='';
+  messages.forEach(raw=>{
+    const label=raw.created_at?dayLabel(raw.created_at):'';
+    if(label&&label!==lastDay){html+=`<div class="t-day-sep"><span>${label}</span></div>`;lastDay=label;}
+    html+=threadBubbleHtml(raw);
+  });
+  body.innerHTML=html;
   body.scrollTop=body.scrollHeight;
+}
+
+// ── Compose & Send ──
+async function sendThreadMessage(){
+  const id=S.selectedConvId;
+  if(!id)return;
+  const input=document.getElementById('thread-input'),sendBtn=document.getElementById('thread-send-btn');
+  const content=(input.value||'').trim();
+  if(!content)return;
+  input.disabled=true;sendBtn.disabled=true;
+  try{
+    const d=await cw(`conversations/${encodeURIComponent(id)}/messages`,'POST',{content});
+    const msg=d.message||{content,message_type:1,created_at:Math.floor(Date.now()/1000)};
+    S.convMessages[id]=[...(S.convMessages[id]||[]),msg];
+    renderThread(S.convMessages[id]);
+    input.value='';
+    const c=findConv(id);
+    if(c){c.last_message=content;c.last_activity=msg.created_at;renderConvs(S.cache.conversations);}
+  }catch(e){showToast(e.message||'Failed to send message','error');}
+  input.disabled=false;sendBtn.disabled=false;input.focus();
+}
+function handleThreadInputKey(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendThreadMessage();}
 }
 
 // ── Replay ──
@@ -3959,6 +4067,8 @@ function renderChips(list,containerId,activeProp,filterFn) {
   el.innerHTML = ['ALL', ...list].map(v => `<div class="chip ${S[activeProp] === v ? 'active' : ''}" onclick="${filterFn}('${v.replace(/'/g, "\\'")}', this)">${v}</div>`).join('');
 }
 function filterByPlatform(v,el){document.querySelectorAll('#platform-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activePlatform=v;applyGroupFilters();}
+function selectCampaignChannel(value,el){document.querySelectorAll('#camp-channel-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');}
+function getSelectedCampaignChannel(){return document.querySelector('#camp-channel-chips .chip.active')?.dataset.channel||'whatsapp';}
 function filterByBrand(v,el){document.querySelectorAll('#brand-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activeBrand=v;applyGroupFilters();}
 function populateRegionSelect(selId,regions,activeVal){const el=document.getElementById(selId);if(!el)return;el.innerHTML=['ALL',...regions].map(r=>`<option value="${r}"${r===activeVal?' selected':''}>${r==='ALL'?'All Regions':r}</option>`).join('');}
 function populateCountrySelect(selId,countries,activeVal){const el=document.getElementById(selId);if(!el)return;el.innerHTML=['ALL',...countries].map(c=>`<option value="${c}"${c===activeVal?' selected':''}>${c==='ALL'?'All Countries':c}</option>`).join('');}
@@ -4032,6 +4142,7 @@ function buildReview(){
   const totalCount=allGroups?S.groups.reduce((a,g)=>a+g.count,0):S.groups.filter(g=>S.selectedGroups.includes(g.platform+'||'+g.country+'||'+g.brand)).reduce((a,g)=>a+g.count,0);
   document.getElementById('rv-audience').textContent=allGroups?'Global Distribution Stack':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', ');
   document.getElementById('rv-count').textContent=totalCount;
+  const rvChannel=document.getElementById('rv-channel');if(rvChannel)rvChannel.textContent=getSelectedCampaignChannel()==='whatsapp'?'WhatsApp':getSelectedCampaignChannel();
   document.getElementById('rv-template').textContent=S.selectedTemplate?.name||'—';
   document.getElementById('rv-time').textContent=`~${Math.ceil(totalCount*2/60)} minute engine execution window`;
   document.getElementById('rv-msg').textContent=S.selectedTemplate?.body||'';
@@ -4097,6 +4208,7 @@ async function sendCampaign(){
       brand:useAll?'ALL':(firstGroup?.brand||'ALL'),
       audiences:selectedAudiences,
       audience_rules:getCampaignAudienceRules(),
+      channel:getSelectedCampaignChannel(),
       template_name:S.selectedTemplate.name,
       language:S.selectedTemplate.language,
       delivery_guard:getDeliveryGuardConfig()
@@ -7320,6 +7432,7 @@ function scheduleCampaign() {
     brand:    allGroups ? 'ALL' : (S.selectedGroups[0]?.split('||')[2] || 'ALL'),
     audiences: allGroups ? [] : S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return {platform,country,brand};}),
     audienceRules: getCampaignAudienceRules(),
+    channel: getSelectedCampaignChannel(),
     deliveryGuard: getDeliveryGuardConfig(),
     createdAt: Date.now()
   };
@@ -7352,6 +7465,7 @@ async function fireScheduledJob(job) {
       language: job.language,
       audiences: _jobAudiences,
       audience_rules: job.audienceRules || getCampaignAudienceRules(),
+      channel: job.channel || 'whatsapp',
       delivery_guard: job.deliveryGuard || getDeliveryGuardConfig()
     });
     saveHistory({
