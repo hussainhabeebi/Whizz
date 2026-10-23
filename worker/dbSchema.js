@@ -120,6 +120,14 @@ async function repairSchema(env) {
     label TEXT NOT NULL,
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  // wabaId: the Meta WhatsApp Business Account this number's templates actually live on
+  // (Chatwoot's "inbox" is a different id entirely). Two numbers can share one Meta
+  // Business portfolio but still be separate WABAs with separate template libraries —
+  // this is what template creation needs to target the right one.
+  await addColumns(env, 'chatwoot_inboxes', [
+    ['wabaId', "TEXT NOT NULL DEFAULT ''"],
+    ['phoneNumber', "TEXT NOT NULL DEFAULT ''"],
+  ]);
   // WhatsApp template approval is per-number on Meta's side, so a template approved on
   // one inbox's number may not be approved on another's. Templates themselves still live
   // in n8n/Meta — this just tags which inbox(es) a template name is approved for, purely
