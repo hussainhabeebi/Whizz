@@ -2199,8 +2199,11 @@ body.dark{
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
                 <div class="fg" style="flex:1;min-width:120px;margin-bottom:0;"><label class="fl">Label</label><input class="fi" id="cw-new-inbox-label" placeholder="e.g. Sales WhatsApp"/></div>
                 <div class="fg" style="flex:1;min-width:100px;margin-bottom:0;"><label class="fl">Inbox ID</label><input class="fi" id="cw-new-inbox-id" placeholder="e.g. 73"/></div>
+                <div class="fg" style="flex:1;min-width:120px;margin-bottom:0;"><label class="fl">Phone Number</label><input class="fi" id="cw-new-inbox-phone" placeholder="e.g. +971562181583"/></div>
+                <div class="fg" style="flex:1;min-width:140px;margin-bottom:0;"><label class="fl">WABA ID <span style="font-weight:400;text-transform:none;color:var(--text3);">(optional)</span></label><input class="fi" id="cw-new-inbox-waba" placeholder="e.g. 1481709013760046"/></div>
                 <button class="t-btn btn-primary" style="height:38px;" onclick="addChatwootInbox()">Add Inbox</button>
               </div>
+              <div class="fi-hint" style="margin-top:8px;">Find the WABA ID in Chatwoot's inbox → Account Health → "WhatsApp Business Account ID". If two numbers sit on separate WABAs, set this so templates created for one aren't assumed valid on the other.</div>
             </div>
           </div>
         </div>
@@ -2400,6 +2403,11 @@ body.dark{
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="fg"><label class="fl">Language</label><select class="fs" id="tpl-lang"><option value="en">English</option><option value="ar">Arabic</option><option value="zh">Chinese</option><option value="ru">Russian</option></select></div>
         <div class="fg"><label class="fl">Category</label><select class="fs" id="tpl-cat"><option value="MARKETING">Marketing</option><option value="UTILITY">Utility</option></select></div>
+      </div>
+      <div class="fg" id="tpl-waba-wrap" style="display:none;">
+        <label class="fl">Target Number (WABA)</label>
+        <select class="fs" id="tpl-waba-select"></select>
+        <div class="fi-hint">Meta approves templates per WhatsApp Business Account — a template created for one number isn't automatically valid on another, even under the same Meta Business.</div>
       </div>
       <!-- AI Context Fields -->
       <div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.2);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:14px;">
@@ -5147,10 +5155,38 @@ function renderTplPage(templates){
   };
   el.innerHTML=`<div class="tpl-grid">${templates.map(t=>`<div class="tpl-card" style="cursor:default;"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span><span class="tpl-approved">APPROVED</span></div><div class="tpl-body">${t.body||'Empty body context'}</div>${inboxPicker(t)}</div>`).join('')}</div>`;
 }
-function openTplModal(){document.getElementById('tpl-modal').classList.add('open');updateBodyCount();}
+function openTplModal(){
+  document.getElementById('tpl-modal').classList.add('open');
+  updateBodyCount();
+  const wrap=document.getElementById('tpl-waba-wrap'),sel=document.getElementById('tpl-waba-select');
+  const inboxes=S.chatwootInboxes||[];
+  if(inboxes.length>1){
+    wrap.style.display='block';
+    sel.innerHTML=inboxes.map(ib=>`<option value="${ib.inboxId}">${_hesc(ib.label)}${ib.phoneNumber?' — '+_hesc(ib.phoneNumber):''}${ib.wabaId?'':' (no WABA ID set — add one under Integrations)'}</option>`).join('');
+  }else{
+    wrap.style.display='none';
+  }
+}
 function closeTplModal(){document.getElementById('tpl-modal').classList.remove('open');}
 function updateBodyCount(){const ta=document.getElementById('tpl-body'),counter=document.getElementById('tpl-body-count');if(!ta||!counter)return;const len=ta.value.length;counter.textContent=`${len} / 1024`;counter.style.color=len>1024?'var(--red)':len>900?'var(--amber)':'var(--text3)';}
-async function createTemplate(){const name=document.getElementById('tpl-name').value.trim(),body=document.getElementById('tpl-body').value.trim();if(!name||!body){showToast('Structural template parameters missing','error');return;}if(body.length>1024){showToast(`Body is ${body.length} characters — Meta limit is 1,024. Please shorten it.`,'error');return;}try{const r=await api('whizz-create-template','POST',{name,body,language:document.getElementById('tpl-lang').value,category:document.getElementById('tpl-cat').value,header:document.getElementById('tpl-header').value.trim(),footer:document.getElementById('tpl-footer').value.trim()});if(r.success){showToast('Dispatched to Meta registration node successfully!','success');closeTplModal();refreshTemplates();}else showToast('Meta edge rejected packaging format','error');}catch(e){showToast(e.message||'API communication drop','error');}}
+async function createTemplate(){
+  const name=document.getElementById('tpl-name').value.trim(),body=document.getElementById('tpl-body').value.trim();
+  if(!name||!body){showToast('Structural template parameters missing','error');return;}
+  if(body.length>1024){showToast(`Body is ${body.length} characters — Meta limit is 1,024. Please shorten it.`,'error');return;}
+  const inboxes=S.chatwootInboxes||[];
+  const wabaSel=document.getElementById('tpl-waba-select');
+  const targetInboxId=inboxes.length>1?wabaSel.value:(inboxes[0]?.inboxId||'');
+  const targetInbox=inboxes.find(ib=>ib.inboxId===targetInboxId);
+  if(inboxes.length>1&&!targetInboxId){showToast('Select a target number first','error');return;}
+  try{
+    const r=await api('whizz-create-template','POST',{name,body,language:document.getElementById('tpl-lang').value,category:document.getElementById('tpl-cat').value,header:document.getElementById('tpl-header').value.trim(),footer:document.getElementById('tpl-footer').value.trim(),wabaId:targetInbox?.wabaId||undefined,inboxId:targetInboxId||undefined});
+    if(r.success){
+      showToast('Dispatched to Meta registration node successfully!','success');
+      if(targetInboxId&&inboxes.length>1)await setTemplateInboxTag(name,targetInboxId);
+      closeTplModal();refreshTemplates();
+    }else showToast('Meta edge rejected packaging format','error');
+  }catch(e){showToast(e.message||'API communication drop','error');}
+}
 
 // ── AI Template Generation ──
 async function generateAiTemplate() {
@@ -7738,8 +7774,8 @@ function renderChatwootInboxList(inboxes){
     <div class="hist-item">
       <div class="hist-icon" style="background:var(--green-dim);color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
       <div class="hist-info">
-        <div class="hist-name">${ib.label}</div>
-        <div class="hist-meta">Inbox ID: ${ib.inboxId}</div>
+        <div class="hist-name">${ib.label}${ib.phoneNumber?` <span style="font-weight:400;color:var(--text3);">${ib.phoneNumber}</span>`:''}</div>
+        <div class="hist-meta">Inbox ID: ${ib.inboxId}${ib.wabaId?` · WABA: ${ib.wabaId}`:' · No WABA ID set'}</div>
       </div>
       <button class="t-btn t-btn-sm" style="background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);flex-shrink:0;" onclick="deleteChatwootInbox(${ib.id})">Delete</button>
     </div>
@@ -7761,11 +7797,15 @@ async function saveChatwootIntegration(){
 async function addChatwootInbox(){
   const label=document.getElementById('cw-new-inbox-label').value.trim();
   const inboxId=document.getElementById('cw-new-inbox-id').value.trim();
+  const phoneNumber=document.getElementById('cw-new-inbox-phone').value.trim();
+  const wabaId=document.getElementById('cw-new-inbox-waba').value.trim();
   if(!label||!inboxId){showToast('Label and Inbox ID are required','error');return;}
   try{
-    await cw('inboxes','POST',{inboxId,label});
+    await cw('inboxes','POST',{inboxId,label,phoneNumber,wabaId});
     document.getElementById('cw-new-inbox-label').value='';
     document.getElementById('cw-new-inbox-id').value='';
+    document.getElementById('cw-new-inbox-phone').value='';
+    document.getElementById('cw-new-inbox-waba').value='';
     showToast(`Inbox "${label}" added`,'success');
     loadChatwootIntegration();
     loadChatwootMeta();

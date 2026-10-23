@@ -39,7 +39,7 @@ async function decryptToken(env, token) {
 
 async function getSettingsRow(env) { return env.DB.prepare('SELECT * FROM chatwoot_settings WHERE id=1').first(); }
 async function listInboxes(env) {
-  const result = await env.DB.prepare('SELECT id,inboxId,label FROM chatwoot_inboxes ORDER BY id').all();
+  const result = await env.DB.prepare('SELECT id,inboxId,label,wabaId,phoneNumber FROM chatwoot_inboxes ORDER BY id').all();
   return result.results || [];
 }
 async function loadChatwootConfig(env) {
@@ -158,10 +158,12 @@ export async function handleAddChatwootInbox(request, env) {
   const body = await request.json().catch(() => ({}));
   const inboxId = String(body.inboxId || '').trim();
   const label = String(body.label || '').trim();
+  const wabaId = String(body.wabaId || '').trim();
+  const phoneNumber = String(body.phoneNumber || '').trim();
   if (!inboxId || !label) return json({ error: 'Inbox ID and a label are required.' }, 400);
   try {
-    const result = await env.DB.prepare('INSERT INTO chatwoot_inboxes (inboxId,label) VALUES (?,?)').bind(inboxId, label).run();
-    return json({ success: true, inbox: { id: result.meta.last_row_id, inboxId, label } }, 201);
+    const result = await env.DB.prepare('INSERT INTO chatwoot_inboxes (inboxId,label,wabaId,phoneNumber) VALUES (?,?,?,?)').bind(inboxId, label, wabaId, phoneNumber).run();
+    return json({ success: true, inbox: { id: result.meta.last_row_id, inboxId, label, wabaId, phoneNumber } }, 201);
   } catch (error) {
     if (String(error.message).toLowerCase().includes('unique')) return json({ error: 'This inbox ID is already added.' }, 409);
     throw error;
