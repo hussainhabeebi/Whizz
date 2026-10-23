@@ -148,6 +148,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .guard-stat b{display:block;font:700 16px var(--font-display);color:var(--text);}
 .guard-stat span{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
 @media(max-width:620px){.guard-grid{grid-template-columns:1fr}.guard-summary{grid-template-columns:repeat(2,1fr)}}
+.camp-live-count{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;padding:12px 16px;margin-bottom:14px;border-radius:10px;background:var(--accent-dim);border:1px solid rgba(245,158,11,0.2);font-size:13px;font-weight:600;color:var(--text);}
+.camp-live-count #aud-live-count{font:800 22px var(--font-display);color:var(--accent2);}
 @media(max-width:900px){.campaign-segment-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:520px){.campaign-segment-grid{grid-template-columns:1fr!important}}
 .btn-refresh{background:var(--accent-dim);color:var(--accent2);border:1px solid rgba(245,158,11,0.2);}
@@ -1108,16 +1110,43 @@ body.dark{
             <div class="wizard">
               <div class="wz-step active" id="wz1"><div class="wz-num">1</div>Audience</div>
               <div class="wz-div"></div>
-              <div class="wz-step" id="wz2"><div class="wz-num">2</div>Template</div>
+              <div class="wz-step" id="wz2"><div class="wz-num">2</div>Delivery</div>
               <div class="wz-div"></div>
-              <div class="wz-step" id="wz3"><div class="wz-num">3</div>Send</div>
+              <div class="wz-step" id="wz3"><div class="wz-num">3</div>Template</div>
+              <div class="wz-div"></div>
+              <div class="wz-step" id="wz4"><div class="wz-num">4</div>Send</div>
             </div>
 
             <div id="cs1">
+              <div class="camp-live-count">
+                <span id="aud-live-count">0</span> recipient<span id="aud-live-count-plural">s</span>
+                <span style="font-weight:400;color:var(--text3);font-size:11px;">based on the filters below</span>
+              </div>
               <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Filter by platform, country or brand. Leave all unselected to send to everyone.</p>
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;margin-bottom:12px;">
                 <input type="checkbox" id="all-groups" onchange="toggleAllGroups(this)"> Send to ALL contacts
               </label>
+              <div style="margin-bottom:8px;">
+                <div class="eyebrow">Filter by Platform</div>
+                <div class="chips" id="platform-chips"></div>
+              </div>
+              <div style="margin-bottom:8px;display:flex;gap:8px;">
+                <div style="flex:1"><div class="eyebrow">Region</div><select id="camp-region-sel" onchange="onCampRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div>
+                <div style="flex:1"><div class="eyebrow">Country</div><select id="camp-country-sel" onchange="onCampCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div>
+              </div>
+              <div style="margin-bottom:12px;">
+                <div class="eyebrow">Filter by Brand</div>
+                <div class="chips" id="brand-chips"></div>
+              </div>
+              <div class="groups-grid" id="camp-groups">
+                <div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
+              </div>
+              <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+                <button class="t-btn btn-primary" onclick="campStep(2)">Next: Delivery Settings →</button>
+              </div>
+            </div>
+
+            <div id="cs2" style="display:none;">
               <div style="margin-bottom:12px;">
                 <div class="eyebrow">Channel</div>
                 <div class="chips" id="camp-channel-chips">
@@ -1131,58 +1160,15 @@ body.dark{
                 <div class="eyebrow">Send From</div>
                 <div class="chips" id="camp-inbox-chips"></div>
               </div>
-              <div style="margin-bottom:8px;">
-                <div class="eyebrow">Filter by Platform</div>
-                <div class="chips" id="platform-chips"></div>
-              </div>
-              <div style="margin-bottom:8px;display:flex;gap:8px;">
-                <div style="flex:1"><div class="eyebrow">Region</div><select id="camp-region-sel" onchange="onCampRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div>
-                <div style="flex:1"><div class="eyebrow">Country</div><select id="camp-country-sel" onchange="onCampCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div>
-              </div>
-              <div style="margin-bottom:12px;">
-                <div class="eyebrow">Filter by Brand</div>
-                <div class="chips" id="brand-chips"></div>
-              </div>
-              <div style="margin:14px 0;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;">
+              <div style="margin:0 0 14px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;">
                 <div class="eyebrow" style="margin-bottom:9px;">Delivery-safe lead categorisation</div>
                 <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;" class="campaign-segment-grid">
-                  <label class="s-label">Consent<select id="camp-consent" class="fi"><option value="any">Any contact</option><option value="opted_in">Opted-in only</option><option value="known_consent">Known consent</option></select></label>
-                  <label class="s-label">Engagement<select id="camp-engagement" class="fi"><option value="any">Any activity</option><option value="30_days">Active within 30 days</option><option value="7_days">Hot — within 7 days</option><option value="90_days">Warm — within 90 days</option></select></label>
-                  <label class="s-label">Lead stage<select id="camp-stage" class="fi"><option value="marketable">All marketable stages</option><option value="new">New leads</option><option value="qualified">Qualified</option><option value="quotation_sent">Quotation sent</option><option value="customer">Existing customers</option><option value="dormant">Dormant reactivation</option></select></label>
-                  <label class="s-label">Buyer type<select id="camp-buyer" class="fi"><option value="all">All buyer types</option><option value="wholesale">Wholesale</option><option value="retail">Retail</option><option value="export">Export</option></select></label>
+                  <label class="s-label">Consent<select id="camp-consent" class="fi" onchange="updateDeliveryGuard()"><option value="any">Any contact</option><option value="opted_in">Opted-in only</option><option value="known_consent">Known consent</option></select></label>
+                  <label class="s-label">Engagement<select id="camp-engagement" class="fi" onchange="updateDeliveryGuard()"><option value="any">Any activity</option><option value="30_days">Active within 30 days</option><option value="7_days">Hot — within 7 days</option><option value="90_days">Warm — within 90 days</option></select></label>
+                  <label class="s-label">Lead stage<select id="camp-stage" class="fi" onchange="updateDeliveryGuard()"><option value="marketable">All marketable stages</option><option value="new">New leads</option><option value="qualified">Qualified</option><option value="quotation_sent">Quotation sent</option><option value="customer">Existing customers</option><option value="dormant">Dormant reactivation</option></select></label>
+                  <label class="s-label">Buyer type<select id="camp-buyer" class="fi" onchange="updateDeliveryGuard()"><option value="all">All buyer types</option><option value="wholesale">Wholesale</option><option value="retail">Retail</option><option value="export">Export</option></select></label>
                 </div>
                 <div style="font-size:10px;color:var(--text3);margin-top:9px;">Opt-outs, invalid numbers, permanent failures, lost leads and Do Not Contact records are always excluded.</div>
-              </div>
-              <div class="groups-grid" id="camp-groups">
-                <div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
-              </div>
-              <div style="margin-top:16px;display:flex;justify-content:flex-end;">
-                <button class="t-btn btn-primary" onclick="campStep(2)">Next: Template →</button>
-              </div>
-            </div>
-
-            <div id="cs2" style="display:none;">
-              <div class="tpl-grid" id="camp-templates">
-                <div class="empty-state">Click Refresh to load</div>
-              </div>
-              <div style="margin-top:16px;display:flex;justify-content:space-between;">
-                <button class="t-btn btn-ghost" onclick="campStep(1)">← Back</button>
-                <button class="t-btn btn-primary" onclick="campStep(3)">Next: Review →</button>
-              </div>
-            </div>
-
-            <div id="cs3" style="display:none;">
-              <div style="background:var(--bg3);border-radius:var(--r-sm);padding:18px;border:1px solid var(--border);margin-bottom:16px;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-                  <div><div class="s-label" style="margin-bottom:4px;">Audience</div><div id="rv-audience" style="font-size:12px;font-weight:600;">—</div></div>
-                  <div><div class="s-label" style="margin-bottom:4px;">Recipients</div><div id="rv-count" style="font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--accent);">—</div></div>
-                  <div><div class="s-label" style="margin-bottom:4px;">Channel</div><div id="rv-channel" style="font-size:13px;font-weight:600;">WhatsApp</div></div>
-                  <div id="rv-inbox-row" style="display:none;"><div class="s-label" style="margin-bottom:4px;">Send From</div><div id="rv-inbox" style="font-size:13px;font-weight:600;">—</div></div>
-                  <div><div class="s-label" style="margin-bottom:4px;">Template</div><div id="rv-template" style="font-size:13px;font-weight:600;">—</div></div>
-                  <div><div class="s-label" style="margin-bottom:4px;">Est. Time</div><div id="rv-time" style="font-size:13px;font-weight:600;">—</div></div>
-                </div>
-                <div class="s-label" style="margin-bottom:6px;">Message Preview</div>
-                <div id="rv-msg" style="font-size:12px;color:var(--text2);background:var(--bg2);padding:10px;border-radius:6px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.6;max-height:120px;overflow-y:auto;"></div>
               </div>
               <div class="delivery-guard">
                 <div class="guard-head">
@@ -1202,13 +1188,54 @@ body.dark{
                   <div class="guard-stat"><b id="guard-risk">Low</b><span>Delivery risk</span></div>
                 </div>
               </div>
+              <div style="margin-top:16px;display:flex;justify-content:space-between;">
+                <button class="t-btn btn-ghost" onclick="campStep(1)">← Back</button>
+                <button class="t-btn btn-primary" onclick="campStep(3)">Next: Template →</button>
+              </div>
+            </div>
+
+            <div id="cs3" style="display:none;">
+              <div class="tpl-grid" id="camp-templates">
+                <div class="empty-state">Click Refresh to load</div>
+              </div>
+              <div style="margin-top:16px;display:flex;justify-content:space-between;">
+                <button class="t-btn btn-ghost" onclick="campStep(2)">← Back</button>
+                <button class="t-btn btn-primary" onclick="campStep(4)">Next: Review →</button>
+              </div>
+            </div>
+
+            <div id="cs4" style="display:none;">
+              <div style="background:var(--bg3);border-radius:var(--r-sm);padding:18px;border:1px solid var(--border);margin-bottom:16px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+                  <div><div class="s-label" style="margin-bottom:4px;">Audience</div><div id="rv-audience" style="font-size:12px;font-weight:600;">—</div></div>
+                  <div><div class="s-label" style="margin-bottom:4px;">Recipients</div><div id="rv-count" style="font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--accent);">—</div></div>
+                  <div><div class="s-label" style="margin-bottom:4px;">Channel</div><div id="rv-channel" style="font-size:13px;font-weight:600;">WhatsApp</div></div>
+                  <div id="rv-inbox-row" style="display:none;"><div class="s-label" style="margin-bottom:4px;">Send From</div><div id="rv-inbox" style="font-size:13px;font-weight:600;">—</div></div>
+                  <div><div class="s-label" style="margin-bottom:4px;">Template</div><div id="rv-template" style="font-size:13px;font-weight:600;">—</div></div>
+                  <div><div class="s-label" style="margin-bottom:4px;">Est. Time</div><div id="rv-time" style="font-size:13px;font-weight:600;">—</div></div>
+                </div>
+                <div class="s-label" style="margin-bottom:6px;">Message Preview</div>
+                <div id="rv-msg" style="font-size:12px;color:var(--text2);background:var(--bg2);padding:10px;border-radius:6px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.6;max-height:120px;overflow-y:auto;"></div>
+              </div>
+              <div class="delivery-guard" style="margin-bottom:16px;">
+                <div class="guard-head">
+                  <div><div class="card-title">Deliverability Guard Summary</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">Set on the Delivery Settings step. <a href="#" onclick="campStep(2);return false;" style="color:var(--accent);">Edit</a></div></div>
+                  <div class="guard-score" id="rv-guard-score">—</div>
+                </div>
+                <div class="guard-summary">
+                  <div class="guard-stat"><b id="rv-guard-eligible">0</b><span>Est. eligible</span></div>
+                  <div class="guard-stat"><b id="rv-guard-suppressed">0</b><span>Est. protected</span></div>
+                  <div class="guard-stat"><b id="rv-guard-first-batch">0</b><span>First batch</span></div>
+                  <div class="guard-stat"><b id="rv-guard-risk">Low</b><span>Delivery risk</span></div>
+                </div>
+              </div>
               <div id="send-progress" style="display:none;margin-bottom:14px;">
                 <div style="font-size:12px;color:var(--text2);margin-bottom:5px;">Sending...</div>
                 <div class="prog-wrap"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
                 <div id="prog-text" style="font-size:11px;color:var(--text3);margin-top:4px;"></div>
               </div>
               <div style="display:flex;justify-content:space-between;">
-                <button class="t-btn btn-ghost" onclick="campStep(2)">← Back</button>
+                <button class="t-btn btn-ghost" onclick="campStep(3)">← Back</button>
                 <button class="t-btn btn-success" id="send-btn" onclick="sendCampaign()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                   Send Campaign
@@ -5203,6 +5230,7 @@ function renderCampGroups(groups){
   populateCountrySelect('camp-country-sel',campCountries,S.activeCountry);
   renderChips(S.brands,'brand-chips','activeBrand','filterByBrand');
   renderGroupCards(groups,'camp-groups',true);
+  updateAudienceLiveCount();
 }
 
 // Render Group Cards supporting Pareto Tail UI flags and Velocity Arrows
@@ -5243,14 +5271,34 @@ function renderGroupCards(groups,id,selectable,clickFn){
 }
 
 function renderCampTemplates(templates){const el=document.getElementById('camp-templates');const visible=templatesForInbox(templates||[],S.activeCampaignInboxId);if(!visible.length){el.innerHTML='<div class="empty-state">WABA contains zero template components inside state approved</div>';return;}el.innerHTML=visible.map(t=>`<div class="tpl-card" onclick="selectTpl('${t.name}',this)"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span></div><div class="tpl-body">${t.body||''}</div></div>`).join('');}
-function toggleGroup(platform,country,brand,el){el.classList.toggle('selected');const cb=el.querySelector('input[type=checkbox]');if(cb)cb.checked=el.classList.contains('selected');const key=platform+'||'+country+'||'+brand;const idx=S.selectedGroups.indexOf(key);if(idx===-1)S.selectedGroups.push(key);else S.selectedGroups.splice(idx,1);}
-function toggleAllGroups(cb){S.selectedGroups=[];document.querySelectorAll('#camp-groups .group-card').forEach(c=>{c.classList.toggle('selected',cb.checked);const rowCb=c.querySelector('input[type=checkbox]');if(rowCb)rowCb.checked=cb.checked;if(cb.checked){const p=c.querySelector('.g-platform').textContent,co=c.querySelector('.g-country').textContent,b=c.querySelector('.g-brand').getAttribute('title');S.selectedGroups.push(p+'||'+co+'||'+b);}});}
+function toggleGroup(platform,country,brand,el){el.classList.toggle('selected');const cb=el.querySelector('input[type=checkbox]');if(cb)cb.checked=el.classList.contains('selected');const key=platform+'||'+country+'||'+brand;const idx=S.selectedGroups.indexOf(key);if(idx===-1)S.selectedGroups.push(key);else S.selectedGroups.splice(idx,1);updateAudienceLiveCount();}
+function toggleAllGroups(cb){S.selectedGroups=[];document.querySelectorAll('#camp-groups .group-card').forEach(c=>{c.classList.toggle('selected',cb.checked);const rowCb=c.querySelector('input[type=checkbox]');if(rowCb)rowCb.checked=cb.checked;if(cb.checked){const p=c.querySelector('.g-platform').textContent,co=c.querySelector('.g-country').textContent,b=c.querySelector('.g-brand').getAttribute('title');S.selectedGroups.push(p+'||'+co+'||'+b);}});updateAudienceLiveCount();}
+// ── Live recipient count (Audience step) ──
+function computeAudienceCount(){
+  const allGroupsEl=document.getElementById('all-groups');
+  const allGroups=(allGroupsEl&&allGroupsEl.checked)||S.selectedGroups.length===0;
+  return allGroups?(S.groups||[]).reduce((a,g)=>a+g.count,0):(S.groups||[]).filter(g=>S.selectedGroups.includes(g.platform+'||'+g.country+'||'+g.brand)).reduce((a,g)=>a+g.count,0);
+}
+function updateAudienceLiveCount(){
+  const el=document.getElementById('aud-live-count');
+  if(!el)return;
+  const total=computeAudienceCount();
+  el.textContent=total.toLocaleString();
+  const plural=document.getElementById('aud-live-count-plural');
+  if(plural)plural.textContent=total===1?'':'s';
+}
 function selectTpl(name,el){document.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');S.selectedTemplate=S.templates.find(t=>t.name===name);}
-function campStep(n){if(n===2&&!S.groups.length){showToast('Synchronize CRM cache boundaries first','error');return;}if(n===3&&!S.selectedTemplate){showToast('Select target template structure context','error');return;}[1,2,3].forEach(i=>{document.getElementById('cs'+i).style.display=i===n?'block':'none';const wz=document.getElementById('wz'+i);wz.className='wz-step'+(i<n?' done':i===n?' active':'');});if(n===3)buildReview();}
+function campStep(n){
+  if(n>=2&&!S.groups.length){showToast('Synchronize CRM cache boundaries first','error');return;}
+  if(n===4&&!S.selectedTemplate){showToast('Select target template structure context','error');return;}
+  [1,2,3,4].forEach(i=>{document.getElementById('cs'+i).style.display=i===n?'block':'none';const wz=document.getElementById('wz'+i);wz.className='wz-step'+(i<n?' done':i===n?' active':'');});
+  if(n===2)updateDeliveryGuard(computeAudienceCount());
+  if(n===4)buildReview();
+}
 
 function buildReview(){
   const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
-  const totalCount=allGroups?S.groups.reduce((a,g)=>a+g.count,0):S.groups.filter(g=>S.selectedGroups.includes(g.platform+'||'+g.country+'||'+g.brand)).reduce((a,g)=>a+g.count,0);
+  const totalCount=computeAudienceCount();
   document.getElementById('rv-audience').textContent=allGroups?'Global Distribution Stack':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', ');
   document.getElementById('rv-count').textContent=totalCount;
   const rvChannel=document.getElementById('rv-channel');if(rvChannel)rvChannel.textContent=getSelectedCampaignChannel()==='whatsapp'?'WhatsApp':getSelectedCampaignChannel();
@@ -5264,6 +5312,10 @@ function buildReview(){
   document.getElementById('rv-time').textContent=`~${Math.ceil(totalCount*2/60)} minute engine execution window`;
   document.getElementById('rv-msg').textContent=S.selectedTemplate?.body||'';
   updateDeliveryGuard(totalCount);
+  ['score','eligible','suppressed','first-batch','risk'].forEach(k=>{
+    const src=document.getElementById('guard-'+k),dst=document.getElementById('rv-guard-'+k);
+    if(src&&dst){dst.textContent=src.textContent;dst.style.cssText=src.style.cssText;}
+  });
 }
 function getCampaignAudienceRules(){
   return {
@@ -5340,7 +5392,7 @@ async function sendCampaign(){
     setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
   }catch(e){clearInterval(interval);showToast(e.message||'Campaign send failed','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}
 }
-function resetCampaign(){S.selectedGroups=[];S.selectedTemplate=null;campStep(1);document.getElementById('all-groups').checked=false;document.querySelectorAll('.group-card').forEach(c=>{c.classList.remove('selected');const cb=c.querySelector('input[type=checkbox]');if(cb)cb.checked=false;});}
+function resetCampaign(){S.selectedGroups=[];S.selectedTemplate=null;campStep(1);document.getElementById('all-groups').checked=false;document.querySelectorAll('.group-card').forEach(c=>{c.classList.remove('selected');const cb=c.querySelector('input[type=checkbox]');if(cb)cb.checked=false;});updateAudienceLiveCount();}
 
 function launchSuggestedCampaign(brand, alreadySent) {
   if (alreadySent) {
