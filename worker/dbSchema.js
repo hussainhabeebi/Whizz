@@ -120,6 +120,15 @@ async function repairSchema(env) {
     label TEXT NOT NULL,
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  // WhatsApp template approval is per-number on Meta's side, so a template approved on
+  // one inbox's number may not be approved on another's. Templates themselves still live
+  // in n8n/Meta — this just tags which inbox(es) a template name is approved for, purely
+  // local to Whizz, so the Conversations/Campaign template pickers can filter by number.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS template_inbox_tags (
+    templateName TEXT PRIMARY KEY,
+    inboxId TEXT NOT NULL,
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
 
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
