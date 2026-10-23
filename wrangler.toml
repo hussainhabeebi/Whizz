@@ -5,6 +5,10 @@ compatibility_date = "2024-01-01"
 [vars]
 LEAD_COLLECTOR_URL = "https://collector.whizzfze.com"
 LEAD_INTELLIGENCE_CALLBACK_URL = "https://tiarafzco.com/api/lead-intelligence/callback"
+# Chatwoot (app.aiingo.com) is configured from the Integrations page in the app, not here —
+# base URL, account id, API token (encrypted) and inboxes all live in D1. The token is
+# encrypted with the same key as Lead Intelligence's directory credentials — the
+# LEAD_INTELLIGENCE_KEY secret below must already be set.
 
 [assets]
 directory = "."

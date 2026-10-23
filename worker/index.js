@@ -11,6 +11,7 @@ import { handleAutomation } from './routes/automation.js';
 import { handleConversationAssignment } from './routes/conversationAssignments.js';
 import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookings.js';
 import { handleLeadIntelligence } from './routes/leadIntelligence.js';
+import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage, handleChatwootSendTemplate } from './routes/chatwoot.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -28,6 +29,12 @@ const routes = [
   { method: 'POST', path: '/api/users', handler: handleCreateUser },
   { method: 'POST', path: '/api/ifa-bookings', handler: handleIFABookingCreate },
   { method: 'GET', path: '/api/ifa-bookings', handler: handleIFABookingList },
+  { method: 'GET', path: '/api/chatwoot/meta', handler: handleChatwootMeta },
+  { method: 'GET', path: '/api/chatwoot/settings', handler: handleGetChatwootSettings },
+  { method: 'POST', path: '/api/chatwoot/settings', handler: handleSaveChatwootSettings },
+  { method: 'POST', path: '/api/chatwoot/inboxes', handler: handleAddChatwootInbox },
+  { method: 'GET', path: '/api/chatwoot/conversations', handler: handleChatwootConversations },
+  { method: 'POST', path: '/api/chatwoot/send-template', handler: handleChatwootSendTemplate },
 ];
 
 async function leadActor(request, env) {
@@ -180,6 +187,23 @@ export default {
     const assignmentMatch = url.pathname.match(/^\/api\/conversation-assignments\/([^/]+)$/);
     if (assignmentMatch && request.method === 'PUT') {
       try { return await handleConversationAssignment(request, env, decodeURIComponent(assignmentMatch[1])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const chatwootMessageMatch = url.pathname.match(/^\/api\/chatwoot\/conversations\/([^/]+)\/messages\/([^/]+)$/);
+    if (chatwootMessageMatch && request.method === 'DELETE') {
+      try { return await handleChatwootDeleteMessage(request, env, decodeURIComponent(chatwootMessageMatch[1]), decodeURIComponent(chatwootMessageMatch[2])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const chatwootMessagesMatch = url.pathname.match(/^\/api\/chatwoot\/conversations\/([^/]+)\/messages$/);
+    if (chatwootMessagesMatch) {
+      try {
+        if (request.method === 'GET') return await handleChatwootMessages(request, env, decodeURIComponent(chatwootMessagesMatch[1]));
+        if (request.method === 'POST') return await handleChatwootSendMessage(request, env, decodeURIComponent(chatwootMessagesMatch[1]));
+      } catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const chatwootInboxMatch = url.pathname.match(/^\/api\/chatwoot\/inboxes\/(\d+)$/);
+    if (chatwootInboxMatch && request.method === 'DELETE') {
+      try { return await handleDeleteChatwootInbox(request, env, Number(chatwootInboxMatch[1])); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access|sync-access))?$/);

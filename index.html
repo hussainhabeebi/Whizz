@@ -221,6 +221,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .chip{padding:5px 13px;border-radius:var(--r-pill);font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);transition:all 0.12s;}
 .chip:hover{border-color:var(--accent);color:var(--accent2);}
 .chip.active{background:var(--accent);color:#000;border-color:var(--accent);}
+.chip.chip-disabled{opacity:0.45;cursor:not-allowed;}
+.chip.chip-disabled:hover{border-color:var(--border2);color:var(--text2);}
 
 /* Group Cards with Velocity */
 .groups-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:10px;}
@@ -822,6 +824,33 @@ body.dark .t-quote{background:rgba(255,255,255,.07);}
 body.dark .wa-quick-btn{color:#3ddc78;}
 .wa-quick-btn:hover{background:rgba(37,211,102,.2);}
 </style>
+<!-- 2026 visual refresh: softer neutrals, calmer shadows, a touch more breathing room and
+     rounding across cards/buttons/badges. Layered on top (same pattern as the style blocks
+     above) so every page picks it up through the existing var(--x) tokens. -->
+<style>
+:root{
+  --bg:#f6f7fb;--bg2:#ffffff;--bg3:#eef1f6;--bg4:#e4e8f0;
+  --text:#101828;--text2:#4b5468;--text3:#98a2b8;
+  --border:rgba(16,24,40,.07);--border2:rgba(16,24,40,.12);
+  --shadow:0 10px 32px rgba(16,24,40,.09);--shadow-sm:0 1px 2px rgba(16,24,40,.04),0 4px 14px rgba(16,24,40,.045);--shadow-lift:0 16px 40px rgba(16,24,40,.13);
+  --r:16px;--r-sm:10px;--r-lg:20px;
+}
+body.dark{
+  --bg:#0b1120;--bg2:#161e30;--bg3:#131b2c;--bg4:#1d273b;
+  --text:#f3f5fa;--text2:#9aa4ba;--text3:#5b667e;
+  --border:rgba(255,255,255,.065);--border2:rgba(255,255,255,.105);
+  --shadow:0 10px 32px rgba(0,0,0,.4);--shadow-sm:0 1px 2px rgba(0,0,0,.25),0 6px 18px rgba(0,0,0,.28);--shadow-lift:0 18px 44px rgba(0,0,0,.5);
+}
+.card,.stat-card,.table-card,.chart-card,.task-composer,.task-board-card,.health-card,.delivery-guard,.conv-list-card,.conv-thread-card{border-radius:var(--r);transition:box-shadow .15s ease;}
+.stat-card:hover,.pipe-card:hover{box-shadow:var(--shadow-lift);}
+.t-btn{font-weight:600;letter-spacing:.005em;transition:transform .1s ease,box-shadow .1s ease,background .12s ease;}
+.t-btn.btn-primary,.t-btn.btn-success{box-shadow:0 1px 2px rgba(16,24,40,.06);}
+.t-btn.btn-primary:hover,.t-btn.btn-success:hover{transform:translateY(-1px);}
+.ch-badge,.chip,.unread,.nav-badge{border-radius:var(--r-pill);}
+.topbar{box-shadow:0 1px 0 var(--border);}
+.sidebar-nav::-webkit-scrollbar{width:5px;}
+.sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px;}
+</style>
 </head>
 <body>
 
@@ -1089,6 +1118,15 @@ body.dark .wa-quick-btn{color:#3ddc78;}
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;margin-bottom:12px;">
                 <input type="checkbox" id="all-groups" onchange="toggleAllGroups(this)"> Send to ALL contacts
               </label>
+              <div style="margin-bottom:12px;">
+                <div class="eyebrow">Channel</div>
+                <div class="chips" id="camp-channel-chips">
+                  <div class="chip active" data-channel="whatsapp" onclick="selectCampaignChannel('whatsapp',this)">WhatsApp</div>
+                  <div class="chip chip-disabled" title="Coming soon">SMS</div>
+                  <div class="chip chip-disabled" title="Coming soon">Email</div>
+                  <div class="chip chip-disabled" title="Coming soon">Telegram</div>
+                </div>
+              </div>
               <div style="margin-bottom:8px;">
                 <div class="eyebrow">Filter by Platform</div>
                 <div class="chips" id="platform-chips"></div>
@@ -1134,6 +1172,7 @@ body.dark .wa-quick-btn{color:#3ddc78;}
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
                   <div><div class="s-label" style="margin-bottom:4px;">Audience</div><div id="rv-audience" style="font-size:12px;font-weight:600;">—</div></div>
                   <div><div class="s-label" style="margin-bottom:4px;">Recipients</div><div id="rv-count" style="font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--accent);">—</div></div>
+                  <div><div class="s-label" style="margin-bottom:4px;">Channel</div><div id="rv-channel" style="font-size:13px;font-weight:600;">WhatsApp</div></div>
                   <div><div class="s-label" style="margin-bottom:4px;">Template</div><div id="rv-template" style="font-size:13px;font-weight:600;">—</div></div>
                   <div><div class="s-label" style="margin-bottom:4px;">Est. Time</div><div id="rv-time" style="font-size:13px;font-weight:600;">—</div></div>
                 </div>
@@ -1239,6 +1278,7 @@ body.dark .wa-quick-btn{color:#3ddc78;}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>Cached. Click Refresh to reload.</span>
         </div>
+        <div class="chips" id="conv-inbox-tabs" style="display:none;"></div>
         <div class="card" style="margin-bottom:14px;">
           <div class="card-body" style="padding:10px 16px;">
             <div class="conv-toolbar-row">
@@ -2096,6 +2136,42 @@ body.dark .wa-quick-btn{color:#3ddc78;}
             </button>
           </div>
         </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Chatwoot</div>
+            <span class="eyebrow" id="int-chatwoot-status" style="margin-bottom:0;">Checking…</span>
+          </div>
+          <div class="card-body">
+            <div class="two-col">
+              <div class="fg">
+                <label class="fl">Base URL</label>
+                <input class="fi" id="int-cw-url" placeholder="https://app.aiingo.com"/>
+              </div>
+              <div class="fg">
+                <label class="fl">Account ID</label>
+                <input class="fi" id="int-cw-account" placeholder="e.g. 11"/>
+              </div>
+            </div>
+            <div class="fg">
+              <label class="fl">API Access Token</label>
+              <input class="fi" id="int-cw-token" type="password" placeholder="Leave blank to keep the current token"/>
+              <div class="fi-hint">Profile Settings → Access Token in Chatwoot. Stored encrypted server-side, never sent back to the browser.</div>
+            </div>
+            <button class="t-btn btn-primary" onclick="saveChatwootIntegration()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+              Save Chatwoot Connection
+            </button>
+            <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+              <div class="fl" style="margin-bottom:8px;">Inboxes <span style="font-weight:400;text-transform:none;color:var(--text3);">— each becomes its own tab on the Conversations page</span></div>
+              <div id="cw-inbox-list" style="margin-bottom:10px;"><div class="empty-state">Checking…</div></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+                <div class="fg" style="flex:1;min-width:120px;margin-bottom:0;"><label class="fl">Label</label><input class="fi" id="cw-new-inbox-label" placeholder="e.g. Sales WhatsApp"/></div>
+                <div class="fg" style="flex:1;min-width:100px;margin-bottom:0;"><label class="fl">Inbox ID</label><input class="fi" id="cw-new-inbox-id" placeholder="e.g. 73"/></div>
+                <button class="t-btn btn-primary" style="height:38px;" onclick="addChatwootInbox()">Add Inbox</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-head">
             <div class="card-title">WordPress Sites</div>
@@ -2730,7 +2806,18 @@ body.dark .wa-quick-btn{color:#3ddc78;}
 
 <script>
 const N8N = 'https://n8n.aiingo.com/webhook';
-const CW_URL = 'https://chat.whizzfze.com/app/accounts/1/conversations';
+let CW_URL = '';
+async function loadChatwootMeta(){
+  try{
+    const r=await fetch('/api/chatwoot/meta',{credentials:'include'});
+    const d=await r.json().catch(()=>({}));
+    if(r.ok){
+      if(d.baseUrl&&d.accountId)CW_URL=`${d.baseUrl}/app/accounts/${d.accountId}/conversations`;
+      S.chatwootInboxes=d.inboxes||[];
+      renderInboxTabs();
+    }
+  }catch(e){}
+}
 const CACHE_KEY = 'whizz_cache_v2';
 const NOTIF_KEY = 'whizz_notifs';
 const OB_KEY = 'whizz_onboarding';
@@ -2786,7 +2873,8 @@ let S = {
   cache: {}, notifications: [], history: [],
   selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: [],
   convSearch: '', threadSearch: '', pinnedConvIds: loadConvIdSet(CONV_PINS_KEY), mutedConvIds: loadConvIdSet(CONV_MUTES_KEY), replyTo: null,
-  pinnedMsgMap: loadPinnedMsgMap(), forwardingMsg: null
+  pinnedMsgMap: loadPinnedMsgMap(), forwardingMsg: null,
+  chatwootInboxes: [], activeInboxId: ''
 };
 
 // ── Auth ──
@@ -2855,6 +2943,7 @@ function initApp(session) {
   if (navIntegrations) navIntegrations.style.display = session.role === 'Administrator' ? 'flex' : 'none';
   applyRoleExperience(session);
   loadUsers();
+  loadChatwootMeta();
   loadCache(); loadOnboarding(); loadNotifications();
   startAutoSync();
   startScheduler();
@@ -3747,11 +3836,13 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 })();
 
 // ── API Gateway Base Call ──
-const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-get-conversations','whizz-get-conversation-messages','whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-send-template-message','whizz-send-conversation-message','whizz-delete-conversation-message','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-discover-2gis','whizz-save-integration','whizz-delete-integration']);
+const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-discover-2gis','whizz-save-integration','whizz-delete-integration']);
 async function api(path,method='GET',body=null){const endpoint=String(path).split('?')[0],protectedRoute=WORKER_PROTECTED_ENDPOINTS.has(endpoint);const opts={method,headers:{'Content-Type':'application/json'}};if(protectedRoute)opts.credentials='include';if(body)opts.body=JSON.stringify(body);const url=protectedRoute?`/api/automation/${path}`:`${N8N}/${path}`;const r=await fetch(url,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{success:true};}catch{data={success:true};}if(!r.ok){console.error('[Whizz]',method,path,r.status,txt);throw new Error(data.error||(txt.trim().slice(0,150))||'HTTP '+r.status);}return data;}
 // Endpoints migrated off n8n onto the Cloudflare Worker call this instead — same
 // contract, just same-origin. Migrate call sites one at a time as each route lands.
 async function apiW(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);const txt=await r.text();try{return txt?JSON.parse(txt):{success:true};}catch{return{success:true};}}
+// Chatwoot (app.aiingo.com), proxied by the Worker at /api/chatwoot/*.
+async function cw(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/api/chatwoot/${path}`,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{};}catch{data={};}if(!r.ok)throw new Error(data.error||'HTTP '+r.status);return data;}
 
 // ── Global Refresh Orchestrator ──
 async function refreshPage() {
@@ -3779,7 +3870,8 @@ async function refreshPage() {
 
 async function refreshDashboard(){await Promise.all([refreshStats(),refreshDashConvData(),refreshLeadData()]);}
 async function refreshStats(){const d=await api('whizz-get-stats');S.cache.stats=d;renderStats(d);const cnt=d.open||0;if(cnt>0){document.getElementById('open-count').textContent=cnt;document.getElementById('open-count').style.display='inline';addNotif(`${cnt} operational conversations pending response`);}}
-async function refreshDashConvData(){const d=await api('whizz-get-conversations?status=open');S.cache.conversations=d.conversations||[];renderDashConvs(S.cache.conversations);}
+function convQS(status){return`conversations?status=${status}${S.activeInboxId?`&inboxId=${encodeURIComponent(S.activeInboxId)}`:''}`;}
+async function refreshDashConvData(){const d=await cw(convQS('open'));S.cache.conversations=d.conversations||[];renderDashConvs(S.cache.conversations);}
 // ── Platform name de-duplication ──
 // Lead data often has the same platform typed inconsistently (case, spacing/
 // punctuation, or the occasional one-letter typo — "Instagram" / "instagram" /
@@ -3903,9 +3995,9 @@ async function refreshLeadData(){
 }
 async function refreshConversations(){
   const[o,p,r]=await Promise.all([
-    api('whizz-get-conversations?status=open').catch(()=>({conversations:[]})),
-    api('whizz-get-conversations?status=pending').catch(()=>({conversations:[]})),
-    api('whizz-get-conversations?status=resolved').catch(()=>({conversations:[]}))
+    cw(convQS('open')).catch(()=>({conversations:[]})),
+    cw(convQS('pending')).catch(()=>({conversations:[]})),
+    cw(convQS('resolved')).catch(()=>({conversations:[]}))
   ]);
   const merged=[...(o.conversations||[]),...(p.conversations||[]),...(r.conversations||[])];
   S.conversationAssignees=o.assignees||p.assignees||r.assignees||[];
@@ -3925,7 +4017,7 @@ async function refreshMyLeadsWorkspace(){
     const data=await apiW('whizz-get-contacts');
     const leads=data.contacts||[],now=new Date(),today=now.toISOString().slice(0,10);
     const monthKey=today.slice(0,7),weekAgo=Date.now()-7*86400000;
-    const convData=await api('whizz-get-conversations?status=open').catch(()=>({conversations:S.cache.conversations||[]}));
+    const convData=await cw(convQS('open')).catch(()=>({conversations:S.cache.conversations||[]}));
     const conversations=convData.conversations||[];S.cache.conversations=conversations;
     const metrics=[
       ['New today',leads.filter(l=>(l.createdAt||'').slice(0,10)===today).length,'var(--blue)'],
@@ -4078,9 +4170,8 @@ function filterConvSearch(q){
   S.convSearch=(q||'').trim().toLowerCase();
   renderConvs(S.cache.conversations||[]);
 }
-// Chatwoot conversation payloads vary in how the contact's phone number is named
-// (and whichever workflow builds whizz-get-conversations may already flatten it
-// differently), so check every plausible spot before giving up on it.
+// Chatwoot conversation payloads vary in how the contact's phone number is named,
+// so check every plausible spot before giving up on it.
 function convPhone(c){
   return c.phone||c.phone_number||c.contact_phone||c.contact_phone_number||c.mobile||c.mobile_number||
     (c.meta&&c.meta.sender&&c.meta.sender.phone_number)||
@@ -4125,6 +4216,25 @@ async function assignConversation(id){
   }catch(error){showToast(error.message,'error');}
 }
 function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=>{b.className='t-btn btn-ghost';b.style.cssText='padding:5px 12px;font-size:11px;';});btn.className='t-btn btn-primary';btn.style.cssText='padding:5px 12px;font-size:11px;';S.convStatus=status;renderConvs(S.cache.conversations||[]);}
+
+// ── Inbox Tabs (multiple Chatwoot inboxes, each its own view) ──
+function renderInboxTabs(){
+  const el=document.getElementById('conv-inbox-tabs');
+  if(!el)return;
+  const inboxes=S.chatwootInboxes||[];
+  if(inboxes.length<2){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='flex';
+  const allActive=!S.activeInboxId?' active':'';
+  el.innerHTML=`<div class="chip${allActive}" onclick="selectInboxTab('',this)">All Inboxes</div>`+
+    inboxes.map(ib=>`<div class="chip${S.activeInboxId===ib.inboxId?' active':''}" onclick="selectInboxTab('${ib.inboxId}',this)">${ib.label}</div>`).join('');
+}
+function selectInboxTab(inboxId,el){
+  document.querySelectorAll('#conv-inbox-tabs .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  S.activeInboxId=inboxId;
+  S.selectedConvId=null;
+  refreshConversations().catch(()=>{});
+}
 
 // ── Conversation Thread Panel ──
 function findConv(id){return (S.cache.conversations||[]).find(c=>String(c.id)===String(id));}
@@ -4195,9 +4305,8 @@ async function selectConv(id){
   document.getElementById('thread-contact-name').innerHTML=`${c.contact_name||'Unknown'}${phone?`<span style="font-weight:400;color:var(--text3);font-size:11px;margin-left:8px;">${phone}</span>`:''}`;
   document.getElementById('thread-sub').textContent=`${c.channel||'chat'} · ${c.status||''}`;
   const link=document.getElementById('open-cw-link');
-  link.href=`${CW_URL}/${id}`;
-  link.style.opacity=1;
-  link.style.pointerEvents='auto';
+  if(CW_URL){link.href=`${CW_URL}/${id}`;link.style.opacity=1;link.style.pointerEvents='auto';}
+  else{link.removeAttribute('href');link.style.opacity=0.4;link.style.pointerEvents='none';}
   document.getElementById('replay-btn').disabled=false;
   document.getElementById('template-msg-btn').disabled=!phone;
   closeThreadSearch();
@@ -4255,12 +4364,12 @@ async function submitSendTemplateMessage(){
   const btn=document.getElementById('stm-send-btn');
   btn.disabled=true;btn.textContent='Sending…';
   try{
-    await api('whizz-send-template-message','POST',{phone,name,template_name:tpl.name,language:tpl.language,variables});
+    await cw('send-template','POST',{phone,name,template_name:tpl.name,language:tpl.language,variables,inboxId:S.activeInboxId||undefined});
     showToast('Template message sent!','success');
     closeModal('modal-send-template');
     try{await refreshConversations();const m=findConvByPhone(phone);if(m)selectConv(m.id);}catch(e){}
   }catch(e){
-    showToast(e.message||'Failed to send — ensure whizz-send-template-message webhook is active','error');
+    showToast(e.message||'Failed to send template message','error');
   }finally{
     btn.disabled=false;btn.textContent='Send';
   }
@@ -4276,7 +4385,7 @@ async function loadThread(c,{silent}={}){
   if(!silent)body.innerHTML='<div class="thread-empty">Loading thread…</div>';
   let messages=null;
   try{
-    const d=await api(`whizz-get-conversation-messages?id=${c.id}`);
+    const d=await cw(`conversations/${encodeURIComponent(c.id)}/messages`);
     messages=d.messages||d.payload||null;
   }catch(e){messages=null;}
   if(Array.isArray(messages)&&messages.length){
@@ -4414,10 +4523,10 @@ function handleThreadScroll(){
 
 // ── Composer (free-text send) ──
 // WhatsApp's own 24-hour customer-service-window rule means a plain message can be
-// rejected even when this looks open — Chatwoot is the real enforcement point (see
-// whizz-send-conversation-message.json's setup notes). This is a best-effort, advisory
-// check from whatever's already loaded client-side, purely to warn before sending, never
-// to silently block it: if it can't tell, it stays quiet rather than guessing wrong.
+// rejected even when this looks open — Chatwoot is the real enforcement point. This is a
+// best-effort, advisory check from whatever's already loaded client-side, purely to warn
+// before sending, never to silently block it: if it can't tell, it stays quiet rather
+// than guessing wrong.
 function isConvWindowLikelyClosed(id){
   const messages=S.convMessages[id]||[];
   const lastIncoming=[...messages].reverse().find(m=>m.message_type!==1&&!m.private);
@@ -4542,7 +4651,7 @@ async function sendConversationMessage(){
   renderThread(S.convMessages[id],false);
   scrollThreadToBottom(true);
   try{
-    const d=await api('whizz-send-conversation-message','POST',{id,content:text,replyToId});
+    const d=await cw(`conversations/${encodeURIComponent(id)}/messages`,'POST',{content:text,replyToId});
     if(d.error)throw new Error(d.error);
     const idx=S.convMessages[id].findIndex(m=>m.id===tempId);
     if(idx>-1)S.convMessages[id][idx]={...d,message_type:1,sender_type:'agent',in_reply_to:replyToId};
@@ -4566,7 +4675,7 @@ async function retrySendMessage(tempId){
   msg.status='sending';
   renderThread(S.convMessages[id],false);
   try{
-    const d=await api('whizz-send-conversation-message','POST',{id,content:msg.content,replyToId:msg.__replyToId||null});
+    const d=await cw(`conversations/${encodeURIComponent(id)}/messages`,'POST',{content:msg.content,replyToId:msg.__replyToId||null});
     if(d.error)throw new Error(d.error);
     Object.assign(msg,d,{message_type:1,sender_type:'agent',in_reply_to:msg.__replyToId||null});
   }catch(e){
@@ -4712,7 +4821,7 @@ async function sendForwardTo(targetId){
   closeModal('modal-forward-message');
   const text=`↪ Forwarded\n${msg.text}`;
   try{
-    const d=await api('whizz-send-conversation-message','POST',{id:targetId,content:text});
+    const d=await cw(`conversations/${encodeURIComponent(targetId)}/messages`,'POST',{content:text});
     if(d.error)throw new Error(d.error);
     showToast('Message forwarded','success');
     if(String(targetId)===String(S.selectedConvId)){
@@ -4741,8 +4850,7 @@ async function deleteMessage(msgId){
   }
   if(!confirm('Delete this message from Whizz/Chatwoot?\n\nThis does NOT unsend it — the customer\'s phone still has it. WhatsApp has no "delete for everyone" API.'))return;
   try{
-    const d=await api('whizz-delete-conversation-message','POST',{id,messageId:msgId});
-    if(d.error)throw new Error(d.error);
+    await cw(`conversations/${encodeURIComponent(id)}/messages/${encodeURIComponent(msgId)}`,'DELETE');
     S.convMessages[id]=S.convMessages[id].filter(m=>m!==msg);
     if(S.pinnedMsgMap[id]===String(msgId)){delete S.pinnedMsgMap[id];savePinnedMsgMap(S.pinnedMsgMap);}
     renderThread(S.convMessages[id],false);
@@ -5001,6 +5109,8 @@ function renderChips(list,containerId,activeProp,filterFn) {
   el.innerHTML = ['ALL', ...list].map(v => `<div class="chip ${S[activeProp] === v ? 'active' : ''}" onclick="${filterFn}('${v.replace(/'/g, "\\'")}', this)">${v}</div>`).join('');
 }
 function filterByPlatform(v,el){document.querySelectorAll('#platform-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activePlatform=v;applyGroupFilters();}
+function selectCampaignChannel(value,el){document.querySelectorAll('#camp-channel-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');}
+function getSelectedCampaignChannel(){return document.querySelector('#camp-channel-chips .chip.active')?.dataset.channel||'whatsapp';}
 function filterByBrand(v,el){document.querySelectorAll('#brand-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activeBrand=v;applyGroupFilters();}
 function populateRegionSelect(selId,regions,activeVal){const el=document.getElementById(selId);if(!el)return;el.innerHTML=['ALL',...regions].map(r=>`<option value="${r}"${r===activeVal?' selected':''}>${r==='ALL'?'All Regions':r}</option>`).join('');}
 function populateCountrySelect(selId,countries,activeVal){const el=document.getElementById(selId);if(!el)return;el.innerHTML=['ALL',...countries].map(c=>`<option value="${c}"${c===activeVal?' selected':''}>${c==='ALL'?'All Countries':c}</option>`).join('');}
@@ -5074,6 +5184,7 @@ function buildReview(){
   const totalCount=allGroups?S.groups.reduce((a,g)=>a+g.count,0):S.groups.filter(g=>S.selectedGroups.includes(g.platform+'||'+g.country+'||'+g.brand)).reduce((a,g)=>a+g.count,0);
   document.getElementById('rv-audience').textContent=allGroups?'Global Distribution Stack':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', ');
   document.getElementById('rv-count').textContent=totalCount;
+  const rvChannel=document.getElementById('rv-channel');if(rvChannel)rvChannel.textContent=getSelectedCampaignChannel()==='whatsapp'?'WhatsApp':getSelectedCampaignChannel();
   document.getElementById('rv-template').textContent=S.selectedTemplate?.name||'—';
   document.getElementById('rv-time').textContent=`~${Math.ceil(totalCount*2/60)} minute engine execution window`;
   document.getElementById('rv-msg').textContent=S.selectedTemplate?.body||'';
@@ -5139,6 +5250,7 @@ async function sendCampaign(){
       brand:useAll?'ALL':(firstGroup?.brand||'ALL'),
       audiences:selectedAudiences,
       audience_rules:getCampaignAudienceRules(),
+      channel:getSelectedCampaignChannel(),
       template_name:S.selectedTemplate.name,
       language:S.selectedTemplate.language,
       delivery_guard:getDeliveryGuardConfig()
@@ -7471,6 +7583,74 @@ async function loadIntegrationsStatus(){
     brevoEl.textContent='Status unavailable';
     wpListEl.innerHTML='<div class="empty-state">Status unavailable</div>';
   }
+  loadChatwootIntegration();
+}
+let _cwInboxes=[];
+async function loadChatwootIntegration(){
+  const statusEl=document.getElementById('int-chatwoot-status');
+  const listEl=document.getElementById('cw-inbox-list');
+  try{
+    const d=await cw('settings');
+    statusEl.textContent=d.hasToken?'Connected':'Not connected';
+    statusEl.style.color=d.hasToken?'var(--green)':'var(--text3)';
+    document.getElementById('int-cw-url').value=d.baseUrl||'https://app.aiingo.com';
+    document.getElementById('int-cw-account').value=d.accountId||'';
+    document.getElementById('int-cw-token').placeholder=d.hasToken?'Leave blank to keep the current token':'Paste your Chatwoot API access token';
+    _cwInboxes=d.inboxes||[];
+    renderChatwootInboxList(_cwInboxes);
+  }catch(e){
+    statusEl.textContent='Status unavailable';
+    listEl.innerHTML='<div class="empty-state">Status unavailable</div>';
+  }
+}
+function renderChatwootInboxList(inboxes){
+  const el=document.getElementById('cw-inbox-list');
+  if(!inboxes.length){el.innerHTML='<div class="empty-state">No inboxes added yet. Add one below — it\'ll show up as its own tab on Conversations.</div>';return;}
+  el.innerHTML=inboxes.map(ib=>`
+    <div class="hist-item">
+      <div class="hist-icon" style="background:var(--green-dim);color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+      <div class="hist-info">
+        <div class="hist-name">${ib.label}</div>
+        <div class="hist-meta">Inbox ID: ${ib.inboxId}</div>
+      </div>
+      <button class="t-btn t-btn-sm" style="background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);flex-shrink:0;" onclick="deleteChatwootInbox(${ib.id})">Delete</button>
+    </div>
+  `).join('');
+}
+async function saveChatwootIntegration(){
+  const baseUrl=document.getElementById('int-cw-url').value.trim()||'https://app.aiingo.com';
+  const accountId=document.getElementById('int-cw-account').value.trim();
+  const apiToken=document.getElementById('int-cw-token').value.trim();
+  if(!accountId){showToast('Account ID is required','error');return;}
+  try{
+    await cw('settings','POST',{baseUrl,accountId,apiToken});
+    document.getElementById('int-cw-token').value='';
+    showToast('Chatwoot connection saved','success');
+    loadChatwootIntegration();
+    loadChatwootMeta();
+  }catch(e){showToast(e.message||'Failed to save Chatwoot settings','error');}
+}
+async function addChatwootInbox(){
+  const label=document.getElementById('cw-new-inbox-label').value.trim();
+  const inboxId=document.getElementById('cw-new-inbox-id').value.trim();
+  if(!label||!inboxId){showToast('Label and Inbox ID are required','error');return;}
+  try{
+    await cw('inboxes','POST',{inboxId,label});
+    document.getElementById('cw-new-inbox-label').value='';
+    document.getElementById('cw-new-inbox-id').value='';
+    showToast(`Inbox "${label}" added`,'success');
+    loadChatwootIntegration();
+    loadChatwootMeta();
+  }catch(e){showToast(e.message||'Failed to add inbox','error');}
+}
+async function deleteChatwootInbox(id){
+  if(!confirm('Remove this inbox? Its tab will disappear from Conversations.'))return;
+  try{
+    await cw(`inboxes/${id}`,'DELETE');
+    showToast('Inbox removed','success');
+    loadChatwootIntegration();
+    loadChatwootMeta();
+  }catch(e){showToast(e.message||'Failed to remove inbox','error');}
 }
 function renderWpSitesList(sites){
   const el=document.getElementById('wp-sites-list');
@@ -8882,6 +9062,7 @@ function scheduleCampaign() {
     brand:    allGroups ? 'ALL' : (S.selectedGroups[0]?.split('||')[2] || 'ALL'),
     audiences: allGroups ? [] : S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return {platform,country,brand};}),
     audienceRules: getCampaignAudienceRules(),
+    channel: getSelectedCampaignChannel(),
     deliveryGuard: getDeliveryGuardConfig(),
     createdAt: Date.now()
   };
@@ -8914,6 +9095,7 @@ async function fireScheduledJob(job) {
       language: job.language,
       audiences: _jobAudiences,
       audience_rules: job.audienceRules || getCampaignAudienceRules(),
+      channel: job.channel || 'whatsapp',
       delivery_guard: job.deliveryGuard || getDeliveryGuardConfig()
     });
     saveHistory({
