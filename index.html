@@ -1177,6 +1177,7 @@ body.dark{
                   <div><div class="s-label" style="margin-bottom:4px;">Audience</div><div id="rv-audience" style="font-size:12px;font-weight:600;">—</div></div>
                   <div><div class="s-label" style="margin-bottom:4px;">Recipients</div><div id="rv-count" style="font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--accent);">—</div></div>
                   <div><div class="s-label" style="margin-bottom:4px;">Channel</div><div id="rv-channel" style="font-size:13px;font-weight:600;">WhatsApp</div></div>
+                  <div id="rv-inbox-row" style="display:none;"><div class="s-label" style="margin-bottom:4px;">Send From</div><div id="rv-inbox" style="font-size:13px;font-weight:600;">—</div></div>
                   <div><div class="s-label" style="margin-bottom:4px;">Template</div><div id="rv-template" style="font-size:13px;font-weight:600;">—</div></div>
                   <div><div class="s-label" style="margin-bottom:4px;">Est. Time</div><div id="rv-time" style="font-size:13px;font-weight:600;">—</div></div>
                 </div>
@@ -5253,6 +5254,12 @@ function buildReview(){
   document.getElementById('rv-audience').textContent=allGroups?'Global Distribution Stack':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', ');
   document.getElementById('rv-count').textContent=totalCount;
   const rvChannel=document.getElementById('rv-channel');if(rvChannel)rvChannel.textContent=getSelectedCampaignChannel()==='whatsapp'?'WhatsApp':getSelectedCampaignChannel();
+  const rvInboxRow=document.getElementById('rv-inbox-row');
+  if(rvInboxRow){
+    const inbox=(S.chatwootInboxes||[]).find(ib=>ib.inboxId===S.activeCampaignInboxId);
+    if(inbox){rvInboxRow.style.display='block';document.getElementById('rv-inbox').textContent=inbox.label;}
+    else rvInboxRow.style.display='none';
+  }
   document.getElementById('rv-template').textContent=S.selectedTemplate?.name||'—';
   document.getElementById('rv-time').textContent=`~${Math.ceil(totalCount*2/60)} minute engine execution window`;
   document.getElementById('rv-msg').textContent=S.selectedTemplate?.body||'';
