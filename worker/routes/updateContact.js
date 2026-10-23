@@ -1,3 +1,5 @@
+import { detectCountryFromPhone, applyDetectedCountry } from './detectCountry.js';
+
 export async function handleUpdateContact(request, env) {
   const email = (request.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase();
   const actor = email ? await env.DB.prepare('SELECT email,role,teamId FROM users WHERE email=?').bind(email).first() : null;
@@ -12,27 +14,35 @@ export async function handleUpdateContact(request, env) {
     : 'ownerEmail = ?';
   const ownerParam = actor.role === 'Sales' ? actor.email : (actor.teamId || '');
 
+  const phone = String(body.phone || '').trim();
+  let country = String(body.country || '').trim();
+  if (phone) country = applyDetectedCountry(country, await detectCountryFromPhone(env, phone, country));
+
   const stmt = env.DB.prepare(
     `UPDATE contacts SET
       contactName=?, company=?, phone=?, email=?, category=?, source=?,
       platform=?, country=?, brand=?, productInterest=?,
-      telegramUsername=?, linkedin=?, updatedAt=CURRENT_TIMESTAMP
+      telegramUsername=?, linkedin=?, whatsapp=?, contactPersonName=?, contactPersonTitle=?,
+      updatedAt=CURRENT_TIMESTAMP
      WHERE id=? AND ${ownership}`
   );
 
   const binds = [
     String(body.contactName || ''),
     String(body.company || body.contactName || ''),
-    String(body.phone || ''),
+    phone,
     String(body.email || '').toLowerCase(),
     String(body.category || ''),
     String(body.source || ''),
     String(body.platform || ''),
-    String(body.country || ''),
+    country,
     String(body.brand || ''),
     String(body.productInterest || ''),
     String(body.telegramUsername || '').trim().replace(/^@/, ''),
     String(body.linkedin || '').trim(),
+    String(body.whatsapp || '').trim(),
+    String(body.contactPersonName || '').trim(),
+    String(body.contactPersonTitle || '').trim(),
     id,
   ];
   if (actor.role !== 'Administrator') binds.push(ownerParam);

@@ -18,7 +18,6 @@
   --r:14px;--r-sm:9px;--r-lg:18px;--r-pill:999px;
   --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;
   --ease:cubic-bezier(0.4,0,0.2,1);
-  --wa-bubble-in:#ffffff;--wa-bubble-out:#d9fdd3;--wa-text-in:#111b21;--wa-text-out:#111b21;
 }
 body.dark{
   --bg:#0f172a;--bg2:#1e293b;--bg3:#1a2540;--bg4:#263352;
@@ -30,7 +29,6 @@ body.dark{
   --text:#f1f5f9;--text2:#94a3b8;--text3:#475569;
   --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.11);
   --shadow:0 4px 24px rgba(0,0,0,0.4);--shadow-sm:0 2px 10px rgba(0,0,0,0.3);--shadow-lift:0 10px 32px rgba(0,0,0,0.45);
-  --wa-bubble-in:#202c33;--wa-bubble-out:#005c4b;--wa-text-in:#e9edef;--wa-text-out:#e9edef;
 }
 .sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-left:4px;transition:background 0.3s;}
 .sync-idle{background:var(--border2);}
@@ -325,34 +323,22 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .live-toggle:hover{border-color:var(--accent);color:var(--text);}
 .live-toggle .sync-dot{margin-left:0;}
 
-/* Conversation Split Layout — full WhatsApp-style two-pane inbox */
-.conv-split{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start;height:calc(100vh - 200px);min-height:480px;}
+/* Conversation Split Layout */
+.conv-split{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start;height:calc(100vh - 230px);min-height:420px;}
 @media(max-width:900px){.conv-split{grid-template-columns:1fr;height:auto;}}
 .conv-list-card{height:100%;overflow-y:auto;margin-bottom:0;}
-.conv-thread-card{height:100%;display:flex;flex-direction:column;margin-bottom:0;overflow:hidden;}
-.conv-thread-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;background:var(--bg2);}
+.conv-thread-card{height:100%;display:flex;flex-direction:column;margin-bottom:0;}
+.conv-thread-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;}
 .thread-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.conv-thread-body{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:3px;
-  background-color:var(--bg);
-  background-image:radial-gradient(circle at 1px 1px,var(--border) 1px,transparent 0);
-  background-size:22px 22px;}
+.conv-thread-body{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;background:var(--bg);}
 .thread-empty{margin:auto;text-align:center;color:var(--text3);font-size:12px;line-height:1.7;padding:24px;}
-.t-day-sep{align-self:center;margin:8px 0;padding:4px 12px;border-radius:var(--r-pill);background:var(--bg2);color:var(--text3);font-size:10px;font-weight:600;box-shadow:var(--shadow-sm);}
-.t-bubble-row{display:flex;flex-direction:column;max-width:68%;margin:3px 0;animation:bubbleIn 0.15s ease;}
+.t-bubble-row{display:flex;flex-direction:column;max-width:72%;animation:bubbleIn 0.2s ease;}
 .t-bubble-row.t-in{align-items:flex-start;align-self:flex-start;}
 .t-bubble-row.t-out{align-items:flex-end;align-self:flex-end;}
-.t-bubble{position:relative;padding:7px 42px 7px 11px;border-radius:9px;font-size:13.5px;line-height:1.4;color:var(--wa-text-in);background:var(--wa-bubble-in);box-shadow:var(--shadow-sm);word-break:break-word;}
-.t-bubble-row.t-out .t-bubble{color:var(--wa-text-out);background:var(--wa-bubble-out);border-bottom-right-radius:2px;}
-.t-bubble-row.t-in .t-bubble{border-bottom-left-radius:2px;}
-.t-bubble-time{float:right;margin:4px -34px -2px 6px;font-size:10px;color:var(--text3);display:flex;align-items:center;gap:3px;white-space:nowrap;}
-.t-tick{color:#53bdeb;}
-.conv-compose{flex-shrink:0;display:flex;align-items:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:var(--bg2);}
-.conv-compose-input{flex:1;resize:none;max-height:120px;border:1px solid var(--border2);border-radius:var(--r-lg);padding:10px 14px;font:400 13px var(--font);color:var(--text);background:var(--bg3);outline:none;transition:border-color .12s;}
-.conv-compose-input:focus{border-color:var(--accent);}
-.conv-compose-input:disabled{opacity:0.5;cursor:not-allowed;}
-.conv-compose-send{flex-shrink:0;width:38px;height:38px;border-radius:50%;border:none;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s,opacity .1s;}
-.conv-compose-send:hover:not(:disabled){transform:scale(1.06);}
-.conv-compose-send:disabled{opacity:0.4;cursor:not-allowed;}
+.t-bubble{padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.5;color:var(--text);background:var(--bg2);border:1px solid var(--border);word-break:break-word;}
+.t-bubble-row.t-out .t-bubble{background:var(--accent);color:#000;border-color:var(--accent);border-bottom-right-radius:4px;}
+.t-bubble-row.t-in .t-bubble{border-bottom-left-radius:4px;}
+.t-bubble-time{font-size:10px;color:var(--text3);margin-top:3px;padding:0 4px;}
 @keyframes bubbleIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 
 /* Form */
@@ -682,9 +668,165 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .mobile-more-item svg{width:17px;height:17px;flex-shrink:0;color:var(--text2);}
 .mobile-more-empty{padding:28px;text-align:center;color:var(--text3);font-size:12px;}
 </style>
+<style>
+/* ── Conversations: WhatsApp-style polish ── */
+.conv-toolbar-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+.conv-search-wrap{position:relative;flex:1;min-width:160px;max-width:260px;}
+.conv-search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--text3);pointer-events:none;}
+.conv-search-wrap input{width:100%;padding:6px 10px 6px 28px;font-size:11px;border-radius:var(--r-pill);border:1px solid var(--border2);background:var(--bg3);color:var(--text);outline:0;transition:border-color .15s;font-family:var(--font);}
+.conv-search-wrap input:focus{border-color:var(--accent);}
+.c-avatar-wrap{position:relative;flex-shrink:0;}
+.c-channel-dot{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;border:2px solid var(--bg2);}
+.c-channel-dot.ch-wa{background:#25d366;}
+.c-channel-dot.ch-em{background:var(--accent);}
+.c-channel-dot.ch-wc{background:var(--blue);}
+.conv-item.has-unread .c-name{color:var(--text);font-weight:700;}
+.conv-item.has-unread .c-msg{color:var(--text);font-weight:600;}
+.conv-item.has-unread .c-time{color:var(--green);font-weight:700;}
+
+.conv-thread-card{position:relative;}
+.conv-thread-body{background-color:var(--bg);background-image:radial-gradient(rgba(15,23,42,.045) 1px,transparent 1px);background-size:16px 16px;scroll-behavior:smooth;}
+body.dark .conv-thread-body{background-image:radial-gradient(rgba(255,255,255,.045) 1px,transparent 1px);}
+
+/* Message bubbles */
+.t-bubble-row{margin-top:10px;}
+.t-bubble-row.t-grouped{margin-top:2px;}
+.t-bubble{display:inline-flex;flex-direction:column;padding:7px 13px 6px;position:relative;}
+.t-bubble-text{white-space:pre-wrap;}
+.t-bubble-meta{align-self:flex-end;display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--text3);margin-top:2px;line-height:1;white-space:nowrap;}
+.t-bubble-row.t-out .t-bubble{background:#dcf8c6;color:#0b141a;border-color:rgba(0,0,0,.06);}
+.t-bubble-row.t-out .t-bubble-meta{color:rgba(11,20,26,.55);}
+body.dark .t-bubble-row.t-out .t-bubble{background:#025144;color:#e9edef;border-color:rgba(255,255,255,.07);}
+body.dark .t-bubble-row.t-out .t-bubble-meta{color:rgba(233,237,239,.62);}
+.t-tick-read{color:#34b7f1!important;}
+.t-bubble-row.t-out:not(.t-grouped) .t-bubble{border-bottom-right-radius:4px;}
+.t-bubble-row.t-in:not(.t-grouped) .t-bubble{border-bottom-left-radius:4px;}
+.t-bubble-row.t-out.t-grouped .t-bubble,
+.t-bubble-row.t-in.t-grouped .t-bubble{border-bottom-right-radius:14px;border-bottom-left-radius:14px;}
+.t-bubble-row.t-out:not(.t-grouped) .t-bubble::after,
+.t-bubble-row.t-in:not(.t-grouped) .t-bubble::after{content:'';position:absolute;bottom:0;width:10px;height:13px;background:inherit;}
+.t-bubble-row.t-out:not(.t-grouped) .t-bubble::after{right:-6px;clip-path:polygon(0 0,0 100%,100% 100%);}
+.t-bubble-row.t-in:not(.t-grouped) .t-bubble::after{left:-6px;clip-path:polygon(100% 0,0 100%,100% 100%);}
+
+.thread-date-sep{align-self:center;background:var(--bg3);color:var(--text3);font-size:10.5px;font-weight:600;padding:4px 12px;border-radius:var(--r-pill);margin:6px 0;box-shadow:var(--shadow-sm);}
+.thread-trunc-note{text-align:center;color:var(--text3);font-size:11px;padding-bottom:4px;align-self:center;}
+.thread-cta{display:inline-flex;align-items:center;gap:6px;margin-top:14px;text-decoration:none;}
+.thread-scroll-btn{position:absolute;right:24px;bottom:88px;width:34px;height:34px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;transform:translateY(6px);}
+.thread-scroll-btn.show{opacity:1;pointer-events:auto;transform:none;}
+
+/* Internal (private) note bubble — Chatwoot's own convention: yellow, full-width, no tail */
+.t-bubble-row.t-private{align-self:center;max-width:88%;}
+.t-bubble-row.t-private .t-bubble{background:#fef3c7;color:#78350f;border-color:rgba(120,53,15,.15);border-radius:10px;}
+body.dark .t-bubble-row.t-private .t-bubble{background:rgba(217,119,6,.18);color:#fde68a;border-color:rgba(253,230,138,.15);}
+.t-bubble-row.t-private:not(.t-grouped) .t-bubble::after{display:none;}
+.t-note-label{font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;opacity:.7;margin-bottom:2px;}
+.t-bubble-attachment{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.85;}
+.t-bubble-attachment svg{flex-shrink:0;}
+.t-bubble-img{display:block;max-width:240px;max-height:240px;border-radius:8px;margin-bottom:4px;cursor:pointer;object-fit:cover;}
+.t-bubble-audio,.t-bubble-video{display:block;max-width:240px;margin-bottom:4px;border-radius:8px;}
+.t-bubble-file{display:flex;align-items:center;gap:7px;font-size:12px;padding:6px 8px;border-radius:8px;background:rgba(0,0,0,.05);margin-bottom:4px;text-decoration:none;color:inherit;}
+body.dark .t-bubble-file{background:rgba(255,255,255,.06);}
+.t-bubble-file svg{flex-shrink:0;}
+
+/* Quoted-message snippet inside a reply bubble */
+.t-quote{border-left:3px solid var(--accent);background:rgba(0,0,0,.05);border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:11.5px;opacity:.8;max-width:100%;overflow:hidden;}
+body.dark .t-quote{background:rgba(255,255,255,.07);}
+.t-quote-sender{font-weight:700;display:block;}
+.t-quote-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
+
+/* Action icons (reply/forward/pin/delete) — reveal on bubble hover, WhatsApp-style */
+.t-bubble-row{position:relative;}
+.t-bubble-actions{position:absolute;top:2px;opacity:0;display:flex;gap:3px;transition:opacity .12s;}
+.t-bubble-row.t-out .t-bubble-actions{left:-28px;flex-direction:row-reverse;}
+.t-bubble-row.t-in .t-bubble-actions{right:-28px;}
+.t-bubble-row:hover .t-bubble-actions{opacity:1;}
+.t-action-btn{width:22px;height:22px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);box-shadow:var(--shadow-sm);flex-shrink:0;}
+.t-action-btn:hover{color:var(--accent);}
+.t-action-btn.danger:hover{color:var(--red);}
+.t-bubble-actions{z-index:2;}
+
+/* Pinned-message banner above the thread */
+.thread-pinned-banner{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--accent-dim);border-bottom:1px solid var(--border);font-size:11px;flex-shrink:0;}
+.thread-pinned-banner .tpb-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2);cursor:pointer;}
+.thread-pinned-banner svg.tpb-pin-icon{flex-shrink:0;color:var(--accent);}
+.thread-pinned-banner .tpb-close{flex-shrink:0;color:var(--text3);cursor:pointer;}
+.t-bubble-row.t-pinned-target{animation:pinFlash 1.4s ease;}
+@keyframes pinFlash{0%,100%{background:transparent;}30%{background:var(--accent-dim);border-radius:14px;}}
+
+/* Forward picker rows */
+.fwd-row{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:9px;cursor:pointer;}
+.fwd-row:hover{background:var(--bg3);}
+.fwd-row .fwd-avatar{width:30px;height:30px;border-radius:50%;background:var(--accent-dim);color:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;}
+.fwd-row .fwd-name{font-size:12.5px;font-weight:600;color:var(--text);}
+.fwd-row .fwd-sub{font-size:10.5px;color:var(--text3);}
+
+/* Contact info side panel — slides in over the thread rather than resizing the grid */
+.contact-panel{position:absolute;top:0;right:0;bottom:0;width:280px;background:var(--bg2);border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(0,0,0,.1);transform:translateX(100%);transition:transform .2s ease;z-index:15;overflow-y:auto;display:flex;flex-direction:column;}
+.contact-panel.open{transform:translateX(0);}
+.contact-panel-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;font-weight:700;font-size:13px;}
+.contact-panel-body{padding:14px 16px;font-size:12px;display:flex;flex-direction:column;gap:11px;}
+.cp-avatar{width:56px;height:56px;border-radius:50%;background:var(--accent-dim);color:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;margin:0 auto 4px;}
+.cp-field{display:flex;flex-direction:column;gap:2px;}
+.cp-field span{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);font-weight:700;}
+.cp-field b{font-size:12.5px;color:var(--text);font-weight:600;word-break:break-word;}
+.cp-score{display:flex;align-items:baseline;justify-content:center;gap:3px;font-size:24px;font-weight:800;color:var(--green);}
+.cp-close{cursor:pointer;color:var(--text3);}
+@media(max-width:900px){.contact-panel{width:100%;}}
+
+/* A send still in flight (optimistic) or rejected — WhatsApp-style clock/retry affordance */
+.t-bubble-row.t-sending .t-bubble{opacity:.65;}
+.t-bubble-row.t-failed .t-bubble{cursor:pointer;}
+.t-bubble-row.t-failed .t-bubble-meta{color:var(--red)!important;}
+.t-bubble-row.t-failed .t-fail-hint{font-size:10px;color:var(--red);margin-top:2px;text-align:right;}
+
+/* ── Composer ── */
+.conv-composer{border-top:1px solid var(--border);padding:9px 14px;display:flex;align-items:flex-end;gap:8px;background:var(--bg2);flex-shrink:0;position:relative;}
+.conv-composer.disabled{opacity:.55;}
+.composer-icon-btn{flex-shrink:0;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--text3);cursor:pointer;transition:background .12s,color .12s;}
+.composer-icon-btn:hover{background:var(--bg3);color:var(--text2);}
+.composer-input-wrap{flex:1;min-width:0;}
+#composer-input{width:100%;resize:none;border:1px solid var(--border2);background:var(--bg);color:var(--text);border-radius:20px;padding:9px 15px;font:400 13px var(--font);line-height:1.4;max-height:120px;overflow-y:auto;outline:none;}
+#composer-input:focus{border-color:var(--accent);}
+.composer-send-btn{flex-shrink:0;width:36px;height:36px;border-radius:50%;border:none;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s,opacity .1s;}
+.composer-send-btn:hover{transform:scale(1.05);}
+.composer-send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.composer-window-note{padding:6px 14px;font-size:11px;color:var(--amber);background:rgba(245,158,11,.08);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;}
+.composer-window-note button{flex-shrink:0;}
+.composer-reply-preview{padding:7px 14px;background:var(--bg3);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;font-size:11px;}
+.composer-reply-preview .crp-text{color:var(--text2);border-left:2px solid var(--accent);padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.composer-reply-preview .crp-close{cursor:pointer;color:var(--text3);flex-shrink:0;}
+
+/* Emoji picker */
+.emoji-picker{position:absolute;bottom:52px;left:10px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;box-shadow:var(--shadow-lg,0 10px 30px rgba(0,0,0,.18));padding:8px;display:none;grid-template-columns:repeat(8,1fr);gap:2px;z-index:20;max-height:180px;overflow-y:auto;width:264px;}
+.emoji-picker.open{display:grid;}
+.emoji-picker button{border:none;background:transparent;font-size:18px;line-height:1;padding:5px;border-radius:6px;cursor:pointer;}
+.emoji-picker button:hover{background:var(--bg3);}
+
+/* Thread in-conversation search */
+.thread-search-bar{display:none;align-items:center;gap:7px;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;}
+.thread-search-bar.open{display:flex;}
+.thread-search-bar input{flex:1;border:1px solid var(--border2);background:var(--bg);color:var(--text);border-radius:8px;padding:6px 10px;font:400 12px var(--font);outline:none;}
+.thread-search-bar input:focus{border-color:var(--accent);}
+.thread-search-count{font-size:10px;color:var(--text3);white-space:nowrap;}
+.t-bubble mark{background:rgba(245,158,11,.55);color:inherit;border-radius:2px;}
+.t-bubble-row.t-search-hidden{display:none;}
+
+/* Pin / mute on a conversation list item */
+.conv-pin-btn,.conv-mute-btn{opacity:0;flex-shrink:0;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;color:var(--text3);cursor:pointer;border-radius:5px;}
+.conv-item:hover .conv-pin-btn,.conv-item:hover .conv-mute-btn{opacity:1;}
+.conv-item.pinned .conv-pin-btn{opacity:1;color:var(--accent);}
+.conv-item.muted .conv-mute-btn{opacity:1;color:var(--text2);}
+.conv-pin-btn:hover,.conv-mute-btn:hover{background:var(--bg3);}
+.conv-item.pinned{background:var(--accent-dim);}
+
+/* Leads → WhatsApp quick action */
+.wa-quick-btn{background:rgba(37,211,102,.12);color:#1a9c4e;border:1px solid rgba(37,211,102,.28);}
+body.dark .wa-quick-btn{color:#3ddc78;}
+.wa-quick-btn:hover{background:rgba(37,211,102,.2);}
+</style>
 <!-- 2026 visual refresh: softer neutrals, calmer shadows, a touch more breathing room and
-     rounding across cards/buttons/badges. Layered on top (same pattern as the two style
-     blocks above) so every page picks it up through the existing var(--x) tokens. -->
+     rounding across cards/buttons/badges. Layered on top (same pattern as the style blocks
+     above) so every page picks it up through the existing var(--x) tokens. -->
 <style>
 :root{
   --bg:#f6f7fb;--bg2:#ffffff;--bg3:#eef1f6;--bg4:#e4e8f0;
@@ -1139,11 +1281,15 @@ body.dark{
         <div class="chips" id="conv-inbox-tabs" style="display:none;"></div>
         <div class="card" style="margin-bottom:14px;">
           <div class="card-body" style="padding:10px 16px;">
-            <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+            <div class="conv-toolbar-row">
               <button class="t-btn btn-primary" id="f-all" onclick="filterConv('all',this)" style="padding:5px 12px;font-size:11px;">All</button>
               <button class="t-btn btn-ghost" id="f-open" onclick="filterConv('open',this)" style="padding:5px 12px;font-size:11px;">Open</button>
               <button class="t-btn btn-ghost" id="f-pending" onclick="filterConv('pending',this)" style="padding:5px 12px;font-size:11px;">Pending</button>
               <button class="t-btn btn-ghost" id="f-resolved" onclick="filterConv('resolved',this)" style="padding:5px 12px;font-size:11px;">Resolved</button>
+              <div class="conv-search-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input id="conv-search-input" placeholder="Search name or number…" oninput="filterConvSearch(this.value)"/>
+              </div>
               <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
                 <div class="live-toggle" id="live-toggle" onclick="toggleLiveSync()" title="Auto-refresh conversations">
                   <span class="sync-dot sync-idle" id="live-dot"></span>
@@ -1165,6 +1311,16 @@ body.dark{
                 <div style="font-size:11px;color:var(--text3);margin-top:2px;" id="thread-sub"></div>
               </div>
               <div class="thread-actions">
+                <button class="t-btn btn-ghost" id="contact-panel-btn" onclick="toggleContactPanel()" disabled title="Contact info">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </button>
+                <button class="t-btn btn-ghost" id="thread-search-btn" onclick="toggleThreadSearch()" disabled title="Search this conversation">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                </button>
+                <button class="t-btn wa-quick-btn" id="template-msg-btn" onclick="openSendTemplateModalForSelected()" disabled title="Send an approved WhatsApp template message">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  Template
+                </button>
                 <button class="t-btn btn-ghost" id="replay-btn" onclick="replayThread()" disabled>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   Replay
@@ -1175,14 +1331,57 @@ body.dark{
                 </a>
               </div>
             </div>
-            <div id="thread-body" class="conv-thread-body">
+            <div class="thread-search-bar" id="thread-search-bar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" style="flex-shrink:0;color:var(--text3);"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input id="thread-search-input" placeholder="Search in this conversation…" oninput="applyThreadSearch(this.value)"/>
+              <span class="thread-search-count" id="thread-search-count"></span>
+              <span class="crp-close" onclick="toggleThreadSearch()" title="Close search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </span>
+            </div>
+            <div class="thread-pinned-banner" id="thread-pinned-banner" style="display:none;">
+              <svg class="tpb-pin-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+              <span class="tpb-text" id="thread-pinned-banner-text" onclick="scrollToPinnedMessage()"></span>
+              <span class="tpb-close" onclick="unpinBannerMessage()" title="Unpin">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </span>
+            </div>
+            <div id="thread-body" class="conv-thread-body" onscroll="handleThreadScroll()">
               <div class="thread-empty">Select a conversation to view the message thread.</div>
             </div>
-            <div class="conv-compose">
-              <textarea id="thread-input" class="conv-compose-input" rows="1" placeholder="Type a message…" disabled onkeydown="handleThreadInputKey(event)"></textarea>
-              <button class="conv-compose-send" id="thread-send-btn" onclick="sendThreadMessage()" disabled title="Send">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            <div class="thread-scroll-btn" id="thread-scroll-btn" onclick="scrollThreadToBottom(true)" title="Jump to latest">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="composer-window-note" id="composer-window-note" style="display:none;">
+              <span>This conversation's 24-hour WhatsApp window looks closed — a plain message may be rejected.</span>
+              <button class="t-btn btn-ghost t-btn-sm" onclick="openSendTemplateModalForSelected()">Send Template instead</button>
+            </div>
+            <div class="composer-reply-preview" id="composer-reply-preview" style="display:none;">
+              <div class="crp-text" id="composer-reply-preview-text"></div>
+              <span class="crp-close" onclick="clearReplyTo()" title="Cancel reply">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </span>
+            </div>
+            <div class="emoji-picker" id="emoji-picker"></div>
+            <div class="conv-composer" id="conv-composer">
+              <button class="composer-icon-btn" id="emoji-toggle-btn" onclick="toggleEmojiPicker()" disabled title="Emoji">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="19" height="19"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
               </button>
+              <div class="composer-input-wrap">
+                <textarea id="composer-input" rows="1" placeholder="Select a conversation to reply…" disabled onkeydown="handleComposerKeydown(event)" oninput="autoGrowComposer(this)"></textarea>
+              </div>
+              <button class="composer-send-btn" id="composer-send-btn" onclick="sendConversationMessage()" disabled title="Send">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
+            <div class="contact-panel" id="contact-panel">
+              <div class="contact-panel-head">
+                <span>Contact Info</span>
+                <span class="cp-close" onclick="closeContactPanel()" title="Close">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </span>
+              </div>
+              <div class="contact-panel-body" id="contact-panel-body"></div>
             </div>
           </div>
         </div>
@@ -1584,6 +1783,7 @@ body.dark{
           <button class="disc-type-btn active" onclick="setDiscWindow('maps',this)">Google Maps<span class="disc-tabcount" id="disc-tabcount-maps"></span></button>
           <button class="disc-type-btn" onclick="setDiscWindow('gis2',this)">2GIS<span class="disc-tabcount" id="disc-tabcount-gis2"></span></button>
           <button class="disc-type-btn" onclick="setDiscWindow('kaspi',this)">Kaspi.kz (Kazakhstan Marketplace)<span class="disc-tabcount" id="disc-tabcount-kaspi"></span></button>
+          <button class="disc-type-btn" onclick="setDiscWindow('company',this)">Company Search<span class="disc-tabcount" id="disc-tabcount-company"></span></button>
         </div>
 
         <!-- ── Google Maps window ── -->
@@ -1638,9 +1838,27 @@ body.dark{
               </div>
               <div style="margin-top:12px;">
                 <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-                  <input type="checkbox" id="disc-enrich-social-maps"> Also fetch Telegram &amp; LinkedIn (from each business's website)
+                  <input type="checkbox" id="disc-enrich-social-maps"> Also fetch Telegram &amp; WhatsApp &amp; LinkedIn (from each business's website, and its Instagram if linked)
                 </label>
-                <div class="fi-hint">Best-effort: fetches each result's homepage and looks for a t.me or linkedin.com link — adds a few extra seconds and only works for results that have a website. Capped at 20 sites per search.</div>
+                <div class="fi-hint">Best-effort: fetches each result's homepage for a t.me, wa.me or linkedin.com link, then follows a linked Instagram profile too if none was found — adds a few extra seconds and only works for results that have a website. Instagram is never added as a lead itself, only whatever WhatsApp/Telegram it leads to. Capped at 20 sites per search.</div>
+              </div>
+              <div style="margin-top:8px;">
+                <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="disc-enrich-deepsearch-maps"> Then run a deeper Yandex search (SerpApi) for any still missing WhatsApp
+                </label>
+                <div class="fi-hint">Searches Yandex via SerpApi for each business's name + location, looking for a WhatsApp number mentioned anywhere online — a directory listing, marketplace page, or social mention — not just its own website. Yandex rather than Google since it indexes Russia/CIS businesses far more thoroughly. WhatsApp only (Telegram is already covered by the free check above). Only runs for results still missing a WhatsApp number. Costs one paid SerpApi search per lead, capped at 15 per search, so leave this off unless you need the extra reach.</div>
+              </div>
+              <div style="margin-top:8px;">
+                <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="disc-enrich-contact-person-maps"> Then find the right contact person (LinkedIn via SerpApi, extra cost)
+                </label>
+                <div class="fi-hint">Searches for a public LinkedIn profile (owner, director, purchasing/procurement, sales manager, ...) at each business via SerpApi, so you're not just messaging a front-desk number — pulls a name, title and profile link when a decision-maker's profile turns up. Costs one paid SerpApi search per lead, capped at 15 per search.</div>
+              </div>
+              <div style="margin-top:8px;">
+                <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="disc-enrich-directories-maps"> Then check Volza, Yellow Pages, Golden Pages &amp; Kadorf (extra cost)
+                </label>
+                <div class="fi-hint">Searches Volza (import/export trade data), Yellow Pages (US), Golden Pages (Ireland) and Kadorf via SerpApi for each business's name + location — Kadorf here is a public web search, not a query against Whizz's own credentialed Kadorf account. Volza's real shipment data needs a paid account login, so this only links its public trade profile page when one turns up; Yellow/Golden Pages/Kadorf listings are public, so their phone/email fill in a result still missing one, and their category/description text is added too. Costs one paid SerpApi search per lead (covers all four sources), capped at 15 per search.</div>
               </div>
             </div>
           </div>
@@ -1649,6 +1867,18 @@ body.dark{
               <div class="card-title" id="disc-results-title-maps">Results</div>
               <div style="display:none;gap:7px;align-items:center;" id="disc-actions-maps">
                 <button class="t-btn btn-ghost t-btn-sm" onclick="selectAllDisc('maps')">Select All</button>
+                <button class="t-btn btn-ghost t-btn-sm" title="Yandex-search (SerpApi) the results still missing WhatsApp for a number mentioned elsewhere online (paid search)" onclick="deepSearchMapsSocialLinks()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  Deep Search
+                </button>
+                <button class="t-btn btn-ghost t-btn-sm" title="Find a decision-maker's LinkedIn profile for each result (paid search)" onclick="findContactPersonsMaps()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  Find Contact
+                </button>
+                <button class="t-btn btn-ghost t-btn-sm" title="Check Volza, Yellow Pages, Golden Pages &amp; Kadorf for each result (paid search)" onclick="findBusinessDirectoriesMaps()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                  Directories
+                </button>
                 <button class="t-btn btn-ghost t-btn-sm" onclick="exportDiscCSV('maps')">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   Export CSV
@@ -1778,6 +2008,71 @@ body.dark{
               <div class="disc-empty">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
                 Enter a brand and click <strong>Discover</strong> to run a deep Kaspi.kz marketplace crawl.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Company Search window ── -->
+        <div class="disc-window" id="discwin-company" style="display:none;">
+          <div class="card" style="margin-bottom:14px;">
+            <div class="card-head">
+              <div class="card-title">Company Search
+                <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">powered by SerpApi · look up one known company and enhance its profile</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="disc-filters" style="grid-template-columns:1fr 1fr 120px;">
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Company Name</label>
+                  <input class="fi" id="disc-company-name" placeholder="e.g. Al Futtaim Trading" onkeydown="if(event.key==='Enter')runDiscovery('company')"/>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl">Location <span style="opacity:.6;">(optional, helps disambiguate)</span></label>
+                  <input class="fi" id="disc-company-location" placeholder="e.g. Dubai, UAE" onkeydown="if(event.key==='Enter')runDiscovery('company')"/>
+                </div>
+                <div class="fg" style="margin:0;">
+                  <label class="fl" style="opacity:0;">Run</label>
+                  <button class="t-btn btn-primary" id="disc-run-btn-company" onclick="runDiscovery('company')" style="width:100%;justify-content:center;gap:6px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" id="disc-run-icon-company"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <span id="disc-run-label-company">Search</span>
+                  </button>
+                </div>
+              </div>
+              <div class="fi-hint">Searches the web (via SerpApi/Yandex) for the company name, picks out its likely official website, phone, WhatsApp and address, then checks that website for a Telegram/WhatsApp/LinkedIn link — and cross-references it against Whizz's own already-imported Handelot prospects (Directory Sources in Lead Intelligence), showing any matches as their own cards. Each search adds to the list below rather than replacing it, so you can look up several companies in a row before bulk-adding them to Leads.</div>
+              <div style="margin-top:10px;">
+                <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="disc-enrich-contact-person-company"> Also find the decision-maker (LinkedIn via SerpApi, extra cost)
+                </label>
+                <div class="fi-hint">Searches for a public LinkedIn profile (owner, director, purchasing/procurement, sales manager, ...) at this company via SerpApi, so you're not just left with a general phone/website — pulls a name, title and profile link when a decision-maker's profile turns up. Costs one extra paid SerpApi search per company.</div>
+              </div>
+              <div style="margin-top:8px;">
+                <label class="fl" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="disc-enrich-business-directory-company"> Also check Volza, Yellow Pages, Golden Pages &amp; Kadorf (extra cost)
+                </label>
+                <div class="fi-hint">Searches Volza (trade-profile link — real shipment data needs a paid Volza login), Yellow Pages (US), Golden Pages (Ireland) and Kadorf for this company via SerpApi, filling in a phone/email/description gap a website search alone might miss. Kadorf here is a public web search (Kadorf publishes company profiles openly), not a query against Whizz's own credentialed Kadorf account — for that, see the Handelot cross-reference this search already runs. Costs one extra paid SerpApi search per company.</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title" id="disc-results-title-company">Results</div>
+              <div style="display:none;gap:7px;align-items:center;" id="disc-actions-company">
+                <button class="t-btn btn-ghost t-btn-sm" onclick="selectAllDisc('company')">Select All</button>
+                <button class="t-btn btn-ghost t-btn-sm" onclick="exportDiscCSV('company')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export CSV
+                </button>
+                <button class="t-btn btn-success t-btn-sm" id="disc-save-btn-company" onclick="saveSelectedContacts('company')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/><circle cx="16" cy="4" r="3"/></svg>
+                  Add Selected to Leads
+                </button>
+              </div>
+            </div>
+            <div class="card-body" id="disc-results-body-company">
+              <div class="disc-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+                Enter a company name and click <strong>Search</strong> to build an enriched profile via SerpApi.
               </div>
             </div>
           </div>
@@ -2227,14 +2522,69 @@ body.dark{
         <div class="fg" style="margin:0;"><label class="fl">Category</label><input class="fi" id="ec-category" placeholder="e.g. Distributor"/></div>
         <div class="fg" style="margin:0;"><label class="fl">Source</label><input class="fi" id="ec-source" placeholder="e.g. Manual Entry"/></div>
         <div class="fg" style="margin:0;"><label class="fl">Platform</label><input class="fi" id="ec-platform"/></div>
-        <div class="fg" style="margin:0;"><label class="fl">Country</label><input class="fi" id="ec-country"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Country</label><div style="display:flex;gap:6px;align-items:center;"><input class="fi" id="ec-country" style="flex:1;"/><button type="button" class="t-btn btn-ghost" style="padding:6px 10px;font-size:11px;white-space:nowrap;" onclick="detectContactCountry()" title="Identify/correct country from the phone number using Cloudflare AI">📍 Detect</button></div><div id="ec-region-hint" style="font-size:10px;color:var(--text3);margin-top:4px;"></div></div>
         <div class="fg" style="margin:0;"><label class="fl">Telegram User ID</label><input class="fi" id="ec-telegram" placeholder="@username or numeric ID"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">WhatsApp</label><input class="fi" id="ec-whatsapp" placeholder="+971 50 123 4567 (if different from Phone)"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Contact Person</label><input class="fi" id="ec-contact-person-name" placeholder="e.g. Ivan Petrov (if different from above)"/></div>
+        <div class="fg" style="margin:0;"><label class="fl">Contact Person's Title</label><input class="fi" id="ec-contact-person-title" placeholder="e.g. Purchasing Manager"/></div>
         <div class="fg" style="margin:0;grid-column:1/-1;"><label class="fl">Brand</label><input class="fi" id="ec-brand"/></div>
       </div>
     </div>
     <div class="modal-foot">
       <button class="t-btn btn-ghost" onclick="closeModal('modal-edit-contact')">Cancel</button>
       <button class="t-btn btn-primary" onclick="submitEditLeadContact()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send WhatsApp Template Message (from Conversations) -->
+<div class="modal-overlay" id="modal-send-template">
+  <div class="modal" style="width:min(96vw,520px);">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Send Template Message</div>
+        <div id="stm-recipient" style="font-size:11px;color:var(--text3);margin-top:3px;"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-send-template')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="stm-phone"/>
+      <input type="hidden" id="stm-name"/>
+      <div class="fi-hint" style="margin-bottom:10px;">WhatsApp requires an approved template to message someone who hasn't messaged you first, or when it's been over 24 hours since their last message.</div>
+      <div class="fg" style="margin:0 0 12px;">
+        <label class="fl">Template *</label>
+        <select class="fs" id="stm-template-select" onchange="onStmTemplateChange()">
+          <option value="">Select an approved template…</option>
+        </select>
+      </div>
+      <div id="stm-preview-wrap" style="display:none;">
+        <div class="fl" style="margin-bottom:5px;">Preview</div>
+        <div class="tpl-body" id="stm-preview" style="max-height:120px;margin-bottom:12px;"></div>
+        <div id="stm-vars"></div>
+      </div>
+      <div id="stm-empty-hint" style="text-align:center;color:var(--text3);font-size:12px;padding:16px;">No approved templates loaded yet.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-send-template')">Cancel</button>
+      <button class="t-btn wa-quick-btn" id="stm-send-btn" onclick="submitSendTemplateMessage()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Forward Message Picker -->
+<div class="modal-overlay" id="modal-forward-message">
+  <div class="modal" style="width:min(96vw,420px);">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Forward Message</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;">Choose a conversation to forward to</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-forward-message')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="t-quote" id="fwd-preview" style="margin-bottom:12px;"></div>
+      <input class="fi" id="fwd-search" placeholder="Search conversations…" oninput="renderForwardPicker(this.value)" style="margin-bottom:10px;"/>
+      <div id="fwd-list" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;"></div>
     </div>
   </div>
 </div>
@@ -2289,15 +2639,20 @@ body.dark{
 <div class="modal-overlay" id="modal-enrich-telegram">
   <div class="modal" style="width:min(96vw,520px);">
     <div class="modal-head">
-      <div class="modal-title">Enrich Telegram IDs</div>
+      <div class="modal-title">Enrich Telegram &amp; WhatsApp IDs</div>
       <button class="modal-close" onclick="closeModal('modal-enrich-telegram')">✕</button>
     </div>
     <div class="modal-body">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Adding Telegram (and LinkedIn) to <strong id="et-count">0</strong> selected lead(s).</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Adding Telegram/WhatsApp (and LinkedIn) to <strong id="et-count">0</strong> selected lead(s).</div>
       <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
         <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Auto-check from website</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;"><strong id="et-site-count">0</strong> of the selected lead(s) have a website and no Telegram yet — scans each homepage for a t.me link.</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;"><strong id="et-site-count">0</strong> of the selected lead(s) have a website and are missing Telegram or WhatsApp — scans each homepage (and a linked Instagram profile, if any) for a t.me or wa.me link.</div>
         <button class="t-btn btn-primary t-btn-sm" id="et-auto-btn" onclick="runAutoEnrichTelegram()">Auto-check websites</button>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
+        <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Deeper search (Yandex via SerpApi, extra cost)</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;"><strong id="et-deepsearch-count">0</strong> of the selected lead(s) are still missing WhatsApp — Yandex-searches (via SerpApi) each one's name + country for a WhatsApp number mentioned anywhere online, not just its own site. WhatsApp only. Capped at 15 leads per run.</div>
+        <button class="t-btn btn-ghost t-btn-sm" id="et-deepsearch-btn" onclick="runDeepSearchEnrichTelegram()">Run deeper search</button>
       </div>
       <div>
         <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Paste manually</div>
@@ -2323,6 +2678,9 @@ body.dark{
       <div style="margin-bottom:14px;">
         <div class="fl" style="margin-bottom:8px;">Export scope</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;" id="exp-scope-selected-wrap">
+            <input type="radio" name="exp-scope" value="selected" id="exp-scope-selected"> <span id="exp-scope-selected-label">Selected</span>
+          </label>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
             <input type="radio" name="exp-scope" value="shown" id="exp-scope-shown" checked> <span id="exp-scope-shown-label">Current view</span>
           </label>
@@ -2465,6 +2823,14 @@ const NOTIF_KEY = 'whizz_notifs';
 const OB_KEY = 'whizz_onboarding';
 const SCHEDULE_KEY = 'whizz_scheduled_v1';
 const TASKS_KEY = 'whizz_tasks_v1';
+const CONV_PINS_KEY = 'whizz_conv_pins_v1';
+const CONV_MUTES_KEY = 'whizz_conv_mutes_v1';
+const PINNED_MSG_KEY = 'whizz_pinned_msgs_v1';
+function loadConvIdSet(key){ try{return new Set(JSON.parse(localStorage.getItem(key)||'[]').map(String));}catch(e){return new Set();} }
+function saveConvIdSet(key,set){ try{localStorage.setItem(key,JSON.stringify([...set]));}catch(e){} }
+// One pinned message per conversation, WhatsApp-banner-style — {convId: messageId}.
+function loadPinnedMsgMap(){ try{return JSON.parse(localStorage.getItem(PINNED_MSG_KEY)||'{}');}catch(e){return{};} }
+function savePinnedMsgMap(map){ try{localStorage.setItem(PINNED_MSG_KEY,JSON.stringify(map));}catch(e){} }
 const ROLE_EXPERIENCES={
   Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
   Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
@@ -2502,9 +2868,12 @@ let S = {
     maps: { contacts: [], selected: new Set(), bizType: 'wholesaler' },
     gis2: { contacts: [], selected: new Set() },
     kaspi: { contacts: [], selected: new Set() },
+    company: { contacts: [], selected: new Set() },
   },
   cache: {}, notifications: [], history: [],
   selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: [],
+  convSearch: '', threadSearch: '', pinnedConvIds: loadConvIdSet(CONV_PINS_KEY), mutedConvIds: loadConvIdSet(CONV_MUTES_KEY), replyTo: null,
+  pinnedMsgMap: loadPinnedMsgMap(), forwardingMsg: null,
   chatwootInboxes: [], activeInboxId: ''
 };
 
@@ -2862,6 +3231,40 @@ function buildReportsPageReportHtml(d){
   const taskCards=d.taskList.length?d.taskList.map(taskReportCardHtml).join(''):'<div class="empty-note">No open tasks — nice work.</div>';
   const eventCards=d.upcomingEvents.length?d.upcomingEvents.map(eventCardHtml).join(''):'<div class="empty-note">No upcoming events scheduled.</div>';
 
+  const wl=d.weeklyLeads;
+  const weeklyLeadsSection=wl?(()=>{
+    const maxDaily=Math.max(1,...wl.daily.map(x=>x.count));
+    const dailyBars=wl.daily.map(x=>reportBarRow(new Date(x.date+'T00:00:00').toLocaleDateString('default',{weekday:'short',day:'2-digit'}),x.count,maxDaily,'#16a34a')).join('');
+    const maxWPlatform=wl.platforms[0]?.[1]||1;
+    const maxWCountry=wl.countries[0]?.[1]||1;
+    const wPlatformRows=wl.platforms.map(([k,v])=>reportBarRow(k,v,maxWPlatform,'#f59e0b')).join('')||'<div class="muted">No platform data for this period</div>';
+    const wCountryRows=wl.countries.map(([k,v])=>reportBarRow(k,v,maxWCountry,'#2563eb')).join('')||'<div class="muted">No country data for this period</div>';
+    const changeColor=wl.changePct>0?'#16a34a':wl.changePct<0?'#dc2626':'#94a3b8';
+    const changeSign=wl.changePct>0?'+':'';
+    return`<div class="section-title" style="margin-top:0;">New Leads Collected — Last 7 Days</div>
+    <div class="section-note">Fresh contacts added to the database in the past 7 days, compared with the 7 days before that.</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px;">
+      <div class="kpi-card green"><div class="kpi-label">New Leads This Week</div><div class="kpi-value">${wl.count.toLocaleString()}</div><div class="kpi-sub">Last 7 days</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">Vs. Previous 7 Days</div><div class="kpi-value" style="color:${changeColor};">${changeSign}${wl.changePct}%</div><div class="kpi-sub">Week-over-week trend</div></div>
+      <div class="kpi-card amber"><div class="kpi-label">Avg. Leads / Day</div><div class="kpi-value">${wl.avgPerDay}</div><div class="kpi-sub">This week's daily rate</div></div>
+    </div>
+    <div class="sub-block" style="margin-top:0;">
+      <div class="sub-title">Daily Leads — Last 7 Days</div>
+      ${dailyBars}
+    </div>
+    <div class="two-col-section" style="margin-top:22px;">
+      <div>
+        <div class="sub-title">Top Platforms This Week</div>
+        ${wPlatformRows}
+      </div>
+      <div>
+        <div class="sub-title">Top Countries This Week</div>
+        ${wCountryRows}
+      </div>
+    </div>`;
+  })():`<div class="section-title" style="margin-top:0;">New Leads Collected — Last 7 Days</div>
+    <div class="empty-note">Couldn't load recent lead data. Ensure the contacts webhook is active and try again.</div>`;
+
   return`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Whizz Analytics Report — ${d.generatedAt.toLocaleDateString()}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2936,6 +3339,8 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
     <div class="hero-gen">Generated ${d.generatedAt.toLocaleString()}</div>
   </div>
   <div class="body-pad">
+    ${weeklyLeadsSection}
+
     <div class="section-title">Website Visits — Last 7 Days</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px;">
       <div class="kpi-card blue"><div class="kpi-label">Total Views</div><div class="kpi-value">${totalViews.toLocaleString()}</div><div class="kpi-sub">${sitesOk.length} site${sitesOk.length===1?'':'s'} tracked</div></div>
@@ -2983,11 +3388,11 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
 
     <div class="two-col-section" style="margin-top:30px;">
       <div>
-        <div class="section-title" style="margin-top:0;">Leads by Platform</div>
+        <div class="section-title" style="margin-top:0;">Leads by Platform (All-Time)</div>
         ${platformRows}
       </div>
       <div>
-        <div class="section-title" style="margin-top:0;">Leads by Country</div>
+        <div class="section-title" style="margin-top:0;">Leads by Country (All-Time)</div>
         ${countryRows}
       </div>
     </div>
@@ -3135,7 +3540,43 @@ function downloadPlatformTrackingReport(){
   showToast('Platform tracking report downloaded!','success');
 }
 
-function downloadReportsPageReport(){
+async function downloadReportsPageReport(){
+  const btn=document.getElementById('download-reports-page-btn');
+  if(btn){btn.disabled=true;btn.style.opacity='0.6';}
+  let weeklyLeads=null;
+  try{
+    const data=await apiW('whizz-get-contacts');
+    const contacts=data.contacts||[];
+    const now=new Date();
+    const weekStart=new Date(now);weekStart.setDate(now.getDate()-6);weekStart.setHours(0,0,0,0);
+    const prevWeekStart=new Date(weekStart);prevWeekStart.setDate(prevWeekStart.getDate()-7);
+    const inRange=(c,from,to)=>{if(!c.createdAt)return false;const t=new Date(c.createdAt);return t>=from&&(!to||t<to);};
+    const weekContacts=contacts.filter(c=>inRange(c,weekStart));
+    const prevWeekCount=contacts.filter(c=>inRange(c,prevWeekStart,weekStart)).length;
+    const changePct=prevWeekCount>0?Math.round((weekContacts.length-prevWeekCount)/prevWeekCount*100):(weekContacts.length>0?100:0);
+    const daily=[];
+    for(let i=6;i>=0;i--){
+      const day=new Date(now);day.setDate(now.getDate()-i);
+      const key=day.toISOString().slice(0,10);
+      const count=weekContacts.filter(c=>(c.createdAt||'').slice(0,10)===key).length;
+      daily.push({date:key,count});
+    }
+    const countBy=key=>{
+      const m={};
+      weekContacts.forEach(c=>{const v=c[key]||'Unknown';m[v]=(m[v]||0)+1;});
+      return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    };
+    weeklyLeads={
+      count:weekContacts.length,
+      changePct,
+      avgPerDay:Math.round((weekContacts.length/7)*10)/10,
+      daily,
+      platforms:countBy('platform'),
+      countries:countBy('country')
+    };
+  }catch(e){
+    weeklyLeads=null;
+  }
   const stats=S.cache.stats||{};
   const groups=S.cache.groups||[];
   const platformMap={},countryMap={};
@@ -3187,10 +3628,12 @@ function downloadReportsPageReport(){
     topCountries,
     brevoCampaigns,
     wpTrafficSites:S.cache.wpTrafficSites||[],
-    taskStats,taskList,upcomingEvents
+    taskStats,taskList,upcomingEvents,
+    weeklyLeads
   });
   downloadHTML(html,`Whizz-Analytics-Report-${period}-${now.toISOString().slice(0,10)}.html`);
   showToast('Report downloaded!','success');
+  if(btn){btn.disabled=false;btn.style.opacity='';}
 }
 
 // ── Notifications ──
@@ -3209,6 +3652,7 @@ function renderNotifs() {
 function clearNotifs() { S.notifications=[];localStorage.removeItem(NOTIF_KEY);renderNotifs();document.getElementById('notif-dot').classList.remove('show'); }
 function toggleNotif() { document.getElementById('notif-panel').classList.toggle('open');document.getElementById('notif-dot').classList.remove('show'); }
 document.addEventListener('click',e=>{if(!e.target.closest('#notif-btn')&&!e.target.closest('#notif-panel'))document.getElementById('notif-panel').classList.remove('open');});
+document.addEventListener('click',e=>{if(!e.target.closest('#emoji-toggle-btn')&&!e.target.closest('#emoji-picker'))closeEmojiPicker();});
 
 // ── Onboarding ──
 function loadOnboarding() {
@@ -3706,17 +4150,28 @@ function renderDashCountries(groups){
 function renderConvs(convs){
   convs=convs||[];
   const el=document.getElementById('conv-list');
-  const filtered=(S.convStatus&&S.convStatus!=='all')?convs.filter(c=>c.status===S.convStatus):convs;
+  let filtered=(S.convStatus&&S.convStatus!=='all')?convs.filter(c=>c.status===S.convStatus):convs;
+  if(S.convSearch){
+    const q=S.convSearch;
+    filtered=filtered.filter(c=>(c.contact_name||'').toLowerCase().includes(q)||String(convPhone(c)).toLowerCase().includes(q)||(c.last_message||'').toLowerCase().includes(q));
+  }
   document.getElementById('conv-count').textContent=`${filtered.length} operational records`;
-  if(!filtered.length){el.innerHTML='<div class="thread-empty">No interactions logged under this state filter</div>';return;}
-  el.innerHTML=filtered.map(c=>convHtml(c)).join('');
+  if(!filtered.length){el.innerHTML=`<div class="thread-empty">${S.convSearch?'No conversations match your search.':'No interactions logged under this state filter'}</div>`;return;}
+  // Pinned conversations float to the top, like WhatsApp — stable otherwise (no re-sort
+  // by recency here, the incoming order already reflects that).
+  const pinned=filtered.filter(c=>S.pinnedConvIds.has(String(c.id)));
+  const rest=filtered.filter(c=>!S.pinnedConvIds.has(String(c.id)));
+  el.innerHTML=[...pinned,...rest].map(c=>convHtml(c)).join('');
   if(S.selectedConvId && !filtered.some(c=>String(c.id)===String(S.selectedConvId))){
     S.selectedConvId=null; renderThreadEmpty();
   }
 }
-// Chatwoot conversation payloads vary in how the contact's phone number is named
-// (and whichever workflow builds whizz-get-conversations may already flatten it
-// differently), so check every plausible spot before giving up on it.
+function filterConvSearch(q){
+  S.convSearch=(q||'').trim().toLowerCase();
+  renderConvs(S.cache.conversations||[]);
+}
+// Chatwoot conversation payloads vary in how the contact's phone number is named,
+// so check every plausible spot before giving up on it.
 function convPhone(c){
   return c.phone||c.phone_number||c.contact_phone||c.contact_phone_number||c.mobile||c.mobile_number||
     (c.meta&&c.meta.sender&&c.meta.sender.phone_number)||
@@ -3735,7 +4190,14 @@ function convHtml(c){
   const assignment=c.assignment?.userName||'Unassigned';
   const canAssign=['Administrator','Manager'].includes(CURRENT_SESSION?.role);
   const assignmentAction=canAssign?`<span class="open-cw" onclick="event.stopPropagation();assignConversation('${c.id}')">Assign</span>`:'';
-  return`<div class="conv-item${sel}${inquiryCls}" onclick="selectConv('${c.id}')"><div class="c-avatar">${init}</div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${inquiryBadge}<span class="ch-badge" title="Conversation owner">${assignment}</span>${assignmentAction}${c.unread>0?`<span class="unread">${c.unread}</span>`:''}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
+  const hasUnread=c.unread>0?' has-unread':'';
+  const isPinned=S.pinnedConvIds.has(String(c.id)),isMuted=S.mutedConvIds.has(String(c.id));
+  // Muted still shows a quiet dot (something happened) but hides the loud numeric badge,
+  // matching WhatsApp's own muted-chat behavior.
+  const unreadBadge=c.unread>0?(isMuted?'<span class="unread" style="background:var(--text3);" title="Muted — has unread messages"></span>':`<span class="unread">${c.unread}</span>`):'';
+  const pinBtn=`<span class="conv-pin-btn" onclick="togglePinConv('${c.id}',event)" title="${isPinned?'Unpin':'Pin'} conversation"><svg viewBox="0 0 24 24" fill="${isPinned?'currentColor':'none'}" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg></span>`;
+  const muteBtn=`<span class="conv-mute-btn" onclick="toggleMuteConv('${c.id}',event)" title="${isMuted?'Unmute':'Mute'} conversation">${isMuted?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 9v3a3 3 0 0 0 6 0V5a3 3 0 0 0-6 0v1"/><path d="M17 12a7 7 0 0 1-14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>'}</span>`;
+  return`<div class="conv-item${sel}${inquiryCls}${hasUnread}${isPinned?' pinned':''}${isMuted?' muted':''}" onclick="selectConv('${c.id}')"><div class="c-avatar-wrap"><div class="c-avatar">${init}</div><span class="c-channel-dot ${cls}"></span></div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${inquiryBadge}<span class="ch-badge" title="Conversation owner">${assignment}</span>${assignmentAction}${pinBtn}${muteBtn}${unreadBadge}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
 }
 async function assignConversation(id){
   const users=S.conversationAssignees||[];
@@ -3776,18 +4238,61 @@ function selectInboxTab(inboxId,el){
 
 // ── Conversation Thread Panel ──
 function findConv(id){return (S.cache.conversations||[]).find(c=>String(c.id)===String(id));}
+function findConvByPhone(phone){
+  const key=normalizePhone(phone);
+  if(!key)return null;
+  return (S.cache.conversations||[]).find(c=>normalizePhone(convPhone(c))===key)||null;
+}
+// ── Leads → Conversations bridge ──
+// Jumps a lead's phone number straight into the Conversations tab: opens the
+// matching WhatsApp thread if one already exists, or shows a "not started yet"
+// state (with a wa.me fallback) so the agent isn't stuck on a dead end.
+async function messageLeadOnWhatsApp(phone,name){
+  if(!phone){showToast('No phone number on file for this lead','error');return;}
+  goToPage('conversations');
+  const tryMatch=()=>{const m=findConvByPhone(phone);if(m){selectConv(m.id);return true;}return false;};
+  if(tryMatch())return;
+  S.selectedConvId=null;
+  S.threadContact={phone,name};
+  document.getElementById('thread-contact-name').textContent=name||'New WhatsApp contact';
+  document.getElementById('thread-sub').textContent='No conversation yet';
+  document.getElementById('replay-btn').disabled=true;
+  document.getElementById('template-msg-btn').disabled=false;
+  const link=document.getElementById('open-cw-link');
+  link.removeAttribute('href');link.style.opacity=0.4;link.style.pointerEvents='none';
+  closeThreadSearch();
+  updateComposerState();
+  document.getElementById('thread-body').innerHTML=`<div class="thread-empty">
+    <div style="font-weight:700;color:var(--text);margin-bottom:6px;font-size:13px;">${name?_hesc(name):'This lead'} hasn't messaged in yet</div>
+    WhatsApp requires an approved template to start the conversation — send one, or message them directly.
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button class="t-btn wa-quick-btn thread-cta" onclick="openSendTemplateModal('${phone.replace(/'/g,"\\'")}','${(name||'').replace(/'/g,"\\'")}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Send a Template Message
+      </button>
+      <a class="t-btn btn-ghost thread-cta" href="https://wa.me/${normalizePhone(phone)}" target="_blank">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        Open WhatsApp directly
+      </a>
+    </div>
+  </div>`;
+  try{ await refreshConversations(); tryMatch(); }catch(e){}
+}
 
 function renderThreadEmpty(){
   document.getElementById('thread-contact-name').textContent='Select a conversation';
   document.getElementById('thread-sub').textContent='';
   document.getElementById('thread-body').innerHTML='<div class="thread-empty">Select a conversation to view the message thread.</div>';
   document.getElementById('replay-btn').disabled=true;
+  document.getElementById('template-msg-btn').disabled=true;
   document.getElementById('open-cw-link').removeAttribute('href');
   document.getElementById('open-cw-link').style.opacity=0.4;
   document.getElementById('open-cw-link').style.pointerEvents='none';
-  const input=document.getElementById('thread-input'),sendBtn=document.getElementById('thread-send-btn');
-  if(input){input.value='';input.disabled=true;}
-  if(sendBtn)sendBtn.disabled=true;
+  S.threadContact=null;
+  closeThreadSearch();
+  updateComposerState();
+  const banner=document.getElementById('thread-pinned-banner');
+  if(banner)banner.style.display='none';
 }
 
 async function selectConv(id){
@@ -3796,33 +4301,103 @@ async function selectConv(id){
   const c=findConv(id);
   if(!c)return;
   const phone=convPhone(c);
+  S.threadContact={phone,name:c.contact_name};
   document.getElementById('thread-contact-name').innerHTML=`${c.contact_name||'Unknown'}${phone?`<span style="font-weight:400;color:var(--text3);font-size:11px;margin-left:8px;">${phone}</span>`:''}`;
   document.getElementById('thread-sub').textContent=`${c.channel||'chat'} · ${c.status||''}`;
   const link=document.getElementById('open-cw-link');
   if(CW_URL){link.href=`${CW_URL}/${id}`;link.style.opacity=1;link.style.pointerEvents='auto';}
   else{link.removeAttribute('href');link.style.opacity=0.4;link.style.pointerEvents='none';}
   document.getElementById('replay-btn').disabled=false;
-  const input=document.getElementById('thread-input'),sendBtn=document.getElementById('thread-send-btn');
-  if(input){input.disabled=false;}
-  if(sendBtn)sendBtn.disabled=false;
+  document.getElementById('template-msg-btn').disabled=!phone;
+  closeThreadSearch();
   await loadThread(c,{silent:false});
+  updateComposerState();
 }
 
+// ── Send Template Message (start/re-engage a WhatsApp thread with an approved template) ──
+function openSendTemplateModalForSelected(){
+  const ctx=S.threadContact;
+  if(!ctx||!ctx.phone){showToast('No phone number on file for this contact','error');return;}
+  openSendTemplateModal(ctx.phone,ctx.name);
+}
+async function openSendTemplateModal(phone,name){
+  document.getElementById('stm-phone').value=phone;
+  document.getElementById('stm-name').value=name||'';
+  document.getElementById('stm-recipient').textContent=`${name||'Unknown'} · ${phone}`;
+  document.getElementById('stm-preview-wrap').style.display='none';
+  document.getElementById('stm-vars').innerHTML='';
+  document.getElementById('modal-send-template').classList.add('open');
+  if(!S.cache.templates||!S.cache.templates.length){
+    try{await refreshTemplates();}catch(e){}
+  }
+  populateStmTemplateOptions();
+}
+function populateStmTemplateOptions(){
+  const sel=document.getElementById('stm-template-select'),templates=S.cache.templates||[];
+  const emptyHint=document.getElementById('stm-empty-hint');
+  sel.innerHTML='<option value="">Select an approved template…</option>'+templates.map(t=>`<option value="${_hesc(t.name)}">${_hesc(t.name)} (${_hesc(t.language)})</option>`).join('');
+  emptyHint.style.display=templates.length?'none':'block';
+  sel.disabled=!templates.length;
+}
+function onStmTemplateChange(){
+  const name=document.getElementById('stm-template-select').value;
+  const tpl=(S.cache.templates||[]).find(t=>t.name===name);
+  const wrap=document.getElementById('stm-preview-wrap'),varsEl=document.getElementById('stm-vars');
+  if(!tpl){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  document.getElementById('stm-preview').textContent=tpl.body||'';
+  const varNums=[...new Set([...(tpl.body||'').matchAll(/\{\{(\d+)\}\}/g)].map(m=>m[1]))].sort((a,b)=>a-b);
+  varsEl.innerHTML=varNums.length?`<div class="fl" style="margin-bottom:5px;">Fill in the template variables</div>`+varNums.map(n=>`<div class="fg" style="margin:0 0 8px;"><input class="fi" id="stm-var-${n}" placeholder="Value for {{${n}}}"/></div>`).join(''):'';
+}
+async function submitSendTemplateMessage(){
+  const phone=document.getElementById('stm-phone').value,name=document.getElementById('stm-name').value;
+  const tplName=document.getElementById('stm-template-select').value;
+  if(!tplName){showToast('Select a template first','error');return;}
+  const tpl=(S.cache.templates||[]).find(t=>t.name===tplName);
+  const varNums=[...new Set([...(tpl?.body||'').matchAll(/\{\{(\d+)\}\}/g)].map(m=>m[1]))].sort((a,b)=>a-b);
+  const variables=[];
+  for(const n of varNums){
+    const val=document.getElementById(`stm-var-${n}`)?.value.trim();
+    if(!val){showToast(`Fill in the value for {{${n}}}`,'error');return;}
+    variables.push(val);
+  }
+  const btn=document.getElementById('stm-send-btn');
+  btn.disabled=true;btn.textContent='Sending…';
+  try{
+    await cw('send-template','POST',{phone,name,template_name:tpl.name,language:tpl.language,variables,inboxId:S.activeInboxId||undefined});
+    showToast('Template message sent!','success');
+    closeModal('modal-send-template');
+    try{await refreshConversations();const m=findConvByPhone(phone);if(m)selectConv(m.id);}catch(e){}
+  }catch(e){
+    showToast(e.message||'Failed to send template message','error');
+  }finally{
+    btn.disabled=false;btn.textContent='Send';
+  }
+}
+
+// Chatwoot's messages endpoint returns one page (its own default, typically ~20-25) —
+// this just shows whatever comes back rather than artificially re-truncating it further;
+// TRUNC_HINT_FLOOR is only used to decide whether to hint that older history might exist
+// beyond this page ("Open in Chatwoot" for anything further back — no pagination here yet).
+const TRUNC_HINT_FLOOR=20;
 async function loadThread(c,{silent}={}){
   const body=document.getElementById('thread-body');
   if(!silent)body.innerHTML='<div class="thread-empty">Loading thread…</div>';
   let messages=null;
   try{
     const d=await cw(`conversations/${encodeURIComponent(c.id)}/messages`);
-    messages=d.messages||null;
+    messages=d.messages||d.payload||null;
   }catch(e){messages=null;}
   if(Array.isArray(messages)&&messages.length){
     S.convMessages[c.id]=messages;
-    renderThread(messages);
+    renderThread(messages,messages.length>=TRUNC_HINT_FLOOR);
   }else{
-    S.convMessages[c.id]=[{content:c.last_message||'No messages logged',message_type:0,created_at:c.last_activity}];
-    body.innerHTML=`<div class="thread-empty">No messages could be loaded for this conversation.</div>`;
+    S.convMessages[c.id]=[{content:c.last_message||'No messages logged',sender:'them',created_at:c.last_activity}];
+    body.innerHTML=`<div class="thread-empty">Full message thread unavailable from this view — showing latest message only.<br>Use "Open in Chatwoot" for complete history.</div>${threadBubbleHtml(S.convMessages[c.id][0])}`;
+    const banner=document.getElementById('thread-pinned-banner');
+    if(banner)banner.style.display='none';
   }
+  updateComposerState();
 }
 
 function normalizeMsg(m){
@@ -3830,54 +4405,459 @@ function normalizeMsg(m){
   return{
     text:m.content||m.body||m.text||'',
     outgoing,
+    status:(m.status||'').toLowerCase(),
     time:m.created_at?new Date((m.created_at>1e12?m.created_at:m.created_at*1000)).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''
   };
 }
-function threadBubbleHtml(raw){
-  const m=normalizeMsg(raw);
-  const tick=m.outgoing?'<svg class="t-tick" viewBox="0 0 16 11" width="14" height="10" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 5.5 4.5 9 11 1.5"/><path d="M5.5 5.5 9 9 15.5 1.5"/></svg>':'';
-  return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}"><div class="t-bubble">${m.text}<div class="t-bubble-time">${m.time}${tick}</div></div></div>`;
+function threadTickSvg(status){
+  const read=status==='read'||status==='seen';
+  const single=status==='sending'||status==='error'||status==='failed';
+  if(single)return'<svg class="t-tick" viewBox="0 0 16 11" width="13" height="9" fill="none"><path d="M1 5.5 4.5 9 10 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return`<svg class="t-tick${read?' t-tick-read':''}" viewBox="0 0 16 11" width="13" height="9" fill="none"><path d="M1 5.5 4.5 9 10 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 5.5 9 9 14.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
-function dayLabel(ts){
-  const d=new Date(ts>1e12?ts:ts*1000);
+function threadDateLabel(raw){
+  if(!raw)return'';
+  const d=new Date(raw>1e12?raw:raw*1000),today=new Date(),yest=new Date();yest.setDate(today.getDate()-1);
   const sameDay=(a,b)=>a.toDateString()===b.toDateString();
-  if(sameDay(d,new Date()))return'Today';
-  if(sameDay(d,new Date(Date.now()-86400000)))return'Yesterday';
-  return d.toLocaleDateString([],{day:'2-digit',month:'short',year:d.getFullYear()!==new Date().getFullYear()?'numeric':undefined});
+  if(sameDay(d,today))return'Today';
+  if(sameDay(d,yest))return'Yesterday';
+  return d.toLocaleDateString([],{day:'2-digit',month:'short',year:d.getFullYear()!==today.getFullYear()?'numeric':undefined});
 }
-function renderThread(messages){
+// Best-effort text for an attachment-only message (no `content`) — real thumbnail/file
+// rendering is a follow-up; this just keeps the bubble from showing blank now that the
+// backend passes attachments through.
+// Real attachment rendering (Tier 2) — replaces the Tier-1 text-only placeholder now that
+// data_url is available. Falls back to a plain "open in Chatwoot" line only when a
+// particular attachment has no URL to render (e.g. still processing).
+function attachmentsHtml(attachments){
+  if(!attachments||!attachments.length)return'';
+  return attachments.map(a=>{
+    const url=_hesc(a.data_url||'');
+    if(!url){
+      const label=a.file_type==='image'?'Photo':a.file_type==='video'?'Video':a.file_type==='audio'?'Voice message':'Attachment';
+      return `<span class="t-bubble-attachment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>${label} — open in Chatwoot to view</span>`;
+    }
+    if(a.file_type==='image')return `<a href="${url}" target="_blank"><img class="t-bubble-img" src="${url}" loading="lazy"/></a>`;
+    if(a.file_type==='video')return `<video class="t-bubble-video" src="${url}" controls></video>`;
+    if(a.file_type==='audio')return `<audio class="t-bubble-audio" src="${url}" controls></audio>`;
+    let name='file';
+    try{name=decodeURIComponent((a.data_url||'').split('/').pop().split('?')[0])||'file';}catch(e){}
+    return `<a class="t-bubble-file" href="${url}" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${_hesc(name).slice(0,40)}</a>`;
+  }).join('');
+}
+function highlightSearch(text){
+  if(!S.threadSearch||!text)return _hesc(text);
+  const escaped=_hesc(text);
+  const q=S.threadSearch.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return escaped.replace(new RegExp(`(${q})`,'ig'),'<mark>$1</mark>');
+}
+// Chatwoot only gives a reply its parent's id (in_reply_to) — the quoted snippet itself is
+// looked up from whatever's already loaded for this thread, so it only renders when the
+// parent message is still in the loaded window (no separate fetch for older quoted parents).
+function quoteSnippetHtml(inReplyToId,allMessages){
+  if(!inReplyToId)return'';
+  const parent=(allMessages||[]).find(m=>String(m.id)===String(inReplyToId));
+  if(!parent)return'';
+  const pm=normalizeMsg(parent);
+  const label=parent.private?'Internal note':(pm.outgoing?'You':(parent.sender_name||'Customer'));
+  const text=pm.text||(parent.attachments&&parent.attachments.length?'📎 Attachment':'');
+  return `<div class="t-quote"><span class="t-quote-sender">${_hesc(label)}</span><span class="t-quote-text">${_hesc(text).slice(0,120)}</span></div>`;
+}
+function threadBubbleHtml(raw,grouped,allMessages){
+  const m=normalizeMsg(raw);
+  const idAttr=raw.id?` data-msg-id="${_hesc(String(raw.id))}"`:'';
+  if(raw.private){
+    return `<div class="t-bubble-row t-private"${idAttr}><div class="t-bubble"><div class="t-note-label">Internal note${raw.sender_name?' — '+_hesc(raw.sender_name):''}</div><span class="t-bubble-text">${highlightSearch(m.text)}</span><span class="t-bubble-meta">${m.time}</span></div></div>`;
+  }
+  const failed=m.status==='failed';
+  const searchMiss=S.threadSearch&&!(m.text||'').toLowerCase().includes(S.threadSearch);
+  const retryAttr=failed&&raw.id?` onclick="retrySendMessage('${raw.id}')"`:'';
+  const textBody=m.text?`<span class="t-bubble-text">${highlightSearch(m.text)}</span>`:'';
+  const quote=quoteSnippetHtml(raw.in_reply_to,allMessages);
+  const settled=raw.id&&m.status!=='sending'&&!failed;
+  const actions=[];
+  if(settled){
+    actions.push(`<span class="t-action-btn" onclick="event.stopPropagation();setReplyTo('${raw.id}')" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></span>`);
+    if(m.text)actions.push(`<span class="t-action-btn" onclick="event.stopPropagation();openForwardMessage('${raw.id}')" title="Forward"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg></span>`);
+    actions.push(`<span class="t-action-btn" onclick="event.stopPropagation();togglePinMessage('${raw.id}')" title="Pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg></span>`);
+    if(m.outgoing)actions.push(`<span class="t-action-btn danger" onclick="event.stopPropagation();deleteMessage('${raw.id}')" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>`);
+  }else if(failed){
+    actions.push(`<span class="t-action-btn danger" onclick="event.stopPropagation();deleteMessage('${raw.id}')" title="Discard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>`);
+  }
+  const actionBar=actions.length?`<div class="t-bubble-actions">${actions.join('')}</div>`:'';
+  return `<div class="t-bubble-row ${m.outgoing?'t-out':'t-in'}${grouped?' t-grouped':''}${m.status==='sending'?' t-sending':''}${failed?' t-failed':''}${searchMiss?' t-search-hidden':''}"${idAttr}>${actionBar}<div class="t-bubble"${retryAttr}>${quote}${attachmentsHtml(raw.attachments)}${textBody}<span class="t-bubble-meta">${m.time}${m.outgoing?threadTickSvg(m.status):''}</span>${failed?'<span class="t-fail-hint">Not delivered — tap to retry</span>':''}</div></div>`;
+}
+function renderThread(messages,truncated){
+  const note=truncated?'<div class="thread-trunc-note">Showing this page\'s messages — use "Open in Chatwoot" for older history.</div>':'';
   const body=document.getElementById('thread-body');
-  let html='',lastDay='';
+  let html=note,lastDate='',lastOutgoing=null,matchCount=0;
+  const q=S.threadSearch;
   messages.forEach(raw=>{
-    const label=raw.created_at?dayLabel(raw.created_at):'';
-    if(label&&label!==lastDay){html+=`<div class="t-day-sep"><span>${label}</span></div>`;lastDay=label;}
-    html+=threadBubbleHtml(raw);
+    const m=normalizeMsg(raw);
+    if(q&&!raw.private&&(m.text||'').toLowerCase().includes(q))matchCount++;
+    const dateLabel=threadDateLabel(raw.created_at);
+    if(dateLabel&&dateLabel!==lastDate){html+=`<div class="thread-date-sep">${dateLabel}</div>`;lastDate=dateLabel;lastOutgoing=null;}
+    html+=threadBubbleHtml(raw,lastOutgoing===m.outgoing&&!raw.private,messages);
+    lastOutgoing=raw.private?null:m.outgoing;
   });
   body.innerHTML=html;
-  body.scrollTop=body.scrollHeight;
+  const countEl=document.getElementById('thread-search-count');
+  if(countEl)countEl.textContent=q?`${matchCount} match${matchCount===1?'':'es'}`:'';
+  scrollThreadToBottom(false);
+  renderPinnedBanner(messages);
+}
+function scrollThreadToBottom(smooth){
+  const body=document.getElementById('thread-body');
+  if(!body)return;
+  if(smooth)body.scrollTo({top:body.scrollHeight,behavior:'smooth'});
+  else body.scrollTop=body.scrollHeight;
+  const btn=document.getElementById('thread-scroll-btn');
+  if(btn)btn.classList.remove('show');
+}
+function handleThreadScroll(){
+  const body=document.getElementById('thread-body'),btn=document.getElementById('thread-scroll-btn');
+  if(!body||!btn)return;
+  const nearBottom=body.scrollHeight-body.scrollTop-body.clientHeight<80;
+  btn.classList.toggle('show',!nearBottom&&body.scrollHeight>body.clientHeight);
 }
 
-// ── Compose & Send ──
-async function sendThreadMessage(){
+// ── Composer (free-text send) ──
+// WhatsApp's own 24-hour customer-service-window rule means a plain message can be
+// rejected even when this looks open — Chatwoot is the real enforcement point. This is a
+// best-effort, advisory check from whatever's already loaded client-side, purely to warn
+// before sending, never to silently block it: if it can't tell, it stays quiet rather
+// than guessing wrong.
+function isConvWindowLikelyClosed(id){
+  const messages=S.convMessages[id]||[];
+  const lastIncoming=[...messages].reverse().find(m=>m.message_type!==1&&!m.private);
+  if(!lastIncoming||!lastIncoming.created_at)return false;
+  const ts=lastIncoming.created_at>1e12?lastIncoming.created_at:lastIncoming.created_at*1000;
+  return (Date.now()-ts)>24*60*60*1000;
+}
+function updateComposerState(){
+  const id=S.selectedConvId;
+  const input=document.getElementById('composer-input'),sendBtn=document.getElementById('composer-send-btn');
+  const emojiBtn=document.getElementById('emoji-toggle-btn'),searchBtn=document.getElementById('thread-search-btn');
+  const contactBtn=document.getElementById('contact-panel-btn');
+  const note=document.getElementById('composer-window-note'),wrap=document.getElementById('conv-composer');
+  if(!input||!sendBtn||!wrap)return;
+  const enabled=!!id;
+  input.disabled=!enabled;sendBtn.disabled=!enabled;emojiBtn.disabled=!enabled;searchBtn.disabled=!enabled;
+  if(contactBtn)contactBtn.disabled=!enabled;
+  input.placeholder=enabled?'Type a message':'Select a conversation to reply…';
+  wrap.classList.toggle('disabled',!enabled);
+  if(note)note.style.display=(enabled&&isConvWindowLikelyClosed(id))?'flex':'none';
+  if(!enabled){closeEmojiPicker();clearReplyTo();closeContactPanel();}
+  else if(document.getElementById('contact-panel')?.classList.contains('open')){loadContactPanel();}
+}
+
+// ── Contact info side panel ──
+function toggleContactPanel(){
+  const panel=document.getElementById('contact-panel');
+  if(!panel||!S.selectedConvId)return;
+  const willOpen=!panel.classList.contains('open');
+  panel.classList.toggle('open',willOpen);
+  if(willOpen)loadContactPanel();
+}
+function closeContactPanel(){
+  document.getElementById('contact-panel')?.classList.remove('open');
+}
+async function loadContactPanel(){
+  const id=S.selectedConvId;
+  const c=findConv(id);
+  const body=document.getElementById('contact-panel-body');
+  if(!c||!body)return;
+  const phone=convPhone(c);
+  const init=(c.contact_name||'U')[0].toUpperCase();
+  body.innerHTML=`
+    <div class="cp-avatar">${_hesc(init)}</div>
+    <div class="cp-field"><span>Name</span><b>${_hesc(c.contact_name||'Unknown')}</b></div>
+    ${phone?`<div class="cp-field"><span>Phone</span><b>${_hesc(phone)}</b></div>`:''}
+    <div class="cp-field"><span>Channel</span><b>${_hesc(c.channel||'chat')}</b></div>
+    <div class="cp-field"><span>Status</span><b style="text-transform:capitalize;">${_hesc(c.status||'')}</b></div>
+    <div class="cp-field"><span>Assigned to</span><b>${_hesc(c.assignment?.userName||'Unassigned')}</b></div>
+    <div id="cp-lead-section" style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:11px;">
+      <div style="font-size:11px;color:var(--text3);">Looking up saved lead info…</div>
+    </div>`;
+  const section=()=>document.getElementById('cp-lead-section');
+  if(!phone){const s=section();if(s)s.innerHTML='<div style="font-size:11px;color:var(--text3);">No phone number on file — can\'t match to a saved lead.</div>';return;}
+  try{
+    const d=await apiW(`whizz-get-contacts?phone=${encodeURIComponent(phone)}`);
+    // The panel may have been closed, or a different conversation selected, while this was
+    // in flight — bail rather than paint stale lead info into whatever's showing now.
+    if(S.selectedConvId!==id||!document.getElementById('contact-panel')?.classList.contains('open'))return;
+    const lead=(d.contacts||[])[0];
+    const s=section();
+    if(!s)return;
+    if(!lead){s.innerHTML='<div style="font-size:11px;color:var(--text3);">Not yet a saved lead.</div>';return;}
+    s.innerHTML=`
+      <div class="cp-score">${Number(lead.leadScore)||0}<span style="font-size:10px;color:var(--text3);font-weight:600;">/100</span></div>
+      ${lead.company?`<div class="cp-field"><span>Company</span><b>${_hesc(lead.company)}</b></div>`:''}
+      ${lead.platform?`<div class="cp-field"><span>Source</span><b>${_hesc(lead.platform)}</b></div>`:''}
+      ${lead.country?`<div class="cp-field"><span>Country</span><b>${_hesc(lead.country)}</b></div>`:''}
+      ${lead.brand?`<div class="cp-field"><span>Brand</span><b>${_hesc(lead.brand)}</b></div>`:''}
+      ${lead.productInterest?`<div class="cp-field"><span>Interest</span><b>${_hesc(lead.productInterest)}</b></div>`:''}
+      ${lead.email?`<div class="cp-field"><span>Email</span><b>${_hesc(lead.email)}</b></div>`:''}
+      ${lead.contactPersonName?`<div class="cp-field"><span>Contact Person</span><b>${_hesc(lead.contactPersonName)}${lead.contactPersonTitle?' — '+_hesc(lead.contactPersonTitle):''}</b></div>`:''}
+      ${lead.website?`<div class="cp-field"><span>Website</span><b><a href="${_hesc(lead.website)}" target="_blank">${_hesc(lead.website.replace(/^https?:\/\//,'')).slice(0,30)}</a></b></div>`:''}
+    `;
+  }catch(e){
+    const s=section();
+    if(s)s.innerHTML='<div style="font-size:11px;color:var(--red);">Couldn\'t load lead info.</div>';
+  }
+}
+function autoGrowComposer(el){
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight,120)+'px';
+}
+function handleComposerKeydown(e){
+  if(e.key==='Enter'&&!e.shiftKey){
+    e.preventDefault();
+    sendConversationMessage();
+  }
+}
+// ── Quote-reply ── swipe/click-to-reply is desktop-first here: a hover-revealed reply
+// icon on each bubble (see .t-reply-btn) rather than a touch swipe gesture.
+function setReplyTo(msgId){
   const id=S.selectedConvId;
   if(!id)return;
-  const input=document.getElementById('thread-input'),sendBtn=document.getElementById('thread-send-btn');
-  const content=(input.value||'').trim();
-  if(!content)return;
-  input.disabled=true;sendBtn.disabled=true;
-  try{
-    const d=await cw(`conversations/${encodeURIComponent(id)}/messages`,'POST',{content});
-    const msg=d.message||{content,message_type:1,created_at:Math.floor(Date.now()/1000)};
-    S.convMessages[id]=[...(S.convMessages[id]||[]),msg];
-    renderThread(S.convMessages[id]);
-    input.value='';
-    const c=findConv(id);
-    if(c){c.last_message=content;c.last_activity=msg.created_at;renderConvs(S.cache.conversations);}
-  }catch(e){showToast(e.message||'Failed to send message','error');}
-  input.disabled=false;sendBtn.disabled=false;input.focus();
+  const msg=(S.convMessages[id]||[]).find(m=>String(m.id)===String(msgId));
+  if(!msg)return;
+  const nm=normalizeMsg(msg);
+  S.replyTo={id:msg.id,label:nm.outgoing?'You':(msg.sender_name||'Customer'),text:nm.text||(msg.attachments&&msg.attachments.length?'📎 Attachment':'')};
+  const preview=document.getElementById('composer-reply-preview'),textEl=document.getElementById('composer-reply-preview-text');
+  if(preview&&textEl){
+    textEl.innerHTML=`<b>${_hesc(S.replyTo.label)}</b><br>${_hesc(S.replyTo.text).slice(0,140)}`;
+    preview.style.display='flex';
+  }
+  document.getElementById('composer-input')?.focus();
 }
-function handleThreadInputKey(e){
-  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendThreadMessage();}
+function clearReplyTo(){
+  S.replyTo=null;
+  const preview=document.getElementById('composer-reply-preview');
+  if(preview)preview.style.display='none';
+}
+async function sendConversationMessage(){
+  const id=S.selectedConvId;
+  if(!id)return;
+  const input=document.getElementById('composer-input');
+  const text=input.value.trim();
+  if(!text)return;
+  const replyToId=S.replyTo?.id||null;
+  const tempId='tmp-'+Date.now();
+  const optimistic={id:tempId,content:text,message_type:1,sender_type:'agent',created_at:Math.floor(Date.now()/1000),status:'sending',in_reply_to:replyToId,__replyToId:replyToId};
+  S.convMessages[id]=[...(S.convMessages[id]||[]),optimistic];
+  input.value='';autoGrowComposer(input);closeEmojiPicker();clearReplyTo();
+  renderThread(S.convMessages[id],false);
+  scrollThreadToBottom(true);
+  try{
+    const d=await cw(`conversations/${encodeURIComponent(id)}/messages`,'POST',{content:text,replyToId});
+    if(d.error)throw new Error(d.error);
+    const idx=S.convMessages[id].findIndex(m=>m.id===tempId);
+    if(idx>-1)S.convMessages[id][idx]={...d,message_type:1,sender_type:'agent',in_reply_to:replyToId};
+    renderThread(S.convMessages[id],false);
+    scrollThreadToBottom(true);
+    const c=findConv(id);
+    if(c){c.last_message=text;c.last_activity=optimistic.created_at;renderConvs(S.cache.conversations||[]);}
+  }catch(e){
+    const idx=S.convMessages[id].findIndex(m=>m.id===tempId);
+    if(idx>-1)S.convMessages[id][idx]={...optimistic,status:'failed'};
+    renderThread(S.convMessages[id],false);
+    showToast(e.message||'Message failed to send — outside the 24-hour window? Try a Template instead.','error');
+  }
+  updateComposerState();
+}
+async function retrySendMessage(tempId){
+  const id=S.selectedConvId;
+  if(!id)return;
+  const msg=(S.convMessages[id]||[]).find(m=>m.id===tempId);
+  if(!msg||msg.status!=='failed')return;
+  msg.status='sending';
+  renderThread(S.convMessages[id],false);
+  try{
+    const d=await cw(`conversations/${encodeURIComponent(id)}/messages`,'POST',{content:msg.content,replyToId:msg.__replyToId||null});
+    if(d.error)throw new Error(d.error);
+    Object.assign(msg,d,{message_type:1,sender_type:'agent',in_reply_to:msg.__replyToId||null});
+  }catch(e){
+    msg.status='failed';
+    showToast(e.message||'Retry failed','error');
+  }
+  renderThread(S.convMessages[id],false);
+}
+
+// ── Emoji picker (small hand-picked set — no external library) ──
+const EMOJI_SET=['😀','😂','😊','😍','👍','🙏','🎉','🔥','❤️','😢','😮','😅','🤔','👏','💪','✅','❌','⚠️','📦','🚚','💰','📞','📧','🕐','😁','😉','🙌','👌','💡','⭐'];
+function ensureEmojiPickerBuilt(){
+  const el=document.getElementById('emoji-picker');
+  if(!el||el.dataset.built)return;
+  el.innerHTML=EMOJI_SET.map(e=>`<button type="button" onclick="insertEmoji('${e}')">${e}</button>`).join('');
+  el.dataset.built='1';
+}
+function toggleEmojiPicker(){
+  ensureEmojiPickerBuilt();
+  document.getElementById('emoji-picker')?.classList.toggle('open');
+}
+function closeEmojiPicker(){
+  document.getElementById('emoji-picker')?.classList.remove('open');
+}
+function insertEmoji(char){
+  const input=document.getElementById('composer-input');
+  if(!input)return;
+  const start=input.selectionStart||input.value.length,end=input.selectionEnd||input.value.length;
+  input.value=input.value.slice(0,start)+char+input.value.slice(end);
+  input.focus();
+  input.selectionStart=input.selectionEnd=start+char.length;
+  autoGrowComposer(input);
+}
+
+// ── In-thread search ──
+function toggleThreadSearch(){
+  const bar=document.getElementById('thread-search-bar');
+  if(!bar||document.getElementById('thread-search-btn').disabled)return;
+  if(bar.classList.contains('open')){closeThreadSearch();}
+  else{bar.classList.add('open');document.getElementById('thread-search-input').focus();}
+}
+function closeThreadSearch(){
+  const bar=document.getElementById('thread-search-bar');
+  if(bar)bar.classList.remove('open');
+  const input=document.getElementById('thread-search-input');
+  if(input)input.value='';
+  S.threadSearch='';
+  const countEl=document.getElementById('thread-search-count');
+  if(countEl)countEl.textContent='';
+  if(S.selectedConvId&&S.convMessages[S.selectedConvId])renderThread(S.convMessages[S.selectedConvId],false);
+}
+function applyThreadSearch(q){
+  S.threadSearch=(q||'').trim().toLowerCase();
+  const id=S.selectedConvId;
+  if(id&&S.convMessages[id])renderThread(S.convMessages[id],false);
+}
+
+// ── Pin / mute a conversation (local preference — not synced to Chatwoot) ──
+function togglePinConv(id,event){
+  event.stopPropagation();
+  id=String(id);
+  if(S.pinnedConvIds.has(id))S.pinnedConvIds.delete(id);else S.pinnedConvIds.add(id);
+  saveConvIdSet(CONV_PINS_KEY,S.pinnedConvIds);
+  renderConvs(S.cache.conversations||[]);
+}
+function toggleMuteConv(id,event){
+  event.stopPropagation();
+  id=String(id);
+  if(S.mutedConvIds.has(id))S.mutedConvIds.delete(id);else S.mutedConvIds.add(id);
+  saveConvIdSet(CONV_MUTES_KEY,S.mutedConvIds);
+  renderConvs(S.cache.conversations||[]);
+}
+
+// ── Pin a single message within a conversation (local — one pinned message per
+// conversation, like the WhatsApp banner, not synced to Chatwoot) ──
+function togglePinMessage(msgId){
+  const id=S.selectedConvId;
+  if(!id)return;
+  msgId=String(msgId);
+  if(S.pinnedMsgMap[id]===msgId)delete S.pinnedMsgMap[id];
+  else S.pinnedMsgMap[id]=msgId;
+  savePinnedMsgMap(S.pinnedMsgMap);
+  renderPinnedBanner(S.convMessages[id]||[]);
+}
+function renderPinnedBanner(messages){
+  const id=S.selectedConvId;
+  const banner=document.getElementById('thread-pinned-banner');
+  if(!banner)return;
+  const pinnedId=id?S.pinnedMsgMap[id]:null;
+  const pinned=pinnedId?(messages||[]).find(m=>String(m.id)===pinnedId):null;
+  if(!pinned){banner.style.display='none';return;}
+  const pm=normalizeMsg(pinned);
+  const text=pm.text||(pinned.attachments&&pinned.attachments.length?'📎 Attachment':'');
+  document.getElementById('thread-pinned-banner-text').textContent=text;
+  banner.style.display='flex';
+}
+function scrollToPinnedMessage(){
+  const id=S.selectedConvId;
+  const pinnedId=id?S.pinnedMsgMap[id]:null;
+  if(!pinnedId)return;
+  const el=document.querySelector(`#thread-body [data-msg-id="${CSS.escape(pinnedId)}"]`);
+  if(!el){showToast('That message is outside the currently loaded window','info');return;}
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.classList.add('t-pinned-target');
+  setTimeout(()=>el.classList.remove('t-pinned-target'),1400);
+}
+function unpinBannerMessage(){
+  const id=S.selectedConvId;
+  if(!id)return;
+  delete S.pinnedMsgMap[id];
+  savePinnedMsgMap(S.pinnedMsgMap);
+  renderPinnedBanner(S.convMessages[id]||[]);
+}
+
+// ── Forward a message to a different (or the same) conversation ──
+function openForwardMessage(msgId){
+  const id=S.selectedConvId;
+  if(!id)return;
+  const msg=(S.convMessages[id]||[]).find(m=>String(m.id)===String(msgId));
+  if(!msg)return;
+  const nm=normalizeMsg(msg);
+  if(!nm.text){showToast('Only text messages can be forwarded right now','info');return;}
+  S.forwardingMsg={text:nm.text};
+  document.getElementById('fwd-preview').innerHTML=`<span class="t-quote-sender">Forwarding</span><span class="t-quote-text" style="white-space:normal;">${_hesc(nm.text).slice(0,200)}</span>`;
+  document.getElementById('fwd-search').value='';
+  document.getElementById('modal-forward-message').classList.add('open');
+  renderForwardPicker('');
+}
+function renderForwardPicker(q){
+  const list=document.getElementById('fwd-list');
+  if(!list)return;
+  q=(q||'').trim().toLowerCase();
+  const convs=(S.cache.conversations||[]).filter(c=>!q||(c.contact_name||'').toLowerCase().includes(q)||String(convPhone(c)).toLowerCase().includes(q));
+  if(!convs.length){list.innerHTML='<div style="text-align:center;color:var(--text3);font-size:11px;padding:20px;">No conversations match.</div>';return;}
+  list.innerHTML=convs.slice(0,100).map(c=>{
+    const init=(c.contact_name||'U')[0].toUpperCase();
+    return `<div class="fwd-row" onclick="sendForwardTo('${c.id}')"><div class="fwd-avatar">${_hesc(init)}</div><div><div class="fwd-name">${_hesc(c.contact_name||'Unknown')}</div><div class="fwd-sub">${_hesc(convPhone(c)||c.channel||'')}</div></div></div>`;
+  }).join('');
+}
+async function sendForwardTo(targetId){
+  const msg=S.forwardingMsg;
+  if(!msg)return;
+  closeModal('modal-forward-message');
+  const text=`↪ Forwarded\n${msg.text}`;
+  try{
+    const d=await cw(`conversations/${encodeURIComponent(targetId)}/messages`,'POST',{content:text});
+    if(d.error)throw new Error(d.error);
+    showToast('Message forwarded','success');
+    if(String(targetId)===String(S.selectedConvId)){
+      S.convMessages[targetId]=[...(S.convMessages[targetId]||[]),{...d,message_type:1,sender_type:'agent'}];
+      renderThread(S.convMessages[targetId],false);
+      scrollThreadToBottom(true);
+    }
+  }catch(e){
+    showToast(e.message||'Forward failed','error');
+  }
+  S.forwardingMsg=null;
+}
+
+// ── Delete a message ── Chatwoot-side only: this does NOT unsend it from WhatsApp — the
+// customer's phone still has it. WhatsApp's Business Platform has no "delete for everyone"
+// API at all, so that's not something Whizz can offer regardless of how this is built.
+async function deleteMessage(msgId){
+  const id=S.selectedConvId;
+  if(!id)return;
+  const msg=(S.convMessages[id]||[]).find(m=>String(m.id)===String(msgId));
+  if(!msg)return;
+  if(msg.status==='failed'){
+    S.convMessages[id]=S.convMessages[id].filter(m=>m!==msg);
+    renderThread(S.convMessages[id],false);
+    return;
+  }
+  if(!confirm('Delete this message from Whizz/Chatwoot?\n\nThis does NOT unsend it — the customer\'s phone still has it. WhatsApp has no "delete for everyone" API.'))return;
+  try{
+    await cw(`conversations/${encodeURIComponent(id)}/messages/${encodeURIComponent(msgId)}`,'DELETE');
+    S.convMessages[id]=S.convMessages[id].filter(m=>m!==msg);
+    if(S.pinnedMsgMap[id]===String(msgId)){delete S.pinnedMsgMap[id];savePinnedMsgMap(S.pinnedMsgMap);}
+    renderThread(S.convMessages[id],false);
+    showToast('Message deleted from Whizz/Chatwoot','success');
+  }catch(e){
+    showToast(e.message||'Delete failed','error');
+  }
 }
 
 // ── Replay ──
@@ -4427,6 +5407,9 @@ function renderLeadsContactsTable(contacts){
       <span style="font-size:12px;font-weight:600;color:var(--text);"><span id="leads-bulk-count">${_leadsSelectedIds.size}</span> selected</span>
       <button class="t-btn btn-primary t-btn-sm" onclick="openBulkEditLeadsModal()">Bulk Edit</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="openEnrichTelegramModal()">Enrich Telegram</button>
+      <button class="t-btn btn-ghost t-btn-sm" id="leads-bulk-detect-btn" onclick="runBulkDetectCountry()" title="Identify/correct Country (and derived Region) from each selected lead's phone number using Cloudflare AI">📍 Detect Country/Region</button>
+      <button class="t-btn btn-ghost t-btn-sm" id="leads-find-contact-btn" onclick="runFindContactPersonForSelected()">Find Contact Person</button>
+      <button class="t-btn btn-ghost t-btn-sm" onclick="openExportContacts('selected')">Export Selected</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="clearLeadsSelection()">Clear selection</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;padding:8px 2px 10px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:10px;">
@@ -4450,6 +5433,8 @@ function renderLeadsContactsTable(contacts){
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);width:30px;"><input type="checkbox" id="leads-select-all" onchange="toggleAllLeadsSelection(this.checked)" ${allShownSelected?'checked':''}></th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Name</th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Phone</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">WhatsApp</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Telegram</th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Email</th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Platform</th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Country</th>
@@ -4466,9 +5451,12 @@ function renderLeadsContactsTable(contacts){
           <td style="padding:9px 10px;">
             <div style="font-weight:500;color:var(--text);">${_hesc(name)}</div>
             ${c.company&&c.contactName?`<div style="font-size:10px;color:var(--text3);">${_hesc(c.company)}</div>`:''}
+            ${c.contactPersonName?`<div style="font-size:10px;color:#0a66c2;">${_hesc(c.contactPersonName)}${c.contactPersonTitle?` — ${_hesc(c.contactPersonTitle)}`:''}</div>`:''}
             ${c.category?`<span class="cc-cat">${_hesc(c.category)}</span>`:''}
           </td>
           <td style="padding:9px 10px;color:var(--text2);">${c.phone?`<a href="tel:${_hesc(c.phone)}" style="color:inherit;text-decoration:none;">${_hesc(c.phone)}</a>`:''}</td>
+          <td style="padding:9px 10px;color:var(--text2);">${c.whatsapp?`<a href="https://wa.me/${_hesc(c.whatsapp.replace(/\D/g,''))}" target="_blank" style="color:#25d366;text-decoration:none;">${_hesc(c.whatsapp)}</a>`:'<span style="color:var(--text3);">—</span>'}</td>
+          <td style="padding:9px 10px;color:var(--text2);">${c.telegramUsername?`<a href="https://t.me/${_hesc(c.telegramUsername.replace(/^@/,''))}" target="_blank" style="color:#26a6d1;text-decoration:none;">@${_hesc(c.telegramUsername.replace(/^@/,''))}</a>`:'<span style="color:var(--text3);">—</span>'}</td>
           <td style="padding:9px 10px;color:var(--text2);">${c.email?`<a href="mailto:${_hesc(c.email)}" style="color:inherit;text-decoration:none;">${_hesc(c.email)}</a>`:''}</td>
           <td style="padding:9px 10px;font-weight:500;color:var(--accent);">${_hesc(c.platform)}</td>
           <td style="padding:9px 10px;color:var(--text2);">${_hesc(c.country)}</td>
@@ -4479,6 +5467,7 @@ function renderLeadsContactsTable(contacts){
           </td>
           <td style="padding:9px 10px;">
             <div style="display:flex;gap:4px;justify-content:flex-end;">
+              ${(c.whatsapp||c.phone||c.phoneNumber)?`<button class="t-btn wa-quick-btn" style="padding:3px 8px;font-size:10px;" onclick="event.stopPropagation();messageLeadOnWhatsApp('${(c.whatsapp||c.phone||c.phoneNumber).replace(/'/g,"\\'")}','${name.replace(/'/g,"\\'")}')" title="Message on WhatsApp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></button>`:''}
               <button class="t-btn btn-primary" style="padding:3px 8px;font-size:10px;" onclick="openLeadProfile('${idAttr}')">View</button>
               <button class="t-btn btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="openEditLeadContact('${idAttr}')">Edit</button>
               ${CURRENT_SESSION?.role!=='Sales'?`<button class="t-btn" style="padding:3px 8px;font-size:10px;background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);" onclick="deleteLeadContact('${idAttr}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`:``}
@@ -4566,16 +5555,24 @@ const EXPORT_FIELDS=[
   {key:'updatedAt',label:'Updated At',def:false},
   {key:'telegramChatId',label:'Telegram Chat ID',def:false},
   {key:'telegramUsername',label:'Telegram Username',def:false},
+  {key:'whatsapp',label:'WhatsApp',def:true},
   {key:'linkedin',label:'LinkedIn',def:false},
+  {key:'contactPersonName',label:'Contact Person',def:true},
+  {key:'contactPersonTitle',label:"Contact Person's Title",def:false},
   {key:'website',label:'Website',def:false},
+  {key:'volzaUrl',label:'Volza Profile',def:false},
+  {key:'directoryUrl',label:'Directory Listing',def:false},
+  {key:'directoryDescription',label:'Directory Description',def:false},
 ];
 let _exportShownContacts=[];
-function openExportContacts(){
+function openExportContacts(scope){
   _exportShownContacts=applyLeadsSearch(_currentLeadsContacts);
-  const allCount=_currentLeadsContacts.length,shownCount=_exportShownContacts.length;
+  const allCount=_currentLeadsContacts.length,shownCount=_exportShownContacts.length,selectedCount=_leadsSelectedIds.size;
   document.getElementById('exp-scope-shown-label').textContent=`Current view (${shownCount})`;
   document.getElementById('exp-scope-all-label').textContent=`All loaded (${allCount})`;
-  document.getElementById('exp-scope-shown').checked=true;
+  document.getElementById('exp-scope-selected-label').textContent=`Selected (${selectedCount})`;
+  document.getElementById('exp-scope-selected-wrap').style.display=selectedCount?'flex':'none';
+  document.getElementById(scope==='selected'&&selectedCount?'exp-scope-selected':'exp-scope-shown').checked=true;
   const fieldsEl=document.getElementById('exp-fields');
   fieldsEl.innerHTML=EXPORT_FIELDS.map(f=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
     <input type="checkbox" id="expf-${f.key}" ${f.def?'checked':''}> ${f.label}
@@ -4587,7 +5584,7 @@ function setAllExportFields(on){
 }
 function exportContactsCSV(){
   const scope=document.querySelector('input[name="exp-scope"]:checked')?.value||'shown';
-  const rows=scope==='all'?_currentLeadsContacts:_exportShownContacts;
+  const rows=scope==='all'?_currentLeadsContacts:scope==='selected'?_currentLeadsContacts.filter(c=>_leadsSelectedIds.has(c.id)):_exportShownContacts;
   const cols=EXPORT_FIELDS.filter(f=>{const el=document.getElementById('expf-'+f.key);return el&&el.checked;});
   if(!cols.length){showToast('Select at least one field','error');return;}
   const esc=v=>{const s=String(v??'');return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s;};
@@ -4604,10 +5601,14 @@ function exportContactsCSV(){
 function leadTemperature(c){const deals=getClosedDealsForContact(c);if(deals.length)return'Customer';const stage=(c.stage||c.status||'').toLowerCase();if(stage.includes('qualified')||stage.includes('quotation'))return'Hot';if(c.phone||c.email)return'Warm';return'Cold';}
 function leadScore(c){let score=20;if(c.phone)score+=20;if(c.email)score+=10;if(c.brand||c.productInterest)score+=15;if(c.country)score+=10;if((c.stage||'').toLowerCase().includes('qualified'))score+=20;if(getClosedDealsForContact(c).length)score=100;return Math.min(score,100);}
 function openLeadProfile(id){
-  const c=_currentLeadsContacts.find(c=>c.id===id);if(!c)return;const name=c.contactName||c.company||c.name||'Unknown',phone=c.phone||c.phoneNumber||'',score=leadScore(c),temp=leadTemperature(c);
+  const c=_currentLeadsContacts.find(c=>c.id===id);if(!c)return;const name=c.contactName||c.company||c.name||'Unknown',phone=c.phone||c.phoneNumber||'',waNumber=c.whatsapp||'',tgHandle=c.telegramUsername||'',waMsgTarget=waNumber||phone,score=leadScore(c),temp=leadTemperature(c);
+  const personName=c.contactPersonName||'',personTitle=c.contactPersonTitle||'';
   const idAttr=_hesc(id);
   document.getElementById('lp-name').textContent=name;document.getElementById('lp-sub').textContent=[c.company,c.country,c.brand].filter(Boolean).join(' · ');
-  document.getElementById('lp-body').innerHTML=`<div class="lead-profile-grid"><div class="profile-panel"><div class="eyebrow">Complete customer view</div><div class="profile-field"><span>Phone</span><b>${phone||'Not provided'}</b></div><div class="profile-field"><span>Email</span><b>${c.email||'Not provided'}</b></div><div class="profile-field"><span>Platform</span><b>${c.platform||_currentLeadsGroup?.platform||'—'}</b></div><div class="profile-field"><span>Country</span><b>${c.country||_currentLeadsGroup?.country||'—'}</b></div><div class="profile-field"><span>Interest</span><b>${c.productInterest||c.category||c.brand||'Not classified'}</b></div><div class="profile-field"><span>Source</span><b>${c.source||'—'}</b></div></div><div><div class="profile-panel"><div class="eyebrow">Sales intelligence</div><div class="profile-field"><span>Temperature</span><b>${temp}</b></div><div class="profile-field"><span>Lead score</span><b style="color:var(--green)">${score}/100</b></div><div class="profile-field"><span>Buyer type</span><b>${c.buyerType||c.buyer_nature||'Unclassified'}</b></div><div class="profile-field"><span>Campaign status</span><b>${c.optedOut?'Suppressed':'Eligible'}</b></div></div><div class="profile-actions">${phone?`<a class="t-btn btn-success" style="justify-content:center;text-decoration:none" href="https://wa.me/${normalizePhone(phone)}" target="_blank">WhatsApp</a><a class="t-btn btn-ghost" style="justify-content:center;text-decoration:none" href="tel:${phone}">Call</a>`:''}<button class="t-btn btn-primary" onclick="closeModal('modal-lead-profile');openEditLeadContact('${idAttr}')">Edit lead</button><button class="t-btn btn-ghost" onclick="closeModal('modal-lead-profile');openAddClosedDealModal('${idAttr}')">Record deal</button></div></div></div>`;
+  document.getElementById('lp-body').innerHTML=`<div class="lead-profile-grid"><div class="profile-panel"><div class="eyebrow">Complete customer view</div><div class="profile-field"><span>Contact Person</span><b>${personName?`${_hesc(personName)}${personTitle?` — ${_hesc(personTitle)}`:''}${c.linkedin?` · <a href="${c.linkedin}" target="_blank" style="color:#0a66c2;">LinkedIn ↗</a>`:''}`:'Not found'}</b></div><div class="profile-field"><span>Phone</span><b>${phone||'Not provided'}</b></div><div class="profile-field"><span>WhatsApp</span><b>${waNumber?`<a href="https://wa.me/${waNumber.replace(/\D/g,'')}" target="_blank" style="color:#25d366;">${waNumber}</a>`:'Not provided'}</b></div><div class="profile-field"><span>Telegram</span><b>${tgHandle?`<a href="https://t.me/${tgHandle.replace(/^@/,'')}" target="_blank" style="color:#26a6d1;">@${tgHandle.replace(/^@/,'')}</a>`:'Not provided'}</b></div><div class="profile-field"><span>Email</span><b>${c.email||'Not provided'}</b></div><div class="profile-field"><span>Platform</span><b>${c.platform||_currentLeadsGroup?.platform||'—'}</b></div><div class="profile-field"><span>Country</span><b>${c.country||_currentLeadsGroup?.country||'—'}</b></div><div class="profile-field"><span>Interest</span><b>${c.productInterest||c.category||c.brand||'Not classified'}</b></div><div class="profile-field"><span>Source</span><b>${c.source||'—'}</b></div><div class="profile-field"><span>Directories</span><b>${c.volzaUrl||c.directoryUrl?[c.volzaUrl?`<a href="${c.volzaUrl}" target="_blank" style="color:var(--amber);">Volza ↗</a>`:'',c.directoryUrl?`<a href="${c.directoryUrl}" target="_blank" style="color:var(--amber);">${/goldenpages/i.test(c.directoryUrl)?'Golden Pages':/kadorf/i.test(c.directoryUrl)?'Kadorf':'Yellow Pages'} ↗</a>`:''].filter(Boolean).join(' · '):'Not found'}</b></div></div><div><div class="profile-panel"><div class="eyebrow">Sales intelligence</div><div class="profile-field"><span>Temperature</span><b>${temp}</b></div><div class="profile-field"><span>Lead score</span><b style="color:var(--green)">${score}/100</b></div><div class="profile-field"><span>Buyer type</span><b>${c.buyerType||c.buyer_nature||'Unclassified'}</b></div><div class="profile-field"><span>Campaign status</span><b>${c.optedOut?'Suppressed':'Eligible'}</b></div></div><div class="profile-actions">${waMsgTarget?`<button class="t-btn wa-quick-btn" style="justify-content:center" onclick="closeModal('modal-lead-profile');messageLeadOnWhatsApp('${waMsgTarget.replace(/'/g,"\\'")}','${name.replace(/'/g,"\\'")}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        Message on WhatsApp
+      </button>`:''}${phone?`<a class="t-btn btn-ghost" style="justify-content:center;text-decoration:none" href="tel:${phone}">Call</a>`:''}<button class="t-btn btn-primary" onclick="closeModal('modal-lead-profile');openEditLeadContact('${idAttr}')">Edit lead</button><button class="t-btn btn-ghost" onclick="closeModal('modal-lead-profile');openAddClosedDealModal('${idAttr}')">Record deal</button></div></div></div>`;
   document.getElementById('modal-lead-profile').classList.add('open');
 }
 function getClosedDealsForContact(c){
@@ -4629,7 +5630,45 @@ function openEditLeadContact(id){
   document.getElementById('ec-country').value=c.country||'';
   document.getElementById('ec-brand').value=c.brand||'';
   document.getElementById('ec-telegram').value=c.telegramUsername||c.telegramChatId||'';
+  document.getElementById('ec-whatsapp').value=c.whatsapp||'';
+  document.getElementById('ec-contact-person-name').value=c.contactPersonName||'';
+  document.getElementById('ec-contact-person-title').value=c.contactPersonTitle||'';
+  document.getElementById('ec-region-hint').textContent='';
   document.getElementById('modal-edit-contact').classList.add('open');
+}
+
+async function detectContactCountry(){
+  const phone=document.getElementById('ec-phone').value.trim();
+  const hint=document.getElementById('ec-region-hint');
+  if(!phone){showToast('Enter a phone number first','error');return;}
+  hint.textContent='Detecting…';
+  try{
+    const country=document.getElementById('ec-country').value.trim();
+    const r=await apiFetch('/whizz-detect-country',{method:'POST',body:JSON.stringify({phone,country})});
+    document.getElementById('ec-country').value=r.country||'';
+    hint.textContent=r.country?`Region: ${r.region} (${r.method==='ai'?'AI-identified':'from calling code'})`:'Could not identify a country from this number';
+  }catch(e){hint.textContent='';showToast(e.message||'Detection failed','error');}
+}
+
+async function runBulkDetectCountry(){
+  if(!_leadsSelectedIds.size){showToast('Select at least one lead first','error');return;}
+  const ids=[..._leadsSelectedIds];
+  const CHUNK=200;
+  const btn=document.getElementById('leads-bulk-detect-btn');
+  if(btn){btn.disabled=true;}
+  let checked=0,updated=0,unchanged=0,noPhone=0,failed=0;
+  try{
+    for(let i=0;i<ids.length;i+=CHUNK){
+      const batch=ids.slice(i,i+CHUNK);
+      if(btn)btn.textContent=ids.length>CHUNK?`Detecting ${Math.min(i+CHUNK,ids.length)}/${ids.length}…`:'Detecting…';
+      try{
+        const r=await apiFetch('/whizz-bulk-detect-country',{method:'POST',body:JSON.stringify({ids:batch})});
+        checked+=r.checked||0;updated+=r.updated||0;unchanged+=r.unchanged||0;noPhone+=r.noPhone||0;
+      }catch(e){failed+=batch.length;}
+    }
+    showToast(`Checked ${checked}: ${updated} corrected, ${unchanged} already correct${noPhone?`, ${noPhone} without phone`:''}${failed?`, ${failed} failed`:''}`,failed?'error':'success');
+    loadLeadsContacts();
+  }finally{if(btn){btn.disabled=false;btn.textContent='📍 Detect Country/Region';}}
 }
 
 async function submitEditLeadContact(){
@@ -4646,7 +5685,10 @@ async function submitEditLeadContact(){
     platform:document.getElementById('ec-platform').value.trim(),
     country:document.getElementById('ec-country').value.trim(),
     brand:document.getElementById('ec-brand').value.trim(),
-    telegramUsername:document.getElementById('ec-telegram').value.trim()
+    telegramUsername:document.getElementById('ec-telegram').value.trim(),
+    whatsapp:document.getElementById('ec-whatsapp').value.trim(),
+    contactPersonName:document.getElementById('ec-contact-person-name').value.trim(),
+    contactPersonTitle:document.getElementById('ec-contact-person-title').value.trim()
   };
   try{
     await apiFetch('/whizz-update-contact',{method:'POST',body:JSON.stringify(contact)});
@@ -4733,14 +5775,17 @@ async function submitBulkEditLeads(){
   loadLeadsContacts();
 }
 
-// ── Enrich Telegram (existing leads) ──
+// ── Enrich Telegram & WhatsApp (existing leads) ──
 function openEnrichTelegramModal(){
   if(!_leadsSelectedIds.size){showToast('Select at least one lead first','error');return;}
   const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id));
-  const withSite=targets.filter(c=>c.website&&!c.telegramUsername);
+  const withSite=targets.filter(c=>c.website&&(!c.telegramUsername||!c.whatsapp));
+  const stillMissing=targets.filter(c=>!c.whatsapp);
   document.getElementById('et-count').textContent=targets.length;
   document.getElementById('et-site-count').textContent=withSite.length;
   document.getElementById('et-auto-btn').disabled=!withSite.length;
+  document.getElementById('et-deepsearch-count').textContent=stillMissing.length;
+  document.getElementById('et-deepsearch-btn').disabled=!stillMissing.length;
   document.getElementById('et-paste').value='';
   document.getElementById('modal-enrich-telegram').classList.add('open');
 }
@@ -4749,12 +5794,13 @@ function saveContactField(c,fields){
     id:c.id,contactName:c.contactName||c.company||c.name||'',company:c.company||c.contactName||c.name||'',
     phone:c.phone||'',email:c.email||'',category:c.category||'',source:c.source||'',platform:c.platform||'',
     country:c.country||'',brand:c.brand||'',productInterest:c.productInterest||'',
-    telegramUsername:c.telegramUsername||'',linkedin:c.linkedin||'',
+    telegramUsername:c.telegramUsername||'',linkedin:c.linkedin||'',whatsapp:c.whatsapp||'',
+    contactPersonName:c.contactPersonName||'',contactPersonTitle:c.contactPersonTitle||'',
     ...fields
   })});
 }
 async function runAutoEnrichTelegram(){
-  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id)&&c.website&&!c.telegramUsername);
+  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id)&&c.website&&(!c.telegramUsername||!c.whatsapp));
   if(!targets.length){showToast('None of the selected leads have a website to check','info');return;}
   const btn=document.getElementById('et-auto-btn');
   btn.disabled=true;btn.textContent='Checking…';
@@ -4765,16 +5811,71 @@ async function runAutoEnrichTelegram(){
     let found=0,failed=0;
     for(const c of targets){
       const hit=results[c.website];
-      if(!hit||(!hit.telegram&&!hit.linkedin))continue;
+      if(!hit||(!hit.telegram&&!hit.whatsapp&&!hit.linkedin))continue;
       try{
-        await saveContactField(c,{telegramUsername:hit.telegram||c.telegramUsername||'',linkedin:hit.linkedin||c.linkedin||''});
+        await saveContactField(c,{telegramUsername:hit.telegram||c.telegramUsername||'',whatsapp:hit.whatsapp||c.whatsapp||'',linkedin:hit.linkedin||c.linkedin||''});
         found++;
       }catch(e){failed++;}
     }
-    showToast(found?`Found and saved Telegram/LinkedIn for ${found} lead(s)${failed?`, ${failed} failed to save`:''}`:'No Telegram or LinkedIn links found on those websites','info');
+    showToast(found?`Found and saved Telegram/WhatsApp/LinkedIn for ${found} lead(s)${failed?`, ${failed} failed to save`:''}`:'No Telegram, WhatsApp or LinkedIn links found on those websites (or their Instagram)','info');
     if(found){closeModal('modal-enrich-telegram');loadLeadsContacts();}
-  }catch(e){showToast(e.message||'Telegram/LinkedIn lookup failed','error');}
+  }catch(e){showToast(e.message||'Telegram/WhatsApp/LinkedIn lookup failed','error');}
   btn.disabled=false;btn.textContent='Auto-check websites';
+}
+// Deeper, paid, WhatsApp-only tier beyond runAutoEnrichTelegram(): Yandex-searches (via SerpApi)
+// each selected lead still missing WhatsApp (no website required, unlike the free auto-check
+// above) for a WhatsApp number mentioned anywhere online — see enrichSocialSearch() in
+// worker/routes/leadIntelligence.js.
+async function runDeepSearchEnrichTelegram(){
+  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id)&&!c.whatsapp);
+  if(!targets.length){showToast('None of the selected leads are missing WhatsApp','info');return;}
+  const btn=document.getElementById('et-deepsearch-btn');
+  btn.disabled=true;btn.textContent='Searching…';
+  try{
+    const capped=targets.slice(0,15);
+    const leads=capped.map(c=>({key:String(c.id),query:buildSocialSearchQuery(c.contactName||c.company,c.country)}));
+    const results=await fetchSocialSearchResults(leads);
+    let found=0,failed=0;
+    for(const c of capped){
+      const hit=results[String(c.id)];
+      if(!hit||!hit.whatsapp)continue;
+      try{
+        await saveContactField(c,{whatsapp:hit.whatsapp});
+        found++;
+      }catch(e){failed++;}
+    }
+    const cappedNote=targets.length>15?` (capped at the first 15 of ${targets.length})`:'';
+    showToast(found?`Deeper search found and saved WhatsApp for ${found} lead(s)${failed?`, ${failed} failed to save`:''}${cappedNote}`:`Deeper search found nothing new${cappedNote}`,found?'success':'info');
+    if(found){closeModal('modal-enrich-telegram');loadLeadsContacts();}
+  }catch(e){showToast(e.message||'Deeper search failed','error');}
+  btn.disabled=false;btn.textContent='Run deeper search';
+}
+// Finds an actual decision-maker for each selected lead still missing one — a public LinkedIn
+// profile (owner, director, purchasing, sales manager, ...) via the same SerpApi/Yandex flow as
+// the WhatsApp deep-search tier. See enrichContactPerson() in worker/routes/leadIntelligence.js.
+async function runFindContactPersonForSelected(){
+  const targets=_currentLeadsContacts.filter(c=>c.id&&_leadsSelectedIds.has(c.id)&&!c.contactPersonName);
+  if(!targets.length){showToast('None of the selected leads are missing a contact person','info');return;}
+  const btn=document.getElementById('leads-find-contact-btn');
+  btn.disabled=true;btn.textContent='Searching…';
+  try{
+    const capped=targets.slice(0,15);
+    const leads=capped.map(c=>({key:String(c.id),company:c.company||c.contactName||''}));
+    const results=await fetchContactPersonResults(leads);
+    let found=0,failed=0;
+    for(const c of capped){
+      const hit=results[String(c.id)];
+      if(!hit||!hit.name)continue;
+      try{
+        await saveContactField(c,{contactPersonName:hit.name,contactPersonTitle:hit.title||'',linkedin:hit.linkedin||c.linkedin||''});
+        found++;
+      }catch(e){failed++;}
+    }
+    const cappedNote=targets.length>15?` (capped at the first 15 of ${targets.length})`:'';
+    showToast(found?`Found and saved a contact person for ${found} lead(s)${failed?`, ${failed} failed to save`:''}${cappedNote}`:`No decision-maker profiles found${cappedNote}`,found?'success':'info');
+    if(found)loadLeadsContacts();
+  }catch(e){showToast(e.message||'Contact person search failed','error');}
+  btn.disabled=false;btn.textContent='Find Contact Person';
 }
 async function applyPastedTelegramIds(){
   const raw=document.getElementById('et-paste').value.trim();
@@ -5820,7 +6921,7 @@ function onLIPeriodChange(period,el){
 }
 
 function _buildLIChatBtn(c){
-  const phone=(c.phone||'').replace(/\D/g,'');
+  const phone=(c.whatsapp||c.phone||'').replace(/\D/g,'');
   const tgUser=c.telegramUsername||'';
   if(phone){
     return `<a href="https://wa.me/${phone}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;font-size:10px;background:rgba(37,211,102,0.12);color:#25d366;border:1px solid rgba(37,211,102,0.3);border-radius:6px;text-decoration:none;font-weight:600;">
@@ -5941,7 +7042,7 @@ function buildLeadIntelligenceReportHtml(d){
     const scoreColor=score>=70?'#dc2626':score>=40?'#d97706':'#0f172a';
     const lastContacted=c.lastContactedAt?new Date(c.lastContactedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—';
     const addedDate=c.createdAt?new Date(c.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—';
-    const phone=(c.phone||'').replace(/\D/g,'');
+    const phone=(c.whatsapp||c.phone||'').replace(/\D/g,'');
     const tgUser=c.telegramUsername||'';
     let chatLink='—';
     if(phone) chatLink=`<a href="https://wa.me/${phone}" style="color:#25d366;text-decoration:none;">WhatsApp ↗</a>`;
@@ -7086,6 +8187,9 @@ const DISC_CFG = {
   // residential proxies to get past 2GIS's anti-bot check.
   gis2: { label: '2GIS', platform: '2GIS', scanLabel: '2GIS' },
   kaspi: { label: 'Kaspi.kz', platform: 'Kaspi.kz', endpoint: null, scanLabel: 'Kaspi.kz' },
+  // No Apify actor and no collector job — a single SerpApi/Yandex search per click, see
+  // runCompanySearch() below and searchCompany() in worker/routes/leadIntelligence.js.
+  company: { label: 'Company Search', platform: 'Company Search (SERP)', endpoint: null, scanLabel: 'the web via SerpApi' },
 };
 
 function setDiscWindow(source, el) {
@@ -7109,12 +8213,39 @@ async function leadApi(url, opts = {}) {
   return d;
 }
 
+// Drops results already saved as leads, so re-running the same Discovery search doesn't keep
+// resurfacing businesses already in Leads. Matches on the platform's own stable id (Google's
+// placeId/cid) or a normalized phone number — the same two signals saveOwnedContacts() already
+// uses server-side to detect "already imported" (worker/routes/automation.js). Best-effort: if
+// the check itself fails, results are shown as-is rather than hiding everything.
+async function dropExistingLeads(contacts, platform) {
+  const sourceIds = contacts.map(c => c.sourceId || c.placeId || c.cid || c.fid || '').filter(Boolean);
+  const phones = contacts.map(c => (c.phone || c.phoneNumber || '').replace(/\D/g, '')).filter(Boolean);
+  if (!sourceIds.length && !phones.length) return contacts;
+  try {
+    const check = await leadApi('/api/lead-intelligence/check-existing', { method: 'POST', body: JSON.stringify({ platform, sourceIds, phones }) });
+    const existingSourceIds = new Set(check.existingSourceIds || []);
+    const existingPhones = new Set(check.existingPhones || []);
+    const filtered = contacts.filter(c => {
+      const sid = c.sourceId || c.placeId || c.cid || c.fid || '';
+      const phone = (c.phone || c.phoneNumber || '').replace(/\D/g, '');
+      return !((sid && existingSourceIds.has(sid)) || (phone && existingPhones.has(phone)));
+    });
+    const hidden = contacts.length - filtered.length;
+    if (hidden) showToast(`Hid ${hidden} result${hidden > 1 ? 's' : ''} already in Leads`, 'info');
+    return filtered;
+  } catch (e) {
+    return contacts;
+  }
+}
+
 // Google Maps is the one synchronous n8n/Apify webhook left; Kaspi and 2GIS both run as async
 // collector jobs (own headless browser, poll for results) so they keep their own run*Discovery
 // functions below instead of sharing this path.
 async function runDiscovery(source) {
   if (source === 'kaspi') { await runKaspiDiscovery(); return; }
   if (source === 'gis2') { await run2GisDiscovery(); return; }
+  if (source === 'company') { await runCompanySearch(); return; }
   const cfg = DISC_CFG[source];
   const location = document.getElementById(`disc-location-${source}`).value.trim();
   const brand    = document.getElementById(`disc-brand-${source}`).value.trim();
@@ -7145,32 +8276,60 @@ async function runDiscovery(source) {
 
   try {
     const d = await api(cfg.endpoint, 'POST', { query, location, brand, category, type, limit });
-    const contacts = (d.contacts || d.items || (Array.isArray(d) ? d : [])).map(c => ({ __source: source, __searchLocation: location, ...c }));
+    let contacts = (d.contacts || d.items || (Array.isArray(d) ? d : [])).map(c => ({ __source: source, __searchLocation: location, ...c }));
+    contacts = await dropExistingLeads(contacts, cfg.platform);
     S.disc[source].contacts = contacts;
     S.disc[source].selected = new Set();
     renderDiscoveryResults(source);
-    if (contacts.length) showToast(`Found ${contacts.length} contacts via ${cfg.label}`, 'success');
-    else showToast('No results — try broader filters', 'info');
+    // filteredOfficial: brand-owned "Official/Flagship Store" listings the Google Maps workflow
+    // already skipped server-side (see Map to Whizz Contacts in n8n-workflows/
+    // whizz-discover-google-maps.json) — they're not wholesale prospects, just the manufacturer's
+    // own retail presence, so surfacing the count here explains why fewer results than expected
+    // came back instead of it looking like a bug.
+    const skippedNote = d.filteredOfficial ? ` (skipped ${d.filteredOfficial} official/flagship brand store${d.filteredOfficial > 1 ? 's' : ''})` : '';
+    if (contacts.length) showToast(`Found ${contacts.length} contacts via ${cfg.label}${skippedNote}`, 'success');
+    else showToast(`No results — try broader filters${skippedNote}`, 'info');
 
     const enrichBox = document.getElementById('disc-enrich-social-maps');
     if (source === 'maps' && contacts.length && enrichBox && enrichBox.checked) {
       await enrichMapsSocialLinks();
+      const deepBox = document.getElementById('disc-enrich-deepsearch-maps');
+      if (deepBox && deepBox.checked) await deepSearchMapsSocialLinks();
+    }
+    const personBox = document.getElementById('disc-enrich-contact-person-maps');
+    if (source === 'maps' && contacts.length && personBox && personBox.checked) {
+      await findContactPersonsMaps();
+    }
+    const directoriesBox = document.getElementById('disc-enrich-directories-maps');
+    if (source === 'maps' && contacts.length && directoriesBox && directoriesBox.checked) {
+      await findBusinessDirectoriesMaps();
     }
   } catch(e) {
-    document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n.</div>`;
+    // api() throws with the n8n workflow's own `error` field when the webhook responded but the
+    // run itself failed (e.g. an Apify credential/quota problem) — that's a far more useful
+    // message than a generic "is the webhook active" guess, which really only fits the plain
+    // "HTTP Status Error 404"/network-failure case api() falls back to when n8n has nothing to say.
+    const reason = e.message && !/^HTTP Status Error/.test(e.message)
+      ? e.message
+      : `ensure <strong>${cfg.endpoint}</strong> webhook is active in n8n`;
+    document.getElementById(`disc-results-body-${source}`).innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Discovery failed — ${reason}.</div>`;
     document.getElementById(`disc-results-title-${source}`).textContent = 'Results';
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
 
-// Google Maps has no Telegram/LinkedIn field of its own — this is a best-effort second pass
-// that fetches each result's own website and looks for a t.me or linkedin.com link on it (see
-// enrichSocialLinks() in worker/routes/leadIntelligence.js). Opt-in via the checkbox since it
-// adds real time (one fetch per site, capped at 20) on top of the initial search.
+// Google Maps has no Telegram/WhatsApp/LinkedIn field of its own — this is a best-effort second
+// pass that fetches each result's own website and looks for a t.me, wa.me/api.whatsapp.com, or
+// linkedin.com link on it. When the website itself links out to Instagram but has no
+// Telegram/WhatsApp link, that Instagram profile is followed too and scanned the same way —
+// Instagram itself is never added as a contact field, only whatever WhatsApp/Telegram link its
+// bio leads to (see enrichSocialLinks() in worker/routes/leadIntelligence.js). Opt-in via the
+// checkbox since it adds real time (one or two fetches per site, capped at 20) on top of the
+// initial search.
 async function enrichMapsSocialLinks() {
   const win = S.disc.maps;
   const websites = [...new Set(win.contacts.filter(c => c.website).map(c => c.website))];
-  if (!websites.length) { showToast('No websites in these results to check for Telegram/LinkedIn', 'info'); return; }
+  if (!websites.length) { showToast('No websites in these results to check for Telegram/WhatsApp/LinkedIn', 'info'); return; }
 
   const btn = document.getElementById('disc-run-btn-maps');
   const icon = document.getElementById('disc-run-icon-maps');
@@ -7186,16 +8345,246 @@ async function enrichMapsSocialLinks() {
       const hit = c.website && results[c.website];
       if (!hit) return;
       if (hit.telegram) { c.telegram = hit.telegram; found++; }
+      if (hit.whatsapp) { c.whatsapp = hit.whatsapp; found++; }
       if (hit.linkedin) { c.linkedin = hit.linkedin; found++; }
     });
     renderDiscoveryResults('maps');
-    if (found) showToast(`Found ${found} Telegram/LinkedIn link${found>1?'s':''}`, 'success');
-    else showToast('No Telegram or LinkedIn links found on those websites', 'info');
+    if (found) showToast(`Found ${found} Telegram/WhatsApp/LinkedIn link${found>1?'s':''}`, 'success');
+    else showToast('No Telegram, WhatsApp or LinkedIn links found on those websites (or their Instagram)', 'info');
     if (d.truncated) showToast(`Only checked the first 20 of ${websites.length} websites (per-search cap)`, 'info');
   } catch (e) {
-    showToast(e.message || 'Telegram/LinkedIn lookup failed', 'error');
+    showToast(e.message || 'Telegram/WhatsApp/LinkedIn lookup failed', 'error');
   }
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
+}
+
+// Builds the search text sent to enrichSocialSearch() (worker/routes/leadIntelligence.js), which
+// runs it through SerpApi against Yandex — better CIS/Russia business coverage than Google for
+// Whizz's search geography — for the business's name + location, since a lead with nothing on its
+// own website/Instagram might still have a WhatsApp number mentioned in a directory listing,
+// marketplace page, or social mention elsewhere on the web. WhatsApp-only by design (Telegram is
+// already covered by the free website/Instagram tiers).
+function buildSocialSearchQuery(name, location) {
+  return [`"${(name || '').trim()}"`, (location || '').trim(), '("wa.me" OR whatsapp)'].filter(s => s && s !== '""').join(' ').trim();
+}
+
+async function fetchSocialSearchResults(leads) {
+  if (!leads.length) return {};
+  const d = await leadApi('/api/lead-intelligence/enrich-social-search', { method: 'POST', body: JSON.stringify({ leads }) });
+  if (d.error) throw new Error(d.error);
+  return d.results || {};
+}
+
+// Third, paid, WhatsApp-only tier beyond enrichMapsSocialLinks(): only for results still missing
+// a WhatsApp number after the free website/Instagram pass, runs each one's name+location through
+// a real Yandex search via SerpApi looking for a WhatsApp number mentioned anywhere else on the
+// web. Opt-in via its own checkbox since it costs a paid SerpApi search per lead.
+async function deepSearchMapsSocialLinks() {
+  const win = S.disc.maps;
+  const targets = win.contacts
+    .map((c, i) => ({ c, key: String(i) }))
+    .filter(({ c }) => !c.whatsapp);
+  if (!targets.length) { showToast('Every result already has a WhatsApp number', 'info'); return; }
+
+  const btn = document.getElementById('disc-run-btn-maps');
+  const icon = document.getElementById('disc-run-icon-maps');
+  const label = document.getElementById('disc-run-label-maps');
+  btn.disabled = true; icon.classList.add('spin');
+  label.textContent = `Deep searching ${Math.min(targets.length, 15)} lead${Math.min(targets.length, 15) > 1 ? 's' : ''}…`;
+
+  const leads = targets.map(({ c, key }) => ({ key, query: buildSocialSearchQuery(c.name || c.title, c.city || c.__searchLocation || c.address) }));
+
+  try {
+    const results = await fetchSocialSearchResults(leads);
+    let found = 0;
+    targets.forEach(({ c, key }) => {
+      const hit = results[key];
+      if (hit && hit.whatsapp && !c.whatsapp) { c.whatsapp = hit.whatsapp; found++; }
+    });
+    renderDiscoveryResults('maps');
+    const cappedNote = leads.length > 15 ? ` (capped at the first 15 of ${leads.length} still missing one)` : '';
+    showToast(found ? `Deeper search found ${found} more WhatsApp number${found > 1 ? 's' : ''}${cappedNote}` : `Deeper search found nothing new${cappedNote}`, found ? 'success' : 'info');
+  } catch (e) {
+    showToast(e.message || 'Deeper search failed', 'error');
+  }
+  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
+}
+
+async function fetchContactPersonResults(leads) {
+  if (!leads.length) return {};
+  const d = await leadApi('/api/lead-intelligence/enrich-contact-person', { method: 'POST', body: JSON.stringify({ leads }) });
+  if (d.error) throw new Error(d.error);
+  return d.results || {};
+}
+
+// Fourth, paid tier: finds an actual decision-maker at each business instead of just its
+// front-desk number — searches for a public LinkedIn profile (owner, director, purchasing,
+// sales manager, ...) via the same SerpApi/Yandex flow, see enrichContactPerson() in
+// worker/routes/leadIntelligence.js. Opt-in via its own checkbox since it costs a paid SerpApi
+// search per lead; runs for every result regardless of what the WhatsApp tiers found, since it's
+// answering a different question (who to contact, not how).
+async function findContactPersonsMaps() {
+  const win = S.disc.maps;
+  const targets = win.contacts
+    .map((c, i) => ({ c, key: String(i) }))
+    .filter(({ c }) => !c.contactPersonName);
+  if (!targets.length) { showToast('Every result already has a contact person', 'info'); return; }
+
+  const btn = document.getElementById('disc-run-btn-maps');
+  const icon = document.getElementById('disc-run-icon-maps');
+  const label = document.getElementById('disc-run-label-maps');
+  btn.disabled = true; icon.classList.add('spin');
+  label.textContent = `Finding contacts for ${Math.min(targets.length, 15)} lead${Math.min(targets.length, 15) > 1 ? 's' : ''}…`;
+
+  const leads = targets.map(({ c, key }) => ({ key, company: c.name || c.title || '' }));
+
+  try {
+    const results = await fetchContactPersonResults(leads);
+    let found = 0;
+    targets.forEach(({ c, key }) => {
+      const hit = results[key];
+      if (!hit || !hit.name) return;
+      c.contactPersonName = hit.name;
+      c.contactPersonTitle = hit.title || '';
+      if (hit.linkedin && !c.linkedin) c.linkedin = hit.linkedin;
+      found++;
+    });
+    renderDiscoveryResults('maps');
+    const cappedNote = leads.length > 15 ? ` (capped at the first 15 of ${leads.length})` : '';
+    showToast(found ? `Found ${found} contact person${found > 1 ? 's' : ''}${cappedNote}` : `No decision-maker profiles found${cappedNote}`, found ? 'success' : 'info');
+  } catch (e) {
+    showToast(e.message || 'Contact person search failed', 'error');
+  }
+  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
+}
+
+async function fetchBusinessDirectoryResults(leads) {
+  if (!leads.length) return {};
+  const d = await leadApi('/api/lead-intelligence/enrich-business-directory', { method: 'POST', body: JSON.stringify({ leads }) });
+  if (d.error) throw new Error(d.error);
+  return d.results || {};
+}
+
+// Fifth, paid tier: a single combined SerpApi/Yandex search per lead covering Volza (trade-data
+// profile link only — real shipment data needs a paid Volza login), Yellow Pages (US) and Golden
+// Pages (Ireland). See enrichBusinessDirectories() in worker/routes/leadIntelligence.js. Runs for
+// every result missing at least one of volzaUrl/directoryUrl, since it's a different question
+// (public directory presence) than the WhatsApp/LinkedIn tiers above.
+async function findBusinessDirectoriesMaps() {
+  const win = S.disc.maps;
+  const targets = win.contacts
+    .map((c, i) => ({ c, key: String(i) }))
+    .filter(({ c }) => !c.volzaUrl || !c.directoryUrl);
+  if (!targets.length) { showToast('Every result already has a Volza and directory link', 'info'); return; }
+
+  const btn = document.getElementById('disc-run-btn-maps');
+  const icon = document.getElementById('disc-run-icon-maps');
+  const label = document.getElementById('disc-run-label-maps');
+  btn.disabled = true; icon.classList.add('spin');
+  label.textContent = `Checking directories for ${Math.min(targets.length, 15)} lead${Math.min(targets.length, 15) > 1 ? 's' : ''}…`;
+
+  const leads = targets.map(({ c, key }) => ({ key, company: c.name || c.title || '', location: c.city || c.__searchLocation || c.address || '' }));
+
+  try {
+    const results = await fetchBusinessDirectoryResults(leads);
+    let found = 0;
+    targets.forEach(({ c, key }) => {
+      const hit = results[key];
+      if (!hit) return;
+      if (hit.volza && !c.volzaUrl) { c.volzaUrl = hit.volza; found++; }
+      if (hit.directory) {
+        if (hit.directory.url && !c.directoryUrl) { c.directoryUrl = hit.directory.url; found++; }
+        if (hit.directory.phone && !c.phone && !c.phoneNumber) c.phone = hit.directory.phone;
+        if (hit.directory.email && !c.email) c.email = hit.directory.email;
+        if (hit.directory.description && !c.directoryDescription) c.directoryDescription = hit.directory.description;
+      }
+    });
+    renderDiscoveryResults('maps');
+    const cappedNote = leads.length > 15 ? ` (capped at the first 15 of ${leads.length})` : '';
+    showToast(found ? `Found ${found} Volza/directory link${found > 1 ? 's' : ''}${cappedNote}` : `No Volza or Yellow/Golden Pages listings found${cappedNote}`, found ? 'success' : 'info');
+  } catch (e) {
+    showToast(e.message || 'Business directory search failed', 'error');
+  }
+  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
+}
+
+// Per-card action on a single result's Volza link (any Discovery window — Maps, 2GIS, Kaspi.kz or
+// Company Search all route through this same card template): fetches the Volza profile page
+// itself for the exact registered company name (a Volza URL slug is often a truncated/mangled
+// version of it), then re-searches under that corrected name for a WhatsApp number or Telegram
+// handle. See resolveVolzaContact() in worker/routes/leadIntelligence.js. One at a time by design
+// — it's a deliberate "clean this one lead up" click, not a bulk pass.
+async function resolveVolzaLead(source, i) {
+  const c = S.disc[source] && S.disc[source].contacts[i];
+  if (!c || !c.volzaUrl) return;
+  const btn = document.getElementById(`volza-resolve-${source}-${i}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Resolving…'; }
+  try {
+    const location = c.city || c.__searchLocation || c.address || '';
+    const d = await leadApi('/api/lead-intelligence/resolve-volza', { method: 'POST', body: JSON.stringify({ leads: [{ key: '0', volzaUrl: c.volzaUrl, location }] }) });
+    if (d.error) throw new Error(d.error);
+    const hit = d.results && d.results['0'];
+    if (!hit || !hit.companyName) { showToast('Could not resolve an exact company name from that Volza profile', 'info'); return; }
+    c.name = hit.companyName;
+    let found = '';
+    if (hit.whatsapp && !c.whatsapp) { c.whatsapp = hit.whatsapp; found += ' + WhatsApp'; }
+    if (hit.telegram && !c.telegram) { c.telegram = hit.telegram; found += ' + Telegram'; }
+    renderDiscoveryResults(source);
+    showToast(`Resolved "${hit.companyName}"${found}`, 'success');
+  } catch (e) {
+    showToast(e.message || 'Volza resolve failed', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Resolve name + WA/TG ↻'; }
+  }
+}
+
+// The two credentialed B2B directory sources (see Directory Sources in Lead Intelligence) that
+// Company Search also cross-references — display names for formatContactForLeads() below.
+const DIRECTORY_PROSPECT_SOURCE_LABEL = { handelot: 'Handelot' };
+
+function directoryProspectToContact(p, source) {
+  return {
+    __prospectId: p.id, __source: source,
+    name: p.company, phone: p.phone, email: p.email, website: p.website,
+    whatsapp: p.whatsapp, telegram: p.telegram,
+    address: p.country, category: p.productInterest || p.brand,
+    totalScore: p.leadScore ? p.leadScore / 20 : 0,
+    url: p.profileUrl
+  };
+}
+
+// Cross-references Whizz's own already-imported Handelot prospects (from a prior Directory
+// Sources crawl — a credentialed, login-gated marketplace, not something this search can scrape
+// live) against the searched company name, alongside searchCompany()'s live SerpApi lookup.
+// Best-effort: nothing imported yet, or a fetch failure, just contributes no matches rather than
+// failing the whole Company Search. Kadorf is deliberately excluded from this lookup (see
+// DIRECTORY_PROSPECT_SOURCE_LABEL above) — Company Search only cross-references Handelot.
+async function fetchDirectoryProspectMatches(company) {
+  const perSource = await Promise.all(Object.keys(DIRECTORY_PROSPECT_SOURCE_LABEL).map(async source => {
+    try {
+      const d = await leadApi(`/api/lead-intelligence/prospects?source=${source}&q=${encodeURIComponent(company)}`);
+      return (d.prospects || []).map(p => directoryProspectToContact(p, source));
+    } catch (e) {
+      return [];
+    }
+  }));
+  return perSource.flat();
+}
+
+// Zero matches from fetchDirectoryProspectMatches() looks identical on screen whether Handelot was
+// actually searched and came up empty, or whether it has never been crawled (no directory_accounts
+// credentials configured, or configured but never synced) and so has no prospects in the DB to
+// search in the first place — that ambiguity is exactly what a "why isn't this finding anything"
+// report keeps running into. Called only when there's nothing to show, so the toast can say which
+// case it is. Only checks sources in DIRECTORY_PROSPECT_SOURCE_LABEL (Handelot), not Kadorf.
+async function checkUnsyncedDirectorySources() {
+  try {
+    const d = await leadApi('/api/lead-intelligence/sources');
+    return (d.sources || [])
+      .filter(s => Object.prototype.hasOwnProperty.call(DIRECTORY_PROSPECT_SOURCE_LABEL, s.source) && (!s.configured || !s.lastSyncAt))
+      .map(s => s.name || DIRECTORY_PROSPECT_SOURCE_LABEL[s.source]);
+  } catch (e) {
+    return [];
+  }
 }
 
 function kaspiProspectToContact(p) {
@@ -7353,6 +8742,100 @@ async function run2GisDiscovery() {
   btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Discover';
 }
 
+// One-shot SerpApi lookup for a single known company name — see searchCompany() in
+// worker/routes/leadIntelligence.js. Unlike the other windows, each search here *adds* a profile
+// to the list rather than replacing it, so several companies can be looked up in a row before
+// bulk-adding them to Leads (re-searching the same name refreshes that entry in place instead of
+// duplicating it).
+async function runCompanySearch() {
+  const source = 'company';
+  const company = document.getElementById('disc-company-name').value.trim();
+  const location = document.getElementById('disc-company-location').value.trim();
+  const findContactPerson = document.getElementById('disc-enrich-contact-person-company').checked;
+  const findBusinessDirectory = document.getElementById('disc-enrich-business-directory-company').checked;
+  if (!company) { showToast('Enter a company name to search', 'error'); return; }
+
+  const btn = document.getElementById('disc-run-btn-company');
+  const icon = document.getElementById('disc-run-icon-company');
+  const label = document.getElementById('disc-run-label-company');
+  btn.disabled = true; icon.classList.add('spin'); label.textContent = 'Searching…';
+
+  const win = S.disc.company;
+  const resultsBody = document.getElementById('disc-results-body-company');
+  const resultsTitle = document.getElementById('disc-results-title-company');
+  if (!win.contacts.length) {
+    resultsBody.innerHTML = `
+      <div style="padding:40px;text-align:center;">
+        <div class="ai-thinking" style="justify-content:center;display:inline-flex;">
+          <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
+          <span style="margin-left:8px;color:var(--text2);font-size:12px;">Searching the web for "<strong>${company}</strong>"…</span>
+        </div>
+      </div>`;
+    resultsTitle.textContent = 'Searching…';
+  }
+
+  try {
+    // Independent failure handling: search-company is a paid SerpApi call and can fail on its own
+    // (e.g. no SERPAPI_API_KEY), but the Handelot prospect lookup is a free local DB read — one
+    // failing shouldn't hide results from the other, so each is caught on its own rather than
+    // through one shared catch.
+    const [profileResult, directoryMatches] = await Promise.all([
+      leadApi('/api/lead-intelligence/search-company', { method: 'POST', body: JSON.stringify({ company, location, findContactPerson, findBusinessDirectory }) }).catch(e => ({ __error: e })),
+      fetchDirectoryProspectMatches(company)
+    ]);
+
+    let profileMessage = '';
+    if (profileResult.__error) {
+      profileMessage = profileResult.__error.message || 'SerpApi company search failed';
+    } else if (profileResult.profile) {
+      // profile.company may be a cleaned-up name resolved server-side from a raw slug (see
+      // searchCompany's SLUG_LIKE_NAME_RE handling) — that resolved name is what should display
+      // and get saved, while __searchedAs keeps the original typed text so a re-search of the same
+      // slug still finds and refreshes this same card instead of adding a duplicate.
+      const resolvedName = profileResult.profile.company || company;
+      const entry = { __source: 'company', __searchLocation: location, __searchedAs: company, ...profileResult.profile, name: resolvedName, company: resolvedName };
+      const existingIdx = win.contacts.findIndex(c => c.__source === 'company' && (c.__searchedAs || c.name || '').toLowerCase() === company.toLowerCase());
+      if (existingIdx >= 0) win.contacts[existingIdx] = entry;
+      else win.contacts.unshift(entry);
+      profileMessage = resolvedName.toLowerCase() !== company.toLowerCase()
+        ? `Built a profile for "${resolvedName}" (resolved from "${company}")`
+        : `Built a profile for "${resolvedName}"`;
+    } else {
+      profileMessage = `No SerpApi results for "${company}"`;
+    }
+
+    let addedFromDirectories = 0;
+    directoryMatches.forEach(m => {
+      const already = win.contacts.some(c => c.__prospectId === m.__prospectId && c.__source === m.__source);
+      if (already) return;
+      win.contacts.push(m);
+      addedFromDirectories++;
+    });
+
+    renderDiscoveryResults(source);
+    let directoryNote = addedFromDirectories
+      ? ` + ${addedFromDirectories} match${addedFromDirectories > 1 ? 'es' : ''} from Handelot`
+      : '';
+    if (!addedFromDirectories) {
+      const unsynced = await checkUnsyncedDirectorySources();
+      directoryNote = unsynced.length
+        ? ` (${unsynced.join(' & ')} not yet synced — see Directory Sources in Lead Intelligence)`
+        : ' (no Handelot match)';
+    }
+    const toastType = profileResult.profile || addedFromDirectories ? 'success' : (profileResult.__error ? 'error' : 'info');
+    showToast(`${profileMessage}${directoryNote}`, toastType);
+  } catch (e) {
+    if (!win.contacts.length) {
+      resultsBody.innerHTML = `<div class="disc-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${e.message || 'Company search failed'}</div>`;
+      resultsTitle.textContent = 'Results';
+    } else {
+      renderDiscoveryResults(source);
+    }
+    showToast(e.message || 'Company search failed', 'error');
+  }
+  btn.disabled = false; icon.classList.remove('spin'); label.textContent = 'Search';
+}
+
 function renderDiscoveryResults(source) {
   const contacts = (S.disc[source] && S.disc[source].contacts) || [];
   const body    = document.getElementById(`disc-results-body-${source}`);
@@ -7389,6 +8872,7 @@ function renderDiscoveryResults(source) {
   const cardsHtml = contacts.map((c, i) => {
     const name     = c.name || c.title || 'Unknown Business';
     const initials = name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const nameSafe = _hesc(name);
     const category = c.categoryName || c.category || '';
     const phone    = c.phone || c.phoneNumber || '';
     const email    = c.email || '';
@@ -7402,7 +8886,7 @@ function renderDiscoveryResults(source) {
       <div class="cc-header">
         <div class="cc-avatar">${initials}</div>
         <div style="flex:1;min-width:0;">
-          <div class="cc-name">${name}</div>
+          <div class="cc-name">${nameSafe}</div>
           <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:3px;">
             ${category?`<span class="cc-cat">${category}</span>`:''}
             ${stars?`<span class="cc-rating">${stars}</span>`:''}
@@ -7413,11 +8897,16 @@ function renderDiscoveryResults(source) {
       ${email?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${email}" onclick="event.stopPropagation()">${email}</a></div>`:''}
       ${address?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${address}</div>`:''}
       ${website?`<div class="cc-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><a href="${website}" target="_blank" onclick="event.stopPropagation()">${website.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
+      ${c.contactPersonName?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:#0a66c2;min-width:26px;">PN</span>${c.contactPersonName}${c.contactPersonTitle?` — ${c.contactPersonTitle}`:''}</div>`:''}
       ${c.whatsapp?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--green);min-width:26px;">WA</span><a href="https://wa.me/${c.whatsapp.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()">${c.whatsapp}</a></div>`:''}
       ${c.telegram?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--blue);min-width:26px;">TG</span><a href="https://t.me/${c.telegram.replace(/^@/,'')}" target="_blank" onclick="event.stopPropagation()">${c.telegram}</a></div>`:''}
       ${c.linkedin?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:#0a66c2;min-width:26px;">in</span><a href="${c.linkedin}" target="_blank" onclick="event.stopPropagation()">${c.linkedin.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
+      ${c.volzaUrl?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--amber);min-width:26px;">VZ</span><a href="${c.volzaUrl}" target="_blank" onclick="event.stopPropagation()">Volza profile ↗</a><button class="t-btn btn-ghost t-btn-sm" id="volza-resolve-${source}-${i}" style="margin-left:6px;padding:1px 6px;font-size:9px;" onclick="event.stopPropagation();resolveVolzaLead('${source}',${i})" title="Fetch the Volza profile page for the exact registered company name, then search for a WhatsApp number/Telegram handle under that name (paid search)">Resolve name + WA/TG ↻</button></div>`:''}
+      ${c.directoryUrl?`<div class="cc-detail"><span style="font-size:9px;font-weight:800;color:var(--amber);min-width:26px;">DR</span><a href="${c.directoryUrl}" target="_blank" onclick="event.stopPropagation()">${c.directoryUrl.replace(/^https?:\/\/(www\.)?/,'').slice(0,35)}</a></div>`:''}
+      ${c.directoryDescription?`<div class="cc-detail" style="color:var(--text3);font-size:10px;">${_hesc(c.directoryDescription).slice(0,140)}</div>`:''}
+      ${c.description?`<div style="font-size:11px;color:var(--text3);margin-top:4px;line-height:1.4;">${_hesc(c.description).slice(0,180)}</div>`:''}
       <div class="cc-footer">
-        ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${source==='kaspi'?'Seller Page ↗':source==='gis2'?'2GIS ↗':'Maps ↗'}</a>`:''}
+        ${mapsUrl?`<a class="t-btn btn-ghost" style="padding:4px 9px;font-size:10px;text-decoration:none;" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${(c.__source==='kaspi'||source==='kaspi')?'Seller Page ↗':(c.__source==='gis2'||source==='gis2')?'2GIS ↗':DIRECTORY_PROSPECT_SOURCE_LABEL[c.__source]?`${DIRECTORY_PROSPECT_SOURCE_LABEL[c.__source]} ↗`:'Maps ↗'}</a>`:''}
         <button class="t-btn btn-primary" style="padding:4px 9px;font-size:10px;flex:1;justify-content:center;" onclick="event.stopPropagation();saveOneContact('${source}',${i})">+ Add to Leads</button>
       </div>
     </div>`;
@@ -7503,10 +8992,15 @@ async function saveSelectedContacts(source) {
 // sourceId through so the backend can refresh an already-imported listing instead of just
 // dropping it as a duplicate.
 function formatContactForLeads(source, c) {
-  const platform = (DISC_CFG[source] && DISC_CFG[source].platform) || (c.__source === 'kaspi' ? 'Kaspi.kz' : '');
+  // c.__source only differs from the window's own `source` for a Handelot prospect mixed into the
+  // Company Search window (see fetchDirectoryProspectMatches) — its own platform name takes
+  // priority so CSV export doesn't mislabel it as "Company Search (SERP)".
+  const platform = DIRECTORY_PROSPECT_SOURCE_LABEL[c.__source] || (DISC_CFG[source] && DISC_CFG[source].platform) || (c.__source === 'kaspi' ? 'Kaspi.kz' : '');
   const country = c.countryCode || c.country || c.__searchLocation || '';
   return {
-    contactName: c.name||c.title||'',
+    // Prefer an actual decision-maker's name (from the "Find Contact" LinkedIn search) over the
+    // business name — contactName is who you'd actually message, company is always the business.
+    contactName: c.contactPersonName||c.name||c.title||'',
     company: c.name||c.title||'',
     phone: c.phone||c.phoneNumber||'',
     email: c.email||'',
@@ -7520,7 +9014,13 @@ function formatContactForLeads(source, c) {
     mapsUrl: c.url||'',
     sourceId: c.sourceId||c.placeId||c.cid||c.fid||c.id||'',
     telegramUsername: (c.telegramUsername||c.telegram||'').replace(/^@/,''),
-    linkedin: c.linkedin||''
+    linkedin: c.linkedin||'',
+    whatsapp: c.whatsapp||'',
+    contactPersonName: c.contactPersonName||'',
+    contactPersonTitle: c.contactPersonTitle||'',
+    volzaUrl: c.volzaUrl||'',
+    directoryUrl: c.directoryUrl||'',
+    directoryDescription: c.directoryDescription||''
   };
 }
 
@@ -7529,9 +9029,9 @@ function exportDiscCSV(source) {
   if (!contacts.length) { showToast('No contacts to export','error'); return; }
   const rows = contacts.map(c => {
     const f = formatContactForLeads(source, c);
-    return `"${f.contactName}","${f.company}","${f.phone}","${f.email}","${f.website}","${f.address}","${f.category}","${f.rating}","${f.telegramUsername}","${f.linkedin}"`;
+    return `"${f.contactName}","${f.company}","${f.contactPersonTitle}","${f.phone}","${f.email}","${f.website}","${f.address}","${f.category}","${f.rating}","${f.telegramUsername}","${f.whatsapp}","${f.linkedin}"`;
   });
-  downloadCSV(['Name,Company,Phone,Email,Website,Address,Category,Rating,Telegram,LinkedIn',...rows].join('\n'),`whizz_discovered_contacts_${source}.csv`);
+  downloadCSV(['Name,Company,Contact Title,Phone,Email,Website,Address,Category,Rating,Telegram,WhatsApp,LinkedIn',...rows].join('\n'),`whizz_discovered_contacts_${source}.csv`);
   showToast('Export complete!','success');
 }
 

@@ -169,17 +169,19 @@ async function listProspects(request, env) {
 async function promote(env, id, ownerEmail = null) {
   const p = await env.DB.prepare('SELECT * FROM directory_prospects WHERE id=?').bind(id).first();
   if (!p) return json({ error: 'Prospect not found' }, 404);
-  const phone = p.phone || p.whatsapp || ''; // contacts.phone drives the WhatsApp chat button (wa.me/<phone>)
-  const existing = await env.DB.prepare(`SELECT id FROM contacts WHERE (email<>'' AND lower(email)=lower(?)) OR (phone<>'' AND phone=?) OR (company<>'' AND lower(company)=lower(?)) LIMIT 1`).bind(p.email || '', phone, p.company || '').first();
+  const phone = p.phone || '';
+  const whatsapp = p.whatsapp || '';
+  const matchPhone = phone || whatsapp; // de-dup lookup only — contacts.phone/whatsapp stay separate below
+  const existing = await env.DB.prepare(`SELECT id FROM contacts WHERE (email<>'' AND lower(email)=lower(?)) OR (phone<>'' AND phone=?) OR (whatsapp<>'' AND whatsapp=?) OR (company<>'' AND lower(company)=lower(?)) LIMIT 1`).bind(p.email || '', matchPhone, whatsapp, p.company || '').first();
   if (existing) {
-    await env.DB.prepare(`UPDATE contacts SET source=?,platform=?,country=COALESCE(NULLIF(?,''),country),brand=COALESCE(NULLIF(?,''),brand),productInterest=COALESCE(NULLIF(?,''),productInterest),phone=COALESCE(NULLIF(phone,''),?),telegramUsername=COALESCE(NULLIF(telegramUsername,''),?),leadScore=MAX(leadScore,?),updatedAt=CURRENT_TIMESTAMP WHERE id=?`)
-      .bind(p.source, sourceName(p.source), p.country, p.brand, p.productInterest, phone, p.telegram || '', p.leadScore, existing.id).run();
+    await env.DB.prepare(`UPDATE contacts SET source=?,platform=?,country=COALESCE(NULLIF(?,''),country),brand=COALESCE(NULLIF(?,''),brand),productInterest=COALESCE(NULLIF(?,''),productInterest),phone=COALESCE(NULLIF(phone,''),?),whatsapp=COALESCE(NULLIF(whatsapp,''),?),telegramUsername=COALESCE(NULLIF(telegramUsername,''),?),leadScore=MAX(leadScore,?),updatedAt=CURRENT_TIMESTAMP WHERE id=?`)
+      .bind(p.source, sourceName(p.source), p.country, p.brand, p.productInterest, phone, whatsapp, p.telegram || '', p.leadScore, existing.id).run();
     await env.DB.prepare(`UPDATE directory_prospects SET status='promoted',contactId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=?`).bind(existing.id,id).run();
     return json({ ok: true, contactId: existing.id, merged: true });
   }
-  const result = await env.DB.prepare(`INSERT INTO contacts(contactName,company,phone,email,category,source,platform,country,brand,productInterest,ownerEmail,leadScore,telegramUsername,createdAt,updatedAt)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
-    .bind(p.contactName || '',p.company || '',phone,p.email || '','Directory Prospect',p.source,sourceName(p.source),p.country || '',p.brand || '',p.productInterest || '',ownerEmail,p.leadScore || 0,p.telegram || '').run();
+  const result = await env.DB.prepare(`INSERT INTO contacts(contactName,company,phone,email,category,source,platform,country,brand,productInterest,ownerEmail,leadScore,telegramUsername,whatsapp,createdAt,updatedAt)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+    .bind(p.contactName || '',p.company || '',phone,p.email || '','Directory Prospect',p.source,sourceName(p.source),p.country || '',p.brand || '',p.productInterest || '',ownerEmail,p.leadScore || 0,p.telegram || '',whatsapp).run();
   const contactId = result.meta?.last_row_id;
   await env.DB.prepare(`UPDATE directory_prospects SET status='promoted',contactId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=?`).bind(contactId,id).run();
   return json({ ok: true, contactId, merged: false });
@@ -275,23 +277,71 @@ async function collectorCallback(request, env) {
 }
 
 const ENRICH_MAX_SITES = 20;
+const ENRICH_MAX_INSTAGRAM_FOLLOWS = 10;
 const ENRICH_FETCH_TIMEOUT_MS = 8000;
+// Instagram serves its own login-walled HTML to a plain server-side fetch far more often than
+// a normal browser sees it, so a realistic UA meaningfully improves the odds the bio (and any
+// wa.me/t.me link in it) actually shows up in the response instead of a login prompt.
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+const EMPTY_SOCIAL_LINKS = { telegram: '', linkedin: '', whatsapp: '', instagram: '' };
+
+// A real WhatsApp number is an E.164 phone number: 8-15 digits, optionally with a leading '+'.
+// The wa.me/api.whatsapp.com regexes' character classes don't actually bound digit count (spaces
+// and dashes inside them don't stop a run of plain digits from going arbitrarily long), so without
+// this a match can grab far more than a phone number — a query string, an ID, or a mismatched
+// number sitting nearby — and save it as if it were real. Reject anything outside the real range
+// rather than store garbage.
+function normalizeWhatsAppMatch(raw) {
+  const digits = String(raw || '').replace(/[^0-9]/g, '');
+  if (digits.length < 8 || digits.length > 15) return '';
+  return (String(raw).trim().startsWith('+') ? '+' : '') + digits;
+}
 
 function extractSocialLinks(html) {
   const telegramMatch = html.match(/https?:\/\/(?:t|telegram)\.me\/([A-Za-z0-9_]{4,32})/i);
   const linkedinMatch = html.match(/https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/(?:company|in|school)\/[A-Za-z0-9\-_%.]+/i);
+  const waMeMatch = html.match(/https?:\/\/(?:api\.)?wa\.me\/(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i);
+  const waApiMatch = html.match(/https?:\/\/api\.whatsapp\.com\/send\/?\?phone=(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i);
+  const whatsapp = normalizeWhatsAppMatch((waMeMatch && waMeMatch[1]) || (waApiMatch && waApiMatch[1]) || '');
+  // Instagram is never surfaced as a lead field — it's only followed as a secondary source to
+  // find a WhatsApp/Telegram link a business put in its bio instead of on its own website.
+  const instagramMatch = html.match(/https?:\/\/(?:www\.)?instagram\.com\/([A-Za-z0-9_.]{2,30})/i);
+  const instagramHandle = instagramMatch && !/^(p|reel|reels|explore|accounts|direct|stories|tv)$/i.test(instagramMatch[1])
+    ? instagramMatch[1] : '';
   return {
     telegram: telegramMatch ? telegramMatch[1] : '',
-    linkedin: linkedinMatch ? linkedinMatch[0].replace(/^http:/i, 'https:') : ''
+    linkedin: linkedinMatch ? linkedinMatch[0].replace(/^http:/i, 'https:') : '',
+    whatsapp,
+    instagram: instagramHandle
   };
 }
 
-// Google Maps/2GIS listings don't carry a Telegram or LinkedIn field themselves — the only
+async function fetchAndExtract(url, extraHeaders) {
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(ENRICH_FETCH_TIMEOUT_MS),
+      redirect: 'follow',
+      headers: extraHeaders
+    });
+    if (!res.ok) return { ...EMPTY_SOCIAL_LINKS };
+    return extractSocialLinks(await res.text());
+  } catch (error) {
+    return { ...EMPTY_SOCIAL_LINKS };
+  }
+}
+
+// Google Maps/2GIS listings don't carry a Telegram or WhatsApp field themselves — the only
 // signal available is the business's own website, so this fetches each one's homepage and
-// regex-scans the raw HTML for a t.me/telegram.me link and a linkedin.com/company|in|school
-// link (usually in the footer or a "follow us" block). Best-effort: a site with no such link
-// on its homepage, behind a cookie wall, or too slow to respond within the timeout just comes
-// back empty for that field rather than failing the whole batch.
+// regex-scans the raw HTML for a t.me/telegram.me link, a wa.me/api.whatsapp.com link, and a
+// linkedin.com/company|in|school link (usually in the footer or a "follow us" block). When a
+// site links out to Instagram but its homepage itself has no Telegram/WhatsApp link, that
+// Instagram profile is followed as a second source and scanned the same way — many small
+// businesses put their WhatsApp/Telegram link in their Instagram bio instead of on a website.
+// Best-effort throughout: a site with no such link on its homepage, behind a cookie wall, or
+// too slow to respond within the timeout just comes back empty for that field rather than
+// failing the whole batch. Instagram itself is never returned as a contact field/lead source —
+// only whatever Telegram/WhatsApp link it leads to.
 async function enrichSocialLinks(request, env) {
   const body = await request.json().catch(() => ({}));
   const requested = Array.isArray(body.websites) ? body.websites : [];
@@ -299,19 +349,522 @@ async function enrichSocialLinks(request, env) {
   const batch = unique.slice(0, ENRICH_MAX_SITES);
   if (!batch.length) return json({ results: {} });
 
-  const entries = await Promise.all(batch.map(async site => {
+  const firstPass = await Promise.all(batch.map(async site => {
     const target = /^https?:\/\//i.test(site) ? site : `https://${site}`;
+    const hit = await fetchAndExtract(target, {});
+    return [site, hit];
+  }));
+
+  // Second pass, capped separately since it's an extra network hop per site: only chase the
+  // Instagram link when the homepage itself didn't already surface a Telegram or WhatsApp link.
+  const needsInstagramFollow = firstPass.filter(([, hit]) => hit.instagram && !hit.telegram && !hit.whatsapp);
+  const toFollow = needsInstagramFollow.slice(0, ENRICH_MAX_INSTAGRAM_FOLLOWS);
+  const instagramResults = await Promise.all(toFollow.map(async ([site, hit]) => {
+    const igHit = await fetchAndExtract(`https://www.instagram.com/${hit.instagram}/`, { 'User-Agent': BROWSER_UA });
+    return [site, igHit];
+  }));
+  const igBySite = Object.fromEntries(instagramResults);
+
+  const entries = firstPass.map(([site, hit]) => {
+    const igHit = igBySite[site];
+    if (igHit) {
+      hit.telegram = hit.telegram || igHit.telegram;
+      hit.whatsapp = hit.whatsapp || igHit.whatsapp;
+    }
+    const { instagram, ...rest } = hit; // never expose the Instagram handle itself as a result field
+    return [site, rest];
+  });
+
+  return json({ results: Object.fromEntries(entries), truncated: unique.length > ENRICH_MAX_SITES });
+}
+
+const ENRICH_SEARCH_MAX_LEADS = 15;
+const ENRICH_SEARCH_TIMEOUT_MS = 10000;
+
+const WA_ME_RE = /https?:\/\/(?:api\.)?wa\.me\/(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i;
+const WA_API_RE = /https?:\/\/api\.whatsapp\.com\/send\/?\?phone=(\+?[0-9][0-9\s\-()]{5,17}[0-9])/i;
+// Catches a number spelled out next to the word "WhatsApp" in a search snippet/title even when
+// there's no wa.me link — common on directory and marketplace listing pages. The gap after
+// "whatsapp" excludes quotes so it can't wander across a JSON field boundary when scanning a
+// stringified SerpApi response — without that, this regex was matching into an unrelated numeric
+// field sitting near the word "whatsapp" in the JSON and producing 16+ digit garbage that isn't a
+// phone number at all. normalizeWhatsAppMatch() below is the real safety net either way.
+const WA_LABELLED_NUMBER_RE = /whatsapp[^0-9+"]{0,8}(\+?[0-9][0-9\s\-()]{5,13}[0-9])/i;
+
+function extractWhatsAppNumber(text) {
+  const waMe = text.match(WA_ME_RE) || text.match(WA_API_RE);
+  if (waMe) {
+    const num = normalizeWhatsAppMatch(waMe[1]);
+    if (num) return num;
+  }
+  const labelled = text.match(WA_LABELLED_NUMBER_RE);
+  return labelled ? normalizeWhatsAppMatch(labelled[1]) : '';
+}
+
+// Shared SerpApi-via-Yandex call used by every deeper-search enrichment tier below. Yandex
+// rather than Google: Whizz's discovery searches skew toward Russia/CIS (Moscow, Minsk, Baku,
+// ...), where Yandex indexes local businesses (and their public web mentions) far more
+// thoroughly than Google does. Yandex's SerpApi params differ from Google's: the query goes in
+// `text` (not `q`), and `yandex_domain` picks the regional index — yandex.com is the
+// international domain, used here rather than guessing a per-lead country-specific domain
+// (yandex.ru/.by/.kz/...). Returns the parsed response, or null on any failure — best-effort,
+// callers treat null the same as "found nothing".
+async function fetchYandexSearch(query, env) {
+  const url = new URL('https://serpapi.com/search.json');
+  url.searchParams.set('engine', 'yandex');
+  url.searchParams.set('text', query);
+  url.searchParams.set('yandex_domain', 'yandex.com');
+  url.searchParams.set('api_key', env.SERPAPI_API_KEY);
+  const res = await fetch(url, { signal: AbortSignal.timeout(ENRICH_SEARCH_TIMEOUT_MS) });
+  const data = await res.json().catch(() => ({}));
+  return (!res.ok || data.error) ? null : data;
+}
+
+// Deeper, WhatsApp-only enrichment tier beyond a business's own website/Instagram: runs each
+// lead's name+location through fetchYandexSearch() (an official search API called directly, not
+// a scraper chained through Apify/n8n) and scans whatever comes back — directory listings,
+// marketplace pages, social mentions — for a WhatsApp number, not just what's on the business's
+// own site. WhatsApp-only on purpose: Telegram is already well covered by the free
+// website/Instagram tiers, so this paid last-resort tier stays narrow instead of widening the
+// query (and the noise) to also chase Telegram. Costs one SerpApi call per lead, so it's meant to
+// run only for leads the free tiers already came up empty for, not as a first resort.
+async function enrichSocialSearch(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const requested = Array.isArray(body.leads) ? body.leads : [];
+  const batch = requested
+    .map(l => ({ key: String(l?.key || '').trim(), query: String(l?.query || '').trim() }))
+    .filter(l => l.key && l.query)
+    .slice(0, ENRICH_SEARCH_MAX_LEADS);
+  if (!batch.length) return json({ results: {} });
+
+  if (!env.SERPAPI_API_KEY) {
+    return json({ results: {}, error: 'SERPAPI_API_KEY is not configured on the Worker — set it with `wrangler secret put SERPAPI_API_KEY` (get a key at serpapi.com/manage-api-key).' }, 503);
+  }
+
+  const entries = await Promise.all(batch.map(async ({ key, query }) => {
     try {
-      const res = await fetch(target, { signal: AbortSignal.timeout(ENRICH_FETCH_TIMEOUT_MS), redirect: 'follow' });
-      if (!res.ok) return [site, { telegram: '', linkedin: '' }];
-      const html = await res.text();
-      return [site, extractSocialLinks(html)];
+      const data = await fetchYandexSearch(query, env);
+      if (!data) return [key, ''];
+      // Scan only the fields that actually describe search hits for this query — organic
+      // results plus any knowledge-panel/local-listing block — not the whole response. Fields
+      // like pagination, related searches, and request metadata carry unrelated numeric noise
+      // (tracking params, result counts, ...) that isn't tied to the business at all, and
+      // scanning them was producing WhatsApp "numbers" for the wrong business or no business.
+      const relevant = [data.organic_results, data.answer_box, data.knowledge_graph, data.local_results].filter(Boolean);
+      return [key, extractWhatsAppNumber(JSON.stringify(relevant))];
     } catch (error) {
-      return [site, { telegram: '', linkedin: '' }];
+      return [key, ''];
     }
   }));
 
-  return json({ results: Object.fromEntries(entries), truncated: unique.length > ENRICH_MAX_SITES });
+  const results = {};
+  for (const [key, whatsapp] of entries) if (whatsapp) results[key] = { whatsapp };
+  return json({ results, truncated: requested.length > ENRICH_SEARCH_MAX_LEADS });
+}
+
+const CONTACT_PERSON_MAX_LEADS = 15;
+
+const LINKEDIN_PROFILE_RE = /^https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/in\/[A-Za-z0-9\-_%]+\/?/i;
+// Titles that suggest someone can actually make or influence a purchasing decision — used to
+// skip a random employee's profile when several people at the same company show up in results.
+const DECISION_MAKER_TITLE_RE = /(owner|founder|\bceo\b|managing director|general manager|\bdirector\b|purchasing|procurement|export manager|import manager|sales manager|business development)/i;
+
+// LinkedIn blocks direct scraping, but its own page <title> ("Name - Job Title - Company |
+// LinkedIn") is what search engines index and return as an organic result's title — so a plain
+// search for a public LinkedIn profile page gets the name/title/company without ever requesting
+// a page from linkedin.com itself. Only returns a match with an explicit decision-maker signal in
+// its title or snippet, rather than just the first LinkedIn profile found for the company at any
+// level (an intern's profile matching the company name isn't useful here).
+function extractContactPerson(organicResults) {
+  for (const r of organicResults || []) {
+    const link = String(r?.link || r?.url || '').trim();
+    if (!LINKEDIN_PROFILE_RE.test(link)) continue;
+    const title = String(r?.title || '');
+    const parts = title.split(/\s[-|–]\s/).map(s => s.trim()).filter(Boolean);
+    const name = parts[0] || '';
+    if (!name || /linkedin/i.test(name)) continue;
+    const roleGuess = parts.slice(1).find(p => DECISION_MAKER_TITLE_RE.test(p)) || '';
+    if (!roleGuess && !DECISION_MAKER_TITLE_RE.test(String(r?.snippet || ''))) continue;
+    return { name, title: roleGuess || (parts[1] || ''), linkedin: link.replace(/^http:/i, 'https:') };
+  }
+  return null;
+}
+
+// Finds the actual decision-maker at a business, not just its front-desk number: searches
+// site:linkedin.com/in for the company name alongside likely decision-maker titles (owner,
+// director, purchasing, ...) via the same SerpApi/Yandex flow as the WhatsApp deep-search tier,
+// and pulls a name + title + profile URL out of whichever public LinkedIn profile page turns up.
+// Costs one SerpApi call per lead, same cadence as the WhatsApp tier — meant as an opt-in,
+// deliberate "find the right person" step, not something run on every search.
+async function enrichContactPerson(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const requested = Array.isArray(body.leads) ? body.leads : [];
+  const batch = requested
+    .map(l => ({ key: String(l?.key || '').trim(), company: String(l?.company || '').trim() }))
+    .filter(l => l.key && l.company)
+    .slice(0, CONTACT_PERSON_MAX_LEADS);
+  if (!batch.length) return json({ results: {} });
+
+  if (!env.SERPAPI_API_KEY) {
+    return json({ results: {}, error: 'SERPAPI_API_KEY is not configured on the Worker — set it with `wrangler secret put SERPAPI_API_KEY` (get a key at serpapi.com/manage-api-key).' }, 503);
+  }
+
+  const entries = await Promise.all(batch.map(async ({ key, company }) => {
+    try {
+      const query = `site:linkedin.com/in "${company}" (owner OR founder OR director OR purchasing OR manager)`;
+      const data = await fetchYandexSearch(query, env);
+      if (!data) return [key, null];
+      return [key, extractContactPerson(data.organic_results)];
+    } catch (error) {
+      return [key, null];
+    }
+  }));
+
+  const results = {};
+  for (const [key, person] of entries) if (person) results[key] = person;
+  return json({ results, truncated: requested.length > CONTACT_PERSON_MAX_LEADS });
+}
+
+// Domains that are almost never a business's own official site — skipped when guessing which
+// organic result is the company's homepage, so the guess doesn't land on a directory/social/
+// marketplace listing about the company instead of the company's own site.
+const NON_OFFICIAL_SITE_RE = /(facebook\.com|instagram\.com|linkedin\.com|twitter\.com|x\.com|youtube\.com|wikipedia\.org|yellowpages\.|yelp\.com|goldenpages\.ie|volza\.com|crunchbase\.com|bloomberg\.com|t\.me|telegram\.me|wa\.me|api\.whatsapp\.com|google\.[a-z.]+\/maps|maps\.google|2gis\.|kaspi\.kz|opencorporates\.com|dnb\.com|zoominfo\.com|kompass\.com|europages\.|manta\.com|bizapedia\.com|corporationwiki\.com|tradekey\.com|alibaba\.com|made-in-china\.com|ec21\.com|globalsources\.com|indiamart\.com|exportersindia\.com|panjiva\.com|importgenius\.com)/i;
+
+// A company registry/trade-data listing (OpenCorporates, Volza, Panjiva, ...) is exactly the kind
+// of result guessOfficialWebsite() above deliberately skips as "the website" — but when the
+// searched name itself looks like an unprocessed slug ("trade-smart-hk-limited" rather than
+// "Trade Smart (HK) Limited"), that registry hit is often the only place the real, properly
+// formatted name is sitting, so it's still worth fetching for the name alone. All-lowercase,
+// hyphen-joined, no spaces is the signature of a slug pulled straight out of a URL.
+const SLUG_LIKE_NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)+$/;
+
+// Strips a registry/directory page's own boilerplate off whichever of <h1>/<title> comes back,
+// leaving just the company name — same idea as extractVolzaCompanyName below but generic to any
+// site's "Name - Overview - Site Brand" / "Name | Site Brand" title pattern rather than Volza's
+// specific "... Trade Data" phrasing.
+function extractCompanyNameFromPage(html) {
+  const h1Match = html.match(/<h1[^>]*>([^<]*)<\/h1>/i);
+  const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+  let raw = (h1Match && h1Match[1]) || (titleMatch && titleMatch[1]) || '';
+  raw = raw
+    .replace(/&amp;/gi, '&').replace(/&#39;/g, "'").replace(/&quot;/gi, '"')
+    .split(/[|–—]/)[0]
+    .replace(/\s*-\s*(Overview|Company Profile|Company Information|Free Company Information|OpenCorporates|Trade Data|Import Export Data).*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return raw;
+}
+
+// Same "labelled number next to a keyword" approach as WA_LABELLED_NUMBER_RE, but for a general
+// phone number rather than specifically WhatsApp — catches a phone number spelled out next to
+// "phone"/"tel"/"телефон" in a search snippet/title/knowledge-panel field.
+const PHONE_LABELLED_RE = /(?:phone|tel|телефон)[^0-9+"]{0,8}(\+?[0-9][0-9\s\-()]{6,16}[0-9])/i;
+function extractPhoneNumber(text) {
+  const labelled = text.match(PHONE_LABELLED_RE);
+  return labelled ? normalizeWhatsAppMatch(labelled[1]) : '';
+}
+
+// Best-effort guess at the company's own homepage: prefers a knowledge-panel/answer-box website
+// field (Yandex sometimes surfaces one directly for a well-known business) and otherwise falls
+// back to the first organic result whose link isn't a directory/social/marketplace domain.
+function guessOfficialWebsite(data) {
+  const kgSite = data.knowledge_graph?.website || data.answer_box?.website;
+  if (kgSite) return kgSite;
+  const hit = (data.organic_results || []).find(r => r?.link && !NON_OFFICIAL_SITE_RE.test(r.link));
+  return hit ? hit.link : '';
+}
+
+// Search-by-company-name enrichment: the one-shot counterpart to the per-lead enrichment tiers
+// above. Takes just a company name (+ optional location to disambiguate) and builds a single
+// enriched lead profile from it — official website, phone, WhatsApp, address and description from
+// the SerpApi/Yandex search itself, then Telegram/WhatsApp/LinkedIn scraped off that website (free,
+// same as enrichSocialLinks), and optionally the decision-maker's LinkedIn profile (paid, same
+// query enrichContactPerson uses) when the caller opts in. Meant for Discovery's "Company Search"
+// window: a deliberate, one-company-at-a-time search rather than a bulk per-lead pass, so doing the
+// website fetch unconditionally (it's free) and gating only the paid LinkedIn lookup behind a flag
+// matches the cost model of the tiers above.
+async function searchCompany(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const company = normalize(body.company);
+  const location = normalize(body.location);
+  if (!company) return json({ error: 'Enter a company name to search' }, 400);
+
+  if (!env.SERPAPI_API_KEY) {
+    return json({ error: 'SERPAPI_API_KEY is not configured on the Worker — set it with `wrangler secret put SERPAPI_API_KEY` (get a key at serpapi.com/manage-api-key).' }, 503);
+  }
+
+  const query = [`"${company}"`, location].filter(Boolean).join(' ');
+  const data = await fetchYandexSearch(query, env);
+  if (!data) return json({ profile: null });
+
+  const relevant = [data.organic_results, data.answer_box, data.knowledge_graph, data.local_results].filter(Boolean);
+  const relevantText = JSON.stringify(relevant);
+  const website = normalize(guessOfficialWebsite(data));
+
+  // A raw URL slug typed/pasted into the search box ("trade-smart-hk-limited") won't match well
+  // in the follow-up LinkedIn/directory queries below, which quote it verbatim — so resolve it to
+  // a properly formatted name first. The top organic result is often a registry/directory listing
+  // (OpenCorporates, Volza, ...) that guessOfficialWebsite() above deliberately skipped as "the
+  // website", but its own page still carries the real name, so it's fetched here for the name
+  // alone. Best-effort: any failure just leaves the raw slug in place.
+  let resolvedCompany = company;
+  if (SLUG_LIKE_NAME_RE.test(company)) {
+    const topLink = data.organic_results?.[0]?.link;
+    if (topLink) {
+      try {
+        const res = await fetch(topLink, { signal: AbortSignal.timeout(ENRICH_FETCH_TIMEOUT_MS), redirect: 'follow' });
+        if (res.ok) {
+          const cleaned = extractCompanyNameFromPage(await res.text());
+          if (cleaned && /\s/.test(cleaned)) resolvedCompany = cleaned;
+        }
+      } catch (error) { /* best-effort — keep the raw slug if the fetch/parse fails */ }
+    }
+  }
+
+  const profile = {
+    company: resolvedCompany,
+    website,
+    phone: normalize(data.knowledge_graph?.phone) || extractPhoneNumber(relevantText),
+    email: '',
+    whatsapp: extractWhatsAppNumber(relevantText),
+    telegram: '',
+    linkedin: '',
+    address: normalize(data.knowledge_graph?.address || data.local_results?.[0]?.address),
+    description: normalize(data.knowledge_graph?.description || data.answer_box?.snippet),
+  };
+
+  if (website) {
+    const target = /^https?:\/\//i.test(website) ? website : `https://${website}`;
+    const siteHit = await fetchAndExtract(target, {});
+    profile.telegram = siteHit.telegram;
+    profile.linkedin = siteHit.linkedin;
+    if (!profile.whatsapp) profile.whatsapp = siteHit.whatsapp;
+  }
+
+  if (body.findContactPerson) {
+    const cpQuery = `site:linkedin.com/in "${resolvedCompany}" (owner OR founder OR director OR purchasing OR manager)`;
+    const cpData = await fetchYandexSearch(cpQuery, env);
+    const person = cpData ? extractContactPerson(cpData.organic_results) : null;
+    if (person) {
+      profile.contactPersonName = person.name;
+      profile.contactPersonTitle = person.title;
+      if (person.linkedin && !profile.linkedin) profile.linkedin = person.linkedin;
+    }
+  }
+
+  // Same combined Volza/Yellow Pages/Golden Pages/Kadorf lookup as the Google Maps window's "Find
+  // Business Directories" tier (see extractBusinessDirectoryHit/enrichBusinessDirectories below) —
+  // opt-in, paid, and run last since it's answering a different question (public trade/directory
+  // presence) than the tiers above. Kadorf here is a public SerpApi search, not a query against
+  // Whizz's own credentialed Kadorf crawl (see fetchDirectoryProspectMatches in index.html, which
+  // deliberately excludes Kadorf).
+  if (body.findBusinessDirectory) {
+    const dirQuery = [`(site:volza.com OR site:yellowpages.com OR site:goldenpages.ie OR site:kadorf.com)`, `"${resolvedCompany}"`, location].filter(Boolean).join(' ');
+    const dirData = await fetchYandexSearch(dirQuery, env);
+    const hit = dirData ? extractBusinessDirectoryHit(dirData.organic_results) : null;
+    if (hit?.volza) profile.volzaUrl = hit.volza;
+    if (hit?.directory) {
+      if (hit.directory.url) profile.directoryUrl = hit.directory.url;
+      if (hit.directory.phone && !profile.phone) profile.phone = hit.directory.phone;
+      if (hit.directory.email && !profile.email) profile.email = hit.directory.email;
+      if (hit.directory.description) profile.directoryDescription = hit.directory.description;
+    }
+  }
+
+  return json({ profile });
+}
+
+const BUSINESS_DIRECTORY_MAX_LEADS = 15;
+// One directory per site — a listing that also happens to be a Volza trade-data profile is
+// treated as Volza only, not double-counted as a Yellow/Golden/Kadorf hit too.
+const VOLZA_HOST_RE = /(^|\.)volza\.com$/i;
+// Kadorf's own collector config (collector/server.js) notes its company profiles are exposed
+// publicly (unlike Handelot/PC Exporters, which need a logged-in crawl) — so, like Yellow/Golden
+// Pages, a plain SerpApi site: search reaches real contact data without Whizz's own Kadorf
+// credentials, which is why this sits in the free-to-search DIRECTORY_HOST_RE bucket rather than
+// the link-only VOLZA_HOST_RE one (Volza's real data needs a paid login the profile page doesn't
+// expose).
+const DIRECTORY_HOST_RE = /(^|\.)(yellowpages\.com|goldenpages\.ie|kadorf\.com)$/i;
+// Generic enough to catch a US-style "(212) 555-1234" or an Irish "01 234 5678"/"+353 1 234 5678"
+// sitting in a directory listing's title/snippet — same best-effort spirit as the WhatsApp
+// regexes above: a loose match here just means a field comes back empty, never garbage, since
+// normalizeWhatsAppMatch-style digit bounds aren't the concern (this is never treated as a
+// WhatsApp number).
+const DIRECTORY_PHONE_RE = /(\+?[0-9][0-9\-\s().]{6,16}[0-9])/;
+const DIRECTORY_EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+
+// Volza's real import/export shipment data sits behind a paid account login, so this only
+// searches for and links a business's public Volza trade-profile page (via the same
+// SerpApi/Yandex flow as the WhatsApp/LinkedIn tiers) rather than trying to scrape shipment
+// data no anonymous request can actually reach. Golden Pages (Ireland), Yellow Pages (US) and
+// Kadorf listings, by contrast, are plain public pages — their title/snippet can carry a phone
+// number, email, or category/description text a Google Maps listing didn't already have.
+function extractBusinessDirectoryHit(organicResults) {
+  let volza = '';
+  let directory = null;
+  for (const r of organicResults || []) {
+    const link = String(r?.link || r?.url || '').trim();
+    if (!link) continue;
+    let host = '';
+    try { host = new URL(link).hostname; } catch (error) { continue; }
+    if (!volza && VOLZA_HOST_RE.test(host)) {
+      volza = link.replace(/^http:/i, 'https:');
+    } else if (!directory && DIRECTORY_HOST_RE.test(host)) {
+      const text = `${r?.title || ''} ${r?.snippet || ''}`;
+      const phoneMatch = text.match(DIRECTORY_PHONE_RE);
+      const emailMatch = text.match(DIRECTORY_EMAIL_RE);
+      directory = {
+        url: link.replace(/^http:/i, 'https:'),
+        phone: phoneMatch ? phoneMatch[1].trim() : '',
+        email: emailMatch ? emailMatch[0] : '',
+        description: String(r?.snippet || '').trim()
+      };
+    }
+    if (volza && directory) break;
+  }
+  return { volza, directory };
+}
+
+// Fifth, paid tier: a single combined SerpApi/Yandex search per lead (site:volza.com OR
+// site:yellowpages.com OR site:goldenpages.ie OR site:kadorf.com) for the business's name +
+// location — one paid call covers all four sources instead of four, same cost as the
+// WhatsApp/LinkedIn tiers.
+async function enrichBusinessDirectories(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const requested = Array.isArray(body.leads) ? body.leads : [];
+  const batch = requested
+    .map(l => ({ key: String(l?.key || '').trim(), company: String(l?.company || '').trim(), location: String(l?.location || '').trim() }))
+    .filter(l => l.key && l.company)
+    .slice(0, BUSINESS_DIRECTORY_MAX_LEADS);
+  if (!batch.length) return json({ results: {} });
+
+  if (!env.SERPAPI_API_KEY) {
+    return json({ results: {}, error: 'SERPAPI_API_KEY is not configured on the Worker — set it with `wrangler secret put SERPAPI_API_KEY` (get a key at serpapi.com/manage-api-key).' }, 503);
+  }
+
+  const entries = await Promise.all(batch.map(async ({ key, company, location }) => {
+    try {
+      const query = [`(site:volza.com OR site:yellowpages.com OR site:goldenpages.ie OR site:kadorf.com)`, `"${company}"`, location].filter(Boolean).join(' ');
+      const data = await fetchYandexSearch(query, env);
+      if (!data) return [key, null];
+      const hit = extractBusinessDirectoryHit(data.organic_results);
+      return [key, (hit.volza || hit.directory) ? hit : null];
+    } catch (error) {
+      return [key, null];
+    }
+  }));
+
+  const results = {};
+  for (const [key, hit] of entries) if (hit) results[key] = hit;
+  return json({ results, truncated: requested.length > BUSINESS_DIRECTORY_MAX_LEADS });
+}
+
+const RESOLVE_VOLZA_MAX_LEADS = 15;
+
+// Pulls the registered company name out of a Volza trade-profile page's own <title>/<h1> rather
+// than whatever name the lead was originally saved under — a Volza URL slug (e.g.
+// volza.com/company-profile/too-barla) is a truncated/sanitized version of the real name, so a
+// lead saved from a Volza hit alone can carry a mangled one. Strips Volza's own boilerplate
+// ("... Trade Data | Volza.com", "... Import Export Data", "... Company Profile") off whichever
+// of <h1>/<title> comes back, preferring <h1> since Volza's <title> tends to carry more of that
+// boilerplate.
+function extractVolzaCompanyName(html) {
+  const h1Match = html.match(/<h1[^>]*>([^<]*)<\/h1>/i);
+  const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+  let raw = (h1Match && h1Match[1]) || (titleMatch && titleMatch[1]) || '';
+  raw = raw
+    .replace(/&amp;/gi, '&').replace(/&#39;/g, "'").replace(/&quot;/gi, '"')
+    .split(/[|–—-]\s*Volza/i)[0]
+    .replace(/\bTrade Data\b.*$/i, '')
+    .replace(/\bImport[s]?\s*(&|and)?\s*Export[s]?\s*Data\b.*$/i, '')
+    .replace(/\bCompany Profile\b.*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return raw;
+}
+
+const TELEGRAM_LINK_RE = /https?:\/\/(?:t|telegram)\.me\/([A-Za-z0-9_]{4,32})/i;
+// Same "labelled handle next to a keyword" fallback the WhatsApp tiers use — catches a Telegram
+// handle spelled out in a search snippet/title (e.g. "Telegram: @company_trade") even without a
+// t.me link in the result.
+const TELEGRAM_LABELLED_RE = /telegram[^@"]{0,8}@([A-Za-z0-9_]{4,32})/i;
+function extractTelegramHandle(text) {
+  const linked = text.match(TELEGRAM_LINK_RE);
+  if (linked) return linked[1];
+  const labelled = text.match(TELEGRAM_LABELLED_RE);
+  return labelled ? labelled[1] : '';
+}
+
+// Resolves the exact company name off a Volza trade-profile page, then re-searches under that
+// corrected name (via the same SerpApi/Yandex flow as the other deep-search tiers) for a WhatsApp
+// number or Telegram handle mentioned anywhere online — a fresh, more accurate pass than whatever
+// name the lead already carried when the Volza hit was first found. Free page fetch + one paid
+// SerpApi search per lead, same cadence as the WhatsApp/LinkedIn/directory tiers.
+async function resolveVolzaContact(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const requested = Array.isArray(body.leads) ? body.leads : [];
+  const batch = requested
+    .map(l => ({ key: String(l?.key || '').trim(), volzaUrl: String(l?.volzaUrl || '').trim(), location: String(l?.location || '').trim() }))
+    .filter(l => l.key && l.volzaUrl)
+    .slice(0, RESOLVE_VOLZA_MAX_LEADS);
+  if (!batch.length) return json({ results: {} });
+
+  if (!env.SERPAPI_API_KEY) {
+    return json({ results: {}, error: 'SERPAPI_API_KEY is not configured on the Worker — set it with `wrangler secret put SERPAPI_API_KEY` (get a key at serpapi.com/manage-api-key).' }, 503);
+  }
+
+  const entries = await Promise.all(batch.map(async ({ key, volzaUrl, location }) => {
+    try {
+      const res = await fetch(volzaUrl, { signal: AbortSignal.timeout(ENRICH_FETCH_TIMEOUT_MS), redirect: 'follow' });
+      if (!res.ok) return [key, null];
+      const companyName = extractVolzaCompanyName(await res.text());
+      if (!companyName) return [key, null];
+
+      const query = [`"${companyName}"`, location, '("wa.me" OR whatsapp OR "t.me" OR telegram)'].filter(Boolean).join(' ');
+      const data = await fetchYandexSearch(query, env);
+      if (!data) return [key, { companyName, whatsapp: '', telegram: '' }];
+      const relevant = [data.organic_results, data.answer_box, data.knowledge_graph, data.local_results].filter(Boolean);
+      const relevantText = JSON.stringify(relevant);
+      return [key, { companyName, whatsapp: extractWhatsAppNumber(relevantText), telegram: extractTelegramHandle(relevantText) }];
+    } catch (error) {
+      return [key, null];
+    }
+  }));
+
+  const results = {};
+  for (const [key, hit] of entries) if (hit) results[key] = hit;
+  return json({ results, truncated: requested.length > RESOLVE_VOLZA_MAX_LEADS });
+}
+
+const CHECK_EXISTING_MAX_ITEMS = 200;
+
+// Lets Discovery drop results that are already saved leads before showing them, instead of
+// re-surfacing the same businesses on every re-search. Matches the same two signals
+// saveOwnedContacts() already uses to detect "already imported, refresh it" (worker/routes/
+// automation.js): the platform's own stable id (Google's placeId/cid) and a normalized phone
+// number. All candidates in one request share a single platform, since Discovery only ever
+// checks one source's results at a time.
+async function checkExistingContacts(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const platform = String(body.platform || '').trim();
+  const sourceIds = [...new Set((Array.isArray(body.sourceIds) ? body.sourceIds : []).map(s => String(s || '').trim()).filter(Boolean))].slice(0, CHECK_EXISTING_MAX_ITEMS);
+  const phones = [...new Set((Array.isArray(body.phones) ? body.phones : []).map(p => String(p || '').replace(/\D/g, '')).filter(Boolean))].slice(0, CHECK_EXISTING_MAX_ITEMS);
+
+  const existingSourceIds = [];
+  const existingPhones = [];
+
+  if (platform && sourceIds.length) {
+    const placeholders = sourceIds.map(() => '?').join(',');
+    const rows = await env.DB.prepare(`SELECT sourceId FROM contacts WHERE platform=? AND sourceId IN (${placeholders})`).bind(platform, ...sourceIds).all();
+    for (const r of rows.results || []) existingSourceIds.push(r.sourceId);
+  }
+  if (phones.length) {
+    const placeholders = phones.map(() => '?').join(',');
+    const rows = await env.DB.prepare(`SELECT DISTINCT REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','') AS normPhone FROM contacts WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','') IN (${placeholders})`).bind(...phones).all();
+    for (const r of rows.results || []) if (r.normPhone) existingPhones.push(r.normPhone);
+  }
+
+  return json({ existingSourceIds, existingPhones });
 }
 
 export async function handleLeadIntelligence(request, env, action, arg) {
@@ -320,6 +873,12 @@ export async function handleLeadIntelligence(request, env, action, arg) {
   if (request.method === 'GET' && action === 'prospects') return listProspects(request, env);
   if (request.method === 'POST' && action === 'import') return importProspects(request, env);
   if (request.method === 'POST' && action === 'enrichSocial') return enrichSocialLinks(request, env);
+  if (request.method === 'POST' && action === 'enrichSocialSearch') return enrichSocialSearch(request, env);
+  if (request.method === 'POST' && action === 'enrichContactPerson') return enrichContactPerson(request, env);
+  if (request.method === 'POST' && action === 'searchCompany') return searchCompany(request, env);
+  if (request.method === 'POST' && action === 'enrichBusinessDirectory') return enrichBusinessDirectories(request, env);
+  if (request.method === 'POST' && action === 'resolveVolza') return resolveVolzaContact(request, env);
+  if (request.method === 'POST' && action === 'checkExisting') return checkExistingContacts(request, env);
   if (request.method === 'POST' && action === 'promote') { const body = await request.json().catch(()=>({})); return promote(env, Number(arg), body.ownerEmail || null); }
   if (request.method === 'POST' && action === 'run') return runCollector(request, env, arg);
   if (request.method === 'POST' && action === 'callback') return collectorCallback(request, env);

@@ -1,0 +1,95 @@
+{
+  "name": "whizz-delete-conversation-message",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Setup checklist\n1. Reuses the same \"Chatwoot API\" httpHeaderAuth credential the other whizz-*-conversation-message workflows already have configured.\n2. Whizz calls this at POST https://n8n.aiingo.com/webhook/whizz-delete-conversation-message with body {id, messageId} (id = the Chatwoot conversation id, messageId = the message to delete) and expects back {ok:true} on success or {error} on failure.\n3. IMPORTANT: this deletes the message from Chatwoot's own record only — it does NOT unsend it from WhatsApp. WhatsApp's Business Platform has no API for \"delete for everyone\"; once a message is delivered to the customer's phone, it stays there regardless of what happens here. The frontend's confirmation copy says this explicitly — don't let it drift to implying a true unsend if this workflow's wording changes.\n4. Chatwoot's DELETE /conversations/{id}/messages/{message_id} endpoint is the standard REST shape for this, but hasn't been verified against a live call from this account — if it 404s or behaves differently, check Chatwoot's current API docs for this account's version and adjust the URL/method below.",
+        "height": 340,
+        "width": 460
+      },
+      "id": "a1b2c3d4-0007-0007-0007-000000000000",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 520]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whizz-delete-conversation-message",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0007-0007-0007-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whizz-delete-conversation-message"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://chat.whizzfze.com/api/v1/accounts/1/conversations/{{ $json.body.id }}/messages/{{ $json.body.messageId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "a1b2c3d4-0007-0007-0007-000000000002",
+      "name": "Delete Message (Chatwoot)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_CHATWOOT_CREDENTIAL_ID",
+          "name": "Chatwoot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// neverError above means a rejected delete lands here as a normal item instead of\n// throwing. A successful Chatwoot delete typically responds with the (now soft-deleted)\n// message object and a 200, or a 204 with no body — either way, absence of an error\n// shape means success. Not verified against a live call from this account.\nconst resp = $input.first().json;\nconst errText = Array.isArray(resp.errors) ? resp.errors.join(', ') : resp.error;\nif (errText) {\n  return [{ json: { error: String(errText) } }];\n}\nreturn [{ json: { ok: true } }];"
+      },
+      "id": "a1b2c3d4-0007-0007-0007-000000000003",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 502 : 200 }}"
+        }
+      },
+      "id": "a1b2c3d4-0007-0007-0007-000000000004",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Delete Message (Chatwoot)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Delete Message (Chatwoot)": {
+      "main": [
+        [{ "node": "Normalize", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["whizz"]
+}

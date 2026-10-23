@@ -93,8 +93,25 @@ function normalizeConversation(raw, assignment) {
     assignment: assignment ? { userEmail: assignment.assignedUserEmail, userName: assignment.assignedUserName || assignment.assignedUserEmail, teamId: assignment.assignedTeamId } : null,
   };
 }
+// Field names follow Chatwoot's documented message object shape. status/content_type/
+// private/attachments/content_attributes power the WhatsApp-style ticks, internal-note
+// styling, attachment rendering and quote-reply already built in the Conversations page.
 function normalizeMessage(raw) {
-  return { id: raw.id, content: raw.content || '', message_type: raw.message_type, created_at: raw.created_at, sender_name: raw.sender?.name || '' };
+  return {
+    id: raw.id,
+    content: raw.content || '',
+    message_type: raw.message_type,
+    sender_type: raw.sender_type || raw.sender?.type || '',
+    sender_name: raw.sender?.name || '',
+    created_at: raw.created_at,
+    status: raw.status || '',
+    content_type: raw.content_type || '',
+    private: !!raw.private,
+    in_reply_to: raw.content_attributes?.in_reply_to || null,
+    attachments: (Array.isArray(raw.attachments) ? raw.attachments : []).map(a => ({
+      file_type: a.file_type || '', data_url: a.data_url || a.file_url || '', thumb_url: a.thumb_url || '',
+    })),
+  };
 }
 
 // ── Non-secret info any signed-in user needs: deep-link base + the inbox tabs. ──
@@ -228,9 +245,13 @@ export async function handleChatwootMessages(request, env, conversationId) {
     }
   } catch (error) { return json({ error: error.message }, 502); }
 
-  return json({ messages: all.map(normalizeMessage) });
+  // message_type 2 = activity (Chatwoot system events like "conversation resolved") —
+  // not a real message, so it's dropped rather than shown as a chat bubble.
+  return json({ messages: all.filter(m => m.message_type !== 2).map(normalizeMessage) });
 }
 
+// Returns the normalized message flat (not wrapped) — the frontend spreads this
+// directly onto its optimistic in-flight message object.
 export async function handleChatwootSendMessage(request, env, conversationId) {
   const access = await requireConversationAccess(request, env, conversationId);
   if (access.error) return access.error;
@@ -239,14 +260,94 @@ export async function handleChatwootSendMessage(request, env, conversationId) {
   const body = await request.json().catch(() => ({}));
   const content = String(body.content || '').trim();
   if (!content) return json({ error: 'Message content is required.' }, 400);
+  const replyToId = body.replyToId || null;
 
   let created;
   try {
     created = await chatwootFetch(config, `/conversations/${encodeURIComponent(conversationId)}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content, message_type: 'outgoing' }),
+      body: JSON.stringify({ content, message_type: 'outgoing', private: false, ...(replyToId ? { content_attributes: { in_reply_to: replyToId } } : {}) }),
     });
   } catch (error) { return json({ error: error.message }, 502); }
 
-  return json({ message: normalizeMessage(created) });
+  return json(normalizeMessage(created));
+}
+
+// Chatwoot-side only — this does NOT unsend the message from WhatsApp; the customer's
+// phone still has it. WhatsApp's Business Platform has no "delete for everyone" API.
+export async function handleChatwootDeleteMessage(request, env, conversationId, messageId) {
+  const access = await requireConversationAccess(request, env, conversationId);
+  if (access.error) return access.error;
+  const { config } = access;
+  try {
+    await chatwootFetch(config, `/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`, { method: 'DELETE' });
+  } catch (error) { return json({ error: error.message }, 502); }
+  return json({ success: true });
+}
+
+async function findOrCreateContact(config, phone, name) {
+  const search = await chatwootFetch(config, `/contacts/search?q=${encodeURIComponent(phone)}`);
+  const existing = (search.payload || [])[0];
+  if (existing) return existing;
+  const created = await chatwootFetch(config, '/contacts', {
+    method: 'POST',
+    body: JSON.stringify({ name: name || phone, phone_number: phone.startsWith('+') ? phone : `+${phone}` }),
+  });
+  return created.payload?.contact || created;
+}
+
+async function findOrCreateConversation(config, inboxId, contact, phone) {
+  const list = await chatwootFetch(config, `/contacts/${contact.id}/conversations`);
+  const existing = (list.payload || []).find(c => String(c.inbox_id) === String(inboxId));
+  if (existing) return existing;
+  return chatwootFetch(config, '/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ source_id: phone, inbox_id: inboxId, contact_id: contact.id }),
+  });
+}
+
+// Best-effort: starts/re-engages a WhatsApp thread with an approved template outside the
+// 24-hour customer-service window. Chatwoot's exact template payload shape depends on the
+// inbox's channel provider (WhatsApp Cloud vs. a BSP like 360dialog) and hasn't been
+// verified against a live app.aiingo.com response — if this errors, check the inbox's
+// channel docs for its template_params shape and adjust (same "verify against live data"
+// caveat the Kaspi/2GIS collector configs carry elsewhere in this repo).
+export async function handleChatwootSendTemplate(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const config = await loadChatwootConfig(env);
+  if (!config) return json({ error: 'Chatwoot is not configured yet.' }, 503);
+
+  const body = await request.json().catch(() => ({}));
+  const phone = String(body.phone || '').trim();
+  const name = String(body.name || '').trim();
+  const templateName = String(body.template_name || '').trim();
+  const language = String(body.language || 'en').trim();
+  const variables = Array.isArray(body.variables) ? body.variables : [];
+  if (!phone || !templateName) return json({ error: 'Phone and template name are required.' }, 400);
+
+  let inboxId = String(body.inboxId || '').trim();
+  if (!inboxId) {
+    const inboxes = await listInboxes(env);
+    if (inboxes.length === 1) inboxId = inboxes[0].inboxId;
+    else if (inboxes.length > 1) return json({ error: 'Pick an inbox tab first — multiple inboxes are configured.' }, 400);
+    else return json({ error: 'No Chatwoot inbox is configured yet.' }, 400);
+  }
+
+  try {
+    const contact = await findOrCreateContact(config, phone, name);
+    const conversation = await findOrCreateConversation(config, inboxId, contact, phone);
+    const created = await chatwootFetch(config, `/conversations/${conversation.id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        content: '',
+        message_type: 'outgoing',
+        template_params: {
+          name: templateName, language, category: 'MARKETING',
+          processed_params: Object.fromEntries(variables.map((v, i) => [String(i + 1), v])),
+        },
+      }),
+    });
+    return json({ conversationId: conversation.id, message: normalizeMessage(created) });
+  } catch (error) { return json({ error: error.message }, 502); }
 }

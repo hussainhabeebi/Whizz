@@ -1,5 +1,6 @@
 import { handleGetContacts } from './routes/getContacts.js';
 import { handleUpdateContact } from './routes/updateContact.js';
+import { handleDetectCountry, handleBulkDetectCountry } from './routes/detectCountry.js';
 import { handleDeleteContact } from './routes/deleteContact.js';
 import { handleMarkConversion } from './routes/markConversion.js';
 import { handleGetConversionStats } from './routes/getConversionStats.js';
@@ -10,12 +11,14 @@ import { handleAutomation } from './routes/automation.js';
 import { handleConversationAssignment } from './routes/conversationAssignments.js';
 import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookings.js';
 import { handleLeadIntelligence } from './routes/leadIntelligence.js';
-import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage } from './routes/chatwoot.js';
+import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage, handleChatwootSendTemplate } from './routes/chatwoot.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
   { method: 'GET', path: '/whizz-get-contacts', handler: handleGetContacts },
   { method: 'POST', path: '/whizz-update-contact', handler: handleUpdateContact },
+  { method: 'POST', path: '/whizz-detect-country', handler: handleDetectCountry },
+  { method: 'POST', path: '/whizz-bulk-detect-country', handler: handleBulkDetectCountry },
   { method: 'POST', path: '/whizz-delete-contact', handler: handleDeleteContact },
   { method: 'POST', path: '/whizz-mark-conversion', handler: handleMarkConversion },
   { method: 'GET', path: '/api/conversion-stats', handler: handleGetConversionStats },
@@ -31,6 +34,7 @@ const routes = [
   { method: 'POST', path: '/api/chatwoot/settings', handler: handleSaveChatwootSettings },
   { method: 'POST', path: '/api/chatwoot/inboxes', handler: handleAddChatwootInbox },
   { method: 'GET', path: '/api/chatwoot/conversations', handler: handleChatwootConversations },
+  { method: 'POST', path: '/api/chatwoot/send-template', handler: handleChatwootSendTemplate },
 ];
 
 async function leadActor(request, env) {
@@ -149,6 +153,30 @@ export default {
         try { return await handleLeadIntelligence(request, env, 'enrichSocial'); }
         catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
       }
+      if (url.pathname === '/api/lead-intelligence/enrich-social-search' && request.method === 'POST') {
+        try { return await handleLeadIntelligence(request, env, 'enrichSocialSearch'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
+      if (url.pathname === '/api/lead-intelligence/enrich-contact-person' && request.method === 'POST') {
+        try { return await handleLeadIntelligence(request, env, 'enrichContactPerson'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
+      if (url.pathname === '/api/lead-intelligence/search-company' && request.method === 'POST') {
+        try { return await handleLeadIntelligence(request, env, 'searchCompany'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
+      if (url.pathname === '/api/lead-intelligence/enrich-business-directory' && request.method === 'POST') {
+        try { return await handleLeadIntelligence(request, env, 'enrichBusinessDirectory'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
+      if (url.pathname === '/api/lead-intelligence/resolve-volza' && request.method === 'POST') {
+        try { return await handleLeadIntelligence(request, env, 'resolveVolza'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
+      if (url.pathname === '/api/lead-intelligence/check-existing' && request.method === 'POST') {
+        try { return await handleLeadIntelligence(request, env, 'checkExisting'); }
+        catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+      }
     }
 
     const automationMatch = url.pathname.match(/^\/api\/automation\/([a-z0-9-]+)$/i);
@@ -159,6 +187,11 @@ export default {
     const assignmentMatch = url.pathname.match(/^\/api\/conversation-assignments\/([^/]+)$/);
     if (assignmentMatch && request.method === 'PUT') {
       try { return await handleConversationAssignment(request, env, decodeURIComponent(assignmentMatch[1])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const chatwootMessageMatch = url.pathname.match(/^\/api\/chatwoot\/conversations\/([^/]+)\/messages\/([^/]+)$/);
+    if (chatwootMessageMatch && request.method === 'DELETE') {
+      try { return await handleChatwootDeleteMessage(request, env, decodeURIComponent(chatwootMessageMatch[1]), decodeURIComponent(chatwootMessageMatch[2])); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const chatwootMessagesMatch = url.pathname.match(/^\/api\/chatwoot\/conversations\/([^/]+)\/messages$/);
