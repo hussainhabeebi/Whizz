@@ -1127,6 +1127,10 @@ body.dark{
                   <div class="chip chip-disabled" title="Coming soon">Telegram</div>
                 </div>
               </div>
+              <div style="margin-bottom:12px;" id="camp-inbox-wrap">
+                <div class="eyebrow">Send From</div>
+                <div class="chips" id="camp-inbox-chips"></div>
+              </div>
               <div style="margin-bottom:8px;">
                 <div class="eyebrow">Filter by Platform</div>
                 <div class="chips" id="platform-chips"></div>
@@ -2551,6 +2555,10 @@ body.dark{
       <input type="hidden" id="stm-phone"/>
       <input type="hidden" id="stm-name"/>
       <div class="fi-hint" style="margin-bottom:10px;">WhatsApp requires an approved template to message someone who hasn't messaged you first, or when it's been over 24 hours since their last message.</div>
+      <div class="fg" id="stm-inbox-wrap" style="margin:0 0 12px;display:none;">
+        <label class="fl">Send From</label>
+        <select class="fs" id="stm-inbox-select" onchange="populateStmTemplateOptions()"></select>
+      </div>
       <div class="fg" style="margin:0 0 12px;">
         <label class="fl">Template *</label>
         <select class="fs" id="stm-template-select" onchange="onStmTemplateChange()">
@@ -2815,6 +2823,7 @@ async function loadChatwootMeta(){
       if(d.baseUrl&&d.accountId)CW_URL=`${d.baseUrl}/app/accounts/${d.accountId}/conversations`;
       S.chatwootInboxes=d.inboxes||[];
       renderInboxTabs();
+      renderCampInboxChips();
     }
   }catch(e){}
 }
@@ -2874,7 +2883,7 @@ let S = {
   selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: [],
   convSearch: '', threadSearch: '', pinnedConvIds: loadConvIdSet(CONV_PINS_KEY), mutedConvIds: loadConvIdSet(CONV_MUTES_KEY), replyTo: null,
   pinnedMsgMap: loadPinnedMsgMap(), forwardingMsg: null,
-  chatwootInboxes: [], activeInboxId: ''
+  chatwootInboxes: [], activeInboxId: '', templateInboxTags: {}, activeCampaignInboxId: ''
 };
 
 // ── Auth ──
@@ -2944,6 +2953,7 @@ function initApp(session) {
   applyRoleExperience(session);
   loadUsers();
   loadChatwootMeta();
+  loadTemplateTags();
   loadCache(); loadOnboarding(); loadNotifications();
   startAutoSync();
   startScheduler();
@@ -3843,6 +3853,21 @@ async function api(path,method='GET',body=null){const endpoint=String(path).spli
 async function apiW(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);const txt=await r.text();try{return txt?JSON.parse(txt):{success:true};}catch{return{success:true};}}
 // Chatwoot (app.aiingo.com), proxied by the Worker at /api/chatwoot/*.
 async function cw(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/api/chatwoot/${path}`,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{};}catch{data={};}if(!r.ok)throw new Error(data.error||'HTTP '+r.status);return data;}
+// Which inbox(es) a WhatsApp template is approved for — purely local to Whizz (the
+// templates themselves still live in n8n/Meta). Untagged = valid on every number.
+async function loadTemplateTags(){try{const r=await fetch('/api/template-tags',{credentials:'include'});const d=await r.json().catch(()=>({}));if(r.ok)S.templateInboxTags=d.tags||{};}catch(e){}}
+async function setTemplateInboxTag(templateName,inboxId){
+  try{
+    const r=await fetch('/api/template-tags',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({templateName,inboxId})});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    if(inboxId)S.templateInboxTags[templateName]=inboxId;else delete S.templateInboxTags[templateName];
+    showToast('Template number scope updated','success');
+  }catch(e){showToast('Failed to update template scope','error');}
+}
+function templatesForInbox(templates,inboxId){
+  if(!inboxId||(S.chatwootInboxes||[]).length<2)return templates;
+  return templates.filter(t=>!S.templateInboxTags[t.name]||S.templateInboxTags[t.name]===inboxId);
+}
 
 // ── Global Refresh Orchestrator ──
 async function refreshPage() {
@@ -4236,6 +4261,23 @@ function selectInboxTab(inboxId,el){
   refreshConversations().catch(()=>{});
 }
 
+// ── Campaign "Send From" inbox (only shown once 2+ inboxes are configured) ──
+function renderCampInboxChips(){
+  const wrap=document.getElementById('camp-inbox-wrap'),el=document.getElementById('camp-inbox-chips');
+  if(!wrap||!el)return;
+  const inboxes=S.chatwootInboxes||[];
+  if(inboxes.length<2){wrap.style.display='none';S.activeCampaignInboxId='';return;}
+  wrap.style.display='block';
+  if(!inboxes.some(ib=>ib.inboxId===S.activeCampaignInboxId))S.activeCampaignInboxId=inboxes[0].inboxId;
+  el.innerHTML=inboxes.map(ib=>`<div class="chip${S.activeCampaignInboxId===ib.inboxId?' active':''}" onclick="selectCampaignInbox('${ib.inboxId}',this)">${ib.label}</div>`).join('');
+}
+function selectCampaignInbox(inboxId,el){
+  document.querySelectorAll('#camp-inbox-chips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  S.activeCampaignInboxId=inboxId;
+  renderCampTemplates(S.cache.templates||[]);
+}
+
 // ── Conversation Thread Panel ──
 function findConv(id){return (S.cache.conversations||[]).find(c=>String(c.id)===String(id));}
 function findConvByPhone(phone){
@@ -4318,26 +4360,41 @@ async function selectConv(id){
 function openSendTemplateModalForSelected(){
   const ctx=S.threadContact;
   if(!ctx||!ctx.phone){showToast('No phone number on file for this contact','error');return;}
-  openSendTemplateModal(ctx.phone,ctx.name);
+  const conv=S.selectedConvId?findConv(S.selectedConvId):null;
+  openSendTemplateModal(ctx.phone,ctx.name,conv?.inboxId||'');
 }
-async function openSendTemplateModal(phone,name){
+async function openSendTemplateModal(phone,name,knownInboxId){
   document.getElementById('stm-phone').value=phone;
   document.getElementById('stm-name').value=name||'';
   document.getElementById('stm-recipient').textContent=`${name||'Unknown'} · ${phone}`;
   document.getElementById('stm-preview-wrap').style.display='none';
   document.getElementById('stm-vars').innerHTML='';
   document.getElementById('modal-send-template').classList.add('open');
+  const inboxWrap=document.getElementById('stm-inbox-wrap'),inboxSel=document.getElementById('stm-inbox-select');
+  const inboxes=S.chatwootInboxes||[];
+  if(inboxes.length>1){
+    inboxWrap.style.display='block';
+    inboxSel.innerHTML=inboxes.map(ib=>`<option value="${ib.inboxId}">${_hesc(ib.label)}</option>`).join('');
+    inboxSel.value=knownInboxId&&inboxes.some(ib=>ib.inboxId===knownInboxId)?knownInboxId:inboxes[0].inboxId;
+    inboxSel.disabled=!!knownInboxId;
+  }else{
+    inboxWrap.style.display='none';
+    inboxSel.innerHTML=inboxes.length?`<option value="${inboxes[0].inboxId}">${_hesc(inboxes[0].label)}</option>`:'';
+  }
   if(!S.cache.templates||!S.cache.templates.length){
     try{await refreshTemplates();}catch(e){}
   }
   populateStmTemplateOptions();
 }
 function populateStmTemplateOptions(){
-  const sel=document.getElementById('stm-template-select'),templates=S.cache.templates||[];
+  const sel=document.getElementById('stm-template-select');
+  const inboxId=document.getElementById('stm-inbox-select')?.value||'';
+  const templates=templatesForInbox(S.cache.templates||[],inboxId);
   const emptyHint=document.getElementById('stm-empty-hint');
   sel.innerHTML='<option value="">Select an approved template…</option>'+templates.map(t=>`<option value="${_hesc(t.name)}">${_hesc(t.name)} (${_hesc(t.language)})</option>`).join('');
   emptyHint.style.display=templates.length?'none':'block';
   sel.disabled=!templates.length;
+  document.getElementById('stm-preview-wrap').style.display='none';
 }
 function onStmTemplateChange(){
   const name=document.getElementById('stm-template-select').value;
@@ -4364,7 +4421,8 @@ async function submitSendTemplateMessage(){
   const btn=document.getElementById('stm-send-btn');
   btn.disabled=true;btn.textContent='Sending…';
   try{
-    await cw('send-template','POST',{phone,name,template_name:tpl.name,language:tpl.language,variables,inboxId:S.activeInboxId||undefined});
+    const inboxId=document.getElementById('stm-inbox-select')?.value||'';
+    await cw('send-template','POST',{phone,name,template_name:tpl.name,language:tpl.language,variables,inboxId:inboxId||undefined});
     showToast('Template message sent!','success');
     closeModal('modal-send-template');
     try{await refreshConversations();const m=findConvByPhone(phone);if(m)selectConv(m.id);}catch(e){}
@@ -5050,7 +5108,17 @@ function exportEnquiriesCSV(){
 }
 
 // ── Meta Template Module ──
-function renderTplPage(templates){const el=document.getElementById('tpl-list');if(!templates.length){el.innerHTML='<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">No approved template records identified inside WABA.</div>';return;}el.innerHTML=`<div class="tpl-grid">${templates.map(t=>`<div class="tpl-card" style="cursor:default;"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span><span class="tpl-approved">APPROVED</span></div><div class="tpl-body">${t.body||'Empty body context'}</div></div>`).join('')}</div>`;}
+function renderTplPage(templates){
+  const el=document.getElementById('tpl-list');
+  if(!templates.length){el.innerHTML='<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">No approved template records identified inside WABA.</div>';return;}
+  const inboxes=S.chatwootInboxes||[];
+  const inboxPicker=t=>{
+    if(inboxes.length<2)return'';
+    const current=S.templateInboxTags[t.name]||'';
+    return`<select class="fs" style="margin-top:8px;font-size:11px;padding:4px 7px;" onchange="setTemplateInboxTag('${_hesc(t.name).replace(/'/g,"\\'")}',this.value)"><option value=""${current?'':' selected'}>Approved for all numbers</option>${inboxes.map(ib=>`<option value="${ib.inboxId}"${current===ib.inboxId?' selected':''}>${_hesc(ib.label)}</option>`).join('')}</select>`;
+  };
+  el.innerHTML=`<div class="tpl-grid">${templates.map(t=>`<div class="tpl-card" style="cursor:default;"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span><span class="tpl-approved">APPROVED</span></div><div class="tpl-body">${t.body||'Empty body context'}</div>${inboxPicker(t)}</div>`).join('')}</div>`;
+}
 function openTplModal(){document.getElementById('tpl-modal').classList.add('open');updateBodyCount();}
 function closeTplModal(){document.getElementById('tpl-modal').classList.remove('open');}
 function updateBodyCount(){const ta=document.getElementById('tpl-body'),counter=document.getElementById('tpl-body-count');if(!ta||!counter)return;const len=ta.value.length;counter.textContent=`${len} / 1024`;counter.style.color=len>1024?'var(--red)':len>900?'var(--amber)':'var(--text3)';}
@@ -5173,7 +5241,7 @@ function renderGroupCards(groups,id,selectable,clickFn){
   </div>`;
 }
 
-function renderCampTemplates(templates){const el=document.getElementById('camp-templates');if(!templates.length){el.innerHTML='<div class="empty-state">WABA contains zero template components inside state approved</div>';return;}el.innerHTML=templates.map(t=>`<div class="tpl-card" onclick="selectTpl('${t.name}',this)"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span></div><div class="tpl-body">${t.body||''}</div></div>`).join('');}
+function renderCampTemplates(templates){const el=document.getElementById('camp-templates');const visible=templatesForInbox(templates||[],S.activeCampaignInboxId);if(!visible.length){el.innerHTML='<div class="empty-state">WABA contains zero template components inside state approved</div>';return;}el.innerHTML=visible.map(t=>`<div class="tpl-card" onclick="selectTpl('${t.name}',this)"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span></div><div class="tpl-body">${t.body||''}</div></div>`).join('');}
 function toggleGroup(platform,country,brand,el){el.classList.toggle('selected');const cb=el.querySelector('input[type=checkbox]');if(cb)cb.checked=el.classList.contains('selected');const key=platform+'||'+country+'||'+brand;const idx=S.selectedGroups.indexOf(key);if(idx===-1)S.selectedGroups.push(key);else S.selectedGroups.splice(idx,1);}
 function toggleAllGroups(cb){S.selectedGroups=[];document.querySelectorAll('#camp-groups .group-card').forEach(c=>{c.classList.toggle('selected',cb.checked);const rowCb=c.querySelector('input[type=checkbox]');if(rowCb)rowCb.checked=cb.checked;if(cb.checked){const p=c.querySelector('.g-platform').textContent,co=c.querySelector('.g-country').textContent,b=c.querySelector('.g-brand').getAttribute('title');S.selectedGroups.push(p+'||'+co+'||'+b);}});}
 function selectTpl(name,el){document.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');S.selectedTemplate=S.templates.find(t=>t.name===name);}
@@ -5251,6 +5319,7 @@ async function sendCampaign(){
       audiences:selectedAudiences,
       audience_rules:getCampaignAudienceRules(),
       channel:getSelectedCampaignChannel(),
+      inboxId:S.activeCampaignInboxId||undefined,
       template_name:S.selectedTemplate.name,
       language:S.selectedTemplate.language,
       delivery_guard:getDeliveryGuardConfig()
@@ -9063,6 +9132,7 @@ function scheduleCampaign() {
     audiences: allGroups ? [] : S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return {platform,country,brand};}),
     audienceRules: getCampaignAudienceRules(),
     channel: getSelectedCampaignChannel(),
+    inboxId: S.activeCampaignInboxId || '',
     deliveryGuard: getDeliveryGuardConfig(),
     createdAt: Date.now()
   };
@@ -9096,6 +9166,7 @@ async function fireScheduledJob(job) {
       audiences: _jobAudiences,
       audience_rules: job.audienceRules || getCampaignAudienceRules(),
       channel: job.channel || 'whatsapp',
+      inboxId: job.inboxId || undefined,
       delivery_guard: job.deliveryGuard || getDeliveryGuardConfig()
     });
     saveHistory({
