@@ -9,8 +9,8 @@ LEAD_INTELLIGENCE_CALLBACK_URL = "https://tiarafzco.com/api/lead-intelligence/ca
 # Fill in the real account id and inbox id below, then set the API token as a secret
 # (never a plain var): `wrangler secret put CHATWOOT_API_TOKEN`.
 CHATWOOT_BASE_URL = "https://app.aiingo.com"
-CHATWOOT_ACCOUNT_ID = ""
-CHATWOOT_INBOX_ID = ""
+CHATWOOT_ACCOUNT_ID = "11"
+CHATWOOT_INBOX_ID = "73"
 
 [assets]
 directory = "."
