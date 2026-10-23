@@ -103,6 +103,20 @@ async function repairSchema(env) {
     ['telegram', "TEXT NOT NULL DEFAULT ''"]
   ]);
 
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS chatwoot_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    baseUrl TEXT NOT NULL DEFAULT 'https://app.aiingo.com',
+    accountId TEXT NOT NULL DEFAULT '',
+    apiTokenEncrypted TEXT,
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS chatwoot_inboxes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    inboxId TEXT NOT NULL,
+    label TEXT NOT NULL,
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_team ON conversation_assignments(assignedTeamId)',
@@ -114,7 +128,8 @@ async function repairSchema(env) {
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_source ON directory_prospects(source)',
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_status ON directory_prospects(status)',
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_score ON directory_prospects(leadScore)',
-    'CREATE INDEX IF NOT EXISTS idx_directory_prospects_updated ON directory_prospects(updatedAt)'
+    'CREATE INDEX IF NOT EXISTS idx_directory_prospects_updated ON directory_prospects(updatedAt)',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_chatwoot_inboxes_inbox_id ON chatwoot_inboxes(inboxId)'
   ]) await safeRun(env, sql);
 }
 

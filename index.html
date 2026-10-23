@@ -1136,6 +1136,7 @@ body.dark{
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>Cached. Click Refresh to reload.</span>
         </div>
+        <div class="chips" id="conv-inbox-tabs" style="display:none;"></div>
         <div class="card" style="margin-bottom:14px;">
           <div class="card-body" style="padding:10px 16px;">
             <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
@@ -1840,6 +1841,42 @@ body.dark{
             </button>
           </div>
         </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Chatwoot</div>
+            <span class="eyebrow" id="int-chatwoot-status" style="margin-bottom:0;">Checking…</span>
+          </div>
+          <div class="card-body">
+            <div class="two-col">
+              <div class="fg">
+                <label class="fl">Base URL</label>
+                <input class="fi" id="int-cw-url" placeholder="https://app.aiingo.com"/>
+              </div>
+              <div class="fg">
+                <label class="fl">Account ID</label>
+                <input class="fi" id="int-cw-account" placeholder="e.g. 11"/>
+              </div>
+            </div>
+            <div class="fg">
+              <label class="fl">API Access Token</label>
+              <input class="fi" id="int-cw-token" type="password" placeholder="Leave blank to keep the current token"/>
+              <div class="fi-hint">Profile Settings → Access Token in Chatwoot. Stored encrypted server-side, never sent back to the browser.</div>
+            </div>
+            <button class="t-btn btn-primary" onclick="saveChatwootIntegration()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+              Save Chatwoot Connection
+            </button>
+            <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+              <div class="fl" style="margin-bottom:8px;">Inboxes <span style="font-weight:400;text-transform:none;color:var(--text3);">— each becomes its own tab on the Conversations page</span></div>
+              <div id="cw-inbox-list" style="margin-bottom:10px;"><div class="empty-state">Checking…</div></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+                <div class="fg" style="flex:1;min-width:120px;margin-bottom:0;"><label class="fl">Label</label><input class="fi" id="cw-new-inbox-label" placeholder="e.g. Sales WhatsApp"/></div>
+                <div class="fg" style="flex:1;min-width:100px;margin-bottom:0;"><label class="fl">Inbox ID</label><input class="fi" id="cw-new-inbox-id" placeholder="e.g. 73"/></div>
+                <button class="t-btn btn-primary" style="height:38px;" onclick="addChatwootInbox()">Add Inbox</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-head">
             <div class="card-title">WordPress Sites</div>
@@ -2412,11 +2449,15 @@ body.dark{
 <script>
 const N8N = 'https://n8n.aiingo.com/webhook';
 let CW_URL = '';
-async function loadChatwootConfig(){
+async function loadChatwootMeta(){
   try{
-    const r=await fetch('/api/chatwoot/config',{credentials:'include'});
+    const r=await fetch('/api/chatwoot/meta',{credentials:'include'});
     const d=await r.json().catch(()=>({}));
-    if(r.ok&&d.baseUrl&&d.accountId)CW_URL=`${d.baseUrl}/app/accounts/${d.accountId}/conversations`;
+    if(r.ok){
+      if(d.baseUrl&&d.accountId)CW_URL=`${d.baseUrl}/app/accounts/${d.accountId}/conversations`;
+      S.chatwootInboxes=d.inboxes||[];
+      renderInboxTabs();
+    }
   }catch(e){}
 }
 const CACHE_KEY = 'whizz_cache_v2';
@@ -2463,7 +2504,8 @@ let S = {
     kaspi: { contacts: [], selected: new Set() },
   },
   cache: {}, notifications: [], history: [],
-  selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: []
+  selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: [],
+  chatwootInboxes: [], activeInboxId: ''
 };
 
 // ── Auth ──
@@ -2532,7 +2574,7 @@ function initApp(session) {
   if (navIntegrations) navIntegrations.style.display = session.role === 'Administrator' ? 'flex' : 'none';
   applyRoleExperience(session);
   loadUsers();
-  loadChatwootConfig();
+  loadChatwootMeta();
   loadCache(); loadOnboarding(); loadNotifications();
   startAutoSync();
   startScheduler();
@@ -3384,7 +3426,8 @@ async function refreshPage() {
 
 async function refreshDashboard(){await Promise.all([refreshStats(),refreshDashConvData(),refreshLeadData()]);}
 async function refreshStats(){const d=await api('whizz-get-stats');S.cache.stats=d;renderStats(d);const cnt=d.open||0;if(cnt>0){document.getElementById('open-count').textContent=cnt;document.getElementById('open-count').style.display='inline';addNotif(`${cnt} operational conversations pending response`);}}
-async function refreshDashConvData(){const d=await cw('conversations?status=open');S.cache.conversations=d.conversations||[];renderDashConvs(S.cache.conversations);}
+function convQS(status){return`conversations?status=${status}${S.activeInboxId?`&inboxId=${encodeURIComponent(S.activeInboxId)}`:''}`;}
+async function refreshDashConvData(){const d=await cw(convQS('open'));S.cache.conversations=d.conversations||[];renderDashConvs(S.cache.conversations);}
 // ── Platform name de-duplication ──
 // Lead data often has the same platform typed inconsistently (case, spacing/
 // punctuation, or the occasional one-letter typo — "Instagram" / "instagram" /
@@ -3508,9 +3551,9 @@ async function refreshLeadData(){
 }
 async function refreshConversations(){
   const[o,p,r]=await Promise.all([
-    cw('conversations?status=open').catch(()=>({conversations:[]})),
-    cw('conversations?status=pending').catch(()=>({conversations:[]})),
-    cw('conversations?status=resolved').catch(()=>({conversations:[]}))
+    cw(convQS('open')).catch(()=>({conversations:[]})),
+    cw(convQS('pending')).catch(()=>({conversations:[]})),
+    cw(convQS('resolved')).catch(()=>({conversations:[]}))
   ]);
   const merged=[...(o.conversations||[]),...(p.conversations||[]),...(r.conversations||[])];
   S.conversationAssignees=o.assignees||p.assignees||r.assignees||[];
@@ -3530,7 +3573,7 @@ async function refreshMyLeadsWorkspace(){
     const data=await apiW('whizz-get-contacts');
     const leads=data.contacts||[],now=new Date(),today=now.toISOString().slice(0,10);
     const monthKey=today.slice(0,7),weekAgo=Date.now()-7*86400000;
-    const convData=await cw('conversations?status=open').catch(()=>({conversations:S.cache.conversations||[]}));
+    const convData=await cw(convQS('open')).catch(()=>({conversations:S.cache.conversations||[]}));
     const conversations=convData.conversations||[];S.cache.conversations=conversations;
     const metrics=[
       ['New today',leads.filter(l=>(l.createdAt||'').slice(0,10)===today).length,'var(--blue)'],
@@ -3711,6 +3754,25 @@ async function assignConversation(id){
   }catch(error){showToast(error.message,'error');}
 }
 function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=>{b.className='t-btn btn-ghost';b.style.cssText='padding:5px 12px;font-size:11px;';});btn.className='t-btn btn-primary';btn.style.cssText='padding:5px 12px;font-size:11px;';S.convStatus=status;renderConvs(S.cache.conversations||[]);}
+
+// ── Inbox Tabs (multiple Chatwoot inboxes, each its own view) ──
+function renderInboxTabs(){
+  const el=document.getElementById('conv-inbox-tabs');
+  if(!el)return;
+  const inboxes=S.chatwootInboxes||[];
+  if(inboxes.length<2){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='flex';
+  const allActive=!S.activeInboxId?' active':'';
+  el.innerHTML=`<div class="chip${allActive}" onclick="selectInboxTab('',this)">All Inboxes</div>`+
+    inboxes.map(ib=>`<div class="chip${S.activeInboxId===ib.inboxId?' active':''}" onclick="selectInboxTab('${ib.inboxId}',this)">${ib.label}</div>`).join('');
+}
+function selectInboxTab(inboxId,el){
+  document.querySelectorAll('#conv-inbox-tabs .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  S.activeInboxId=inboxId;
+  S.selectedConvId=null;
+  refreshConversations().catch(()=>{});
+}
 
 // ── Conversation Thread Panel ──
 function findConv(id){return (S.cache.conversations||[]).find(c=>String(c.id)===String(id));}
@@ -6420,6 +6482,74 @@ async function loadIntegrationsStatus(){
     brevoEl.textContent='Status unavailable';
     wpListEl.innerHTML='<div class="empty-state">Status unavailable</div>';
   }
+  loadChatwootIntegration();
+}
+let _cwInboxes=[];
+async function loadChatwootIntegration(){
+  const statusEl=document.getElementById('int-chatwoot-status');
+  const listEl=document.getElementById('cw-inbox-list');
+  try{
+    const d=await cw('settings');
+    statusEl.textContent=d.hasToken?'Connected':'Not connected';
+    statusEl.style.color=d.hasToken?'var(--green)':'var(--text3)';
+    document.getElementById('int-cw-url').value=d.baseUrl||'https://app.aiingo.com';
+    document.getElementById('int-cw-account').value=d.accountId||'';
+    document.getElementById('int-cw-token').placeholder=d.hasToken?'Leave blank to keep the current token':'Paste your Chatwoot API access token';
+    _cwInboxes=d.inboxes||[];
+    renderChatwootInboxList(_cwInboxes);
+  }catch(e){
+    statusEl.textContent='Status unavailable';
+    listEl.innerHTML='<div class="empty-state">Status unavailable</div>';
+  }
+}
+function renderChatwootInboxList(inboxes){
+  const el=document.getElementById('cw-inbox-list');
+  if(!inboxes.length){el.innerHTML='<div class="empty-state">No inboxes added yet. Add one below — it\'ll show up as its own tab on Conversations.</div>';return;}
+  el.innerHTML=inboxes.map(ib=>`
+    <div class="hist-item">
+      <div class="hist-icon" style="background:var(--green-dim);color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+      <div class="hist-info">
+        <div class="hist-name">${ib.label}</div>
+        <div class="hist-meta">Inbox ID: ${ib.inboxId}</div>
+      </div>
+      <button class="t-btn t-btn-sm" style="background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);flex-shrink:0;" onclick="deleteChatwootInbox(${ib.id})">Delete</button>
+    </div>
+  `).join('');
+}
+async function saveChatwootIntegration(){
+  const baseUrl=document.getElementById('int-cw-url').value.trim()||'https://app.aiingo.com';
+  const accountId=document.getElementById('int-cw-account').value.trim();
+  const apiToken=document.getElementById('int-cw-token').value.trim();
+  if(!accountId){showToast('Account ID is required','error');return;}
+  try{
+    await cw('settings','POST',{baseUrl,accountId,apiToken});
+    document.getElementById('int-cw-token').value='';
+    showToast('Chatwoot connection saved','success');
+    loadChatwootIntegration();
+    loadChatwootMeta();
+  }catch(e){showToast(e.message||'Failed to save Chatwoot settings','error');}
+}
+async function addChatwootInbox(){
+  const label=document.getElementById('cw-new-inbox-label').value.trim();
+  const inboxId=document.getElementById('cw-new-inbox-id').value.trim();
+  if(!label||!inboxId){showToast('Label and Inbox ID are required','error');return;}
+  try{
+    await cw('inboxes','POST',{inboxId,label});
+    document.getElementById('cw-new-inbox-label').value='';
+    document.getElementById('cw-new-inbox-id').value='';
+    showToast(`Inbox "${label}" added`,'success');
+    loadChatwootIntegration();
+    loadChatwootMeta();
+  }catch(e){showToast(e.message||'Failed to add inbox','error');}
+}
+async function deleteChatwootInbox(id){
+  if(!confirm('Remove this inbox? Its tab will disappear from Conversations.'))return;
+  try{
+    await cw(`inboxes/${id}`,'DELETE');
+    showToast('Inbox removed','success');
+    loadChatwootIntegration();
+    loadChatwootMeta();
+  }catch(e){showToast(e.message||'Failed to remove inbox','error');}
 }
 function renderWpSitesList(sites){
   const el=document.getElementById('wp-sites-list');

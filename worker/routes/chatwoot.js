@@ -1,10 +1,9 @@
 // ── Chatwoot integration (app.aiingo.com) ──
-// Talks to Chatwoot's REST API directly using an account-scoped API access token and
-// inbox id, instead of proxying through n8n. Config lives in env:
-//   CHATWOOT_BASE_URL    (vars)   — defaults to https://app.aiingo.com
-//   CHATWOOT_ACCOUNT_ID  (vars)
-//   CHATWOOT_INBOX_ID    (vars)
-//   CHATWOOT_API_TOKEN   (secret) — set with `wrangler secret put CHATWOOT_API_TOKEN`
+// Talks to Chatwoot's REST API directly using an account-scoped API access token.
+// Unlike most other integrations here, the token is entered from the Integrations page
+// (Administrator only) and stored encrypted in D1 — not a wrangler secret — so it can be
+// rotated without a deploy. Multiple inboxes can be registered; each becomes its own tab
+// in the Conversations page.
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS }); }
 function emailFromAccess(request) { return (request.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase(); }
@@ -13,14 +12,42 @@ async function currentUser(request, env) {
   const email = emailFromAccess(request);
   return email ? env.DB.prepare('SELECT email,name,role,teamId FROM users WHERE email=?').bind(email).first() : null;
 }
+function requireAdmin(user) { return user && user.role === 'Administrator'; }
 
-function chatwootConfig(env) {
-  const baseUrl = String(env.CHATWOOT_BASE_URL || 'https://app.aiingo.com').replace(/\/$/, '');
-  const accountId = env.CHATWOOT_ACCOUNT_ID;
-  const inboxId = env.CHATWOOT_INBOX_ID;
-  const apiToken = env.CHATWOOT_API_TOKEN;
-  if (!accountId || !apiToken) return null;
-  return { baseUrl, accountId, inboxId, apiToken };
+// ── Token encryption (AES-GCM, same technique/secret as Lead Intelligence's directory
+// credentials) so the API token can live in D1 without sitting around in plain text. ──
+async function cryptoKey(secret) {
+  if (!secret) throw new Error('LEAD_INTELLIGENCE_KEY secret is not configured — set it with `wrangler secret put LEAD_INTELLIGENCE_KEY` before saving a Chatwoot token.');
+  const raw = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
+  return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+function toB64(bytes) { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s); }
+function fromB64(s) { const bin = atob(s); return Uint8Array.from(bin, c => c.charCodeAt(0)); }
+async function encryptToken(env, value) {
+  const key = await cryptoKey(env.LEAD_INTELLIGENCE_KEY);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(value));
+  return `${toB64(iv)}.${toB64(new Uint8Array(cipher))}`;
+}
+async function decryptToken(env, token) {
+  if (!token) return '';
+  const [iv64, data64] = token.split('.');
+  const key = await cryptoKey(env.LEAD_INTELLIGENCE_KEY);
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(iv64) }, key, fromB64(data64));
+  return new TextDecoder().decode(plain);
+}
+
+async function getSettingsRow(env) { return env.DB.prepare('SELECT * FROM chatwoot_settings WHERE id=1').first(); }
+async function listInboxes(env) {
+  const result = await env.DB.prepare('SELECT id,inboxId,label FROM chatwoot_inboxes ORDER BY id').all();
+  return result.results || [];
+}
+async function loadChatwootConfig(env) {
+  const row = await getSettingsRow(env);
+  if (!row || !row.accountId || !row.apiTokenEncrypted) return null;
+  const apiToken = await decryptToken(env, row.apiTokenEncrypted);
+  if (!apiToken) return null;
+  return { baseUrl: String(row.baseUrl || 'https://app.aiingo.com').replace(/\/$/, ''), accountId: row.accountId, apiToken };
 }
 
 async function chatwootFetch(config, path, options = {}) {
@@ -38,26 +65,24 @@ async function assignmentsByConversation(env) {
     u.name assignedUserName FROM conversation_assignments a LEFT JOIN users u ON u.email=a.assignedUserEmail`).all();
   return new Map((result.results || []).map(a => [String(a.conversationId), a]));
 }
-
 function visibleToUser(user, assignment) {
   if (user.role === 'Administrator') return true;
   if (user.role === 'Manager') return !assignment || assignment.assignedTeamId === user.teamId;
   return assignment?.assignedUserEmail === user.email;
 }
-
 function channelLabel(raw) {
   const s = String(raw || '').toLowerCase();
   if (s.includes('whatsapp')) return 'whatsapp';
   if (s.includes('email')) return 'email';
   return 'chat';
 }
-
 function normalizeConversation(raw, assignment) {
   const meta = raw.meta || {};
   const sender = meta.sender || {};
   const last = raw.last_non_activity_message || null;
   return {
     id: raw.id,
+    inboxId: String(raw.inbox_id ?? ''),
     contact_name: sender.name || 'Unknown',
     phone: sender.phone_number || sender.phone || '',
     channel: channelLabel(meta.channel || raw.channel),
@@ -68,35 +93,86 @@ function normalizeConversation(raw, assignment) {
     assignment: assignment ? { userEmail: assignment.assignedUserEmail, userName: assignment.assignedUserName || assignment.assignedUserEmail, teamId: assignment.assignedTeamId } : null,
   };
 }
-
 function normalizeMessage(raw) {
-  return {
-    id: raw.id,
-    content: raw.content || '',
-    message_type: raw.message_type,
-    created_at: raw.created_at,
-    sender_name: raw.sender?.name || '',
-  };
+  return { id: raw.id, content: raw.content || '', message_type: raw.message_type, created_at: raw.created_at, sender_name: raw.sender?.name || '' };
 }
 
-export async function handleChatwootConfig(request, env) {
+// ── Non-secret info any signed-in user needs: deep-link base + the inbox tabs. ──
+export async function handleChatwootMeta(request, env) {
   const user = await currentUser(request, env);
   if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
-  const config = chatwootConfig(env);
-  if (!config) return json({ error: 'Chatwoot is not configured yet. Set CHATWOOT_ACCOUNT_ID and CHATWOOT_API_TOKEN.' }, 503);
-  return json({ baseUrl: config.baseUrl, accountId: config.accountId });
+  const row = await getSettingsRow(env);
+  const inboxes = await listInboxes(env);
+  return json({ baseUrl: row?.baseUrl || 'https://app.aiingo.com', accountId: row?.accountId || '', configured: !!(row?.accountId && row?.apiTokenEncrypted), inboxes });
+}
+
+export async function handleGetChatwootSettings(request, env) {
+  const user = await currentUser(request, env);
+  if (!requireAdmin(user)) return json({ error: 'Administrator access required.' }, 403);
+  const row = await getSettingsRow(env);
+  const inboxes = await listInboxes(env);
+  return json({ baseUrl: row?.baseUrl || 'https://app.aiingo.com', accountId: row?.accountId || '', hasToken: !!row?.apiTokenEncrypted, inboxes });
+}
+
+export async function handleSaveChatwootSettings(request, env) {
+  const user = await currentUser(request, env);
+  if (!requireAdmin(user)) return json({ error: 'Administrator access required.' }, 403);
+  const body = await request.json().catch(() => ({}));
+  const baseUrl = String(body.baseUrl || 'https://app.aiingo.com').trim().replace(/\/$/, '');
+  const accountId = String(body.accountId || '').trim();
+  if (!accountId) return json({ error: 'Account ID is required.' }, 400);
+
+  const existing = await getSettingsRow(env);
+  let apiTokenEncrypted = existing?.apiTokenEncrypted || null;
+  const newToken = String(body.apiToken || '').trim();
+  if (newToken) {
+    try { apiTokenEncrypted = await encryptToken(env, newToken); }
+    catch (error) { return json({ error: error.message }, 500); }
+  }
+  await env.DB.prepare(`INSERT INTO chatwoot_settings (id,baseUrl,accountId,apiTokenEncrypted,updatedAt) VALUES (1,?,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET baseUrl=excluded.baseUrl, accountId=excluded.accountId, apiTokenEncrypted=excluded.apiTokenEncrypted, updatedAt=CURRENT_TIMESTAMP`)
+    .bind(baseUrl, accountId, apiTokenEncrypted).run();
+  return json({ success: true });
+}
+
+export async function handleAddChatwootInbox(request, env) {
+  const user = await currentUser(request, env);
+  if (!requireAdmin(user)) return json({ error: 'Administrator access required.' }, 403);
+  const body = await request.json().catch(() => ({}));
+  const inboxId = String(body.inboxId || '').trim();
+  const label = String(body.label || '').trim();
+  if (!inboxId || !label) return json({ error: 'Inbox ID and a label are required.' }, 400);
+  try {
+    const result = await env.DB.prepare('INSERT INTO chatwoot_inboxes (inboxId,label) VALUES (?,?)').bind(inboxId, label).run();
+    return json({ success: true, inbox: { id: result.meta.last_row_id, inboxId, label } }, 201);
+  } catch (error) {
+    if (String(error.message).toLowerCase().includes('unique')) return json({ error: 'This inbox ID is already added.' }, 409);
+    throw error;
+  }
+}
+
+export async function handleDeleteChatwootInbox(request, env, id) {
+  const user = await currentUser(request, env);
+  if (!requireAdmin(user)) return json({ error: 'Administrator access required.' }, 403);
+  await env.DB.prepare('DELETE FROM chatwoot_inboxes WHERE id=?').bind(id).run();
+  return json({ success: true });
 }
 
 export async function handleChatwootConversations(request, env) {
   const user = await currentUser(request, env);
   if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
-  const config = chatwootConfig(env);
-  if (!config) return json({ error: 'Chatwoot is not configured yet.' }, 503);
+  const config = await loadChatwootConfig(env);
+  if (!config) return json({ error: 'Chatwoot is not configured yet. Add your API token under Integrations.' }, 503);
 
   const url = new URL(request.url);
   const status = url.searchParams.get('status') || 'open';
+  let inboxId = url.searchParams.get('inboxId') || '';
+  if (!inboxId) {
+    const inboxes = await listInboxes(env);
+    if (inboxes.length === 1) inboxId = inboxes[0].inboxId;
+  }
   const params = new URLSearchParams({ status });
-  if (config.inboxId) params.set('inbox_id', config.inboxId);
+  if (inboxId) params.set('inbox_id', inboxId);
 
   let data;
   try { data = await chatwootFetch(config, `/conversations?${params.toString()}`); }
@@ -121,7 +197,7 @@ export async function handleChatwootConversations(request, env) {
 async function requireConversationAccess(request, env, conversationId) {
   const user = await currentUser(request, env);
   if (!user) return { error: json({ error: 'User is not provisioned in Whizz.' }, 403) };
-  const config = chatwootConfig(env);
+  const config = await loadChatwootConfig(env);
   if (!config) return { error: json({ error: 'Chatwoot is not configured yet.' }, 503) };
   if (user.role !== 'Administrator') {
     const assignment = await env.DB.prepare('SELECT assignedUserEmail,assignedTeamId FROM conversation_assignments WHERE conversationId=?').bind(conversationId).first();
