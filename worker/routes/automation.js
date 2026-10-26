@@ -152,7 +152,7 @@ async function ownedLeadSummary(env, user) {
     brands: [...new Set(groups.map(g=>g.brand))], regions });
 }
 
-async function resolveContactsForCampaign(env, user, body) {
+export async function resolveContactsForCampaign(env, user, body) {
   const audiences = Array.isArray(body.audiences) && body.audiences.length > 0 ? body.audiences : null;
   const targets = audiences || [{ platform: body.platform || 'ALL', country: body.country || 'ALL', brand: body.brand || 'ALL' }];
 

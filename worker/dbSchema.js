@@ -127,6 +127,11 @@ async function repairSchema(env) {
   await addColumns(env, 'chatwoot_inboxes', [
     ['wabaId', "TEXT NOT NULL DEFAULT ''"],
     ['phoneNumber', "TEXT NOT NULL DEFAULT ''"],
+    // phoneNumberId: Meta's "Phone number ID" — yet a third identifier, distinct from
+    // both wabaId and the human phone number, and what sending a message is actually
+    // addressed to (POST /{phone-number-id}/messages). Found in Meta Business Settings →
+    // WhatsApp Accounts → the WABA → Phone numbers → the number.
+    ['phoneNumberId', "TEXT NOT NULL DEFAULT ''"],
   ]);
   // Template create/list/delete talk to Meta's Graph API directly (per-WABA, using
   // chatwoot_inboxes.wabaId), not n8n. One System User access token covers every WABA

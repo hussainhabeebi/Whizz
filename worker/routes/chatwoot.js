@@ -39,7 +39,7 @@ async function decryptToken(env, token) {
 
 async function getSettingsRow(env) { return env.DB.prepare('SELECT * FROM chatwoot_settings WHERE id=1').first(); }
 async function listInboxes(env) {
-  const result = await env.DB.prepare('SELECT id,inboxId,label,wabaId,phoneNumber FROM chatwoot_inboxes ORDER BY id').all();
+  const result = await env.DB.prepare('SELECT id,inboxId,label,wabaId,phoneNumber,phoneNumberId FROM chatwoot_inboxes ORDER BY id').all();
   return result.results || [];
 }
 async function loadChatwootConfig(env) {
@@ -160,10 +160,11 @@ export async function handleAddChatwootInbox(request, env) {
   const label = String(body.label || '').trim();
   const wabaId = String(body.wabaId || '').trim();
   const phoneNumber = String(body.phoneNumber || '').trim();
+  const phoneNumberId = String(body.phoneNumberId || '').trim();
   if (!inboxId || !label) return json({ error: 'Inbox ID and a label are required.' }, 400);
   try {
-    const result = await env.DB.prepare('INSERT INTO chatwoot_inboxes (inboxId,label,wabaId,phoneNumber) VALUES (?,?,?,?)').bind(inboxId, label, wabaId, phoneNumber).run();
-    return json({ success: true, inbox: { id: result.meta.last_row_id, inboxId, label, wabaId, phoneNumber } }, 201);
+    const result = await env.DB.prepare('INSERT INTO chatwoot_inboxes (inboxId,label,wabaId,phoneNumber,phoneNumberId) VALUES (?,?,?,?,?)').bind(inboxId, label, wabaId, phoneNumber, phoneNumberId).run();
+    return json({ success: true, inbox: { id: result.meta.last_row_id, inboxId, label, wabaId, phoneNumber, phoneNumberId } }, 201);
   } catch (error) {
     if (String(error.message).toLowerCase().includes('unique')) return json({ error: 'This inbox ID is already added.' }, 409);
     throw error;
@@ -177,8 +178,9 @@ export async function handleUpdateChatwootInbox(request, env, id) {
   const label = String(body.label || '').trim();
   const wabaId = String(body.wabaId || '').trim();
   const phoneNumber = String(body.phoneNumber || '').trim();
+  const phoneNumberId = String(body.phoneNumberId || '').trim();
   if (!label) return json({ error: 'A label is required.' }, 400);
-  const result = await env.DB.prepare('UPDATE chatwoot_inboxes SET label=?,wabaId=?,phoneNumber=? WHERE id=?').bind(label, wabaId, phoneNumber, id).run();
+  const result = await env.DB.prepare('UPDATE chatwoot_inboxes SET label=?,wabaId=?,phoneNumber=?,phoneNumberId=? WHERE id=?').bind(label, wabaId, phoneNumber, phoneNumberId, id).run();
   return result.meta.changes ? json({ success: true }) : json({ error: 'Inbox not found.' }, 404);
 }
 
