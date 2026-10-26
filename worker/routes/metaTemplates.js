@@ -114,20 +114,27 @@ export async function handleListMetaTemplates(request, env) {
   if (!inboxes.length) return json({ error: 'No inbox has a WABA ID set yet — add one under Integrations → Chatwoot.' }, 503);
 
   const templates = [];
+  // Per-inbox counts/errors travel back even when templates is empty, so an empty
+  // Templates page can say *why* (wrong WABA ID, no permission, genuinely zero
+  // templates on that WABA) instead of just looking identical to "not connected".
+  const diagnostics = [];
   for (const inbox of inboxes) {
+    let count = 0, error = null;
     try {
       let next = `/${inbox.wabaId}/message_templates?fields=name,status,category,language,components&limit=100`;
       while (next) {
         const data = await graphFetch(accessToken, next);
-        for (const raw of data.data || []) templates.push(normalizeTemplate(raw, inbox.inboxId));
+        for (const raw of data.data || []) { templates.push(normalizeTemplate(raw, inbox.inboxId)); count++; }
         const nextUrl = data.paging?.next || null;
         next = nextUrl ? nextUrl.replace(`https://graph.facebook.com/${GRAPH_API_VERSION}`, '') : null;
       }
-    } catch (error) {
-      templates.push({ name: `(${inbox.label}: failed to load — ${error.message})`, language: '', category: '', status: 'ERROR', body: '', inboxId: inbox.inboxId, loadError: true });
+    } catch (err) {
+      error = err.message;
+      templates.push({ name: `(${inbox.label}: failed to load — ${err.message})`, language: '', category: '', status: 'ERROR', body: '', inboxId: inbox.inboxId, loadError: true });
     }
+    diagnostics.push({ inboxId: inbox.inboxId, label: inbox.label, wabaId: inbox.wabaId, count, error });
   }
-  return json({ templates });
+  return json({ templates, diagnostics });
 }
 
 // Meta requires an example value for every {{n}} placeholder before a template with

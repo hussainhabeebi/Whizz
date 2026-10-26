@@ -170,6 +170,18 @@ export async function handleAddChatwootInbox(request, env) {
   }
 }
 
+export async function handleUpdateChatwootInbox(request, env, id) {
+  const user = await currentUser(request, env);
+  if (!requireAdmin(user)) return json({ error: 'Administrator access required.' }, 403);
+  const body = await request.json().catch(() => ({}));
+  const label = String(body.label || '').trim();
+  const wabaId = String(body.wabaId || '').trim();
+  const phoneNumber = String(body.phoneNumber || '').trim();
+  if (!label) return json({ error: 'A label is required.' }, 400);
+  const result = await env.DB.prepare('UPDATE chatwoot_inboxes SET label=?,wabaId=?,phoneNumber=? WHERE id=?').bind(label, wabaId, phoneNumber, id).run();
+  return result.meta.changes ? json({ success: true }) : json({ error: 'Inbox not found.' }, 404);
+}
+
 export async function handleDeleteChatwootInbox(request, env, id) {
   const user = await currentUser(request, env);
   if (!requireAdmin(user)) return json({ error: 'Administrator access required.' }, 403);

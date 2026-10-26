@@ -11,7 +11,7 @@ import { handleAutomation } from './routes/automation.js';
 import { handleConversationAssignment } from './routes/conversationAssignments.js';
 import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookings.js';
 import { handleLeadIntelligence } from './routes/leadIntelligence.js';
-import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage, handleChatwootSendTemplate } from './routes/chatwoot.js';
+import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleUpdateChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage, handleChatwootSendTemplate } from './routes/chatwoot.js';
 import { handleGetMetaSettings, handleSaveMetaSettings, handleListMetaTemplates, handleCreateMetaTemplate, handleDeleteMetaTemplate } from './routes/metaTemplates.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
@@ -210,6 +210,10 @@ export default {
     const chatwootInboxMatch = url.pathname.match(/^\/api\/chatwoot\/inboxes\/(\d+)$/);
     if (chatwootInboxMatch && request.method === 'DELETE') {
       try { return await handleDeleteChatwootInbox(request, env, Number(chatwootInboxMatch[1])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    if (chatwootInboxMatch && request.method === 'PUT') {
+      try { return await handleUpdateChatwootInbox(request, env, Number(chatwootInboxMatch[1])); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access|sync-access))?$/);
