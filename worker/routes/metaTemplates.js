@@ -4,7 +4,7 @@
 // template fetched here comes tagged with the inbox it actually belongs to, straight from
 // Meta. One System User access token (stored encrypted, Administrator-entered) is expected
 // to have access to every WABA under the same Meta Business portfolio.
-const GRAPH_API_VERSION = 'v21.0';
+export const GRAPH_API_VERSION = 'v21.0';
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS }); }
 function emailFromAccess(request) { return (request.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase(); }
@@ -40,7 +40,7 @@ async function decryptToken(env, token) {
 }
 
 async function getMetaSettingsRow(env) { return env.DB.prepare('SELECT * FROM meta_whatsapp_settings WHERE id=1').first(); }
-async function loadMetaAccessToken(env) {
+export async function loadMetaAccessToken(env) {
   const row = await getMetaSettingsRow(env);
   if (!row?.accessTokenEncrypted) return null;
   const token = await decryptToken(env, row.accessTokenEncrypted);

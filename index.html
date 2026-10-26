@@ -2202,10 +2202,11 @@ body.dark{
                 <div class="fg" style="flex:1;min-width:100px;margin-bottom:0;"><label class="fl">Inbox ID</label><input class="fi" id="cw-new-inbox-id" placeholder="e.g. 73"/></div>
                 <div class="fg" style="flex:1;min-width:120px;margin-bottom:0;"><label class="fl">Phone Number</label><input class="fi" id="cw-new-inbox-phone" placeholder="e.g. +971562181583"/></div>
                 <div class="fg" style="flex:1;min-width:140px;margin-bottom:0;"><label class="fl">WABA ID <span style="font-weight:400;text-transform:none;color:var(--text3);">(optional)</span></label><input class="fi" id="cw-new-inbox-waba" placeholder="e.g. 1481709013760046"/></div>
+                <div class="fg" style="flex:1;min-width:140px;margin-bottom:0;"><label class="fl">Phone Number ID <span style="font-weight:400;text-transform:none;color:var(--text3);">(for sending)</span></label><input class="fi" id="cw-new-inbox-phone-id" placeholder="e.g. 109876543210987"/></div>
                 <button class="t-btn btn-primary" style="height:38px;" id="cw-inbox-submit-btn" onclick="addChatwootInbox()">Add Inbox</button>
                 <button class="t-btn btn-ghost" style="height:38px;display:none;" id="cw-inbox-cancel-btn" onclick="cancelEditChatwootInbox()">Cancel</button>
               </div>
-              <div class="fi-hint" style="margin-top:8px;">Find the WABA ID in Chatwoot's inbox → Account Health → "WhatsApp Business Account ID". If two numbers sit on separate WABAs, set this so templates created for one aren't assumed valid on the other.</div>
+              <div class="fi-hint" style="margin-top:8px;">Find the WABA ID in Chatwoot's inbox → Account Health → "WhatsApp Business Account ID". If two numbers sit on separate WABAs, set this so templates created for one aren't assumed valid on the other. Phone Number ID is a separate id from Meta Business Settings → WhatsApp Accounts → the WABA → Phone numbers → the number — it's what bulk campaign sending is addressed to.</div>
             </div>
           </div>
         </div>
@@ -3114,8 +3115,22 @@ function saveHistory(entry) {
 function renderHistoryList() {
   const el = document.getElementById('history-list');
   if (!S.history.length) { el.innerHTML = '<div class="empty-state">No campaigns sent yet.</div>'; return; }
-  el.innerHTML = S.history.map(h => {const f=h.failures||{};const detail=[h.suppressed?`${h.suppressed} protected`:null,f.permanent?`${f.permanent} permanent`:null,f.transient?`${f.transient} temporary`:null,f.policy?`${f.policy} policy`:null].filter(Boolean).join(' · ');return `<div class="hist-item"><div class="hist-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="hist-info"><div class="hist-name">${h.template} — ${h.audience}${h.paused?' · AUTO-PAUSED':''}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total} contacts${detail?' · '+detail:''}</div></div><div class="hist-stats"><div class="hist-sent">${h.sent||0} sent</div><div class="hist-fail">${h.failed||0} failed</div></div></div>`;}).join('');
+  el.innerHTML = S.history.map((h,i) => {
+    const f=h.failures||{};
+    const detail=[h.suppressed?`${h.suppressed} protected`:null,f.permanent?`${f.permanent} permanent`:null,f.transient?`${f.transient} temporary`:null,f.policy?`${f.policy} policy`:null].filter(Boolean).join(' · ');
+    const failedList=h.failedContacts||[];
+    const toggle=failedList.length?`<button type="button" style="background:none;border:0;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;padding:6px 0 0;" onclick="toggleHistoryDetails(${i})" id="hist-toggle-${i}">Show ${failedList.length} failure reason${failedList.length===1?'':'s'} ▾</button>`:'';
+    const details=failedList.length?`<div id="hist-details-${i}" style="display:none;margin-top:6px;padding:8px 10px;background:var(--bg3);border-radius:8px;max-height:180px;overflow-y:auto;">${failedList.map(c=>`<div style="display:flex;gap:8px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);"><span style="flex:1;color:var(--text);">${_hesc(c.name||'Unknown')}</span><span style="flex:1;color:var(--text3);">${_hesc(c.phone||'')}</span><span style="flex:2;color:var(--red);">${_hesc(c.reason||'')}</span></div>`).join('')}</div>`:'';
+    return `<div style="padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px;"><div class="hist-item" style="border:0;padding:10px 0;"><div class="hist-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="hist-info"><div class="hist-name">${h.template} — ${h.audience}${h.paused?' · AUTO-PAUSED':''}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total} contacts${detail?' · '+detail:''}</div>${toggle}${details}</div><div class="hist-stats"><div class="hist-sent">${h.sent||0} sent</div><div class="hist-fail">${h.failed||0} failed</div></div></div></div>`;
+  }).join('');
   renderCampaignTiming();
+}
+function toggleHistoryDetails(i){
+  const el=document.getElementById(`hist-details-${i}`),btn=document.getElementById(`hist-toggle-${i}`);
+  if(!el||!btn)return;
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  btn.textContent=btn.textContent.replace(open?'▾':'▴',open?'▴':'▾');
 }
 function exportHistoryCSV() {
   if (!S.history.length) { showToast('No history data available', 'error'); return; }
@@ -3906,6 +3921,10 @@ async function api(path,method='GET',body=null){const endpoint=String(path).spli
 // Endpoints migrated off n8n onto the Cloudflare Worker call this instead — same
 // contract, just same-origin. Migrate call sites one at a time as each route lands.
 async function apiW(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);const txt=await r.text();try{return txt?JSON.parse(txt):{success:true};}catch{return{success:true};}}
+// Same as apiW, but surfaces the server's own {error:"..."} message on failure instead of
+// a bare status code — used where that message is actually meant to be read (e.g. "pick a
+// Send From number first"), not just logged.
+async function apiWMsg(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/${path}`,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{};}catch{data={};}if(!r.ok)throw new Error(data.error||'HTTP '+r.status);return data;}
 // Chatwoot (app.aiingo.com), proxied by the Worker at /api/chatwoot/*.
 async function cw(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/api/chatwoot/${path}`,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{};}catch{data={};}if(!r.ok)throw new Error(data.error||'HTTP '+r.status);return data;}
 // WhatsApp template management (create/list/delete), direct to Meta's Graph API —
@@ -5440,7 +5459,7 @@ async function sendCampaign(){
     const selectedAudiences=allGroups?[]:S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return{platform,country,brand};});
     const firstGroup=selectedAudiences[0];
     const useAll=allGroups||selectedAudiences.length!==1;
-    const result=await api('whizz-send-campaign','POST',{
+    const result=await apiWMsg('api/campaigns/send','POST',{
       platform:useAll?'ALL':(firstGroup?.platform||'ALL'),
       country:useAll?'ALL':(firstGroup?.country||'ALL'),
       brand:useAll?'ALL':(firstGroup?.brand||'ALL'),
@@ -5450,6 +5469,7 @@ async function sendCampaign(){
       inboxId:S.activeCampaignInboxId||undefined,
       template_name:S.selectedTemplate.name,
       language:S.selectedTemplate.language,
+      template:{header:S.selectedTemplate.header||'',body:S.selectedTemplate.body||'',footer:S.selectedTemplate.footer||''},
       delivery_guard:getDeliveryGuardConfig()
     });
     clearInterval(interval);
@@ -5457,7 +5477,8 @@ async function sendCampaign(){
     const failures=classifyCampaignFailures(result),suppressed=Number(result.suppressed||result.skipped||0),paused=Boolean(result.paused||result.auto_paused);
     document.getElementById('prog-text').textContent=paused?`Campaign auto-paused for protection. Sent: ${result.sent||0}, Failed: ${result.failed||0}`:`Campaign complete. Sent: ${result.sent||0}, Suppressed: ${suppressed}, Failed: ${result.failed||0}`;
     showToast(paused?'Campaign paused automatically after a delivery-risk spike':`Campaign completed: ${result.sent||0} sent, ${suppressed} protected`,paused?'error':'success');
-    saveHistory({template:S.selectedTemplate.name,audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total||0,sent:result.sent||0,failed:result.failed||0,suppressed,paused,failures,deliveryGuard:getDeliveryGuardConfig(),ts:Date.now()});
+    const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,phone:r.phone,reason:r.reason})).slice(0,50);
+    saveHistory({template:S.selectedTemplate.name,audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total||0,sent:result.sent||0,failed:result.failed||0,suppressed,paused,failures,failedContacts,deliveryGuard:getDeliveryGuardConfig(),ts:Date.now()});
     setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
   }catch(e){clearInterval(interval);showToast(e.message||'Campaign send failed','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}
 }
@@ -7828,7 +7849,7 @@ function renderChatwootInboxList(inboxes){
       <div class="hist-icon" style="background:var(--green-dim);color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
       <div class="hist-info">
         <div class="hist-name">${ib.label}${ib.phoneNumber?` <span style="font-weight:400;color:var(--text3);">${ib.phoneNumber}</span>`:''}</div>
-        <div class="hist-meta">Inbox ID: ${ib.inboxId}${ib.wabaId?` · WABA: ${ib.wabaId}`:' · No WABA ID set'}</div>
+        <div class="hist-meta">Inbox ID: ${ib.inboxId}${ib.wabaId?` · WABA: ${ib.wabaId}`:' · No WABA ID set'}${ib.phoneNumberId?` · Phone Number ID: ${ib.phoneNumberId}`:' · No Phone Number ID set (campaign sending disabled)'}</div>
       </div>
       <button class="t-btn btn-ghost t-btn-sm" style="flex-shrink:0;" onclick="editChatwootInbox(${ib.id})">Edit</button>
       <button class="t-btn t-btn-sm" style="background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);flex-shrink:0;" onclick="deleteChatwootInbox(${ib.id})">Delete</button>
@@ -7844,6 +7865,7 @@ function editChatwootInbox(id){
   document.getElementById('cw-new-inbox-id').disabled=true;
   document.getElementById('cw-new-inbox-phone').value=ib.phoneNumber||'';
   document.getElementById('cw-new-inbox-waba').value=ib.wabaId||'';
+  document.getElementById('cw-new-inbox-phone-id').value=ib.phoneNumberId||'';
   document.getElementById('cw-inbox-submit-btn').textContent='Update Inbox';
   document.getElementById('cw-inbox-cancel-btn').style.display='inline-flex';
   document.getElementById('cw-new-inbox-label').scrollIntoView({behavior:'smooth',block:'center'});
@@ -7855,6 +7877,7 @@ function cancelEditChatwootInbox(){
   document.getElementById('cw-new-inbox-id').disabled=false;
   document.getElementById('cw-new-inbox-phone').value='';
   document.getElementById('cw-new-inbox-waba').value='';
+  document.getElementById('cw-new-inbox-phone-id').value='';
   document.getElementById('cw-inbox-submit-btn').textContent='Add Inbox';
   document.getElementById('cw-inbox-cancel-btn').style.display='none';
 }
@@ -7877,10 +7900,11 @@ async function addChatwootInbox(){
   const inboxId=document.getElementById('cw-new-inbox-id').value.trim();
   const phoneNumber=document.getElementById('cw-new-inbox-phone').value.trim();
   const wabaId=document.getElementById('cw-new-inbox-waba').value.trim();
+  const phoneNumberId=document.getElementById('cw-new-inbox-phone-id').value.trim();
   if(!label||!inboxId){showToast('Label and Inbox ID are required','error');return;}
   try{
-    if(editId)await cw(`inboxes/${editId}`,'PUT',{label,phoneNumber,wabaId});
-    else await cw('inboxes','POST',{inboxId,label,phoneNumber,wabaId});
+    if(editId)await cw(`inboxes/${editId}`,'PUT',{label,phoneNumber,wabaId,phoneNumberId});
+    else await cw('inboxes','POST',{inboxId,label,phoneNumber,wabaId,phoneNumberId});
     cancelEditChatwootInbox();
     showToast(`Inbox "${label}" ${editId?'updated':'added'}`,'success');
     loadChatwootIntegration();
@@ -9308,6 +9332,8 @@ function scheduleCampaign() {
     audienceRules: getCampaignAudienceRules(),
     channel: getSelectedCampaignChannel(),
     inboxId: S.activeCampaignInboxId || '',
+    templateBody: S.selectedTemplate.body||'',
+    templateHeader: S.selectedTemplate.header||'',
     deliveryGuard: getDeliveryGuardConfig(),
     createdAt: Date.now()
   };
@@ -9332,24 +9358,28 @@ async function fireScheduledJob(job) {
   try {
     const _jobAudiences=job.audiences||[];
     const _jobUseAll=_jobAudiences.length!==1;
-    const result = await api('whizz-send-campaign', 'POST', {
+    const result = await apiWMsg('api/campaigns/send', 'POST', {
       platform: _jobUseAll?'ALL':(job.platform||'ALL'),
       country: _jobUseAll?'ALL':(job.country||'ALL'),
       brand: _jobUseAll?'ALL':(job.brand||'ALL'),
       template_name: job.template,
       language: job.language,
+      template: {header: job.templateHeader||'', body: job.templateBody||''},
       audiences: _jobAudiences,
       audience_rules: job.audienceRules || getCampaignAudienceRules(),
       channel: job.channel || 'whatsapp',
       inboxId: job.inboxId || undefined,
       delivery_guard: job.deliveryGuard || getDeliveryGuardConfig()
     });
+    const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,phone:r.phone,reason:r.reason})).slice(0,50);
     saveHistory({
       template: job.template,
       audience: job.audience,
       total: result.total||0,
       sent: result.sent||0,
       failed: result.failed||0,
+      failures: classifyCampaignFailures(result),
+      failedContacts,
       ts: Date.now(),
       scheduled: true
     });

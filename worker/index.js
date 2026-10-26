@@ -13,6 +13,7 @@ import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookin
 import { handleLeadIntelligence } from './routes/leadIntelligence.js';
 import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleUpdateChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage, handleChatwootSendTemplate } from './routes/chatwoot.js';
 import { handleGetMetaSettings, handleSaveMetaSettings, handleListMetaTemplates, handleCreateMetaTemplate, handleDeleteMetaTemplate } from './routes/metaTemplates.js';
+import { handleSendCampaignMeta } from './routes/campaignSend.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -41,6 +42,7 @@ const routes = [
   { method: 'GET', path: '/api/meta-templates', handler: handleListMetaTemplates },
   { method: 'POST', path: '/api/meta-templates', handler: handleCreateMetaTemplate },
   { method: 'POST', path: '/api/meta-templates/delete', handler: handleDeleteMetaTemplate },
+  { method: 'POST', path: '/api/campaigns/send', handler: handleSendCampaignMeta },
 ];
 
 async function leadActor(request, env) {
