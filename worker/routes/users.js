@@ -14,10 +14,11 @@ async function ensureSupportTables(env) {
   await supportTablesReady;
 }
 function normalizeRow(row) {
-  let allowedBrands = [], allowedPlatforms = [];
+  let allowedBrands = [], allowedPlatforms = [], allowedInboxes = [];
   try { allowedBrands = JSON.parse(row.allowedBrands || '[]'); } catch (_) {}
   try { allowedPlatforms = JSON.parse(row.allowedPlatforms || '[]'); } catch (_) {}
-  return { email: row.email, name: row.name, role: row.role, teamId: row.teamId || 'sales', allowedBrands, allowedPlatforms, resetAt: row.resetAt || 0, accessPolicySynced: !!row.policyId };
+  try { allowedInboxes = JSON.parse(row.allowedInboxes || '[]'); } catch (_) {}
+  return { email: row.email, name: row.name, role: row.role, teamId: row.teamId || 'sales', allowedBrands, allowedPlatforms, allowedInboxes, resetAt: row.resetAt || 0, accessPolicySynced: !!row.policyId };
 }
 async function actorFor(request, env) {
   await ensureSupportTables(env);
@@ -71,9 +72,10 @@ async function removeAccessPolicy(env, email) {
 export async function handleMe(request, env) {
   const email = emailFromAccess(request);
   if (!email) return json({ error: 'Not authenticated.' }, 401);
-  const row = await env.DB.prepare('SELECT email,name,role,teamId,resetAt FROM users WHERE email=?').bind(email).first();
+  const row = await env.DB.prepare('SELECT email,name,role,teamId,resetAt,allowedBrands,allowedPlatforms,allowedInboxes FROM users WHERE email=?').bind(email).first();
   if (!row) return json({ error: `${email} is not provisioned in Whizz. Ask an Administrator to add you.` }, 403);
-  return json({ email: row.email, name: row.name, role: row.role, teamId: row.teamId || 'sales', resetAt: row.resetAt || 0 });
+  const { allowedBrands, allowedPlatforms, allowedInboxes } = normalizeRow(row);
+  return json({ email: row.email, name: row.name, role: row.role, teamId: row.teamId || 'sales', resetAt: row.resetAt || 0, allowedBrands, allowedPlatforms, allowedInboxes });
 }
 
 export async function handleUsers(request, env) {
@@ -96,15 +98,15 @@ export async function handleCreateUser(request, env) {
   if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'A valid name and email are required.' }, 400);
   if (!ROLES.has(role)) return json({ error: 'Invalid role.' }, 400);
   try {
-    await env.DB.prepare('INSERT INTO users (email,name,role,teamId,allowedBrands,allowedPlatforms) VALUES (?,?,?,?,?,?)')
-      .bind(email, name, role, String(body.teamId || 'sales').trim().toLowerCase(), JSON.stringify(body.allowedBrands || []), JSON.stringify(body.allowedPlatforms || [])).run();
+    await env.DB.prepare('INSERT INTO users (email,name,role,teamId,allowedBrands,allowedPlatforms,allowedInboxes) VALUES (?,?,?,?,?,?,?)')
+      .bind(email, name, role, String(body.teamId || 'sales').trim().toLowerCase(), JSON.stringify(body.allowedBrands || []), JSON.stringify(body.allowedPlatforms || []), JSON.stringify(body.allowedInboxes || [])).run();
   } catch (error) {
     if (String(error.message).toLowerCase().includes('unique')) return json({ error: 'A user with this email already exists.' }, 409);
     throw error;
   }
   let access;
   try { access = await syncAccessPolicy(env, email); } catch (error) { access = { synced: false, reason: error.message }; }
-  return json({ user: { email, name, role, teamId: String(body.teamId || 'sales').trim().toLowerCase(), allowedBrands: body.allowedBrands || [], allowedPlatforms: body.allowedPlatforms || [], resetAt: 0, accessPolicySynced: !!access.synced }, access }, 201);
+  return json({ user: { email, name, role, teamId: String(body.teamId || 'sales').trim().toLowerCase(), allowedBrands: body.allowedBrands || [], allowedPlatforms: body.allowedPlatforms || [], allowedInboxes: body.allowedInboxes || [], resetAt: 0, accessPolicySynced: !!access.synced }, access }, 201);
 }
 
 export async function handleUpdateUser(request, env, email) {
@@ -112,8 +114,8 @@ export async function handleUpdateUser(request, env, email) {
   const body = await request.json();
   const name = String(body.name || '').trim(), role = String(body.role || 'Sales');
   if (!name || !ROLES.has(role)) return json({ error: 'Valid name and role are required.' }, 400);
-  const result = await env.DB.prepare('UPDATE users SET name=?,role=?,teamId=?,allowedBrands=?,allowedPlatforms=? WHERE email=?')
-    .bind(name, role, String(body.teamId || 'sales').trim().toLowerCase(), JSON.stringify(body.allowedBrands || []), JSON.stringify(body.allowedPlatforms || []), email).run();
+  const result = await env.DB.prepare('UPDATE users SET name=?,role=?,teamId=?,allowedBrands=?,allowedPlatforms=?,allowedInboxes=? WHERE email=?')
+    .bind(name, role, String(body.teamId || 'sales').trim().toLowerCase(), JSON.stringify(body.allowedBrands || []), JSON.stringify(body.allowedPlatforms || []), JSON.stringify(body.allowedInboxes || []), email).run();
   return result.meta.changes ? json({ success: true }) : json({ error: 'User not found.' }, 404);
 }
 

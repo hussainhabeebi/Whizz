@@ -2923,14 +2923,19 @@ const USERS_DEFAULT = {
   'waqas@whizz.com':      { name: 'Waqas',         role: 'Sales',         allowedBrands: [], allowedPlatforms: ['Waqas'] }
 };
 let USERS = {};
-const USERS_KEY = 'whizz_users_v1';
-function loadUsers(){
-  let raw=null;
-  try{ raw=localStorage.getItem(USERS_KEY); }catch(e){}
-  try{ USERS=raw?JSON.parse(raw):{...USERS_DEFAULT}; }catch(e){ USERS={...USERS_DEFAULT}; }
-  if(!raw)saveUsers();
+// Backed by D1 via /api/users — a roster edited here needs to be visible to the actual
+// user it restricts when they log in on their own device, which a localStorage-only
+// roster never was (each browser had its own independent copy).
+async function loadUsers(){
+  try{
+    const d=await apiWMsg('api/users');
+    const map={};
+    (d.users||[]).forEach(u=>{map[u.email]={name:u.name,role:u.role,teamId:u.teamId||'sales',allowedBrands:u.allowedBrands||[],allowedPlatforms:u.allowedPlatforms||[],allowedInboxes:u.allowedInboxes||[]};});
+    USERS=map;
+  }catch(e){
+    if(!Object.keys(USERS).length)USERS={...USERS_DEFAULT};
+  }
 }
-function saveUsers(){ try{localStorage.setItem(USERS_KEY,JSON.stringify(USERS));}catch(e){} }
 
 let S = {
   page: 'dashboard', convStatus: 'all',
@@ -2989,7 +2994,7 @@ async function bootAuth() {
       window.location.href = '/cdn-cgi/access/logout?returnTo=' + encodeURIComponent(location.origin);
       return;
     }
-    const session = { email: data.email, name: data.name, role: data.role, loginTime: Date.now() };
+    const session = { email: data.email, name: data.name, role: data.role, teamId: data.teamId || 'sales', allowedBrands: data.allowedBrands || [], allowedPlatforms: data.allowedPlatforms || [], allowedInboxes: data.allowedInboxes || [], loginTime: Date.now() };
     try { localStorage.setItem('whizz_session', JSON.stringify(session)); } catch {}
     initApp(session);
   } catch(err) {
@@ -3841,7 +3846,7 @@ function navigate(page, el) {
   if(page==='stock'&&S.cache.stock){renderStockPage();hideBanner('stock');}
   if(page==='suggestions'){refreshSuggestions();}
   if(page==='discovery'){Object.keys(S.disc).forEach(renderDiscoveryResults);}
-  if(page==='users'){loadUsers();renderUsersPage();}
+  if(page==='users'){renderUsersPage();loadUsers().then(renderUsersPage);}
   if(page==='pipeline'){renderPipelinePage();}
   if(page==='history'){renderScheduledList();}
   if(page==='tasks'){renderTasksList();}
@@ -5540,10 +5545,14 @@ function launchDemandCampaign(brand, level) {
 function getTplAIContent() { /* placeholder */ }
 
 // ── Leads Data Overview Module ──
+// Sourced straight from this browser's own `/api/me` session (set in bootAuth, backed by
+// the D1 `users` row), not the local USERS roster — a restriction an Administrator sets
+// only matters if it's visible to the actual restricted user on their own device, which
+// the client-only roster (pre-this-fix) never was.
 function getCurrentUserRestrictions(){
   const sess=localStorage.getItem('whizz_session');
   let allowedBrands=[],allowedPlatforms=[],allowedInboxes=[];
-  if(sess){try{const se=JSON.parse(sess);const u=USERS[se.email];if(u){if(u.allowedBrands&&u.allowedBrands.length>0)allowedBrands=u.allowedBrands;if(u.allowedPlatforms&&u.allowedPlatforms.length>0)allowedPlatforms=u.allowedPlatforms;if(u.allowedInboxes&&u.allowedInboxes.length>0)allowedInboxes=u.allowedInboxes;}}catch(e){}}
+  if(sess){try{const se=JSON.parse(sess);if(se.allowedBrands&&se.allowedBrands.length>0)allowedBrands=se.allowedBrands;if(se.allowedPlatforms&&se.allowedPlatforms.length>0)allowedPlatforms=se.allowedPlatforms;if(se.allowedInboxes&&se.allowedInboxes.length>0)allowedInboxes=se.allowedInboxes;}catch(e){}}
   return{allowedBrands,allowedPlatforms,allowedInboxes};
 }
 // Inboxes a user may see/use — every configured inbox when unrestricted, else just theirs.
@@ -7751,7 +7760,7 @@ function openAddUserModal(){
   document.getElementById('modal-add-user').classList.add('open');
 }
 
-function submitAddUser(){
+async function submitAddUser(){
   const name=document.getElementById('au-name').value.trim();
   const email=document.getElementById('au-email').value.trim().toLowerCase();
   const role=document.getElementById('au-role').value;
@@ -7761,11 +7770,12 @@ function submitAddUser(){
   const allowedInboxes=getSelectedChips('au-inbox-chips');
   if(!name||!email){showToast('Name and email are required','error');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Please enter a valid email address','error');return;}
-  if(USERS[email]){showToast('A user with this email already exists','error');return;}
-  USERS[email]={name,role,teamId,allowedBrands,allowedPlatforms,allowedInboxes};
-  saveUsers();
-  showToast(`User "${name}" added. Remember to also add them to the Cloudflare Access allow policy so they can sign in.`,'success');
-  closeModal('modal-add-user'); renderUsersPage();
+  try{
+    await apiWMsg('api/users','POST',{email,name,role,teamId,allowedBrands,allowedPlatforms,allowedInboxes});
+    showToast(`User "${name}" added. Remember to also add them to the Cloudflare Access allow policy so they can sign in.`,'success');
+    closeModal('modal-add-user');
+    await loadUsers(); renderUsersPage();
+  }catch(e){showToast(e.message||'Failed to add user','error');}
 }
 
 function openEditUserModal(email){
@@ -7782,7 +7792,7 @@ function openEditUserModal(email){
   document.getElementById('modal-edit-user').classList.add('open');
 }
 
-function submitEditUser(){
+async function submitEditUser(){
   const email=document.getElementById('eu-email-key').value;
   const u=USERS[email];
   if(!u){showToast('User not found','error');return;}
@@ -7793,22 +7803,25 @@ function submitEditUser(){
   const allowedBrands=getSelectedChips('eu-brand-chips');
   const allowedInboxes=getSelectedChips('eu-inbox-chips');
   if(!name){showToast('Name is required','error');return;}
-  u.name=name; u.role=role; u.teamId=teamId; u.allowedPlatforms=allowedPlatforms; u.allowedBrands=allowedBrands; u.allowedInboxes=allowedInboxes;
-  saveUsers();
-  showToast(`User "${name}" updated successfully!`,'success');
-  closeModal('modal-edit-user');
-  renderUsersPage();
-  const sess=localStorage.getItem('whizz_session');
-  if(sess){const se=JSON.parse(sess);if(se.email===email){se.name=name;se.role=role;localStorage.setItem('whizz_session',JSON.stringify(se));document.getElementById('u-name').textContent=name;document.getElementById('u-role').textContent=role;const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase();document.getElementById('u-avatar').textContent=initials;}}
+  try{
+    await apiWMsg(`api/users/${encodeURIComponent(email)}`,'PUT',{name,role,teamId,allowedBrands,allowedPlatforms,allowedInboxes});
+    showToast(`User "${name}" updated successfully!`,'success');
+    closeModal('modal-edit-user');
+    await loadUsers(); renderUsersPage();
+    const sess=localStorage.getItem('whizz_session');
+    if(sess){const se=JSON.parse(sess);if(se.email===email){se.name=name;se.role=role;se.teamId=teamId;se.allowedBrands=allowedBrands;se.allowedPlatforms=allowedPlatforms;se.allowedInboxes=allowedInboxes;localStorage.setItem('whizz_session',JSON.stringify(se));document.getElementById('u-name').textContent=name;document.getElementById('u-role').textContent=role;const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase();document.getElementById('u-avatar').textContent=initials;}}
+  }catch(e){showToast(e.message||'Failed to update user','error');}
 }
 
-function deleteUser(email){
+async function deleteUser(email){
   const u=USERS[email];
   if(!u)return;
   if(!confirm(`Delete "${u.name}" (${email})?\n\nThis cannot be undone.`))return;
-  delete USERS[email];
-  saveUsers();
-  showToast(`User "${u.name}" deleted successfully.`,'success'); renderUsersPage();
+  try{
+    await apiWMsg(`api/users/${encodeURIComponent(email)}`,'DELETE');
+    showToast(`User "${u.name}" deleted successfully.`,'success');
+    await loadUsers(); renderUsersPage();
+  }catch(e){showToast(e.message||'Failed to delete user','error');}
 }
 
 // ── Integrations (Brevo / WordPress) ──

@@ -27,7 +27,8 @@ async function repairSchema(env) {
   )`);
   await addColumns(env, 'users', [
     ['teamId', "TEXT NOT NULL DEFAULT 'sales'"], ['resetAt', 'INTEGER NOT NULL DEFAULT 0'],
-    ['createdAt', 'TEXT'], ['updatedAt', 'TEXT']
+    ['createdAt', 'TEXT'], ['updatedAt', 'TEXT'],
+    ['allowedInboxes', "TEXT NOT NULL DEFAULT '[]'"],
   ]);
   await env.DB.prepare("UPDATE users SET teamId=COALESCE(NULLIF(teamId,''),'sales'), createdAt=COALESCE(createdAt,CURRENT_TIMESTAMP), updatedAt=COALESCE(updatedAt,CURRENT_TIMESTAMP)").run();
 
