@@ -2207,6 +2207,24 @@ body.dark{
             </div>
           </div>
         </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">WhatsApp Templates (Meta)</div>
+            <span class="eyebrow" id="int-meta-status" style="margin-bottom:0;">Checking…</span>
+          </div>
+          <div class="card-body">
+            <div class="fi-hint" style="margin-bottom:10px;">Template creation, listing and deletion talk to Meta's Graph API directly, using a System User access token. One token covers every WABA under the same Meta Business portfolio.</div>
+            <div class="fg">
+              <label class="fl">System User Access Token</label>
+              <input class="fi" id="int-meta-token" type="password" placeholder="Leave blank to keep the current token"/>
+              <div class="fi-hint">Meta Business Settings → System Users → your system user → Generate Token (needs whatsapp_business_management). Stored encrypted server-side, never sent back to the browser.</div>
+            </div>
+            <button class="t-btn btn-primary" onclick="saveMetaIntegration()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+              Save Meta Connection
+            </button>
+          </div>
+        </div>
         <div class="card">
           <div class="card-head">
             <div class="card-title">WordPress Sites</div>
@@ -2919,7 +2937,7 @@ let S = {
   selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: [],
   convSearch: '', threadSearch: '', pinnedConvIds: loadConvIdSet(CONV_PINS_KEY), mutedConvIds: loadConvIdSet(CONV_MUTES_KEY), replyTo: null,
   pinnedMsgMap: loadPinnedMsgMap(), forwardingMsg: null,
-  chatwootInboxes: [], activeInboxId: '', templateInboxTags: {}, activeCampaignInboxId: ''
+  chatwootInboxes: [], activeInboxId: '', activeCampaignInboxId: ''
 };
 
 // ── Auth ──
@@ -2989,7 +3007,6 @@ function initApp(session) {
   applyRoleExperience(session);
   loadUsers();
   loadChatwootMeta();
-  loadTemplateTags();
   loadCache(); loadOnboarding(); loadNotifications();
   startAutoSync();
   startScheduler();
@@ -3822,7 +3839,7 @@ async function runSystemHealthChecks(){
     {name:'D1 Users',detail:'Provisioning and role access',run:()=>fetch('/api/users',{credentials:'include'}).then(r=>{if(!r.ok)throw Error(`HTTP ${r.status}`);return r.json();})},
     {name:'D1 Contacts',detail:'Lead database route',run:()=>fetch('/whizz-get-contacts',{credentials:'include'}).then(r=>{if(!r.ok)throw Error(`HTTP ${r.status}`);return r.json();})},
     {name:'n8n Operations',detail:'Stats workflow gateway',run:()=>api('whizz-get-stats')},
-    {name:'WhatsApp Templates',detail:'Approved template workflow',run:()=>api('whizz-get-templates')},
+    {name:'WhatsApp Templates',detail:'Meta Graph API connection',run:()=>mt('/settings')},
     {name:'Browser storage',detail:'Non-critical cache only',run:()=>Promise.resolve(localStorage.length)}
   ];
   grid.innerHTML=checks.map(c=>`<div class="health-card"><div class="health-row"><span class="health-dot" id="health-${c.name.replace(/\W/g,'')}"></span><span class="health-name">${c.name}</span></div><div class="health-detail">Checking ${c.detail.toLowerCase()}…</div></div>`).join('');
@@ -3882,27 +3899,21 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 })();
 
 // ── API Gateway Base Call ──
-const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-create-template','whizz-ai-template','whizz-discover-contacts','whizz-discover-2gis','whizz-save-integration','whizz-delete-integration']);
+const WORKER_PROTECTED_ENDPOINTS=new Set(['whizz-save-contact','whizz-get-leads','whizz-send-campaign','whizz-ai-template','whizz-discover-contacts','whizz-discover-2gis','whizz-save-integration','whizz-delete-integration']);
 async function api(path,method='GET',body=null){const endpoint=String(path).split('?')[0],protectedRoute=WORKER_PROTECTED_ENDPOINTS.has(endpoint);const opts={method,headers:{'Content-Type':'application/json'}};if(protectedRoute)opts.credentials='include';if(body)opts.body=JSON.stringify(body);const url=protectedRoute?`/api/automation/${path}`:`${N8N}/${path}`;const r=await fetch(url,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{success:true};}catch{data={success:true};}if(!r.ok){console.error('[Whizz]',method,path,r.status,txt);throw new Error(data.error||(txt.trim().slice(0,150))||'HTTP '+r.status);}return data;}
 // Endpoints migrated off n8n onto the Cloudflare Worker call this instead — same
 // contract, just same-origin. Migrate call sites one at a time as each route lands.
 async function apiW(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/${path}`,opts);if(!r.ok)throw new Error('HTTP Status Error '+r.status);const txt=await r.text();try{return txt?JSON.parse(txt):{success:true};}catch{return{success:true};}}
 // Chatwoot (app.aiingo.com), proxied by the Worker at /api/chatwoot/*.
 async function cw(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/api/chatwoot/${path}`,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{};}catch{data={};}if(!r.ok)throw new Error(data.error||'HTTP '+r.status);return data;}
-// Which inbox(es) a WhatsApp template is approved for — purely local to Whizz (the
-// templates themselves still live in n8n/Meta). Untagged = valid on every number.
-async function loadTemplateTags(){try{const r=await fetch('/api/template-tags',{credentials:'include'});const d=await r.json().catch(()=>({}));if(r.ok)S.templateInboxTags=d.tags||{};}catch(e){}}
-async function setTemplateInboxTag(templateName,inboxId){
-  try{
-    const r=await fetch('/api/template-tags',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({templateName,inboxId})});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    if(inboxId)S.templateInboxTags[templateName]=inboxId;else delete S.templateInboxTags[templateName];
-    showToast('Template number scope updated','success');
-  }catch(e){showToast('Failed to update template scope','error');}
-}
+// WhatsApp template management (create/list/delete), direct to Meta's Graph API —
+// proxied by the Worker at /api/meta-templates*, not n8n. Each template comes back
+// already tagged with the inbox/number it belongs to (straight from its WABA), so no
+// local tagging is needed.
+async function mt(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(`/api/meta-templates${path}`,opts);const txt=await r.text();let data;try{data=txt?JSON.parse(txt):{};}catch{data={};}if(!r.ok)throw new Error(data.error||'HTTP '+r.status);return data;}
 function templatesForInbox(templates,inboxId){
   if(!inboxId||(S.chatwootInboxes||[]).length<2)return templates;
-  return templates.filter(t=>!S.templateInboxTags[t.name]||S.templateInboxTags[t.name]===inboxId);
+  return templates.filter(t=>!t.inboxId||t.inboxId===inboxId);
 }
 
 // ── Global Refresh Orchestrator ──
@@ -4067,7 +4078,7 @@ async function refreshConversations(){
   renderConvs(merged);
 }
 async function refreshCampaign(){await Promise.all([refreshLeadData(),refreshTemplates()]);}
-async function refreshTemplates(){const d=await api('whizz-get-templates');S.cache.templates=d.templates||[];S.templates=S.cache.templates;renderTplPage(S.cache.templates);renderCampTemplates(S.cache.templates);}
+async function refreshTemplates(){const d=await mt('');S.cache.templates=d.templates||[];S.templates=S.cache.templates;renderTplPage(S.cache.templates);renderCampTemplates(S.cache.templates);}
 async function refreshLeads(){await refreshLeadData();renderLeadsPage(S.cache.groups,S.cache.leadsTotal);await refreshMyLeadsWorkspace();}
 
 async function refreshMyLeadsWorkspace(){
@@ -5146,23 +5157,30 @@ function exportEnquiriesCSV(){
 // ── Meta Template Module ──
 function renderTplPage(templates){
   const el=document.getElementById('tpl-list');
-  if(!templates.length){el.innerHTML='<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">No approved template records identified inside WABA.</div>';return;}
+  if(!templates.length){el.innerHTML='<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">No templates found. Connect Meta WhatsApp under Integrations, or create one.</div>';return;}
   const inboxes=S.chatwootInboxes||[];
-  const inboxPicker=t=>{
-    if(inboxes.length<2)return'';
-    const current=S.templateInboxTags[t.name]||'';
-    return`<select class="fs" style="margin-top:8px;font-size:11px;padding:4px 7px;" onchange="setTemplateInboxTag('${_hesc(t.name).replace(/'/g,"\\'")}',this.value)"><option value=""${current?'':' selected'}>Approved for all numbers</option>${inboxes.map(ib=>`<option value="${ib.inboxId}"${current===ib.inboxId?' selected':''}>${_hesc(ib.label)}</option>`).join('')}</select>`;
-  };
-  el.innerHTML=`<div class="tpl-grid">${templates.map(t=>`<div class="tpl-card" style="cursor:default;"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span><span class="tpl-approved">APPROVED</span></div><div class="tpl-body">${t.body||'Empty body context'}</div>${inboxPicker(t)}</div>`).join('')}</div>`;
+  const statusStyle={APPROVED:'background:var(--green-dim);color:var(--green);',PENDING:'background:var(--amber-dim);color:var(--amber);',REJECTED:'background:var(--red-dim);color:var(--red);',ERROR:'background:var(--red-dim);color:var(--red);'};
+  el.innerHTML=`<div class="tpl-grid">${templates.map(t=>{
+    const inbox=inboxes.find(ib=>ib.inboxId===t.inboxId);
+    const statusCls=statusStyle[t.status]||'background:var(--bg3);color:var(--text3);';
+    return`<div class="tpl-card" style="cursor:default;">
+      <div class="tpl-name">${_hesc(t.name)}<span class="tpl-lang">${_hesc(t.language)}</span><span class="tpl-approved" style="${statusCls}">${_hesc(t.status||'UNKNOWN')}</span></div>
+      <div class="tpl-body">${_hesc(t.body||'Empty body context')}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;gap:8px;">
+        <span style="font-size:10px;color:var(--text3);">${inbox?_hesc(inbox.label):(t.inboxId?'Unknown number':'')}</span>
+        ${t.loadError?'':`<button class="t-btn btn-ghost t-btn-sm" style="color:var(--red);" onclick="deleteMetaTemplate('${_hesc(t.name).replace(/'/g,"\\'")}','${_hesc(t.inboxId).replace(/'/g,"\\'")}')">Delete</button>`}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
 }
 function openTplModal(){
   document.getElementById('tpl-modal').classList.add('open');
   updateBodyCount();
   const wrap=document.getElementById('tpl-waba-wrap'),sel=document.getElementById('tpl-waba-select');
-  const inboxes=S.chatwootInboxes||[];
+  const inboxes=(S.chatwootInboxes||[]).filter(ib=>ib.wabaId);
   if(inboxes.length>1){
     wrap.style.display='block';
-    sel.innerHTML=inboxes.map(ib=>`<option value="${ib.inboxId}">${_hesc(ib.label)}${ib.phoneNumber?' — '+_hesc(ib.phoneNumber):''}${ib.wabaId?'':' (no WABA ID set — add one under Integrations)'}</option>`).join('');
+    sel.innerHTML=inboxes.map(ib=>`<option value="${ib.inboxId}">${_hesc(ib.label)}${ib.phoneNumber?' — '+_hesc(ib.phoneNumber):''}</option>`).join('');
   }else{
     wrap.style.display='none';
   }
@@ -5173,19 +5191,24 @@ async function createTemplate(){
   const name=document.getElementById('tpl-name').value.trim(),body=document.getElementById('tpl-body').value.trim();
   if(!name||!body){showToast('Structural template parameters missing','error');return;}
   if(body.length>1024){showToast(`Body is ${body.length} characters — Meta limit is 1,024. Please shorten it.`,'error');return;}
-  const inboxes=S.chatwootInboxes||[];
+  const inboxes=(S.chatwootInboxes||[]).filter(ib=>ib.wabaId);
+  if(!inboxes.length){showToast('No inbox has a WABA ID set — add one under Integrations → Chatwoot first','error');return;}
   const wabaSel=document.getElementById('tpl-waba-select');
-  const targetInboxId=inboxes.length>1?wabaSel.value:(inboxes[0]?.inboxId||'');
-  const targetInbox=inboxes.find(ib=>ib.inboxId===targetInboxId);
+  const targetInboxId=inboxes.length>1?wabaSel.value:inboxes[0].inboxId;
   if(inboxes.length>1&&!targetInboxId){showToast('Select a target number first','error');return;}
   try{
-    const r=await api('whizz-create-template','POST',{name,body,language:document.getElementById('tpl-lang').value,category:document.getElementById('tpl-cat').value,header:document.getElementById('tpl-header').value.trim(),footer:document.getElementById('tpl-footer').value.trim(),wabaId:targetInbox?.wabaId||undefined,inboxId:targetInboxId||undefined});
-    if(r.success){
-      showToast('Dispatched to Meta registration node successfully!','success');
-      if(targetInboxId&&inboxes.length>1)await setTemplateInboxTag(name,targetInboxId);
-      closeTplModal();refreshTemplates();
-    }else showToast('Meta edge rejected packaging format','error');
-  }catch(e){showToast(e.message||'API communication drop','error');}
+    await mt('','POST',{inboxId:targetInboxId,name,body,language:document.getElementById('tpl-lang').value,category:document.getElementById('tpl-cat').value,header:document.getElementById('tpl-header').value.trim(),footer:document.getElementById('tpl-footer').value.trim()});
+    showToast('Submitted to Meta for approval!','success');
+    closeTplModal();refreshTemplates();
+  }catch(e){showToast(e.message||'Failed to create template','error');}
+}
+async function deleteMetaTemplate(name,inboxId){
+  if(!confirm(`Delete template "${name}" from Meta?\n\nThis cannot be undone.`))return;
+  try{
+    await mt('/delete','POST',{inboxId,name});
+    showToast('Template deleted','success');
+    refreshTemplates();
+  }catch(e){showToast(e.message||'Failed to delete template','error');}
 }
 
 // ── AI Template Generation ──
@@ -7748,6 +7771,26 @@ async function loadIntegrationsStatus(){
     wpListEl.innerHTML='<div class="empty-state">Status unavailable</div>';
   }
   loadChatwootIntegration();
+  loadMetaIntegration();
+}
+async function loadMetaIntegration(){
+  const statusEl=document.getElementById('int-meta-status');
+  try{
+    const d=await mt('/settings');
+    statusEl.textContent=d.hasToken?'Connected':'Not connected';
+    statusEl.style.color=d.hasToken?'var(--green)':'var(--text3)';
+    document.getElementById('int-meta-token').placeholder=d.hasToken?'Leave blank to keep the current token':'Paste your System User access token';
+  }catch(e){statusEl.textContent='Status unavailable';}
+}
+async function saveMetaIntegration(){
+  const accessToken=document.getElementById('int-meta-token').value.trim();
+  if(!accessToken){showToast('Paste an access token first','error');return;}
+  try{
+    await mt('/settings','POST',{accessToken});
+    document.getElementById('int-meta-token').value='';
+    showToast('Meta WhatsApp connection saved','success');
+    loadMetaIntegration();
+  }catch(e){showToast(e.message||'Failed to save Meta settings','error');}
 }
 let _cwInboxes=[];
 async function loadChatwootIntegration(){

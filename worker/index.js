@@ -12,7 +12,7 @@ import { handleConversationAssignment } from './routes/conversationAssignments.j
 import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookings.js';
 import { handleLeadIntelligence } from './routes/leadIntelligence.js';
 import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage, handleChatwootSendTemplate } from './routes/chatwoot.js';
-import { handleGetTemplateTags, handleSetTemplateTag } from './routes/templateTags.js';
+import { handleGetMetaSettings, handleSaveMetaSettings, handleListMetaTemplates, handleCreateMetaTemplate, handleDeleteMetaTemplate } from './routes/metaTemplates.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -36,8 +36,11 @@ const routes = [
   { method: 'POST', path: '/api/chatwoot/inboxes', handler: handleAddChatwootInbox },
   { method: 'GET', path: '/api/chatwoot/conversations', handler: handleChatwootConversations },
   { method: 'POST', path: '/api/chatwoot/send-template', handler: handleChatwootSendTemplate },
-  { method: 'GET', path: '/api/template-tags', handler: handleGetTemplateTags },
-  { method: 'POST', path: '/api/template-tags', handler: handleSetTemplateTag },
+  { method: 'GET', path: '/api/meta-templates/settings', handler: handleGetMetaSettings },
+  { method: 'POST', path: '/api/meta-templates/settings', handler: handleSaveMetaSettings },
+  { method: 'GET', path: '/api/meta-templates', handler: handleListMetaTemplates },
+  { method: 'POST', path: '/api/meta-templates', handler: handleCreateMetaTemplate },
+  { method: 'POST', path: '/api/meta-templates/delete', handler: handleDeleteMetaTemplate },
 ];
 
 async function leadActor(request, env) {
