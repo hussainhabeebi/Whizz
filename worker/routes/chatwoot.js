@@ -42,7 +42,7 @@ async function listInboxes(env) {
   const result = await env.DB.prepare('SELECT id,inboxId,label,wabaId,phoneNumber,phoneNumberId FROM chatwoot_inboxes ORDER BY id').all();
   return result.results || [];
 }
-async function loadChatwootConfig(env) {
+export async function loadChatwootConfig(env) {
   const row = await getSettingsRow(env);
   if (!row || !row.accountId || !row.apiTokenEncrypted) return null;
   const apiToken = await decryptToken(env, row.apiTokenEncrypted);
@@ -50,7 +50,7 @@ async function loadChatwootConfig(env) {
   return { baseUrl: String(row.baseUrl || 'https://app.aiingo.com').replace(/\/$/, ''), accountId: row.accountId, apiToken };
 }
 
-async function chatwootFetch(config, path, options = {}) {
+export async function chatwootFetch(config, path, options = {}) {
   const response = await fetch(`${config.baseUrl}/api/v1/accounts/${config.accountId}${path}`, {
     ...options,
     headers: { api_access_token: config.apiToken, 'content-type': 'application/json', ...(options.headers || {}) },
@@ -301,7 +301,7 @@ export async function handleChatwootDeleteMessage(request, env, conversationId, 
   return json({ success: true });
 }
 
-async function findOrCreateContact(config, phone, name) {
+export async function findOrCreateContact(config, phone, name) {
   const search = await chatwootFetch(config, `/contacts/search?q=${encodeURIComponent(phone)}`);
   const existing = (search.payload || [])[0];
   if (existing) return existing;
@@ -312,7 +312,7 @@ async function findOrCreateContact(config, phone, name) {
   return created.payload?.contact || created;
 }
 
-async function findOrCreateConversation(config, inboxId, contact, phone) {
+export async function findOrCreateConversation(config, inboxId, contact, phone) {
   const list = await chatwootFetch(config, `/contacts/${contact.id}/conversations`);
   const existing = (list.payload || []).find(c => String(c.inbox_id) === String(inboxId));
   if (existing) return existing;
@@ -322,48 +322,6 @@ async function findOrCreateConversation(config, inboxId, contact, phone) {
   });
 }
 
-// Best-effort: starts/re-engages a WhatsApp thread with an approved template outside the
-// 24-hour customer-service window. Chatwoot's exact template payload shape depends on the
-// inbox's channel provider (WhatsApp Cloud vs. a BSP like 360dialog) and hasn't been
-// verified against a live app.aiingo.com response — if this errors, check the inbox's
-// channel docs for its template_params shape and adjust (same "verify against live data"
-// caveat the Kaspi/2GIS collector configs carry elsewhere in this repo).
-export async function handleChatwootSendTemplate(request, env) {
-  const user = await currentUser(request, env);
-  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
-  const config = await loadChatwootConfig(env);
-  if (!config) return json({ error: 'Chatwoot is not configured yet.' }, 503);
-
-  const body = await request.json().catch(() => ({}));
-  const phone = String(body.phone || '').trim();
-  const name = String(body.name || '').trim();
-  const templateName = String(body.template_name || '').trim();
-  const language = String(body.language || 'en').trim();
-  const variables = Array.isArray(body.variables) ? body.variables : [];
-  if (!phone || !templateName) return json({ error: 'Phone and template name are required.' }, 400);
-
-  let inboxId = String(body.inboxId || '').trim();
-  if (!inboxId) {
-    const inboxes = await listInboxes(env);
-    if (inboxes.length === 1) inboxId = inboxes[0].inboxId;
-    else if (inboxes.length > 1) return json({ error: 'Pick an inbox tab first — multiple inboxes are configured.' }, 400);
-    else return json({ error: 'No Chatwoot inbox is configured yet.' }, 400);
-  }
-
-  try {
-    const contact = await findOrCreateContact(config, phone, name);
-    const conversation = await findOrCreateConversation(config, inboxId, contact, phone);
-    const created = await chatwootFetch(config, `/conversations/${conversation.id}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({
-        content: '',
-        message_type: 'outgoing',
-        template_params: {
-          name: templateName, language, category: 'MARKETING',
-          processed_params: Object.fromEntries(variables.map((v, i) => [String(i + 1), v])),
-        },
-      }),
-    });
-    return json({ conversationId: conversation.id, message: normalizeMessage(created) });
-  } catch (error) { return json({ error: error.message }, 502); }
-}
+// Single-contact template sending moved to worker/routes/campaignSend.js
+// (handleSendTemplateMessageMeta) — it now goes direct to Meta's Graph API, the same
+// engine bulk campaigns use, instead of guessing at Chatwoot's template_params shape.

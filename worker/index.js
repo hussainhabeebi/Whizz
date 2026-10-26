@@ -11,9 +11,9 @@ import { handleAutomation } from './routes/automation.js';
 import { handleConversationAssignment } from './routes/conversationAssignments.js';
 import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookings.js';
 import { handleLeadIntelligence } from './routes/leadIntelligence.js';
-import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleUpdateChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage, handleChatwootSendTemplate } from './routes/chatwoot.js';
+import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleUpdateChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage } from './routes/chatwoot.js';
 import { handleGetMetaSettings, handleSaveMetaSettings, handleListMetaTemplates, handleCreateMetaTemplate, handleDeleteMetaTemplate } from './routes/metaTemplates.js';
-import { handleSendCampaignMeta } from './routes/campaignSend.js';
+import { handleSendCampaignMeta, handleSendTemplateMessageMeta } from './routes/campaignSend.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -36,7 +36,7 @@ const routes = [
   { method: 'POST', path: '/api/chatwoot/settings', handler: handleSaveChatwootSettings },
   { method: 'POST', path: '/api/chatwoot/inboxes', handler: handleAddChatwootInbox },
   { method: 'GET', path: '/api/chatwoot/conversations', handler: handleChatwootConversations },
-  { method: 'POST', path: '/api/chatwoot/send-template', handler: handleChatwootSendTemplate },
+  { method: 'POST', path: '/api/campaigns/send-template', handler: handleSendTemplateMessageMeta },
   { method: 'GET', path: '/api/meta-templates/settings', handler: handleGetMetaSettings },
   { method: 'POST', path: '/api/meta-templates/settings', handler: handleSaveMetaSettings },
   { method: 'GET', path: '/api/meta-templates', handler: handleListMetaTemplates },

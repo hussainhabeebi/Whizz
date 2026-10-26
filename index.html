@@ -4490,7 +4490,9 @@ async function submitSendTemplateMessage(){
   btn.disabled=true;btn.textContent='Sending…';
   try{
     const inboxId=document.getElementById('stm-inbox-select')?.value||'';
-    await cw('send-template','POST',{phone,name,template_name:tpl.name,language:tpl.language,variables,inboxId:inboxId||undefined});
+    let renderedText=tpl.body||'';
+    varNums.forEach((n,i)=>{renderedText=renderedText.replaceAll(`{{${n}}}`,variables[i]);});
+    await apiWMsg('api/campaigns/send-template','POST',{phone,name,template_name:tpl.name,language:tpl.language,variables,inboxId:inboxId||undefined,renderedText});
     showToast('Template message sent!','success');
     closeModal('modal-send-template');
     try{await refreshConversations();const m=findConvByPhone(phone);if(m)selectConv(m.id);}catch(e){}

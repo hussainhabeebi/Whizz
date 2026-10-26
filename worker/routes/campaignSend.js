@@ -19,6 +19,7 @@
 //   tracked or suppressed here — that would need its own feature.
 import { resolveContactsForCampaign } from './automation.js';
 import { loadMetaAccessToken, GRAPH_API_VERSION } from './metaTemplates.js';
+import { loadChatwootConfig, findOrCreateContact, findOrCreateConversation, chatwootFetch } from './chatwoot.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS }); }
@@ -182,4 +183,74 @@ export async function handleSendCampaignMeta(request, env) {
     failure_reasons,
     results: [...results, ...skipped.map(s => ({ ...s, status: 'skipped' }))],
   });
+}
+
+// Single-contact template send — used by the "Send Template Message" button on
+// Conversations. Same Meta Graph API path as bulk campaigns (works for either
+// configured number via inboxId → phoneNumberId), replacing a guess at Chatwoot's own
+// template_params shape that was never verified against a live response.
+//
+// Sending still bypasses Chatwoot entirely (same tradeoff as bulk campaigns), so the
+// outbound message won't appear in Chatwoot's own record of the conversation. To keep
+// the thread view in Whizz showing what was actually sent, this also best-effort mirrors
+// the rendered text into Chatwoot as a plain outgoing message — using the same
+// content/outgoing call every reply already sends through successfully, not the
+// unverified template_params shape. If that mirror fails, the real send already
+// succeeded, so the error is swallowed rather than reported as a failure.
+export async function handleSendTemplateMessageMeta(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const accessToken = await loadMetaAccessToken(env);
+  if (!accessToken) return json({ error: 'Meta WhatsApp isn’t connected yet. Add an access token under Integrations.' }, 503);
+
+  const body = await request.json().catch(() => ({}));
+  const phone = toSendableNumber(body.phone);
+  const name = String(body.name || '').trim();
+  const templateName = String(body.template_name || '').trim();
+  const language = String(body.language || '').trim();
+  const variables = Array.isArray(body.variables) ? body.variables : [];
+  const renderedText = String(body.renderedText || '').trim();
+  if (!phone) return json({ error: 'A phone number is required.' }, 400);
+  if (!templateName || !language) return json({ error: 'A template is required.' }, 400);
+
+  const inboxLookup = await findInbox(env, String(body.inboxId || '').trim());
+  if (inboxLookup.error) return json({ error: inboxLookup.error }, 400);
+  const inbox = inboxLookup.inbox;
+  if (!inbox) return json({ error: 'Selected number was not found.' }, 400);
+  if (!inbox.phoneNumberId) return json({ error: `"${inbox.label}" has no Phone Number ID set — add one under Integrations → Chatwoot.` }, 400);
+
+  const components = variables.length ? [{ type: 'body', parameters: variables.map(v => ({ type: 'text', text: String(v) })) }] : [];
+  const payload = {
+    messaging_product: 'whatsapp',
+    to: phone,
+    type: 'template',
+    template: { name: templateName, language: { code: language }, ...(components.length ? { components } : {}) },
+  };
+
+  let data;
+  try {
+    const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${inbox.phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    data = await response.json().catch(() => ({}));
+    if (!response.ok) return json({ error: data.error?.message || `Meta API error (${response.status})` }, 502);
+  } catch (error) { return json({ error: error.message }, 502); }
+
+  let mirrored = false;
+  try {
+    const config = await loadChatwootConfig(env);
+    if (config && inbox.inboxId && renderedText) {
+      const contact = await findOrCreateContact(config, phone, name);
+      const conversation = await findOrCreateConversation(config, inbox.inboxId, contact, phone);
+      await chatwootFetch(config, `/conversations/${conversation.id}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ content: renderedText, message_type: 'outgoing', private: false }),
+      });
+      mirrored = true;
+    }
+  } catch (error) { /* best-effort only — the real send above already succeeded */ }
+
+  return json({ messageId: data.messages?.[0]?.id, mirrored });
 }
