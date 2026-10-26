@@ -128,13 +128,12 @@ async function repairSchema(env) {
     ['wabaId', "TEXT NOT NULL DEFAULT ''"],
     ['phoneNumber', "TEXT NOT NULL DEFAULT ''"],
   ]);
-  // WhatsApp template approval is per-number on Meta's side, so a template approved on
-  // one inbox's number may not be approved on another's. Templates themselves still live
-  // in n8n/Meta — this just tags which inbox(es) a template name is approved for, purely
-  // local to Whizz, so the Conversations/Campaign template pickers can filter by number.
-  await safeRun(env, `CREATE TABLE IF NOT EXISTS template_inbox_tags (
-    templateName TEXT PRIMARY KEY,
-    inboxId TEXT NOT NULL,
+  // Template create/list/delete talk to Meta's Graph API directly (per-WABA, using
+  // chatwoot_inboxes.wabaId), not n8n. One System User access token covers every WABA
+  // under the same Meta Business portfolio.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS meta_whatsapp_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    accessTokenEncrypted TEXT,
     updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
