@@ -2196,12 +2196,14 @@ body.dark{
             <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
               <div class="fl" style="margin-bottom:8px;">Inboxes <span style="font-weight:400;text-transform:none;color:var(--text3);">— each becomes its own tab on the Conversations page</span></div>
               <div id="cw-inbox-list" style="margin-bottom:10px;"><div class="empty-state">Checking…</div></div>
+              <input type="hidden" id="cw-edit-inbox-id"/>
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
                 <div class="fg" style="flex:1;min-width:120px;margin-bottom:0;"><label class="fl">Label</label><input class="fi" id="cw-new-inbox-label" placeholder="e.g. Sales WhatsApp"/></div>
                 <div class="fg" style="flex:1;min-width:100px;margin-bottom:0;"><label class="fl">Inbox ID</label><input class="fi" id="cw-new-inbox-id" placeholder="e.g. 73"/></div>
                 <div class="fg" style="flex:1;min-width:120px;margin-bottom:0;"><label class="fl">Phone Number</label><input class="fi" id="cw-new-inbox-phone" placeholder="e.g. +971562181583"/></div>
                 <div class="fg" style="flex:1;min-width:140px;margin-bottom:0;"><label class="fl">WABA ID <span style="font-weight:400;text-transform:none;color:var(--text3);">(optional)</span></label><input class="fi" id="cw-new-inbox-waba" placeholder="e.g. 1481709013760046"/></div>
-                <button class="t-btn btn-primary" style="height:38px;" onclick="addChatwootInbox()">Add Inbox</button>
+                <button class="t-btn btn-primary" style="height:38px;" id="cw-inbox-submit-btn" onclick="addChatwootInbox()">Add Inbox</button>
+                <button class="t-btn btn-ghost" style="height:38px;display:none;" id="cw-inbox-cancel-btn" onclick="cancelEditChatwootInbox()">Cancel</button>
               </div>
               <div class="fi-hint" style="margin-top:8px;">Find the WABA ID in Chatwoot's inbox → Account Health → "WhatsApp Business Account ID". If two numbers sit on separate WABAs, set this so templates created for one aren't assumed valid on the other.</div>
             </div>
@@ -4078,7 +4080,7 @@ async function refreshConversations(){
   renderConvs(merged);
 }
 async function refreshCampaign(){await Promise.all([refreshLeadData(),refreshTemplates()]);}
-async function refreshTemplates(){const d=await mt('');S.cache.templates=d.templates||[];S.templates=S.cache.templates;renderTplPage(S.cache.templates);renderCampTemplates(S.cache.templates);}
+async function refreshTemplates(){const d=await mt('');S.cache.templates=d.templates||[];S.templates=S.cache.templates;S.templateDiagnostics=d.diagnostics||[];renderTplPage(S.cache.templates);renderCampTemplates(S.cache.templates);}
 async function refreshLeads(){await refreshLeadData();renderLeadsPage(S.cache.groups,S.cache.leadsTotal);await refreshMyLeadsWorkspace();}
 
 async function refreshMyLeadsWorkspace(){
@@ -5157,7 +5159,15 @@ function exportEnquiriesCSV(){
 // ── Meta Template Module ──
 function renderTplPage(templates){
   const el=document.getElementById('tpl-list');
-  if(!templates.length){el.innerHTML='<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">No templates found. Connect Meta WhatsApp under Integrations, or create one.</div>';return;}
+  if(!templates.length){
+    const diag=S.templateDiagnostics||[];
+    let detail='Connect Meta WhatsApp under Integrations, or create one.';
+    if(diag.length){
+      detail=diag.map(d=>d.error?`${_hesc(d.label)}: ${_hesc(d.error)}`:`${_hesc(d.label)} (WABA ${_hesc(d.wabaId)}): ${d.count} template${d.count===1?'':'s'} returned by Meta`).join('<br>');
+    }
+    el.innerHTML=`<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;">No templates found.<br><br>${detail}</div>`;
+    return;
+  }
   const inboxes=S.chatwootInboxes||[];
   const statusStyle={APPROVED:'background:var(--green-dim);color:var(--green);',PENDING:'background:var(--amber-dim);color:var(--amber);',REJECTED:'background:var(--red-dim);color:var(--red);',ERROR:'background:var(--red-dim);color:var(--red);'};
   el.innerHTML=`<div class="tpl-grid">${templates.map(t=>{
@@ -7820,9 +7830,33 @@ function renderChatwootInboxList(inboxes){
         <div class="hist-name">${ib.label}${ib.phoneNumber?` <span style="font-weight:400;color:var(--text3);">${ib.phoneNumber}</span>`:''}</div>
         <div class="hist-meta">Inbox ID: ${ib.inboxId}${ib.wabaId?` · WABA: ${ib.wabaId}`:' · No WABA ID set'}</div>
       </div>
+      <button class="t-btn btn-ghost t-btn-sm" style="flex-shrink:0;" onclick="editChatwootInbox(${ib.id})">Edit</button>
       <button class="t-btn t-btn-sm" style="background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);flex-shrink:0;" onclick="deleteChatwootInbox(${ib.id})">Delete</button>
     </div>
   `).join('');
+}
+function editChatwootInbox(id){
+  const ib=_cwInboxes.find(x=>x.id===id);
+  if(!ib)return;
+  document.getElementById('cw-edit-inbox-id').value=id;
+  document.getElementById('cw-new-inbox-label').value=ib.label||'';
+  document.getElementById('cw-new-inbox-id').value=ib.inboxId||'';
+  document.getElementById('cw-new-inbox-id').disabled=true;
+  document.getElementById('cw-new-inbox-phone').value=ib.phoneNumber||'';
+  document.getElementById('cw-new-inbox-waba').value=ib.wabaId||'';
+  document.getElementById('cw-inbox-submit-btn').textContent='Update Inbox';
+  document.getElementById('cw-inbox-cancel-btn').style.display='inline-flex';
+  document.getElementById('cw-new-inbox-label').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function cancelEditChatwootInbox(){
+  document.getElementById('cw-edit-inbox-id').value='';
+  document.getElementById('cw-new-inbox-label').value='';
+  document.getElementById('cw-new-inbox-id').value='';
+  document.getElementById('cw-new-inbox-id').disabled=false;
+  document.getElementById('cw-new-inbox-phone').value='';
+  document.getElementById('cw-new-inbox-waba').value='';
+  document.getElementById('cw-inbox-submit-btn').textContent='Add Inbox';
+  document.getElementById('cw-inbox-cancel-btn').style.display='none';
 }
 async function saveChatwootIntegration(){
   const baseUrl=document.getElementById('int-cw-url').value.trim()||'https://app.aiingo.com';
@@ -7838,21 +7872,20 @@ async function saveChatwootIntegration(){
   }catch(e){showToast(e.message||'Failed to save Chatwoot settings','error');}
 }
 async function addChatwootInbox(){
+  const editId=document.getElementById('cw-edit-inbox-id').value;
   const label=document.getElementById('cw-new-inbox-label').value.trim();
   const inboxId=document.getElementById('cw-new-inbox-id').value.trim();
   const phoneNumber=document.getElementById('cw-new-inbox-phone').value.trim();
   const wabaId=document.getElementById('cw-new-inbox-waba').value.trim();
   if(!label||!inboxId){showToast('Label and Inbox ID are required','error');return;}
   try{
-    await cw('inboxes','POST',{inboxId,label,phoneNumber,wabaId});
-    document.getElementById('cw-new-inbox-label').value='';
-    document.getElementById('cw-new-inbox-id').value='';
-    document.getElementById('cw-new-inbox-phone').value='';
-    document.getElementById('cw-new-inbox-waba').value='';
-    showToast(`Inbox "${label}" added`,'success');
+    if(editId)await cw(`inboxes/${editId}`,'PUT',{label,phoneNumber,wabaId});
+    else await cw('inboxes','POST',{inboxId,label,phoneNumber,wabaId});
+    cancelEditChatwootInbox();
+    showToast(`Inbox "${label}" ${editId?'updated':'added'}`,'success');
     loadChatwootIntegration();
     loadChatwootMeta();
-  }catch(e){showToast(e.message||'Failed to add inbox','error');}
+  }catch(e){showToast(e.message||'Failed to save inbox','error');}
 }
 async function deleteChatwootInbox(id){
   if(!confirm('Remove this inbox? Its tab will disappear from Conversations.'))return;
