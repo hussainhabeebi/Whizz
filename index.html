@@ -2134,7 +2134,7 @@ body.dark{
           <div class="card-body" style="padding:0;">
             <div style="overflow-x:auto;">
               <table class="stock-table" id="users-table">
-                <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Team</th><th>Platform Access</th><th>Brand Access</th><th style="text-align:center;">Actions</th></tr></thead>
+                <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Team</th><th>Platform Access</th><th>Brand Access</th><th>Inbox Access</th><th style="text-align:center;">Actions</th></tr></thead>
                 <tbody id="users-tbody"></tbody>
               </table>
             </div>
@@ -2815,6 +2815,11 @@ body.dark{
         <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific brands. Leave all unselected for access to all brands.</div>
         <div id="au-brand-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);min-height:42px;"></div>
       </div>
+      <div class="fg">
+        <label class="fl">Inbox Access</label>
+        <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific WhatsApp number(s) — Conversations tabs, Send From pickers and campaign sending all scope to this. Leave all unselected for access to every inbox.</div>
+        <div id="au-inbox-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);min-height:42px;"></div>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="t-btn btn-ghost" onclick="closeModal('modal-add-user')">Cancel</button>
@@ -2852,6 +2857,11 @@ body.dark{
         <label class="fl">Brand Access</label>
         <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific brands. Leave all unselected for full access.</div>
         <div id="eu-brand-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);min-height:42px;"></div>
+      </div>
+      <div class="fg">
+        <label class="fl">Inbox Access</label>
+        <div class="fi-hint" style="margin-bottom:8px;">Restrict to specific WhatsApp number(s) — Conversations tabs, Send From pickers and campaign sending all scope to this. Leave all unselected for access to every inbox.</div>
+        <div id="eu-inbox-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);min-height:42px;"></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -4314,8 +4324,8 @@ function filterConv(status,btn){document.querySelectorAll('[id^=f-]').forEach(b=
 function renderInboxTabs(){
   const el=document.getElementById('conv-inbox-tabs');
   if(!el)return;
-  const inboxes=S.chatwootInboxes||[];
-  if(inboxes.length<2){el.style.display='none';el.innerHTML='';return;}
+  const inboxes=getAllowedInboxes();
+  if(inboxes.length<2){el.style.display='none';el.innerHTML='';S.activeInboxId=inboxes.length===1?inboxes[0].inboxId:'';return;}
   el.style.display='flex';
   const allActive=!S.activeInboxId?' active':'';
   el.innerHTML=`<div class="chip${allActive}" onclick="selectInboxTab('',this)">All Inboxes</div>`+
@@ -4333,8 +4343,8 @@ function selectInboxTab(inboxId,el){
 function renderCampInboxChips(){
   const wrap=document.getElementById('camp-inbox-wrap'),el=document.getElementById('camp-inbox-chips');
   if(!wrap||!el)return;
-  const inboxes=S.chatwootInboxes||[];
-  if(inboxes.length<2){wrap.style.display='none';S.activeCampaignInboxId='';return;}
+  const inboxes=getAllowedInboxes();
+  if(inboxes.length<2){wrap.style.display='none';S.activeCampaignInboxId=inboxes.length===1?inboxes[0].inboxId:'';return;}
   wrap.style.display='block';
   if(!inboxes.some(ib=>ib.inboxId===S.activeCampaignInboxId))S.activeCampaignInboxId=inboxes[0].inboxId;
   el.innerHTML=inboxes.map(ib=>`<div class="chip${S.activeCampaignInboxId===ib.inboxId?' active':''}" onclick="selectCampaignInbox('${ib.inboxId}',this)">${ib.label}</div>`).join('');
@@ -4439,7 +4449,7 @@ async function openSendTemplateModal(phone,name,knownInboxId){
   document.getElementById('stm-vars').innerHTML='';
   document.getElementById('modal-send-template').classList.add('open');
   const inboxWrap=document.getElementById('stm-inbox-wrap'),inboxSel=document.getElementById('stm-inbox-select');
-  const inboxes=S.chatwootInboxes||[];
+  const inboxes=getAllowedInboxes();
   if(inboxes.length>1){
     inboxWrap.style.display='block';
     inboxSel.innerHTML=inboxes.map(ib=>`<option value="${ib.inboxId}">${_hesc(ib.label)}</option>`).join('');
@@ -5532,9 +5542,15 @@ function getTplAIContent() { /* placeholder */ }
 // ── Leads Data Overview Module ──
 function getCurrentUserRestrictions(){
   const sess=localStorage.getItem('whizz_session');
-  let allowedBrands=[],allowedPlatforms=[];
-  if(sess){try{const se=JSON.parse(sess);const u=USERS[se.email];if(u){if(u.allowedBrands&&u.allowedBrands.length>0)allowedBrands=u.allowedBrands;if(u.allowedPlatforms&&u.allowedPlatforms.length>0)allowedPlatforms=u.allowedPlatforms;}}catch(e){}}
-  return{allowedBrands,allowedPlatforms};
+  let allowedBrands=[],allowedPlatforms=[],allowedInboxes=[];
+  if(sess){try{const se=JSON.parse(sess);const u=USERS[se.email];if(u){if(u.allowedBrands&&u.allowedBrands.length>0)allowedBrands=u.allowedBrands;if(u.allowedPlatforms&&u.allowedPlatforms.length>0)allowedPlatforms=u.allowedPlatforms;if(u.allowedInboxes&&u.allowedInboxes.length>0)allowedInboxes=u.allowedInboxes;}}catch(e){}}
+  return{allowedBrands,allowedPlatforms,allowedInboxes};
+}
+// Inboxes a user may see/use — every configured inbox when unrestricted, else just theirs.
+function getAllowedInboxes(){
+  const{allowedInboxes}=getCurrentUserRestrictions();
+  const all=S.chatwootInboxes||[];
+  return allowedInboxes.length>0?all.filter(ib=>allowedInboxes.includes(ib.inboxId)):all;
 }
 function renderLeadsPage(groups,total){
   const{allowedBrands,allowedPlatforms}=getCurrentUserRestrictions();
@@ -7654,7 +7670,7 @@ function renderUsersPage(){
   const tbody=document.getElementById('users-tbody');
   if(!tbody)return;
   if(!entries.length){
-    tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text3);font-size:13px;">${search?'No users match your search.':'No users found.'}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text3);font-size:13px;">${search?'No users match your search.':'No users found.'}</td></tr>`;
     return;
   }
   const roleStyle={Administrator:'background:var(--green-dim);color:var(--green);',Manager:'background:var(--amber-dim);color:var(--amber);',Sales:'background:var(--blue-dim);color:var(--blue);'};
@@ -7677,6 +7693,7 @@ function renderUsersPage(){
       <td><span class="ch-badge">${u.teamId||'sales'}</span></td>
       <td><div style="display:flex;flex-wrap:wrap;gap:3px;">${chipHtml(u.allowedPlatforms,'#8b5cf6')}</div></td>
       <td><div style="display:flex;flex-wrap:wrap;gap:3px;">${chipHtml(u.allowedBrands,'#f59e0b')}</div></td>
+      <td><div style="display:flex;flex-wrap:wrap;gap:3px;">${chipHtml((u.allowedInboxes||[]).map(id=>(S.chatwootInboxes||[]).find(ib=>ib.inboxId===id)?.label||id),'#0ea5e9')}</div></td>
       <td>
         <div style="display:flex;gap:5px;justify-content:center;">
           <button class="t-btn btn-ghost" style="padding:5px 10px;font-size:11px;" onclick="openEditUserModal('${esc(email)}')" title="Edit user">
@@ -7697,9 +7714,11 @@ function populateChips(containerId, options, selectedValues){
   const el=document.getElementById(containerId);
   if(!el)return;
   if(!options||!options.length){el.innerHTML='<span style="font-size:11px;color:var(--text3);">No options loaded yet — refresh Leads data first.</span>';return;}
-  el.innerHTML=options.map(v=>{
-    const sel=(selectedValues||[]).includes(v);
-    return `<div class="chip ${sel?'active':''}" style="cursor:pointer;font-size:11px;padding:4px 10px;" onclick="this.classList.toggle('active')">${v}</div>`;
+  el.innerHTML=options.map(opt=>{
+    const value=typeof opt==='object'?opt.value:opt;
+    const label=typeof opt==='object'?opt.label:opt;
+    const sel=(selectedValues||[]).includes(value);
+    return `<div class="chip ${sel?'active':''}" data-value="${_hesc(value)}" style="cursor:pointer;font-size:11px;padding:4px 10px;" onclick="this.classList.toggle('active')">${_hesc(label)}</div>`;
   }).join('');
 }
 
@@ -7713,13 +7732,19 @@ function populatePlatformChips(containerId, selectedPlatforms){
   populateChips(containerId, platforms, selectedPlatforms);
 }
 
+function populateInboxChips(containerId, selectedInboxIds){
+  const inboxes=(S.chatwootInboxes||[]).map(ib=>({value:ib.inboxId,label:ib.label||ib.inboxId}));
+  populateChips(containerId, inboxes, selectedInboxIds);
+}
+
 function getSelectedChips(containerId){
-  return [...document.querySelectorAll(`#${containerId} .chip.active`)].map(el=>el.textContent.trim());
+  return [...document.querySelectorAll(`#${containerId} .chip.active`)].map(el=>el.dataset.value??el.textContent.trim());
 }
 
 function openAddUserModal(){
   populatePlatformChips('au-platform-chips',[]);
   populateBrandChips('au-brand-chips',[]);
+  populateInboxChips('au-inbox-chips',[]);
   ['au-name','au-email'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('au-role').value='Sales';
   document.getElementById('au-team').value='sales';
@@ -7733,10 +7758,11 @@ function submitAddUser(){
   const teamId=document.getElementById('au-team').value.trim().toLowerCase()||'sales';
   const allowedPlatforms=getSelectedChips('au-platform-chips');
   const allowedBrands=getSelectedChips('au-brand-chips');
+  const allowedInboxes=getSelectedChips('au-inbox-chips');
   if(!name||!email){showToast('Name and email are required','error');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Please enter a valid email address','error');return;}
   if(USERS[email]){showToast('A user with this email already exists','error');return;}
-  USERS[email]={name,role,teamId,allowedBrands,allowedPlatforms};
+  USERS[email]={name,role,teamId,allowedBrands,allowedPlatforms,allowedInboxes};
   saveUsers();
   showToast(`User "${name}" added. Remember to also add them to the Cloudflare Access allow policy so they can sign in.`,'success');
   closeModal('modal-add-user'); renderUsersPage();
@@ -7752,6 +7778,7 @@ function openEditUserModal(email){
   document.getElementById('eu-team').value=u.teamId||'sales';
   populatePlatformChips('eu-platform-chips',u.allowedPlatforms||[]);
   populateBrandChips('eu-brand-chips',u.allowedBrands||[]);
+  populateInboxChips('eu-inbox-chips',u.allowedInboxes||[]);
   document.getElementById('modal-edit-user').classList.add('open');
 }
 
@@ -7764,8 +7791,9 @@ function submitEditUser(){
   const teamId=document.getElementById('eu-team').value.trim().toLowerCase()||'sales';
   const allowedPlatforms=getSelectedChips('eu-platform-chips');
   const allowedBrands=getSelectedChips('eu-brand-chips');
+  const allowedInboxes=getSelectedChips('eu-inbox-chips');
   if(!name){showToast('Name is required','error');return;}
-  u.name=name; u.role=role; u.teamId=teamId; u.allowedPlatforms=allowedPlatforms; u.allowedBrands=allowedBrands;
+  u.name=name; u.role=role; u.teamId=teamId; u.allowedPlatforms=allowedPlatforms; u.allowedBrands=allowedBrands; u.allowedInboxes=allowedInboxes;
   saveUsers();
   showToast(`User "${name}" updated successfully!`,'success');
   closeModal('modal-edit-user');
