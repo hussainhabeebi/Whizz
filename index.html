@@ -4252,14 +4252,25 @@ function renderInboxActivity(){
   const d=S.cache.inboxActivity;
   if(!d||!d.inboxes){el.innerHTML='<div class="empty-state">Click Refresh to load</div>';return;}
   if(!d.inboxes.length){el.innerHTML='<div class="empty-state">No WhatsApp inboxes configured yet — add one under Integrations → Chatwoot.</div>';return;}
-  const trackedNote=d.sentTrackedSince
-    ? `"Sent" is tracked by Whizz since ${new Date(d.sentTrackedSince).toLocaleDateString('en-AE')} — nothing before that is counted. "Replies" comes live from Meta's own Conversation Analytics (customer-initiated 24-hour windows, not a raw message count) and isn't verified against this account's live data yet.`
-    : `"Sent" hasn't tracked any activity yet. "Replies" comes live from Meta's own Conversation Analytics (customer-initiated 24-hour windows, not a raw message count) and isn't verified against this account's live data yet.`;
+  const localHistory=localCampaignHistoryWeeklySent();
+  const trackedNote=(d.sentTrackedSince
+    ? `"Sent" is tracked by Whizz since ${new Date(d.sentTrackedSince).toLocaleDateString('en-AE')} — weeks marked * are backfilled from this device's own Campaign History instead (bulk campaigns only, and only on whichever browser actually ran them — may be incomplete).`
+    : `"Sent" hasn't tracked any activity yet — weeks marked * are backfilled from this device's own Campaign History instead (bulk campaigns only, and only on whichever browser actually ran them — may be incomplete).`)
+    +` "Replies" comes live from Meta's own Conversation Analytics (customer-initiated 24-hour windows, not a raw message count) and isn't verified against this account's live data yet.`;
   el.innerHTML=`<div class="fi-hint" style="margin-bottom:12px;">${trackedNote}</div>`+d.inboxes.map(ib=>{
     const title=`${_hesc(ib.label||ib.inboxId)}${ib.phoneNumber?' — '+_hesc(ib.phoneNumber):''}`;
     const repliesNote=ib.repliesError?`<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px;">Replies unavailable: ${_hesc(ib.repliesError)}</div>`:'';
-    if(!ib.weeks.length)return`<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">${title}</div>${repliesNote}<div class="empty-state">No activity in this period.</div></div>`;
-    const rows=ib.weeks.map(w=>`<tr><td class="row-label">${new Date(w.weekStart).toLocaleDateString('en-AE',{day:'2-digit',month:'short'})}</td><td class="ptrack-num" style="color:var(--accent);font-weight:600;">${w.sent}</td><td class="ptrack-num" style="color:var(--green);font-weight:600;">${w.replies===null?'—':w.replies}</td></tr>`).join('');
+    const serverWeeks=new Map(ib.weeks.map(w=>[w.weekStart,w]));
+    const localWeeks=localHistory[ib.inboxId]||{};
+    const weekList=[...new Set([...serverWeeks.keys(),...Object.keys(localWeeks)])].sort();
+    if(!weekList.length)return`<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">${title}</div>${repliesNote}<div class="empty-state">No activity in this period.</div></div>`;
+    const rows=weekList.map(wk=>{
+      const serverRow=serverWeeks.get(wk);
+      const fromHistory=!serverRow&&localWeeks[wk];
+      const sent=serverRow?serverRow.sent:(localWeeks[wk]||0);
+      const replies=serverRow?serverRow.replies:null;
+      return `<tr><td class="row-label">${new Date(wk).toLocaleDateString('en-AE',{day:'2-digit',month:'short'})}${fromHistory?' <span style="color:var(--text3);" title="Backfilled from this device\'s Campaign History">*</span>':''}</td><td class="ptrack-num" style="color:var(--accent);font-weight:600;">${sent}</td><td class="ptrack-num" style="color:var(--green);font-weight:600;">${replies===null?'—':replies}</td></tr>`;
+    }).join('');
     return`<div style="margin-bottom:16px;">
       <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${title}</div>
       ${repliesNote}
@@ -4269,6 +4280,24 @@ function renderInboxActivity(){
       </table></div>
     </div>`;
   }).join('');
+}
+// Backfill for weeks the server-tracked log doesn't cover: sums this device's own
+// Campaign History (bulk sends only) by inbox + week. Only used where the server has
+// no row for that (inbox, week) at all, so it never double-counts a week the real log
+// already tracked.
+function localCampaignHistoryWeeklySent(){
+  const byInbox={};
+  (S.history||[]).forEach(h=>{
+    if(!h.inboxId||!h.ts)return;
+    const dt=new Date(h.ts);
+    const day=(dt.getDay()+6)%7; // Monday=0
+    dt.setDate(dt.getDate()-day);
+    dt.setHours(0,0,0,0);
+    const week=dt.toISOString().slice(0,10);
+    byInbox[h.inboxId]=byInbox[h.inboxId]||{};
+    byInbox[h.inboxId][week]=(byInbox[h.inboxId][week]||0)+(h.sent||0);
+  });
+  return byInbox;
 }
 function renderTeamActivity(){
   const el=document.getElementById('rep-team-activity'),hintEl=document.getElementById('rep-team-activity-hint'),card=document.getElementById('rep-team-activity-card');
@@ -5582,7 +5611,7 @@ async function sendCampaign(){
     document.getElementById('prog-text').textContent=paused?`Campaign auto-paused for protection. Sent: ${result.sent||0}, Failed: ${result.failed||0}`:`Campaign complete. Sent: ${result.sent||0}, Suppressed: ${suppressed}, Failed: ${result.failed||0}`;
     showToast(paused?'Campaign paused automatically after a delivery-risk spike':`Campaign completed: ${result.sent||0} sent, ${suppressed} protected`,paused?'error':'success');
     const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,phone:r.phone,reason:r.reason})).slice(0,50);
-    saveHistory({template:S.selectedTemplate.name,audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total||0,sent:result.sent||0,failed:result.failed||0,suppressed,paused,failures,failedContacts,deliveryGuard:getDeliveryGuardConfig(),ts:Date.now()});
+    saveHistory({template:S.selectedTemplate.name,audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total||0,sent:result.sent||0,failed:result.failed||0,suppressed,paused,failures,failedContacts,inboxId:S.activeCampaignInboxId||'',deliveryGuard:getDeliveryGuardConfig(),ts:Date.now()});
     setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
   }catch(e){clearInterval(interval);showToast(e.message||'Campaign send failed','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}
 }
@@ -9512,6 +9541,7 @@ async function fireScheduledJob(job) {
       failed: result.failed||0,
       failures: classifyCampaignFailures(result),
       failedContacts,
+      inboxId: job.inboxId||'',
       ts: Date.now(),
       scheduled: true
     });
