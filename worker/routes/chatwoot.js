@@ -4,6 +4,7 @@
 // (Administrator only) and stored encrypted in D1 — not a wrangler secret — so it can be
 // rotated without a deploy. Multiple inboxes can be registered; each becomes its own tab
 // in the Conversations page.
+import { logUserActivity } from './teamActivity.js';
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS }); }
 function emailFromAccess(request) { return (request.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase(); }
@@ -286,6 +287,7 @@ export async function handleChatwootSendMessage(request, env, conversationId) {
     });
   } catch (error) { return json({ error: error.message }, 502); }
 
+  await logUserActivity(env, access.user.email, 'message_sent', 1);
   return json(normalizeMessage(created));
 }
 
