@@ -153,6 +153,10 @@ async function repairSchema(env) {
     count INTEGER NOT NULL DEFAULT 1,
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  // inboxId: which WhatsApp number the send went through — powers Reports → WhatsApp
+  // Number Activity's "Sent" column (Chatwoot's own /reports endpoint 404s on this
+  // account, so that report is built from this log instead of Chatwoot's analytics).
+  await addColumns(env, 'user_activity_log', [['inboxId', "TEXT NOT NULL DEFAULT ''"]]);
 
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',

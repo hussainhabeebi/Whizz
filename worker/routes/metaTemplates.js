@@ -51,7 +51,7 @@ async function listInboxesWithWaba(env) {
   return result.results || [];
 }
 
-async function graphFetch(accessToken, path, options = {}) {
+export async function graphFetch(accessToken, path, options = {}) {
   const url = `https://graph.facebook.com/${GRAPH_API_VERSION}${path}`;
   const response = await fetch(url, {
     ...options,
