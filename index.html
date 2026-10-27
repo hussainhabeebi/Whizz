@@ -1514,6 +1514,17 @@ body.dark{
           </div>
         </div>
 
+        <div class="card" style="margin-bottom:16px;" id="rep-team-activity-card">
+          <div class="card-head">
+            <div class="card-title">Team Activity</div>
+            <span style="font-size:10px;color:var(--text3);">leads added, converted, messages sent &amp; conversations handled — per person</span>
+          </div>
+          <div class="card-body">
+            <div class="fi-hint" id="rep-team-activity-hint" style="margin-bottom:12px;"></div>
+            <div id="rep-team-activity"><div class="empty-state">Click Refresh to load</div></div>
+          </div>
+        </div>
+
         <div class="card" style="margin-bottom:16px;">
           <div class="card-head">
             <div class="card-title">Lead Platform Tracking &amp; Conversion</div>
@@ -4176,7 +4187,7 @@ async function onReportsPeriodChange(){
   const btn=document.getElementById('refresh-btn'),icon=document.getElementById('refresh-icon');
   btn.disabled=true;icon.classList.add('spin');
   try{
-    await Promise.all([loadBrevoStatsForPeriod(),loadWpTrafficForPeriod()]);
+    await Promise.all([loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshTeamActivity()]);
     renderReports();
   }catch(e){showToast('Failed to load that period','error');}
   btn.disabled=false;icon.classList.remove('spin');
@@ -4198,7 +4209,7 @@ async function loadWpTrafficForPeriod(){
 }
 async function refreshReportsPage(){
   populateReportsPeriodSelect();
-  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshConversionStats()]);
+  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshConversionStats(),refreshTeamActivity()]);
   renderReports();
 }
 
@@ -4207,6 +4218,39 @@ async function refreshConversionStats(){
     const data=await apiFetch('/api/conversion-stats');
     S.cache.conversionStats=data;
   }catch(e){S.cache.conversionStats=null;}
+}
+
+async function refreshTeamActivity(){
+  try{
+    const period=S.reportsPeriod||'all';
+    const d=await apiWMsg(`api/reports/team-activity?period=${encodeURIComponent(period)}`);
+    S.cache.teamActivity=d;
+  }catch(e){S.cache.teamActivity=null;}
+}
+function renderTeamActivity(){
+  const el=document.getElementById('rep-team-activity'),hintEl=document.getElementById('rep-team-activity-hint'),card=document.getElementById('rep-team-activity-card');
+  if(!el)return;
+  if(card)card.style.display=(CURRENT_SESSION&&CURRENT_SESSION.role==='Sales')?'none':'block';
+  const d=S.cache.teamActivity;
+  if(!d||!d.rows){el.innerHTML='<div class="empty-state">Click Refresh to load</div>';if(hintEl)hintEl.textContent='';return;}
+  if(hintEl){
+    hintEl.textContent=d.messagesSentTrackedSince
+      ? `Leads added/converted are always real, all the way back. "Messages Sent" has only been tracked since ${new Date(d.messagesSentTrackedSince).toLocaleDateString('en-AE')} — there's no way to attribute WhatsApp sends before that to a specific person.`
+      : `Leads added/converted are always real. "Messages Sent" starts tracking from the next message sent — nothing has been logged yet.`;
+  }
+  if(!d.rows.length){el.innerHTML='<div class="empty-state">No team members visible at your access level.</div>';return;}
+  const rows=[...d.rows].sort((a,b)=>(b.leadsAdded+b.messagesSent)-(a.leadsAdded+a.messagesSent));
+  el.innerHTML=`<div class="heatmap-wrap"><table class="heatmap-tbl ptrack-tbl">
+    <thead><tr><th class="row-h">Person</th><th>Role</th><th>Leads Added</th><th>Leads Converted</th><th>Messages Sent</th><th>Conversations Assigned</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td class="row-label">${_hesc(r.name||r.email)}</td>
+      <td class="ptrack-num">${_hesc(r.role||'')}</td>
+      <td class="ptrack-num" style="color:var(--accent);font-weight:600;">${r.leadsAdded||0}</td>
+      <td class="ptrack-num" style="color:var(--green);font-weight:600;">${r.leadsConverted||0}</td>
+      <td class="ptrack-num">${r.messagesSent||0}</td>
+      <td class="ptrack-num">${r.conversationsAssigned||0}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
 }
 
 // ── Dashboard Core logic ──
@@ -7079,6 +7123,7 @@ function renderReports(){
   const d=S.cache.stats||{};
 
   renderSummaryStats();
+  renderTeamActivity();
   renderConversionReport();
   renderPlatformTracking();
 

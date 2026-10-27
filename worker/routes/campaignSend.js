@@ -20,6 +20,7 @@
 import { resolveContactsForCampaign } from './automation.js';
 import { loadMetaAccessToken, GRAPH_API_VERSION } from './metaTemplates.js';
 import { loadChatwootConfig, findOrCreateContact, findOrCreateConversation, chatwootFetch } from './chatwoot.js';
+import { logUserActivity } from './teamActivity.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS }); }
@@ -174,6 +175,7 @@ export async function handleSendCampaignMeta(request, env) {
   const failure_reasons = { permanent: 0, transient: 0, policy: 0, unknown: 0 };
   for (const r of results) if (r.status === 'failed') failure_reasons[r.bucket || 'unknown'] = (failure_reasons[r.bucket || 'unknown'] || 0) + 1;
 
+  await logUserActivity(env, user.email, 'campaign_sent', sent);
   return json({
     total: contacts.length,
     attempted: results.length,
@@ -252,5 +254,6 @@ export async function handleSendTemplateMessageMeta(request, env) {
     }
   } catch (error) { /* best-effort only — the real send above already succeeded */ }
 
+  await logUserActivity(env, user.email, 'template_sent', 1);
   return json({ messageId: data.messages?.[0]?.id, mirrored });
 }

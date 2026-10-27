@@ -143,6 +143,17 @@ async function repairSchema(env) {
     updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Per-user send activity, logged going forward only (no historical backfill is
+  // possible — nothing recorded who sent a message before this table existed). Powers
+  // the Reports → Team Activity "Messages Sent" column.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS user_activity_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    action TEXT NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1,
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_team ON conversation_assignments(assignedTeamId)',
@@ -155,7 +166,8 @@ async function repairSchema(env) {
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_status ON directory_prospects(status)',
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_score ON directory_prospects(leadScore)',
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_updated ON directory_prospects(updatedAt)',
-    'CREATE UNIQUE INDEX IF NOT EXISTS idx_chatwoot_inboxes_inbox_id ON chatwoot_inboxes(inboxId)'
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_chatwoot_inboxes_inbox_id ON chatwoot_inboxes(inboxId)',
+    'CREATE INDEX IF NOT EXISTS idx_user_activity_log_email_created ON user_activity_log(email, createdAt)'
   ]) await safeRun(env, sql);
 }
 
