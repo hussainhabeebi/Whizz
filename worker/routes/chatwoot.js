@@ -278,6 +278,7 @@ export async function handleChatwootSendMessage(request, env, conversationId) {
   const content = String(body.content || '').trim();
   if (!content) return json({ error: 'Message content is required.' }, 400);
   const replyToId = body.replyToId || null;
+  const inboxId = String(body.inboxId || '').trim();
 
   let created;
   try {
@@ -287,7 +288,7 @@ export async function handleChatwootSendMessage(request, env, conversationId) {
     });
   } catch (error) { return json({ error: error.message }, 502); }
 
-  await logUserActivity(env, access.user.email, 'message_sent', 1);
+  await logUserActivity(env, access.user.email, 'message_sent', 1, inboxId);
   return json(normalizeMessage(created));
 }
 
@@ -328,69 +329,7 @@ export async function findOrCreateConversation(config, inboxId, contact, phone) 
 // (handleSendTemplateMessageMeta) — it now goes direct to Meta's Graph API, the same
 // engine bulk campaigns use, instead of guessing at Chatwoot's template_params shape.
 
-// ── Reports → WhatsApp Number Activity ──
-// Per-number (per Chatwoot inbox) message volume, bucketed by week: messages sent and
-// customer replies received. Sourced live from Chatwoot's own account reports API
-// (metric=outgoing_messages_count / incoming_messages_count, type=inbox) rather than a
-// Whizz-side log — this is real traffic through that number, not just what Whizz itself
-// triggered, so it also counts anything sent/received outside Whizz on the same inbox.
-// Caveat: Chatwoot's /reports response shape hasn't been verified against this account's
-// live data (self-hosted/versioned Chatwoot instances can differ) — if this errors or
-// comes back empty, check the inbox's actual report in Chatwoot's own UI first.
-function weekStartKey(unixSeconds) {
-  const d = new Date(unixSeconds * 1000);
-  const dayIndex = (d.getUTCDay() + 6) % 7; // Monday = 0
-  d.setUTCDate(d.getUTCDate() - dayIndex);
-  d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
-}
-function bucketReportSeriesByWeek(sentPoints, replyPoints) {
-  const weeks = new Map();
-  const add = (points, field) => {
-    for (const p of (Array.isArray(points) ? points : [])) {
-      const key = weekStartKey(Number(p.value));
-      if (!weeks.has(key)) weeks.set(key, { weekStart: key, sent: 0, replies: 0 });
-      weeks.get(key)[field] += Number(p.count) || 0;
-    }
-  };
-  add(sentPoints, 'sent');
-  add(replyPoints, 'replies');
-  return [...weeks.values()].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
-}
-export async function handleInboxWeeklyReport(request, env) {
-  const user = await currentUser(request, env);
-  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
-  if (user.role === 'Sales') return json({ error: 'Manager or Administrator access required.' }, 403);
-  const config = await loadChatwootConfig(env);
-  if (!config) return json({ error: 'Chatwoot is not configured yet.' }, 503);
-
-  const url = new URL(request.url);
-  const period = (url.searchParams.get('period') || 'all').trim();
-  let since, until;
-  if (/^\d{4}-\d{2}$/.test(period)) {
-    const [y, m] = period.split('-').map(Number);
-    since = Math.floor(Date.UTC(y, m - 1, 1) / 1000);
-    until = Math.floor(Date.UTC(y, m, 1) / 1000);
-  } else {
-    until = Math.floor(Date.now() / 1000);
-    since = until - 12 * 7 * 86400; // last 12 weeks
-  }
-
-  const inboxes = (await listInboxes(env)).filter(ib => ib.inboxId);
-  const inboxResults = await Promise.all(inboxes.map(async (ib) => {
-    try {
-      const qs = (metric) => `/reports?metric=${metric}&type=inbox&id=${encodeURIComponent(ib.inboxId)}&since=${since}&until=${until}`;
-      const [sentRaw, replyRaw] = await Promise.all([
-        chatwootFetch(config, qs('outgoing_messages_count')),
-        chatwootFetch(config, qs('incoming_messages_count')),
-      ]);
-      const sentPoints = Array.isArray(sentRaw) ? sentRaw : (sentRaw?.payload || sentRaw?.data || []);
-      const replyPoints = Array.isArray(replyRaw) ? replyRaw : (replyRaw?.payload || replyRaw?.data || []);
-      return { inboxId: ib.inboxId, label: ib.label, phoneNumber: ib.phoneNumber, weeks: bucketReportSeriesByWeek(sentPoints, replyPoints), error: null };
-    } catch (error) {
-      return { inboxId: ib.inboxId, label: ib.label, phoneNumber: ib.phoneNumber, weeks: [], error: error.message };
-    }
-  }));
-
-  return json({ inboxes: inboxResults, since, until });
-}
+// Reports → WhatsApp Number Activity moved to worker/routes/teamActivity.js
+// (handleInboxActivityReport) — Chatwoot's own /reports endpoint 404s on this account,
+// so it's built from Whizz's own user_activity_log (sent) and Meta's Graph API
+// Conversation Analytics (replies) instead.

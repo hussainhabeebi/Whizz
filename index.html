@@ -1528,10 +1528,9 @@ body.dark{
         <div class="card" style="margin-bottom:16px;" id="rep-inbox-activity-card">
           <div class="card-head">
             <div class="card-title">WhatsApp Number Activity</div>
-            <span style="font-size:10px;color:var(--text3);">sent &amp; replies per number, by week — live from Chatwoot</span>
+            <span style="font-size:10px;color:var(--text3);">sent &amp; replies per number, by week</span>
           </div>
           <div class="card-body">
-            <div class="fi-hint" style="margin-bottom:12px;">Counts all traffic through each number (not just what Whizz triggered), sourced live from Chatwoot's own reports for that inbox.</div>
             <div id="rep-inbox-activity"><div class="empty-state">Click Refresh to load</div></div>
           </div>
         </div>
@@ -4242,7 +4241,7 @@ async function refreshTeamActivity(){
 async function refreshInboxActivity(){
   try{
     const period=S.reportsPeriod||'all';
-    const d=await apiWMsg(`api/chatwoot/reports/inbox-weekly?period=${encodeURIComponent(period)}`);
+    const d=await apiWMsg(`api/reports/inbox-activity?period=${encodeURIComponent(period)}`);
     S.cache.inboxActivity=d;
   }catch(e){S.cache.inboxActivity=null;}
 }
@@ -4253,13 +4252,17 @@ function renderInboxActivity(){
   const d=S.cache.inboxActivity;
   if(!d||!d.inboxes){el.innerHTML='<div class="empty-state">Click Refresh to load</div>';return;}
   if(!d.inboxes.length){el.innerHTML='<div class="empty-state">No WhatsApp inboxes configured yet — add one under Integrations → Chatwoot.</div>';return;}
-  el.innerHTML=d.inboxes.map(ib=>{
+  const trackedNote=d.sentTrackedSince
+    ? `"Sent" is tracked by Whizz since ${new Date(d.sentTrackedSince).toLocaleDateString('en-AE')} — nothing before that is counted. "Replies" comes live from Meta's own Conversation Analytics (customer-initiated 24-hour windows, not a raw message count) and isn't verified against this account's live data yet.`
+    : `"Sent" hasn't tracked any activity yet. "Replies" comes live from Meta's own Conversation Analytics (customer-initiated 24-hour windows, not a raw message count) and isn't verified against this account's live data yet.`;
+  el.innerHTML=`<div class="fi-hint" style="margin-bottom:12px;">${trackedNote}</div>`+d.inboxes.map(ib=>{
     const title=`${_hesc(ib.label||ib.inboxId)}${ib.phoneNumber?' — '+_hesc(ib.phoneNumber):''}`;
-    if(ib.error)return`<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">${title}</div><div class="empty-state">Couldn't load: ${_hesc(ib.error)}</div></div>`;
-    if(!ib.weeks.length)return`<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">${title}</div><div class="empty-state">No activity in this period.</div></div>`;
-    const rows=ib.weeks.map(w=>`<tr><td class="row-label">${new Date(w.weekStart).toLocaleDateString('en-AE',{day:'2-digit',month:'short'})}</td><td class="ptrack-num" style="color:var(--accent);font-weight:600;">${w.sent}</td><td class="ptrack-num" style="color:var(--green);font-weight:600;">${w.replies}</td></tr>`).join('');
+    const repliesNote=ib.repliesError?`<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px;">Replies unavailable: ${_hesc(ib.repliesError)}</div>`:'';
+    if(!ib.weeks.length)return`<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">${title}</div>${repliesNote}<div class="empty-state">No activity in this period.</div></div>`;
+    const rows=ib.weeks.map(w=>`<tr><td class="row-label">${new Date(w.weekStart).toLocaleDateString('en-AE',{day:'2-digit',month:'short'})}</td><td class="ptrack-num" style="color:var(--accent);font-weight:600;">${w.sent}</td><td class="ptrack-num" style="color:var(--green);font-weight:600;">${w.replies===null?'—':w.replies}</td></tr>`).join('');
     return`<div style="margin-bottom:16px;">
       <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${title}</div>
+      ${repliesNote}
       <div class="heatmap-wrap"><table class="heatmap-tbl ptrack-tbl">
         <thead><tr><th class="row-h">Week of</th><th>Sent</th><th>Replies</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -4878,7 +4881,7 @@ async function sendConversationMessage(){
   renderThread(S.convMessages[id],false);
   scrollThreadToBottom(true);
   try{
-    const d=await cw(`conversations/${encodeURIComponent(id)}/messages`,'POST',{content:text,replyToId});
+    const d=await cw(`conversations/${encodeURIComponent(id)}/messages`,'POST',{content:text,replyToId,inboxId:findConv(id)?.inboxId||''});
     if(d.error)throw new Error(d.error);
     const idx=S.convMessages[id].findIndex(m=>m.id===tempId);
     if(idx>-1)S.convMessages[id][idx]={...d,message_type:1,sender_type:'agent',in_reply_to:replyToId};
@@ -4902,7 +4905,7 @@ async function retrySendMessage(tempId){
   msg.status='sending';
   renderThread(S.convMessages[id],false);
   try{
-    const d=await cw(`conversations/${encodeURIComponent(id)}/messages`,'POST',{content:msg.content,replyToId:msg.__replyToId||null});
+    const d=await cw(`conversations/${encodeURIComponent(id)}/messages`,'POST',{content:msg.content,replyToId:msg.__replyToId||null,inboxId:findConv(id)?.inboxId||''});
     if(d.error)throw new Error(d.error);
     Object.assign(msg,d,{message_type:1,sender_type:'agent',in_reply_to:msg.__replyToId||null});
   }catch(e){
@@ -5048,7 +5051,7 @@ async function sendForwardTo(targetId){
   closeModal('modal-forward-message');
   const text=`↪ Forwarded\n${msg.text}`;
   try{
-    const d=await cw(`conversations/${encodeURIComponent(targetId)}/messages`,'POST',{content:text});
+    const d=await cw(`conversations/${encodeURIComponent(targetId)}/messages`,'POST',{content:text,inboxId:findConv(targetId)?.inboxId||''});
     if(d.error)throw new Error(d.error);
     showToast('Message forwarded','success');
     if(String(targetId)===String(S.selectedConvId)){
