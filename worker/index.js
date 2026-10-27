@@ -11,7 +11,7 @@ import { handleAutomation } from './routes/automation.js';
 import { handleConversationAssignment } from './routes/conversationAssignments.js';
 import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookings.js';
 import { handleLeadIntelligence } from './routes/leadIntelligence.js';
-import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleUpdateChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage } from './routes/chatwoot.js';
+import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleUpdateChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage, handleInboxWeeklyReport } from './routes/chatwoot.js';
 import { handleGetMetaSettings, handleSaveMetaSettings, handleListMetaTemplates, handleCreateMetaTemplate, handleDeleteMetaTemplate } from './routes/metaTemplates.js';
 import { handleSendCampaignMeta, handleSendTemplateMessageMeta } from './routes/campaignSend.js';
 import { handleTeamActivityReport } from './routes/teamActivity.js';
@@ -45,6 +45,7 @@ const routes = [
   { method: 'POST', path: '/api/meta-templates/delete', handler: handleDeleteMetaTemplate },
   { method: 'POST', path: '/api/campaigns/send', handler: handleSendCampaignMeta },
   { method: 'GET', path: '/api/reports/team-activity', handler: handleTeamActivityReport },
+  { method: 'GET', path: '/api/chatwoot/reports/inbox-weekly', handler: handleInboxWeeklyReport },
 ];
 
 async function leadActor(request, env) {

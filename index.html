@@ -1525,6 +1525,17 @@ body.dark{
           </div>
         </div>
 
+        <div class="card" style="margin-bottom:16px;" id="rep-inbox-activity-card">
+          <div class="card-head">
+            <div class="card-title">WhatsApp Number Activity</div>
+            <span style="font-size:10px;color:var(--text3);">sent &amp; replies per number, by week — live from Chatwoot</span>
+          </div>
+          <div class="card-body">
+            <div class="fi-hint" style="margin-bottom:12px;">Counts all traffic through each number (not just what Whizz triggered), sourced live from Chatwoot's own reports for that inbox.</div>
+            <div id="rep-inbox-activity"><div class="empty-state">Click Refresh to load</div></div>
+          </div>
+        </div>
+
         <div class="card" style="margin-bottom:16px;">
           <div class="card-head">
             <div class="card-title">Lead Platform Tracking &amp; Conversion</div>
@@ -4187,7 +4198,7 @@ async function onReportsPeriodChange(){
   const btn=document.getElementById('refresh-btn'),icon=document.getElementById('refresh-icon');
   btn.disabled=true;icon.classList.add('spin');
   try{
-    await Promise.all([loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshTeamActivity()]);
+    await Promise.all([loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshTeamActivity(),refreshInboxActivity()]);
     renderReports();
   }catch(e){showToast('Failed to load that period','error');}
   btn.disabled=false;icon.classList.remove('spin');
@@ -4209,7 +4220,7 @@ async function loadWpTrafficForPeriod(){
 }
 async function refreshReportsPage(){
   populateReportsPeriodSelect();
-  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshConversionStats(),refreshTeamActivity()]);
+  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshConversionStats(),refreshTeamActivity(),refreshInboxActivity()]);
   renderReports();
 }
 
@@ -4226,6 +4237,35 @@ async function refreshTeamActivity(){
     const d=await apiWMsg(`api/reports/team-activity?period=${encodeURIComponent(period)}`);
     S.cache.teamActivity=d;
   }catch(e){S.cache.teamActivity=null;}
+}
+
+async function refreshInboxActivity(){
+  try{
+    const period=S.reportsPeriod||'all';
+    const d=await apiWMsg(`api/chatwoot/reports/inbox-weekly?period=${encodeURIComponent(period)}`);
+    S.cache.inboxActivity=d;
+  }catch(e){S.cache.inboxActivity=null;}
+}
+function renderInboxActivity(){
+  const el=document.getElementById('rep-inbox-activity'),card=document.getElementById('rep-inbox-activity-card');
+  if(!el)return;
+  if(card)card.style.display=(CURRENT_SESSION&&CURRENT_SESSION.role==='Sales')?'none':'block';
+  const d=S.cache.inboxActivity;
+  if(!d||!d.inboxes){el.innerHTML='<div class="empty-state">Click Refresh to load</div>';return;}
+  if(!d.inboxes.length){el.innerHTML='<div class="empty-state">No WhatsApp inboxes configured yet — add one under Integrations → Chatwoot.</div>';return;}
+  el.innerHTML=d.inboxes.map(ib=>{
+    const title=`${_hesc(ib.label||ib.inboxId)}${ib.phoneNumber?' — '+_hesc(ib.phoneNumber):''}`;
+    if(ib.error)return`<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">${title}</div><div class="empty-state">Couldn't load: ${_hesc(ib.error)}</div></div>`;
+    if(!ib.weeks.length)return`<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">${title}</div><div class="empty-state">No activity in this period.</div></div>`;
+    const rows=ib.weeks.map(w=>`<tr><td class="row-label">${new Date(w.weekStart).toLocaleDateString('en-AE',{day:'2-digit',month:'short'})}</td><td class="ptrack-num" style="color:var(--accent);font-weight:600;">${w.sent}</td><td class="ptrack-num" style="color:var(--green);font-weight:600;">${w.replies}</td></tr>`).join('');
+    return`<div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${title}</div>
+      <div class="heatmap-wrap"><table class="heatmap-tbl ptrack-tbl">
+        <thead><tr><th class="row-h">Week of</th><th>Sent</th><th>Replies</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+  }).join('');
 }
 function renderTeamActivity(){
   const el=document.getElementById('rep-team-activity'),hintEl=document.getElementById('rep-team-activity-hint'),card=document.getElementById('rep-team-activity-card');
@@ -7124,6 +7164,7 @@ function renderReports(){
 
   renderSummaryStats();
   renderTeamActivity();
+  renderInboxActivity();
   renderConversionReport();
   renderPlatformTracking();
 
