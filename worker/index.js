@@ -16,6 +16,7 @@ import { handleGetMetaSettings, handleSaveMetaSettings, handleListMetaTemplates,
 import { handleSendCampaignMeta, handleSendTemplateMessageMeta } from './routes/campaignSend.js';
 import { handleTeamActivityReport, handleInboxActivityReport } from './routes/teamActivity.js';
 import { handleListAudienceSegments, handleCreateAudienceSegment, handleDeleteAudienceSegment } from './routes/audienceSegments.js';
+import { handleListOptOuts, handleAddOptOut, handleRemoveOptOut, handleCheckOptOut } from './routes/optOuts.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -49,6 +50,9 @@ const routes = [
   { method: 'GET', path: '/api/reports/inbox-activity', handler: handleInboxActivityReport },
   { method: 'GET', path: '/api/audience-segments', handler: handleListAudienceSegments },
   { method: 'POST', path: '/api/audience-segments', handler: handleCreateAudienceSegment },
+  { method: 'GET', path: '/api/opt-outs', handler: handleListOptOuts },
+  { method: 'POST', path: '/api/opt-outs', handler: handleAddOptOut },
+  { method: 'GET', path: '/api/opt-outs/check', handler: handleCheckOptOut },
 ];
 
 async function leadActor(request, env) {
@@ -227,6 +231,11 @@ export default {
     const audienceSegmentMatch = url.pathname.match(/^\/api\/audience-segments\/(\d+)$/);
     if (audienceSegmentMatch && request.method === 'DELETE') {
       try { return await handleDeleteAudienceSegment(request, env, Number(audienceSegmentMatch[1])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const optOutMatch = url.pathname.match(/^\/api\/opt-outs\/([^/]+)$/);
+    if (optOutMatch && request.method === 'DELETE') {
+      try { return await handleRemoveOptOut(request, env, decodeURIComponent(optOutMatch[1])); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access|sync-access))?$/);
