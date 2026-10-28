@@ -40,6 +40,14 @@ async function findInbox(env, inboxId) {
   return { error: 'Multiple numbers are configured — pick a Send From number first.' };
 }
 
+// Per-number daily quota — stops one rep's bulk send from silently exhausting a shared
+// number's whole daily capacity before anyone notices (Meta would otherwise just start
+// rejecting sends once its own platform-level limit is hit, with no warning beforehand).
+async function sentTodayForInbox(env, inboxId) {
+  const row = await env.DB.prepare("SELECT COALESCE(SUM(count),0) total FROM user_activity_log WHERE inboxId=? AND date(createdAt)=date('now')").bind(inboxId).first();
+  return Number(row?.total) || 0;
+}
+
 function toSendableNumber(phone) {
   const digits = String(phone || '').replace(/[^\d]/g, '');
   return digits.replace(/^0+/, '');
@@ -124,6 +132,18 @@ export async function handleSendCampaignMeta(request, env) {
     });
   }
 
+  let quotaCapped = false, quotaRemaining = null;
+  if (inbox.dailySendCap > 0) {
+    const sentToday = await sentTodayForInbox(env, inbox.inboxId);
+    quotaRemaining = Math.max(0, inbox.dailySendCap - sentToday);
+    if (quotaRemaining <= 0) return json({ error: `"${inbox.label}" has already reached its daily send cap (${inbox.dailySendCap}). Try again tomorrow or pick a different number.` }, 429);
+    if (eligible.length > quotaRemaining) {
+      quotaCapped = true;
+      eligible.slice(quotaRemaining).forEach(c => skipped.push({ contactId: c.id, name: c.contactName, phone: c.phone, reason: `"${inbox.label}"'s daily send cap (${inbox.dailySendCap}) would be exceeded — held back for tomorrow` }));
+      eligible = eligible.slice(0, quotaRemaining);
+    }
+  }
+
   let template = body.template || {};
   if (!template.body) {
     // Caller didn't pass the template text — fall back to just the name/language;
@@ -190,6 +210,8 @@ export async function handleSendCampaignMeta(request, env) {
     sent, failed,
     suppressed: skipped.length,
     paused,
+    quotaCapped,
+    quotaRemaining,
     failure_reasons,
     results: [...results, ...skipped.map(s => ({ ...s, status: 'skipped' }))],
   });
@@ -228,6 +250,10 @@ export async function handleSendTemplateMessageMeta(request, env) {
   const inbox = inboxLookup.inbox;
   if (!inbox) return json({ error: 'Selected number was not found.' }, 400);
   if (!inbox.phoneNumberId) return json({ error: `"${inbox.label}" has no Phone Number ID set — add one under Integrations → Chatwoot.` }, 400);
+  if (inbox.dailySendCap > 0) {
+    const sentToday = await sentTodayForInbox(env, inbox.inboxId);
+    if (sentToday >= inbox.dailySendCap) return json({ error: `"${inbox.label}" has already reached its daily send cap (${inbox.dailySendCap}). Try again tomorrow or pick a different number.` }, 429);
+  }
 
   const components = variables.length ? [{ type: 'body', parameters: variables.map(v => ({ type: 'text', text: String(v) })) }] : [];
   const payload = {

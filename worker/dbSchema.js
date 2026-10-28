@@ -133,6 +133,10 @@ async function repairSchema(env) {
     // addressed to (POST /{phone-number-id}/messages). Found in Meta Business Settings →
     // WhatsApp Accounts → the WABA → Phone numbers → the number.
     ['phoneNumberId', "TEXT NOT NULL DEFAULT ''"],
+    // 0 = no cap. Enforced in campaignSend.js against today's own user_activity_log sum
+    // for this inbox, so one rep's bulk send can't exhaust a shared number's daily
+    // capacity without anyone noticing until messages start failing at Meta's end.
+    ['dailySendCap', 'INTEGER NOT NULL DEFAULT 0'],
   ]);
   // Template create/list/delete talk to Meta's Graph API directly (per-WABA, using
   // chatwoot_inboxes.wabaId), not n8n. One System User access token covers every WABA
