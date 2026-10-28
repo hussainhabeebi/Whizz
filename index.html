@@ -4252,12 +4252,12 @@ function renderInboxActivity(){
   const d=S.cache.inboxActivity;
   if(!d||!d.inboxes){el.innerHTML='<div class="empty-state">Click Refresh to load</div>';return;}
   if(!d.inboxes.length){el.innerHTML='<div class="empty-state">No WhatsApp inboxes configured yet — add one under Integrations → Chatwoot.</div>';return;}
-  const localHistory=localCampaignHistoryWeeklySent();
+  const{byInbox:localHistory,unattributed}=localCampaignHistoryWeeklySent();
   const trackedNote=(d.sentTrackedSince
     ? `"Sent" is tracked by Whizz since ${new Date(d.sentTrackedSince).toLocaleDateString('en-AE')} — weeks marked * are backfilled from this device's own Campaign History instead (bulk campaigns only, and only on whichever browser actually ran them — may be incomplete).`
     : `"Sent" hasn't tracked any activity yet — weeks marked * are backfilled from this device's own Campaign History instead (bulk campaigns only, and only on whichever browser actually ran them — may be incomplete).`)
     +` "Replies" comes live from Meta's own Conversation Analytics (customer-initiated 24-hour windows, not a raw message count) and isn't verified against this account's live data yet.`;
-  el.innerHTML=`<div class="fi-hint" style="margin-bottom:12px;">${trackedNote}</div>`+d.inboxes.map(ib=>{
+  const inboxBlocks=d.inboxes.map(ib=>{
     const title=`${_hesc(ib.label||ib.inboxId)}${ib.phoneNumber?' — '+_hesc(ib.phoneNumber):''}`;
     const repliesNote=ib.repliesError?`<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px;">Replies unavailable: ${_hesc(ib.repliesError)}</div>`:'';
     const serverWeeks=new Map(ib.weeks.map(w=>[w.weekStart,w]));
@@ -4280,24 +4280,40 @@ function renderInboxActivity(){
       </table></div>
     </div>`;
   }).join('');
+  const unattributedWeeks=Object.keys(unattributed).sort();
+  const unattributedBlock=unattributedWeeks.length?`<div style="margin-top:4px;">
+    <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text3);">Other Campaigns — number not recorded at the time</div>
+    <div class="fi-hint" style="margin-bottom:8px;">From this device's Campaign History, sent before per-campaign number tracking existed — can't be matched to a specific number.</div>
+    <div class="heatmap-wrap"><table class="heatmap-tbl ptrack-tbl">
+      <thead><tr><th class="row-h">Week of</th><th>Sent</th></tr></thead>
+      <tbody>${unattributedWeeks.map(wk=>`<tr><td class="row-label">${new Date(wk).toLocaleDateString('en-AE',{day:'2-digit',month:'short'})}</td><td class="ptrack-num" style="color:var(--accent);font-weight:600;">${unattributed[wk]}</td></tr>`).join('')}</tbody>
+    </table></div>
+  </div>`:'';
+  el.innerHTML=`<div class="fi-hint" style="margin-bottom:12px;">${trackedNote}</div>`+inboxBlocks+unattributedBlock;
 }
 // Backfill for weeks the server-tracked log doesn't cover: sums this device's own
 // Campaign History (bulk sends only) by inbox + week. Only used where the server has
 // no row for that (inbox, week) at all, so it never double-counts a week the real log
-// already tracked.
+// already tracked. Entries saved before inboxId was recorded (every campaign run
+// before this feature shipped) can't be attributed to a specific number — those are
+// kept separately under "unattributed" rather than guessed at from the campaign name.
 function localCampaignHistoryWeeklySent(){
-  const byInbox={};
+  const byInbox={},unattributed={};
   (S.history||[]).forEach(h=>{
-    if(!h.inboxId||!h.ts)return;
+    if(!h.ts)return;
     const dt=new Date(h.ts);
     const day=(dt.getDay()+6)%7; // Monday=0
     dt.setDate(dt.getDate()-day);
     dt.setHours(0,0,0,0);
     const week=dt.toISOString().slice(0,10);
-    byInbox[h.inboxId]=byInbox[h.inboxId]||{};
-    byInbox[h.inboxId][week]=(byInbox[h.inboxId][week]||0)+(h.sent||0);
+    if(h.inboxId){
+      byInbox[h.inboxId]=byInbox[h.inboxId]||{};
+      byInbox[h.inboxId][week]=(byInbox[h.inboxId][week]||0)+(h.sent||0);
+    }else{
+      unattributed[week]=(unattributed[week]||0)+(h.sent||0);
+    }
   });
-  return byInbox;
+  return {byInbox,unattributed};
 }
 function renderTeamActivity(){
   const el=document.getElementById('rep-team-activity'),hintEl=document.getElementById('rep-team-activity-hint'),card=document.getElementById('rep-team-activity-card');
