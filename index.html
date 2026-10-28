@@ -1125,6 +1125,13 @@ body.dark{
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;margin:12px 0 14px;">
                 <input type="checkbox" id="all-groups" onchange="toggleAllGroups(this)"> Send to ALL contacts, ignoring every filter below
               </label>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+                <select class="fs" id="segment-select" style="width:auto;padding:5px 10px;font-size:12px;" onchange="applyAudienceSegment(this.value)">
+                  <option value="">Saved segments…</option>
+                </select>
+                <button class="t-btn btn-ghost" style="padding:5px 10px;font-size:11px;" onclick="saveCurrentAudienceSegment()">Save current filter as…</button>
+                <button class="t-btn btn-ghost" style="padding:5px 10px;font-size:11px;color:var(--red);display:none;" id="segment-delete-btn" onclick="deleteCurrentAudienceSegment()">Delete this segment</button>
+              </div>
               <div class="card" style="margin-bottom:14px;">
                 <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
                   <div>
@@ -4190,7 +4197,7 @@ async function refreshConversations(){
   S.cache.conversations=merged;
   renderConvs(merged);
 }
-async function refreshCampaign(){await Promise.all([refreshLeadData(),refreshTemplates()]);}
+async function refreshCampaign(){await Promise.all([refreshLeadData(),refreshTemplates(),loadAudienceSegments()]);}
 async function refreshTemplates(){const d=await mt('');S.cache.templates=d.templates||[];S.templates=S.cache.templates;S.templateDiagnostics=d.diagnostics||[];renderTplPage(S.cache.templates);renderCampTemplates(S.cache.templates);}
 async function refreshLeads(){await refreshLeadData();renderLeadsPage(S.cache.groups,S.cache.leadsTotal);await refreshMyLeadsWorkspace();}
 
@@ -5594,6 +5601,58 @@ function renderCampGroups(groups){
   populateCountrySelect('camp-country-sel',campCountries,S.activeCountry);
   renderFilterChips(S.brands,'brand-chips',S.activeBrands,'brand');
   applyGroupFilters();
+}
+
+// ── Saved Audience Segments ──
+async function loadAudienceSegments(){
+  try{
+    const d=await apiWMsg('api/audience-segments');
+    S.cache.audienceSegments=d.segments||[];
+  }catch(e){S.cache.audienceSegments=S.cache.audienceSegments||[];}
+  renderAudienceSegmentSelect();
+}
+function renderAudienceSegmentSelect(){
+  const sel=document.getElementById('segment-select');
+  if(!sel)return;
+  const segments=S.cache.audienceSegments||[];
+  const current=sel.value;
+  sel.innerHTML='<option value="">Saved segments…</option>'+segments.map(s=>`<option value="${s.id}">${_hesc(s.name)}</option>`).join('');
+  if(segments.some(s=>String(s.id)===current))sel.value=current;
+}
+async function saveCurrentAudienceSegment(){
+  const name=prompt('Name this segment (e.g. "UAE Mix buyers"):');
+  if(!name||!name.trim())return;
+  try{
+    await apiWMsg('api/audience-segments','POST',{name:name.trim(),platforms:S.activePlatforms,brands:S.activeBrands,region:S.activeCampaignRegion,country:S.activeCountry});
+    showToast(`Segment "${name.trim()}" saved`,'success');
+    await loadAudienceSegments();
+  }catch(e){showToast(e.message||'Failed to save segment','error');}
+}
+function applyAudienceSegment(id){
+  const delBtn=document.getElementById('segment-delete-btn');
+  if(!id){if(delBtn)delBtn.style.display='none';return;}
+  const segment=(S.cache.audienceSegments||[]).find(s=>String(s.id)===String(id));
+  if(!segment)return;
+  S.activePlatforms=[...segment.platforms];
+  S.activeBrands=[...segment.brands];
+  S.activeCampaignRegion=segment.region||'ALL';
+  S.activeCountry=segment.country||'ALL';
+  renderCampGroups(S.groups);
+  if(delBtn)delBtn.style.display='inline-flex';
+  showToast(`Applied segment "${segment.name}"`,'success');
+}
+async function deleteCurrentAudienceSegment(){
+  const sel=document.getElementById('segment-select');
+  const id=sel?.value;
+  if(!id)return;
+  const segment=(S.cache.audienceSegments||[]).find(s=>String(s.id)===String(id));
+  if(!confirm(`Delete saved segment "${segment?.name||id}"?`))return;
+  try{
+    await apiWMsg(`api/audience-segments/${id}`,'DELETE');
+    showToast('Segment deleted','success');
+    await loadAudienceSegments();
+    document.getElementById('segment-delete-btn').style.display='none';
+  }catch(e){showToast(e.message||'Failed to delete segment','error');}
 }
 
 // Render Group Cards supporting Pareto Tail UI flags and Velocity Arrows

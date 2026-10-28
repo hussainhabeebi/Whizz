@@ -158,6 +158,20 @@ async function repairSchema(env) {
   // account, so that report is built from this log instead of Chatwoot's analytics).
   await addColumns(env, 'user_activity_log', [['inboxId', "TEXT NOT NULL DEFAULT ''"]]);
 
+  // A named platform/brand/region/country filter combo, saved from the campaign
+  // wizard's Audience step so it can be reloaded instead of rebuilt every time.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS audience_segments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    ownerEmail TEXT NOT NULL,
+    teamId TEXT NOT NULL DEFAULT 'sales',
+    platforms TEXT NOT NULL DEFAULT '[]',
+    brands TEXT NOT NULL DEFAULT '[]',
+    region TEXT NOT NULL DEFAULT 'ALL',
+    country TEXT NOT NULL DEFAULT 'ALL',
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_team ON conversation_assignments(assignedTeamId)',
@@ -171,7 +185,8 @@ async function repairSchema(env) {
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_score ON directory_prospects(leadScore)',
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_updated ON directory_prospects(updatedAt)',
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_chatwoot_inboxes_inbox_id ON chatwoot_inboxes(inboxId)',
-    'CREATE INDEX IF NOT EXISTS idx_user_activity_log_email_created ON user_activity_log(email, createdAt)'
+    'CREATE INDEX IF NOT EXISTS idx_user_activity_log_email_created ON user_activity_log(email, createdAt)',
+    'CREATE INDEX IF NOT EXISTS idx_audience_segments_owner ON audience_segments(ownerEmail)'
   ]) await safeRun(env, sql);
 }
 
