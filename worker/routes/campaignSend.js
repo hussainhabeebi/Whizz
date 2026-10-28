@@ -32,7 +32,7 @@ async function currentUser(request, env) {
   return email ? env.DB.prepare('SELECT email,role,teamId FROM users WHERE email=?').bind(email).first() : null;
 }
 
-async function findInbox(env, inboxId) {
+export async function findInbox(env, inboxId) {
   if (inboxId) return { inbox: await env.DB.prepare('SELECT * FROM chatwoot_inboxes WHERE inboxId=?').bind(inboxId).first() };
   const result = await env.DB.prepare("SELECT * FROM chatwoot_inboxes WHERE phoneNumberId<>'' ORDER BY id LIMIT 2").all();
   const rows = result.results || [];
@@ -44,12 +44,12 @@ async function findInbox(env, inboxId) {
 // Per-number daily quota — stops one rep's bulk send from silently exhausting a shared
 // number's whole daily capacity before anyone notices (Meta would otherwise just start
 // rejecting sends once its own platform-level limit is hit, with no warning beforehand).
-async function sentTodayForInbox(env, inboxId) {
+export async function sentTodayForInbox(env, inboxId) {
   const row = await env.DB.prepare("SELECT COALESCE(SUM(count),0) total FROM user_activity_log WHERE inboxId=? AND date(createdAt)=date('now')").bind(inboxId).first();
   return Number(row?.total) || 0;
 }
 
-function toSendableNumber(phone) {
+export function toSendableNumber(phone) {
   const digits = String(phone || '').replace(/[^\d]/g, '');
   return digits.replace(/^0+/, '');
 }
@@ -59,7 +59,7 @@ function toSendableNumber(phone) {
 // order. {{1}} is filled with the contact's name (a real, useful default); anything beyond
 // that isn't data Whizz has per-contact, so those templates are rejected up front rather
 // than silently sent with placeholder junk.
-function buildComponents(template, contact) {
+export function buildComponents(template, contact) {
   const bodyVars = [...new Set([...(template?.body || '').matchAll(/\{\{(\d+)\}\}/g)].map(m => Number(m[1])))].sort((a, b) => a - b);
   const headerVars = [...new Set([...(template?.header || '').matchAll(/\{\{(\d+)\}\}/g)].map(m => Number(m[1])))].sort((a, b) => a - b);
   if (bodyVars.some(n => n > 1) || headerVars.length) {
@@ -76,7 +76,7 @@ function buildComponents(template, contact) {
 // exhaustive, but covers the common cases so the three buckets mean something instead of
 // everything landing in "unknown" (same intent as the old n8n-based bucket classifier,
 // now backed by Meta's own error codes instead of a guess).
-function classifyMetaErrorCode(code) {
+export function classifyMetaErrorCode(code) {
   if ([131026, 131053, 100].includes(code)) return 'permanent';
   if ([130429, 131048, 4, 80007, 1].includes(code)) return 'transient';
   if (code >= 132000 && code < 133000) return 'policy';

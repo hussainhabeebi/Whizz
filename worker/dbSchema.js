@@ -228,6 +228,36 @@ async function repairSchema(env) {
     language TEXT NOT NULL
   )`);
 
+  // Genuinely time-staged campaign rollout — processed by a real Cron Trigger (see
+  // wrangler.toml's [triggers] and stagedCampaigns.js's processStagedCampaignRuns), not a
+  // single Worker invocation pretending to wait. remainingContacts/results are JSON since
+  // D1 has no array column type; everything else is queryable for the Staged Rollouts list.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS staged_campaign_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    status TEXT NOT NULL DEFAULT 'active',
+    templateName TEXT NOT NULL,
+    language TEXT NOT NULL,
+    templateHeader TEXT NOT NULL DEFAULT '',
+    templateBody TEXT NOT NULL DEFAULT '',
+    templateFooter TEXT NOT NULL DEFAULT '',
+    inboxId TEXT NOT NULL DEFAULT '',
+    audienceLabel TEXT NOT NULL DEFAULT '',
+    batchSize INTEGER NOT NULL DEFAULT 50,
+    intervalMinutes INTEGER NOT NULL DEFAULT 60,
+    maxPermanentFailureRate REAL NOT NULL DEFAULT 8,
+    maxTotalFailureRate REAL NOT NULL DEFAULT 15,
+    remainingContacts TEXT NOT NULL DEFAULT '[]',
+    totalContacts INTEGER NOT NULL DEFAULT 0,
+    sentCount INTEGER NOT NULL DEFAULT 0,
+    failedCount INTEGER NOT NULL DEFAULT 0,
+    permanentFailedCount INTEGER NOT NULL DEFAULT 0,
+    createdByEmail TEXT NOT NULL DEFAULT '',
+    nextRunAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    lastNote TEXT NOT NULL DEFAULT '',
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_team ON conversation_assignments(assignedTeamId)',
@@ -244,7 +274,8 @@ async function repairSchema(env) {
     'CREATE INDEX IF NOT EXISTS idx_user_activity_log_email_created ON user_activity_log(email, createdAt)',
     'CREATE INDEX IF NOT EXISTS idx_audience_segments_owner ON audience_segments(ownerEmail)',
     'CREATE INDEX IF NOT EXISTS idx_send_failures_phone ON send_failures(phone)',
-    'CREATE INDEX IF NOT EXISTS idx_message_delivery_status_phone ON message_delivery_status(phone)'
+    'CREATE INDEX IF NOT EXISTS idx_message_delivery_status_phone ON message_delivery_status(phone)',
+    "CREATE INDEX IF NOT EXISTS idx_staged_campaign_runs_due ON staged_campaign_runs(status, nextRunAt)"
   ]) await safeRun(env, sql);
 }
 

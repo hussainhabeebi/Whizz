@@ -21,3 +21,10 @@ database_id = "028d5b86-352e-4809-87d1-02e2bfc34a69"
 
 [ai]
 binding = "AI"
+
+[triggers]
+# Drives genuinely time-staged campaign rollout (worker/routes/stagedCampaigns.js) — each
+# tick sends the next due batch for every active staged run. Only takes effect once
+# deployed (`wrangler deploy`, already part of `npm run deploy`); editing this file alone
+# does not activate it on the already-running Worker.
+crons = ["*/15 * * * *"]

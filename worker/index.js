@@ -19,6 +19,7 @@ import { handleListAudienceSegments, handleCreateAudienceSegment, handleDeleteAu
 import { handleListOptOuts, handleAddOptOut, handleRemoveOptOut, handleCheckOptOut } from './routes/optOuts.js';
 import { handleListCountryLanguageMap, handleSetCountryLanguageMap, handleDeleteCountryLanguageMap } from './routes/countryLanguage.js';
 import { handleMetaWebhookVerify, handleMetaWebhookEvent, handleGetDeliveryStatuses } from './routes/metaWebhook.js';
+import { handleCreateStagedRun, handleListStagedRuns, handlePauseStagedRun, handleResumeStagedRun, handleCancelStagedRun, processStagedCampaignRuns } from './routes/stagedCampaigns.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -60,6 +61,8 @@ const routes = [
   { method: 'POST', path: '/api/country-language-map', handler: handleSetCountryLanguageMap },
   { method: 'POST', path: '/api/campaigns/delivery-status', handler: handleGetDeliveryStatuses },
   { method: 'GET', path: '/api/chatwoot/send-time-suggestion', handler: handleSendTimeSuggestion },
+  { method: 'GET', path: '/api/staged-campaigns', handler: handleListStagedRuns },
+  { method: 'POST', path: '/api/staged-campaigns', handler: handleCreateStagedRun },
 ];
 
 async function leadActor(request, env) {
@@ -262,6 +265,15 @@ export default {
       try { return await handleDeleteCountryLanguageMap(request, env, countryLangMatch[1]); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
+    const stagedRunMatch = url.pathname.match(/^\/api\/staged-campaigns\/(\d+)\/(pause|resume|cancel)$/);
+    if (stagedRunMatch && request.method === 'POST') {
+      try {
+        const id = Number(stagedRunMatch[1]);
+        if (stagedRunMatch[2] === 'pause') return await handlePauseStagedRun(request, env, id);
+        if (stagedRunMatch[2] === 'resume') return await handleResumeStagedRun(request, env, id);
+        return await handleCancelStagedRun(request, env, id);
+      } catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
     const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access|sync-access))?$/);
     if (userMatch) {
       const email = decodeURIComponent(userMatch[1]).trim().toLowerCase();
@@ -289,5 +301,15 @@ export default {
       return new Response(injected, { status: assetResponse.status, statusText: assetResponse.statusText, headers });
     }
     return assetResponse;
+  },
+
+  // Fires on the Cron Trigger set in wrangler.toml's [triggers] — this is what makes
+  // staged campaign rollout (worker/routes/stagedCampaigns.js) genuinely time-staged
+  // rather than a single Worker invocation pretending to wait between batches. Requires
+  // `wrangler deploy` (already part of this repo's `npm run deploy` script) to pick up a
+  // new or changed [triggers] block — editing wrangler.toml alone doesn't activate it.
+  async scheduled(event, env, ctx) {
+    await ensureDatabaseSchema(env);
+    await processStagedCampaignRuns(env);
   },
 };
