@@ -199,6 +199,7 @@ export async function handleSendCampaignMeta(request, env) {
         if (bucket === 'permanent') permanentFails++;
         totalFails++;
         results.push({ contactId: contact.id, name: contact.contactName, phone: contact.phone, status: 'failed', reason: data.error?.message || `Meta API error (${response.status})`, code, bucket });
+        try { await env.DB.prepare('INSERT INTO send_failures (phone,bucket,reason) VALUES (?,?,?)').bind(toSendableNumber(contact.phone), bucket, String(data.error?.message || '').slice(0, 200)).run(); } catch (_) {}
         continue;
       }
       results.push({ contactId: contact.id, name: contact.contactName, phone: contact.phone, status: 'sent', messageId: data.messages?.[0]?.id });
@@ -302,4 +303,29 @@ export async function handleSendTemplateMessageMeta(request, env) {
 
   await logUserActivity(env, user.email, 'template_sent', 1, inbox.inboxId);
   return json({ messageId: data.messages?.[0]?.id, mirrored });
+}
+
+// Campaign review step's "list health" check — resolves the same audience a real send
+// would, but only checks it against send_failures for prior permanent (hard-bounce-style)
+// failures, never sends anything. Chunked phone lookups since an audience can run into
+// the thousands and a single IN(...) with that many placeholders risks hitting D1's own
+// per-statement parameter limit.
+export async function handleListHealthPreview(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const body = await request.json().catch(() => ({}));
+  let contacts;
+  try { contacts = await resolveContactsForCampaign(env, user, body); }
+  catch (error) { return json({ error: error.message }, 500); }
+
+  const phones = [...new Set(contacts.map(c => toSendableNumber(c.phone)).filter(Boolean))];
+  let atRisk = 0;
+  const CHUNK = 100;
+  for (let i = 0; i < phones.length; i += CHUNK) {
+    const slice = phones.slice(i, i + CHUNK);
+    const placeholders = slice.map(() => '?').join(',');
+    const result = await env.DB.prepare(`SELECT COUNT(DISTINCT phone) n FROM send_failures WHERE bucket='permanent' AND phone IN (${placeholders})`).bind(...slice).first();
+    atRisk += Number(result?.n) || 0;
+  }
+  return json({ total: contacts.length, atRisk });
 }
