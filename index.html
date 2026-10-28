@@ -2244,6 +2244,7 @@ body.dark{
                 <div class="fg" style="flex:1;min-width:120px;margin-bottom:0;"><label class="fl">Phone Number</label><input class="fi" id="cw-new-inbox-phone" placeholder="e.g. +971562181583"/></div>
                 <div class="fg" style="flex:1;min-width:140px;margin-bottom:0;"><label class="fl">WABA ID <span style="font-weight:400;text-transform:none;color:var(--text3);">(optional)</span></label><input class="fi" id="cw-new-inbox-waba" placeholder="e.g. 1481709013760046"/></div>
                 <div class="fg" style="flex:1;min-width:140px;margin-bottom:0;"><label class="fl">Phone Number ID <span style="font-weight:400;text-transform:none;color:var(--text3);">(for sending)</span></label><input class="fi" id="cw-new-inbox-phone-id" placeholder="e.g. 109876543210987"/></div>
+                <div class="fg" style="flex:1;min-width:120px;margin-bottom:0;"><label class="fl">Daily Send Cap <span style="font-weight:400;text-transform:none;color:var(--text3);">(0 = none)</span></label><input class="fi" type="number" min="0" id="cw-new-inbox-cap" placeholder="e.g. 1000"/></div>
                 <button class="t-btn btn-primary" style="height:38px;" id="cw-inbox-submit-btn" onclick="addChatwootInbox()">Add Inbox</button>
                 <button class="t-btn btn-ghost" style="height:38px;display:none;" id="cw-inbox-cancel-btn" onclick="cancelEditChatwootInbox()">Cancel</button>
               </div>
@@ -5820,7 +5821,7 @@ async function sendCampaign(){
     document.getElementById('prog-fill').style.width='100%';
     const failures=classifyCampaignFailures(result),suppressed=Number(result.suppressed||result.skipped||0),paused=Boolean(result.paused||result.auto_paused);
     document.getElementById('prog-text').textContent=paused?`Campaign auto-paused for protection. Sent: ${result.sent||0}, Failed: ${result.failed||0}`:`Campaign complete. Sent: ${result.sent||0}, Suppressed: ${suppressed}, Failed: ${result.failed||0}`;
-    showToast(paused?'Campaign paused automatically after a delivery-risk spike':`Campaign completed: ${result.sent||0} sent, ${suppressed} protected`,paused?'error':'success');
+    showToast(paused?'Campaign paused automatically after a delivery-risk spike':result.quotaCapped?`Campaign completed: ${result.sent||0} sent — the rest held back, this number's daily send cap was reached`:`Campaign completed: ${result.sent||0} sent, ${suppressed} protected`,paused?'error':(result.quotaCapped?'info':'success'));
     const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,phone:r.phone,reason:r.reason})).slice(0,50);
     saveHistory({template:S.selectedTemplate.name,language:S.selectedTemplate.language,templateHeader:S.selectedTemplate.header||'',templateBody:S.selectedTemplate.body||'',templateFooter:S.selectedTemplate.footer||'',audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total||0,sent:result.sent||0,failed:result.failed||0,suppressed,paused,failures,failedContacts,inboxId:S.activeCampaignInboxId||'',deliveryGuard:getDeliveryGuardConfig(),ts:Date.now()});
     setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
@@ -8220,7 +8221,7 @@ function renderChatwootInboxList(inboxes){
       <div class="hist-icon" style="background:var(--green-dim);color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
       <div class="hist-info">
         <div class="hist-name">${ib.label}${ib.phoneNumber?` <span style="font-weight:400;color:var(--text3);">${ib.phoneNumber}</span>`:''}</div>
-        <div class="hist-meta">Inbox ID: ${ib.inboxId}${ib.wabaId?` · WABA: ${ib.wabaId}`:' · No WABA ID set'}${ib.phoneNumberId?` · Phone Number ID: ${ib.phoneNumberId}`:' · No Phone Number ID set (campaign sending disabled)'}</div>
+        <div class="hist-meta">Inbox ID: ${ib.inboxId}${ib.wabaId?` · WABA: ${ib.wabaId}`:' · No WABA ID set'}${ib.phoneNumberId?` · Phone Number ID: ${ib.phoneNumberId}`:' · No Phone Number ID set (campaign sending disabled)'}${ib.dailySendCap?` · Cap: ${ib.dailySendCap}/day`:''}</div>
       </div>
       <button class="t-btn btn-ghost t-btn-sm" style="flex-shrink:0;" onclick="editChatwootInbox(${ib.id})">Edit</button>
       <button class="t-btn t-btn-sm" style="background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.2);flex-shrink:0;" onclick="deleteChatwootInbox(${ib.id})">Delete</button>
@@ -8237,6 +8238,7 @@ function editChatwootInbox(id){
   document.getElementById('cw-new-inbox-phone').value=ib.phoneNumber||'';
   document.getElementById('cw-new-inbox-waba').value=ib.wabaId||'';
   document.getElementById('cw-new-inbox-phone-id').value=ib.phoneNumberId||'';
+  document.getElementById('cw-new-inbox-cap').value=ib.dailySendCap||'';
   document.getElementById('cw-inbox-submit-btn').textContent='Update Inbox';
   document.getElementById('cw-inbox-cancel-btn').style.display='inline-flex';
   document.getElementById('cw-new-inbox-label').scrollIntoView({behavior:'smooth',block:'center'});
@@ -8249,6 +8251,7 @@ function cancelEditChatwootInbox(){
   document.getElementById('cw-new-inbox-phone').value='';
   document.getElementById('cw-new-inbox-waba').value='';
   document.getElementById('cw-new-inbox-phone-id').value='';
+  document.getElementById('cw-new-inbox-cap').value='';
   document.getElementById('cw-inbox-submit-btn').textContent='Add Inbox';
   document.getElementById('cw-inbox-cancel-btn').style.display='none';
 }
@@ -8272,10 +8275,11 @@ async function addChatwootInbox(){
   const phoneNumber=document.getElementById('cw-new-inbox-phone').value.trim();
   const wabaId=document.getElementById('cw-new-inbox-waba').value.trim();
   const phoneNumberId=document.getElementById('cw-new-inbox-phone-id').value.trim();
+  const dailySendCap=parseInt(document.getElementById('cw-new-inbox-cap').value,10)||0;
   if(!label||!inboxId){showToast('Label and Inbox ID are required','error');return;}
   try{
-    if(editId)await cw(`inboxes/${editId}`,'PUT',{label,phoneNumber,wabaId,phoneNumberId});
-    else await cw('inboxes','POST',{inboxId,label,phoneNumber,wabaId,phoneNumberId});
+    if(editId)await cw(`inboxes/${editId}`,'PUT',{label,phoneNumber,wabaId,phoneNumberId,dailySendCap});
+    else await cw('inboxes','POST',{inboxId,label,phoneNumber,wabaId,phoneNumberId,dailySendCap});
     cancelEditChatwootInbox();
     showToast(`Inbox "${label}" ${editId?'updated':'added'}`,'success');
     loadChatwootIntegration();
