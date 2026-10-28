@@ -17,6 +17,7 @@ import { handleSendCampaignMeta, handleSendTemplateMessageMeta, handleListHealth
 import { handleTeamActivityReport, handleInboxActivityReport } from './routes/teamActivity.js';
 import { handleListAudienceSegments, handleCreateAudienceSegment, handleDeleteAudienceSegment } from './routes/audienceSegments.js';
 import { handleListOptOuts, handleAddOptOut, handleRemoveOptOut, handleCheckOptOut } from './routes/optOuts.js';
+import { handleListCountryLanguageMap, handleSetCountryLanguageMap, handleDeleteCountryLanguageMap } from './routes/countryLanguage.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -54,6 +55,8 @@ const routes = [
   { method: 'POST', path: '/api/opt-outs', handler: handleAddOptOut },
   { method: 'GET', path: '/api/opt-outs/check', handler: handleCheckOptOut },
   { method: 'POST', path: '/api/campaigns/list-health', handler: handleListHealthPreview },
+  { method: 'GET', path: '/api/country-language-map', handler: handleListCountryLanguageMap },
+  { method: 'POST', path: '/api/country-language-map', handler: handleSetCountryLanguageMap },
 ];
 
 async function leadActor(request, env) {
@@ -237,6 +240,11 @@ export default {
     const optOutMatch = url.pathname.match(/^\/api\/opt-outs\/([^/]+)$/);
     if (optOutMatch && request.method === 'DELETE') {
       try { return await handleRemoveOptOut(request, env, decodeURIComponent(optOutMatch[1])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const countryLangMatch = url.pathname.match(/^\/api\/country-language-map\/([^/]+)$/);
+    if (countryLangMatch && request.method === 'DELETE') {
+      try { return await handleDeleteCountryLanguageMap(request, env, countryLangMatch[1]); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access|sync-access))?$/);

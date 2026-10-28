@@ -1217,6 +1217,12 @@ body.dark{
               <div class="tpl-grid" id="camp-templates">
                 <div class="empty-state">Click Refresh to load</div>
               </div>
+              <div id="tpl-lang-autopick-wrap" style="display:none;margin-top:12px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2);">
+                  <input type="checkbox" id="tpl-lang-autopick"> Auto-pick language per contact's country — <span id="tpl-lang-autopick-count">0</span> approved language variants of this template exist
+                </label>
+                <div class="fi-hint">Uses the country → language mapping set under Integrations. A contact whose country isn't mapped (or has no matching variant) gets the language selected above.</div>
+              </div>
               <div style="margin-top:16px;display:flex;justify-content:space-between;">
                 <button class="t-btn btn-ghost" onclick="campStep(2)">← Back</button>
                 <button class="t-btn btn-primary" onclick="campStep(4)">Next: Review →</button>
@@ -2296,6 +2302,21 @@ body.dark{
               <button class="t-btn btn-primary" style="height:38px;" onclick="addOptOut()">Add</button>
             </div>
             <div id="opt-out-list"><div class="empty-state">Checking…</div></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head">
+            <div class="card-title">Country → Template Language</div>
+            <span style="font-size:10px;color:var(--text3);">Administrator only</span>
+          </div>
+          <div class="card-body">
+            <div class="fi-hint" style="margin-bottom:12px;">Used by the campaign wizard's "Auto-pick language per contact's country" option, shown only when a template has more than one Meta-approved language variant. A country with no mapping falls back to the language selected in the wizard. No defaults are guessed here — add only the mappings you've verified.</div>
+            <div style="display:flex;gap:8px;margin-bottom:14px;">
+              <input class="fi" id="lang-map-new-country" placeholder="Country, e.g. United Arab Emirates" style="flex:1;"/>
+              <input class="fi" id="lang-map-new-language" placeholder="Language code, e.g. ar" style="width:140px;"/>
+              <button class="t-btn btn-primary" style="height:38px;" onclick="addCountryLanguageMap()">Save</button>
+            </div>
+            <div id="lang-map-list"><div class="empty-state">Checking…</div></div>
           </div>
         </div>
       </div>
@@ -5729,7 +5750,30 @@ function renderGroupCards(groups,id,selectable,clickFn){
   </div>`;
 }
 
-function renderCampTemplates(templates){const el=document.getElementById('camp-templates');const visible=templatesForInbox(templates||[],S.activeCampaignInboxId);if(!visible.length){el.innerHTML='<div class="empty-state">WABA contains zero template components inside state approved</div>';return;}el.innerHTML=visible.map(t=>`<div class="tpl-card" onclick="selectTpl('${t.name}',this)"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span></div><div class="tpl-body">${t.body||''}</div></div>`).join('');}
+function renderCampTemplates(templates){const el=document.getElementById('camp-templates');const visible=templatesForInbox(templates||[],S.activeCampaignInboxId);if(!visible.length){el.innerHTML='<div class="empty-state">WABA contains zero template components inside state approved</div>';return;}el.innerHTML=visible.map(t=>`<div class="tpl-card" onclick="selectTpl('${_hesc(t.name).replace(/'/g,"\\'")}','${_hesc(t.language).replace(/'/g,"\\'")}',this)"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span></div><div class="tpl-body">${t.body||''}</div></div>`).join('');}
+function renderLanguageAutoPickOption(){
+  const wrap=document.getElementById('tpl-lang-autopick-wrap');
+  if(!wrap)return;
+  const variants=S.selectedTemplate?(S.templates||[]).filter(t=>t.name===S.selectedTemplate.name):[];
+  if(variants.length>1){
+    wrap.style.display='block';
+    document.getElementById('tpl-lang-autopick-count').textContent=variants.length;
+  }else{
+    wrap.style.display='none';
+    document.getElementById('tpl-lang-autopick').checked=false;
+  }
+}
+// Built only when the auto-pick checkbox is actually on — maps each approved language
+// variant of the selected template by its language code, for campaignSend.js to pick
+// from per-contact based on the admin's country -> language mapping.
+function buildLanguageVariantsPayload(){
+  if(!document.getElementById('tpl-lang-autopick')?.checked||!S.selectedTemplate)return undefined;
+  const variants=(S.templates||[]).filter(t=>t.name===S.selectedTemplate.name);
+  if(variants.length<2)return undefined;
+  const map={};
+  variants.forEach(t=>{map[t.language]={name:t.name,body:t.body||'',header:t.header||''};});
+  return map;
+}
 function toggleGroup(platform,country,brand,el){el.classList.toggle('selected');const cb=el.querySelector('input[type=checkbox]');if(cb)cb.checked=el.classList.contains('selected');const key=platform+'||'+country+'||'+brand;const idx=S.selectedGroups.indexOf(key);if(idx===-1)S.selectedGroups.push(key);else S.selectedGroups.splice(idx,1);updateAudienceLiveCount();}
 function toggleAllGroups(cb){S.selectedGroups=[];document.querySelectorAll('#camp-groups .group-card').forEach(c=>{c.classList.toggle('selected',cb.checked);const rowCb=c.querySelector('input[type=checkbox]');if(rowCb)rowCb.checked=cb.checked;if(cb.checked){const p=c.querySelector('.g-platform').textContent,co=c.querySelector('.g-country').textContent,b=c.querySelector('.g-brand').getAttribute('title');S.selectedGroups.push(p+'||'+co+'||'+b);}});updateAudienceLiveCount();}
 // Selects every row currently matching the platform/region/country/brand filters —
@@ -5755,7 +5799,7 @@ function updateAudienceLiveCount(){
   const plural=document.getElementById('aud-live-count-plural');
   if(plural)plural.textContent=total===1?'':'s';
 }
-function selectTpl(name,el){document.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');S.selectedTemplate=S.templates.find(t=>t.name===name);}
+function selectTpl(name,language,el){document.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');S.selectedTemplate=S.templates.find(t=>t.name===name&&t.language===language)||S.templates.find(t=>t.name===name);renderLanguageAutoPickOption();}
 function campStep(n){
   if(n>=2&&!S.groups.length){showToast('Synchronize CRM cache boundaries first','error');return;}
   if(n===4&&!S.selectedTemplate){showToast('Select target template structure context','error');return;}
@@ -5874,6 +5918,7 @@ async function sendCampaign(){
       template_name:S.selectedTemplate.name,
       language:S.selectedTemplate.language,
       template:{header:S.selectedTemplate.header||'',body:S.selectedTemplate.body||'',footer:S.selectedTemplate.footer||''},
+      languageVariants:buildLanguageVariantsPayload(),
       delivery_guard:getDeliveryGuardConfig()
     });
     clearInterval(interval);
@@ -8243,6 +8288,54 @@ async function loadIntegrationsStatus(){
   loadChatwootIntegration();
   loadMetaIntegration();
   loadOptOuts();
+  loadCountryLanguageMap();
+}
+// ── Country → template language mapping ──
+async function loadCountryLanguageMap(){
+  const el=document.getElementById('lang-map-list');
+  if(!el)return;
+  el.innerHTML='<div class="empty-state">Checking…</div>';
+  try{
+    const d=await apiWMsg('api/country-language-map');
+    S.cache.countryLanguageMap=d.map||[];
+    renderCountryLanguageMap();
+  }catch(e){el.innerHTML=`<div class="empty-state">${_hesc(e.message||'Failed to load')}</div>`;}
+}
+function renderCountryLanguageMap(){
+  const el=document.getElementById('lang-map-list');
+  if(!el)return;
+  const rows=S.cache.countryLanguageMap||[];
+  if(!rows.length){el.innerHTML='<div class="empty-state">No mappings yet — contacts fall back to the language chosen in the wizard.</div>';return;}
+  el.innerHTML=rows.map(r=>`
+    <div class="hist-item">
+      <div class="hist-icon" style="background:var(--blue-dim,rgba(59,130,246,.12));color:var(--blue,#3b82f6);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+      <div class="hist-info">
+        <div class="hist-name">${_hesc(r.country)}</div>
+        <div class="hist-meta">${_hesc(r.language)}</div>
+      </div>
+      <button class="t-btn btn-ghost t-btn-sm" style="flex-shrink:0;" onclick="removeCountryLanguageMap('${_hesc(r.country)}')">Remove</button>
+    </div>
+  `).join('');
+}
+async function addCountryLanguageMap(){
+  const country=document.getElementById('lang-map-new-country').value.trim();
+  const language=document.getElementById('lang-map-new-language').value.trim();
+  if(!country||!language){showToast('Both a country and a language code are required','error');return;}
+  try{
+    await apiWMsg('api/country-language-map','POST',{country,language});
+    document.getElementById('lang-map-new-country').value='';
+    document.getElementById('lang-map-new-language').value='';
+    showToast('Mapping saved','success');
+    loadCountryLanguageMap();
+  }catch(e){showToast(e.message||'Failed to save','error');}
+}
+async function removeCountryLanguageMap(country){
+  if(!confirm(`Remove the language mapping for ${country}?`))return;
+  try{
+    await apiWMsg(`api/country-language-map/${encodeURIComponent(country)}`,'DELETE');
+    showToast('Mapping removed','success');
+    loadCountryLanguageMap();
+  }catch(e){showToast(e.message||'Failed to remove','error');}
 }
 // ── Suppression List (opt-outs) ──
 async function loadOptOuts(){

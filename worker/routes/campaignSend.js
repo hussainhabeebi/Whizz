@@ -163,6 +163,25 @@ export async function handleSendCampaignMeta(request, env) {
     template = { name: templateName, body: '', header: '' };
   }
 
+  // Optional per-contact template-language auto-pick: the frontend passes every approved
+  // language variant it already has cached for this template name (same name, different
+  // Meta-approved language), and this picks the one matching the contact's country via
+  // the admin-defined country_language_map — falling back to the originally selected
+  // template/language for any contact whose country isn't mapped, or has no variant.
+  const languageVariants = body.languageVariants && typeof body.languageVariants === 'object' ? body.languageVariants : null;
+  let countryLangMap = null;
+  if (languageVariants) {
+    const result = await env.DB.prepare('SELECT country,language FROM country_language_map').all();
+    countryLangMap = new Map((result.results || []).map(r => [String(r.country).toLowerCase(), r.language]));
+  }
+  function resolveTemplateForContact(contact) {
+    if (!countryLangMap) return { templateName, language, template };
+    const mappedLang = countryLangMap.get(String(contact.country || '').toLowerCase());
+    const variant = mappedLang && languageVariants[mappedLang];
+    if (!variant) return { templateName, language, template };
+    return { templateName: variant.name || templateName, language: mappedLang, template: variant };
+  }
+
   const results = [];
   let permanentFails = 0, totalFails = 0, paused = false;
   const maxPermanentRate = (guard.max_permanent_failure_rate ?? 8) / 100;
@@ -176,15 +195,16 @@ export async function handleSendCampaignMeta(request, env) {
         break;
       }
     }
+    const { templateName: contactTemplateName, language: contactLanguage, template: contactTemplate } = resolveTemplateForContact(contact);
     let components;
-    try { components = buildComponents(template, contact); }
+    try { components = buildComponents(contactTemplate, contact); }
     catch (error) { results.push({ contactId: contact.id, name: contact.contactName, phone: contact.phone, status: 'failed', reason: error.message, bucket: 'policy' }); totalFails++; continue; }
 
     const payload = {
       messaging_product: 'whatsapp',
       to: toSendableNumber(contact.phone),
       type: 'template',
-      template: { name: templateName, language: { code: language }, ...(components.length ? { components } : {}) },
+      template: { name: contactTemplateName, language: { code: contactLanguage }, ...(components.length ? { components } : {}) },
     };
     try {
       const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${inbox.phoneNumberId}/messages`, {
