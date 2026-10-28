@@ -4253,7 +4253,7 @@ function renderInboxActivity(){
   const d=S.cache.inboxActivity;
   if(!d||!d.inboxes){el.innerHTML='<div class="empty-state">Click Refresh to load</div>';return;}
   if(!d.inboxes.length){el.innerHTML='<div class="empty-state">No WhatsApp inboxes configured yet — add one under Integrations → Chatwoot.</div>';return;}
-  const{byInbox:localHistory,unattributed}=localCampaignHistoryWeeklySent();
+  const{byInbox:localHistory,unattributed}=localCampaignHistoryWeeklySent(d.sentTrackedSince?Date.parse(d.sentTrackedSince):null);
   const trackedNote=(d.sentTrackedSince
     ? `"Sent" is tracked by Whizz since ${new Date(d.sentTrackedSince).toLocaleDateString('en-AE')} — weeks marked * are backfilled from this device's own Campaign History instead (bulk campaigns only, and only on whichever browser actually ran them — may be incomplete).`
     : `"Sent" hasn't tracked any activity yet — weeks marked * are backfilled from this device's own Campaign History instead (bulk campaigns only, and only on whichever browser actually ran them — may be incomplete).`)
@@ -4298,14 +4298,23 @@ function renderInboxActivity(){
 // already tracked. Entries saved before inboxId was recorded (every campaign run
 // before this feature shipped) can't be attributed to a specific number — those are
 // kept separately under "unattributed" rather than guessed at from the campaign name.
-function localCampaignHistoryWeeklySent(){
+function localCampaignHistoryWeeklySent(cutoffTs){
   const byInbox={},unattributed={};
   (S.history||[]).forEach(h=>{
     if(!h.ts)return;
+    // Anything at or after the server log's own earliest row is already counted there —
+    // every send path logs to the server the moment it happens, so a local Campaign
+    // History entry from that point on is the exact same event, not new information.
+    // Using it anyway would double-count it (this is what caused duplicate-looking
+    // "25 Oct" / "26 Oct" rows with identical counts for a single real send).
+    if(cutoffTs&&h.ts>=cutoffTs)return;
     const dt=new Date(h.ts);
-    const day=(dt.getDay()+6)%7; // Monday=0
-    dt.setDate(dt.getDate()-day);
-    dt.setHours(0,0,0,0);
+    // UTC throughout, to match the backend's own (UTC/SQLite) week bucketing — mixing
+    // local getDay()/setDate() with a UTC toISOString() cut was the original source of
+    // the off-by-one-day week key that let the same event land in two different weeks.
+    const day=(dt.getUTCDay()+6)%7; // Monday=0
+    dt.setUTCDate(dt.getUTCDate()-day);
+    dt.setUTCHours(0,0,0,0);
     const week=dt.toISOString().slice(0,10);
     if(h.inboxId){
       byInbox[h.inboxId]=byInbox[h.inboxId]||{};
