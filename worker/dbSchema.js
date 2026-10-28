@@ -202,6 +202,14 @@ async function repairSchema(env) {
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Admin-defined only — no seeded defaults, since guessing a country's marketing
+  // language is exactly the kind of assumption this app tries not to make silently.
+  // Used by campaignSend.js's optional per-contact template-language auto-pick.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS country_language_map (
+    country TEXT PRIMARY KEY,
+    language TEXT NOT NULL
+  )`);
+
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_team ON conversation_assignments(assignedTeamId)',
