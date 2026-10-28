@@ -239,6 +239,70 @@ export async function handleChatwootConversations(request, env) {
   return json({ conversations, assignees: assignees.results || [] });
 }
 
+function toMillis(ts) {
+  const n = Number(ts) || 0;
+  return n > 1e12 ? n : n * 1000;
+}
+function normalizePhoneForMatch(phone) {
+  return String(phone || '').replace(/[^\d]/g, '').replace(/^0+/, '');
+}
+
+// Send-time optimization: a best-effort suggestion, not a statistically rigorous one. It
+// only looks at each conversation's most recent incoming message (what's already fetched
+// for the Conversations page), matched to a contact's country/platform by phone — not a
+// full historical reply log, and bucketed in the viewing admin's own browser-local hour
+// (no per-country timezone mapping is guessed). A thin sample says so plainly rather than
+// pretending to a confidence it doesn't have.
+export async function handleSendTimeSuggestion(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const config = await loadChatwootConfig(env);
+  if (!config) return json({ error: 'Chatwoot is not configured yet. Add your API token under Integrations.' }, 503);
+
+  const url = new URL(request.url);
+  const country = String(url.searchParams.get('country') || '').trim().toLowerCase();
+  const platform = String(url.searchParams.get('platform') || '').trim().toLowerCase();
+
+  let data;
+  try { data = await chatwootFetch(config, '/conversations?status=all'); }
+  catch (error) { return json({ error: error.message }, 502); }
+  const payload = data.data?.payload || data.payload || [];
+
+  const incoming = payload
+    .map(raw => ({
+      phone: raw.meta?.sender?.phone_number || raw.meta?.sender?.phone || '',
+      message: raw.last_non_activity_message,
+    }))
+    .filter(entry => entry.phone && entry.message && entry.message.message_type === 0 && entry.message.created_at);
+
+  if (!incoming.length) return json({ sampleSize: 0, hours: [], message: 'No incoming replies found in the currently synced conversations.' });
+
+  const contactsResult = await env.DB.prepare('SELECT phone,country,platform FROM contacts').all();
+  const contactByPhone = new Map((contactsResult.results || []).map(c => [normalizePhoneForMatch(c.phone), c]));
+
+  const hourCounts = new Array(24).fill(0);
+  let matched = 0;
+  for (const entry of incoming) {
+    const contact = contactByPhone.get(normalizePhoneForMatch(entry.phone));
+    if (country && (!contact || String(contact.country || '').toLowerCase() !== country)) continue;
+    if (platform && (!contact || String(contact.platform || '').toLowerCase() !== platform)) continue;
+    if ((country || platform) && !contact) continue;
+    matched++;
+    const hour = new Date(toMillis(entry.message.created_at)).getHours();
+    hourCounts[hour]++;
+  }
+
+  if (!matched) return json({ sampleSize: 0, hours: [], message: 'No incoming replies matched that filter in the currently synced conversations.' });
+
+  const hours = hourCounts
+    .map((count, hour) => ({ hour, count }))
+    .filter(h => h.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  return json({ sampleSize: matched, hours });
+}
+
 async function requireConversationAccess(request, env, conversationId) {
   const user = await currentUser(request, env);
   if (!user) return { error: json({ error: 'User is not provisioned in Whizz.' }, 403) };

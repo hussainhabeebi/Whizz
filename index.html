@@ -1242,6 +1242,7 @@ body.dark{
                 <div class="s-label" style="margin-bottom:6px;">Message Preview</div>
                 <div id="rv-msg" style="font-size:12px;color:var(--text2);background:var(--bg2);padding:10px;border-radius:6px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.6;max-height:120px;overflow-y:auto;"></div>
                 <div id="rv-health" style="margin-top:12px;font-size:11.5px;color:var(--text3);">Checking list health…</div>
+                <div id="rv-send-time" style="margin-top:8px;font-size:11.5px;color:var(--text3);">Checking historical reply timing…</div>
               </div>
               <div class="delivery-guard" style="margin-bottom:16px;">
                 <div class="guard-head">
@@ -5862,6 +5863,7 @@ function buildReview(){
     if(src&&dst){dst.textContent=src.textContent;dst.style.cssText=src.style.cssText;}
   });
   checkListHealth();
+  checkSendTimeSuggestion();
 }
 // Shared by sendCampaign() and the list-health preview — resolves the same
 // platform/country/brand/audiences shape the backend's resolveContactsForCampaign expects.
@@ -5892,6 +5894,25 @@ async function checkListHealth(){
     el.innerHTML=d.atRisk
       ? `<span style="color:var(--amber);">⚠ ${d.atRisk} of ${d.total} (${pct}%) have a history of permanent delivery failures</span> — likely dead or invalid numbers, based on past send attempts.`
       : `<span style="color:var(--green);">No known delivery-risk numbers in this audience, based on past send attempts.</span>`;
+  }catch(e){el.textContent='';}
+}
+// Best-effort suggestion, not a statistically rigorous one — see the backend's own
+// comment (worker/routes/chatwoot.js) for exactly what it is and isn't based on.
+async function checkSendTimeSuggestion(){
+  const el=document.getElementById('rv-send-time');
+  if(!el)return;
+  el.textContent='Checking historical reply timing…';
+  try{
+    const payload=buildAudienceResolutionPayload();
+    const params=new URLSearchParams();
+    if(payload.country&&payload.country!=='ALL')params.set('country',payload.country);
+    if(payload.platform&&payload.platform!=='ALL')params.set('platform',payload.platform);
+    const d=await apiWMsg(`api/chatwoot/send-time-suggestion${params.toString()?'?'+params.toString():''}`);
+    if(!d.sampleSize||!d.hours?.length){el.textContent=d.message||'';return;}
+    const fmt=h=>{const d2=new Date();d2.setHours(h,0,0,0);return d2.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});};
+    const windows=d.hours.map(h=>`${fmt(h.hour)}–${fmt((h.hour+1)%24)}`).join(', ');
+    const confidence=d.sampleSize<10?' (small sample — treat as a hint, not a rule)':'';
+    el.innerHTML=`<span style="color:var(--accent);">⏱ Best reply windows: ${_hesc(windows)}</span> — based on ${d.sampleSize} recent incoming replies, your local time${confidence}.`;
   }catch(e){el.textContent='';}
 }
 function getCampaignAudienceRules(){

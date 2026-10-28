@@ -11,7 +11,7 @@ import { handleAutomation } from './routes/automation.js';
 import { handleConversationAssignment } from './routes/conversationAssignments.js';
 import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookings.js';
 import { handleLeadIntelligence } from './routes/leadIntelligence.js';
-import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleUpdateChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage } from './routes/chatwoot.js';
+import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleUpdateChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage, handleSendTimeSuggestion } from './routes/chatwoot.js';
 import { handleGetMetaSettings, handleSaveMetaSettings, handleListMetaTemplates, handleCreateMetaTemplate, handleDeleteMetaTemplate } from './routes/metaTemplates.js';
 import { handleSendCampaignMeta, handleSendTemplateMessageMeta, handleListHealthPreview } from './routes/campaignSend.js';
 import { handleTeamActivityReport, handleInboxActivityReport } from './routes/teamActivity.js';
@@ -59,6 +59,7 @@ const routes = [
   { method: 'GET', path: '/api/country-language-map', handler: handleListCountryLanguageMap },
   { method: 'POST', path: '/api/country-language-map', handler: handleSetCountryLanguageMap },
   { method: 'POST', path: '/api/campaigns/delivery-status', handler: handleGetDeliveryStatuses },
+  { method: 'GET', path: '/api/chatwoot/send-time-suggestion', handler: handleSendTimeSuggestion },
 ];
 
 async function leadActor(request, env) {
