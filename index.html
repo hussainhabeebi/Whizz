@@ -1122,22 +1122,34 @@ body.dark{
                 <span id="aud-live-count">0</span> recipient<span id="aud-live-count-plural">s</span>
                 <span style="font-weight:400;color:var(--text3);font-size:11px;">based on the filters below</span>
               </div>
-              <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Filter by platform, country or brand. Leave all unselected to send to everyone.</p>
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;margin-bottom:12px;">
-                <input type="checkbox" id="all-groups" onchange="toggleAllGroups(this)"> Send to ALL contacts
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;margin:12px 0 14px;">
+                <input type="checkbox" id="all-groups" onchange="toggleAllGroups(this)"> Send to ALL contacts, ignoring every filter below
               </label>
-              <div style="margin-bottom:8px;">
-                <div class="eyebrow">Filter by Platform</div>
-                <div class="chips" id="platform-chips"></div>
+              <div class="card" style="margin-bottom:14px;">
+                <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+                  <div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+                      <div class="eyebrow" style="margin:0;">Platform <span style="font-weight:400;text-transform:none;color:var(--text3);">— pick any number</span></div>
+                      <a href="javascript:void(0)" onclick="toggleFilterChip('platform','ALL')" style="font-size:11px;color:var(--accent);text-decoration:none;">Clear</a>
+                    </div>
+                    <input class="fi" id="platform-chips-search" placeholder="Search platforms…" oninput="onChipSearchInput('platform')" style="margin-bottom:8px;font-size:12px;padding:6px 10px;"/>
+                    <div class="chips" id="platform-chips"></div>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <div style="flex:1"><div class="eyebrow">Region</div><select id="camp-region-sel" onchange="onCampRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div>
+                    <div style="flex:1"><div class="eyebrow">Country</div><select id="camp-country-sel" onchange="onCampCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+                      <div class="eyebrow" style="margin:0;">Brand <span style="font-weight:400;text-transform:none;color:var(--text3);">— pick any number</span></div>
+                      <a href="javascript:void(0)" onclick="toggleFilterChip('brand','ALL')" style="font-size:11px;color:var(--accent);text-decoration:none;">Clear</a>
+                    </div>
+                    <input class="fi" id="brand-chips-search" placeholder="Search brands…" oninput="onChipSearchInput('brand')" style="margin-bottom:8px;font-size:12px;padding:6px 10px;"/>
+                    <div class="chips" id="brand-chips"></div>
+                  </div>
+                </div>
               </div>
-              <div style="margin-bottom:8px;display:flex;gap:8px;">
-                <div style="flex:1"><div class="eyebrow">Region</div><select id="camp-region-sel" onchange="onCampRegionChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Regions</option></select></div>
-                <div style="flex:1"><div class="eyebrow">Country</div><select id="camp-country-sel" onchange="onCampCountryChange(this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;"><option value="ALL">All Countries</option></select></div>
-              </div>
-              <div style="margin-bottom:12px;">
-                <div class="eyebrow">Filter by Brand</div>
-                <div class="chips" id="brand-chips"></div>
-              </div>
+              <div class="fi-hint" style="margin-bottom:8px;">Use the checkbox in the table header to select every row currently matching your filters, or check rows individually.</div>
               <div class="groups-grid" id="camp-groups">
                 <div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:20px;">Click Refresh to load</div>
               </div>
@@ -2963,7 +2975,7 @@ let S = {
   page: 'dashboard', convStatus: 'all',
   groups: [], crossTabMatrix: [], templates: [], platforms: [], countries: [], brands: [], regions: [],
   selectedGroups: [], selectedTemplate: null,
-  activePlatform: 'ALL', activeCountry: 'ALL', activeBrand: 'ALL', activeCampaignRegion: 'ALL', activeLeadsRegion: 'ALL', activeLeadsCountry: 'ALL',
+  activePlatforms: [], activeCountry: 'ALL', activeBrands: [], activeCampaignRegion: 'ALL', activeLeadsRegion: 'ALL', activeLeadsCountry: 'ALL', filteredGroups: [],
   stock: [], stockCrossTab: [], stockBrands: [], stockRegions: [], stockParentGroups: [],
   activeStockBrand: 'ALL', activeStockRegion: 'ALL', activeStockParentGroup: 'ALL', activeStockStatus: 'ALL',
   discActiveWindow: 'maps',
@@ -5501,14 +5513,41 @@ async function generateAiTemplate() {
 }
 
 // ── Campaign Builder Logic ──
-function renderChips(list,containerId,activeProp,filterFn) {
-  const el = document.getElementById(containerId);
-  el.innerHTML = ['ALL', ...list].map(v => `<div class="chip ${S[activeProp] === v ? 'active' : ''}" onclick="${filterFn}('${v.replace(/'/g, "\\'")}', this)">${v}</div>`).join('');
+// Platform/Brand filter chips are multi-select (OR within each row): pick several
+// platforms and/or brands to narrow the table to any of them, not just exactly one.
+// "ALL" clears that row's selection back to no filter.
+function chipFilterCounts(list,kind){
+  const groups=S.groups||[],counts={};
+  if(kind==='platform'){groups.forEach(g=>{counts[g.platform]=(counts[g.platform]||0)+g.count;});}
+  else{list.forEach(b=>{counts[b]=groups.filter(g=>g.brand.toLowerCase().includes(b.toLowerCase())).reduce((a,g)=>a+g.count,0);});}
+  return counts;
 }
-function filterByPlatform(v,el){document.querySelectorAll('#platform-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activePlatform=v;applyGroupFilters();}
+function renderFilterChips(list,containerId,activeArray,kind){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  const q=(document.getElementById(containerId+'-search')?.value||'').toLowerCase();
+  const counts=chipFilterCounts(list,kind);
+  el.innerHTML=['ALL',...list].map(v=>{
+    if(v!=='ALL'&&q&&!v.toLowerCase().includes(q))return'';
+    const active=v==='ALL'?activeArray.length===0:activeArray.includes(v);
+    const count=v==='ALL'?'':(counts[v]!==undefined?` <span style="opacity:.6;">(${counts[v]})</span>`:'');
+    return `<div class="chip ${active?'active':''}" onclick="toggleFilterChip('${kind}','${v.replace(/'/g,"\\'")}')">${_hesc(v)}${count}</div>`;
+  }).join('');
+}
+function onChipSearchInput(kind){
+  if(kind==='platform')renderFilterChips(S.platforms,'platform-chips',S.activePlatforms,'platform');
+  else renderFilterChips(S.brands,'brand-chips',S.activeBrands,'brand');
+}
+function toggleFilterChip(kind,v){
+  const prop=kind==='platform'?'activePlatforms':'activeBrands';
+  if(v==='ALL'){S[prop]=[];}
+  else{const arr=S[prop],idx=arr.indexOf(v);if(idx===-1)arr.push(v);else arr.splice(idx,1);}
+  if(kind==='platform')renderFilterChips(S.platforms,'platform-chips',S.activePlatforms,'platform');
+  else renderFilterChips(S.brands,'brand-chips',S.activeBrands,'brand');
+  applyGroupFilters();
+}
 function selectCampaignChannel(value,el){document.querySelectorAll('#camp-channel-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');}
 function getSelectedCampaignChannel(){return document.querySelector('#camp-channel-chips .chip.active')?.dataset.channel||'whatsapp';}
-function filterByBrand(v,el){document.querySelectorAll('#brand-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');S.activeBrand=v;applyGroupFilters();}
 function populateRegionSelect(selId,regions,activeVal){const el=document.getElementById(selId);if(!el)return;el.innerHTML=['ALL',...regions].map(r=>`<option value="${r}"${r===activeVal?' selected':''}>${r==='ALL'?'All Regions':r}</option>`).join('');}
 function populateCountrySelect(selId,countries,activeVal){const el=document.getElementById(selId);if(!el)return;el.innerHTML=['ALL',...countries].map(c=>`<option value="${c}"${c===activeVal?' selected':''}>${c==='ALL'?'All Countries':c}</option>`).join('');}
 function onCampRegionChange(v){S.activeCampaignRegion=v;S.activeCountry='ALL';const countries=v==='ALL'?S.countries:[...new Set(S.groups.filter(g=>g.region===v).map(g=>g.country))].sort();populateCountrySelect('camp-country-sel',countries,'ALL');applyGroupFilters();}
@@ -5517,21 +5556,22 @@ function onLeadsRegionChange(v){S.activeLeadsRegion=v;S.activeLeadsCountry='ALL'
 function onLeadsCountryChange(v){S.activeLeadsCountry=v;applyLeadsFilter();}
 function applyGroupFilters(){
   let f=S.groups;
-  if(S.activePlatform!=='ALL') f=f.filter(g=>g.platform===S.activePlatform);
+  if(S.activePlatforms.length) f=f.filter(g=>S.activePlatforms.includes(g.platform));
   if(S.activeCampaignRegion!=='ALL') f=f.filter(g=>g.region===S.activeCampaignRegion);
   if(S.activeCountry!=='ALL') f=f.filter(g=>g.country===S.activeCountry);
-  if(S.activeBrand!=='ALL') f=f.filter(g=>g.brand.toLowerCase().includes(S.activeBrand.toLowerCase()));
+  if(S.activeBrands.length) f=f.filter(g=>S.activeBrands.some(b=>g.brand.toLowerCase().includes(b.toLowerCase())));
+  S.filteredGroups=f;
   renderGroupCards(f,'camp-groups',true);
+  updateAudienceLiveCount();
 }
 function renderCampGroups(groups){
-  renderChips(S.platforms,'platform-chips','activePlatform','filterByPlatform');
+  renderFilterChips(S.platforms,'platform-chips',S.activePlatforms,'platform');
   const regions=[...new Set(groups.map(g=>g.region||'Other'))].sort();
   populateRegionSelect('camp-region-sel',regions,S.activeCampaignRegion);
   const campCountries=S.activeCampaignRegion==='ALL'?S.countries:[...new Set(groups.filter(g=>g.region===S.activeCampaignRegion).map(g=>g.country))].sort();
   populateCountrySelect('camp-country-sel',campCountries,S.activeCountry);
-  renderChips(S.brands,'brand-chips','activeBrand','filterByBrand');
-  renderGroupCards(groups,'camp-groups',true);
-  updateAudienceLiveCount();
+  renderFilterChips(S.brands,'brand-chips',S.activeBrands,'brand');
+  applyGroupFilters();
 }
 
 // Render Group Cards supporting Pareto Tail UI flags and Velocity Arrows
@@ -5540,10 +5580,11 @@ function renderGroupCards(groups,id,selectable,clickFn){
   const el=document.getElementById(id);
   if(!groups.length){el.innerHTML='<div style="text-align:center;color:var(--text3);font-size:12px;padding:28px;">Zero pipeline entities intersect selected matrix nodes</div>';return;}
   const fn=clickFn||'toggleGroup';
+  const allFilteredSelected=selectable&&groups.every(g=>S.selectedGroups.includes(`${g.platform}||${g.country}||${g.brand}`));
   el.innerHTML=`<div style="overflow:auto;border:1px solid var(--border);border-radius:10px;">
     <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px;">
       <thead><tr style="border-bottom:2px solid var(--border);">
-        ${selectable?'<th style="padding:8px 10px;width:30px;background:var(--bg2);"></th>':''}
+        ${selectable?`<th style="padding:8px 10px;width:30px;background:var(--bg2);"><input type="checkbox" title="Select all filtered rows" ${allFilteredSelected?'checked':''} onchange="toggleAllFilteredGroups(this)"></th>`:''}
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Platform</th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Country</th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Brand</th>
@@ -5574,6 +5615,15 @@ function renderGroupCards(groups,id,selectable,clickFn){
 function renderCampTemplates(templates){const el=document.getElementById('camp-templates');const visible=templatesForInbox(templates||[],S.activeCampaignInboxId);if(!visible.length){el.innerHTML='<div class="empty-state">WABA contains zero template components inside state approved</div>';return;}el.innerHTML=visible.map(t=>`<div class="tpl-card" onclick="selectTpl('${t.name}',this)"><div class="tpl-name">${t.name}<span class="tpl-lang">${t.language}</span></div><div class="tpl-body">${t.body||''}</div></div>`).join('');}
 function toggleGroup(platform,country,brand,el){el.classList.toggle('selected');const cb=el.querySelector('input[type=checkbox]');if(cb)cb.checked=el.classList.contains('selected');const key=platform+'||'+country+'||'+brand;const idx=S.selectedGroups.indexOf(key);if(idx===-1)S.selectedGroups.push(key);else S.selectedGroups.splice(idx,1);updateAudienceLiveCount();}
 function toggleAllGroups(cb){S.selectedGroups=[];document.querySelectorAll('#camp-groups .group-card').forEach(c=>{c.classList.toggle('selected',cb.checked);const rowCb=c.querySelector('input[type=checkbox]');if(rowCb)rowCb.checked=cb.checked;if(cb.checked){const p=c.querySelector('.g-platform').textContent,co=c.querySelector('.g-country').textContent,b=c.querySelector('.g-brand').getAttribute('title');S.selectedGroups.push(p+'||'+co+'||'+b);}});updateAudienceLiveCount();}
+// Selects every row currently matching the platform/region/country/brand filters —
+// distinct from "Send to ALL contacts" above, which ignores filters entirely.
+function toggleAllFilteredGroups(cb){
+  const keys=(S.filteredGroups||[]).map(g=>`${g.platform}||${g.country}||${g.brand}`);
+  if(cb.checked){keys.forEach(k=>{if(!S.selectedGroups.includes(k))S.selectedGroups.push(k);});}
+  else{S.selectedGroups=S.selectedGroups.filter(k=>!keys.includes(k));}
+  renderGroupCards(S.filteredGroups||[],'camp-groups',true);
+  updateAudienceLiveCount();
+}
 // ── Live recipient count (Audience step) ──
 function computeAudienceCount(){
   const allGroupsEl=document.getElementById('all-groups');
@@ -5701,12 +5751,11 @@ function launchSuggestedCampaign(brand, alreadySent) {
   if (alreadySent) {
     if (!confirm(`A campaign targeting "${brand}" was already sent recently. Proceed anyway?`)) return;
   }
-  S.activeBrand = brand;
+  S.activeBrands = [brand];
   const campNav = document.querySelector('.nav-item[onclick*="\'campaigns\'"]');
   navigate('campaigns', campNav);
   setTimeout(() => {
-    const chips = document.querySelectorAll('#brand-chips .chip');
-    chips.forEach(c => { if (c.textContent.trim() === brand) c.click(); });
+    if (S.groups && S.groups.length) { renderCampGroups(S.groups); }
   }, 150);
 }
 
@@ -5714,10 +5763,10 @@ function launchGroupCampaign(platform, country, brand) {
   if (!platform || !country || !brand) return;
   const group = (S.groups||[]).find(g => g.platform === platform && g.country === country && g.brand === brand);
   const region = group ? (group.region || 'ALL') : 'ALL';
-  S.activePlatform = platform;
+  S.activePlatforms = [platform];
   S.activeCampaignRegion = region;
   S.activeCountry = country;
-  S.activeBrand = brand;
+  S.activeBrands = [brand];
   S.selectedGroups = [platform + '||' + country + '||' + brand];
   const campNav = document.querySelector('.nav-item[onclick*="\'campaigns\'"]');
   navigate('campaigns', campNav);
