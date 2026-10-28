@@ -3152,15 +3152,31 @@ function saveHistory(entry) {
 function renderHistoryList() {
   const el = document.getElementById('history-list');
   if (!S.history.length) { el.innerHTML = '<div class="empty-state">No campaigns sent yet.</div>'; return; }
+  const inboxes=S.chatwootInboxes||[];
   el.innerHTML = S.history.map((h,i) => {
     const f=h.failures||{};
     const detail=[h.suppressed?`${h.suppressed} protected`:null,f.permanent?`${f.permanent} permanent`:null,f.transient?`${f.transient} temporary`:null,f.policy?`${f.policy} policy`:null].filter(Boolean).join(' · ');
     const failedList=h.failedContacts||[];
     const toggle=failedList.length?`<button type="button" style="background:none;border:0;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;padding:6px 0 0;" onclick="toggleHistoryDetails(${i})" id="hist-toggle-${i}">Show ${failedList.length} failure reason${failedList.length===1?'':'s'} ▾</button>`:'';
     const details=failedList.length?`<div id="hist-details-${i}" style="display:none;margin-top:6px;padding:8px 10px;background:var(--bg3);border-radius:8px;max-height:180px;overflow-y:auto;">${failedList.map(c=>`<div style="display:flex;gap:8px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);"><span style="flex:1;color:var(--text);">${_hesc(c.name||'Unknown')}</span><span style="flex:1;color:var(--text3);">${_hesc(c.phone||'')}</span><span style="flex:2;color:var(--red);">${_hesc(c.reason||'')}</span></div>`).join('')}</div>`:'';
-    return `<div style="padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px;"><div class="hist-item" style="border:0;padding:10px 0;"><div class="hist-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="hist-info"><div class="hist-name">${h.template} — ${h.audience}${h.paused?' · AUTO-PAUSED':''}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total} contacts${detail?' · '+detail:''}</div>${toggle}${details}</div><div class="hist-stats"><div class="hist-sent">${h.sent||0} sent</div><div class="hist-fail">${h.failed||0} failed</div></div></div></div>`;
+    // Lets a campaign sent before (or misrecorded after) per-campaign number tracking be
+    // attributed manually, since there's no way to recover that automatically — picking it
+    // here updates WhatsApp Number Activity's backfill on its next render, pulling this
+    // entry out of "Other Campaigns — number not recorded" and into the right number.
+    const inboxPicker=inboxes.length>1?`<div style="margin-top:5px;display:flex;align-items:center;gap:5px;" onclick="event.stopPropagation()"><span style="font-size:10px;color:var(--text3);">Sent from:</span><select class="fs" style="width:auto;padding:2px 6px;font-size:10.5px;height:auto;" onchange="assignHistoryInbox(${i},this.value)"><option value=""${h.inboxId?'':' selected'}>Unknown</option>${inboxes.map(ib=>`<option value="${_hesc(ib.inboxId)}"${h.inboxId===ib.inboxId?' selected':''}>${_hesc(ib.label)}</option>`).join('')}</select></div>`:'';
+    return `<div style="padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px;"><div class="hist-item" style="border:0;padding:10px 0;"><div class="hist-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="hist-info"><div class="hist-name">${h.template} — ${h.audience}${h.paused?' · AUTO-PAUSED':''}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total} contacts${detail?' · '+detail:''}</div>${toggle}${details}${inboxPicker}</div><div class="hist-stats"><div class="hist-sent">${h.sent||0} sent</div><div class="hist-fail">${h.failed||0} failed</div></div></div></div>`;
   }).join('');
   renderCampaignTiming();
+}
+function assignHistoryInbox(i,inboxId){
+  const h=S.history[i];
+  if(!h)return;
+  h.inboxId=inboxId||'';
+  S.cache.history=S.history;
+  saveCache();
+  const label=inboxId?(S.chatwootInboxes||[]).find(ib=>ib.inboxId===inboxId)?.label||inboxId:null;
+  showToast(label?`Assigned to "${label}" — Reports → WhatsApp Number Activity will reflect it`:'Cleared — back to unattributed','success');
+  if(S.cache.inboxActivity)renderInboxActivity();
 }
 function toggleHistoryDetails(i){
   const el=document.getElementById(`hist-details-${i}`),btn=document.getElementById(`hist-toggle-${i}`);
