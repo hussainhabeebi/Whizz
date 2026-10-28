@@ -92,9 +92,17 @@ export async function handleSendCampaignMeta(request, env) {
   if (!inbox) return json({ error: 'Selected number was not found.' }, 400);
   if (!inbox.phoneNumberId) return json({ error: `"${inbox.label}" has no Phone Number ID set — add one under Integrations → Chatwoot.` }, 400);
 
+  // Resend-to-failed (and any other direct-targeting caller) passes exact contacts to
+  // message instead of a CRM audience to resolve — e.g. the failedContacts list from a
+  // previous campaign run, which has name/phone but no contacts-table id.
+  const targetContacts = Array.isArray(body.targetContacts) ? body.targetContacts : null;
   let contacts;
-  try { contacts = await resolveContactsForCampaign(env, user, body); }
-  catch (error) { return json({ error: error.message }, 500); }
+  if (targetContacts) {
+    contacts = targetContacts.map(c => ({ id: null, contactName: String(c.name || '').trim(), phone: c.phone, lastContactedAt: null }));
+  } else {
+    try { contacts = await resolveContactsForCampaign(env, user, body); }
+    catch (error) { return json({ error: error.message }, 500); }
+  }
 
   const guard = body.delivery_guard || {};
   const seenPhones = new Set();
@@ -163,7 +171,7 @@ export async function handleSendCampaignMeta(request, env) {
         continue;
       }
       results.push({ contactId: contact.id, name: contact.contactName, phone: contact.phone, status: 'sent', messageId: data.messages?.[0]?.id });
-      await env.DB.prepare('UPDATE contacts SET lastContactedAt=CURRENT_TIMESTAMP WHERE id=?').bind(contact.id).run();
+      if (contact.id) await env.DB.prepare('UPDATE contacts SET lastContactedAt=CURRENT_TIMESTAMP WHERE id=?').bind(contact.id).run();
     } catch (error) {
       totalFails++;
       results.push({ contactId: contact.id, name: contact.contactName, phone: contact.phone, status: 'failed', reason: error.message, bucket: 'transient' });
