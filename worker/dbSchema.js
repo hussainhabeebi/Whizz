@@ -191,6 +191,17 @@ async function repairSchema(env) {
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Every failed send, logged from campaignSend.js — powers the campaign review step's
+  // list health check (how many selected contacts have a history of hard/permanent
+  // failures, i.e. likely-dead numbers) and could later back a per-contact bounce score.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS send_failures (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone TEXT NOT NULL,
+    bucket TEXT NOT NULL DEFAULT 'unknown',
+    reason TEXT NOT NULL DEFAULT '',
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_team ON conversation_assignments(assignedTeamId)',
@@ -205,7 +216,8 @@ async function repairSchema(env) {
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_updated ON directory_prospects(updatedAt)',
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_chatwoot_inboxes_inbox_id ON chatwoot_inboxes(inboxId)',
     'CREATE INDEX IF NOT EXISTS idx_user_activity_log_email_created ON user_activity_log(email, createdAt)',
-    'CREATE INDEX IF NOT EXISTS idx_audience_segments_owner ON audience_segments(ownerEmail)'
+    'CREATE INDEX IF NOT EXISTS idx_audience_segments_owner ON audience_segments(ownerEmail)',
+    'CREATE INDEX IF NOT EXISTS idx_send_failures_phone ON send_failures(phone)'
   ]) await safeRun(env, sql);
 }
 

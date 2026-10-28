@@ -1235,6 +1235,7 @@ body.dark{
                 </div>
                 <div class="s-label" style="margin-bottom:6px;">Message Preview</div>
                 <div id="rv-msg" style="font-size:12px;color:var(--text2);background:var(--bg2);padding:10px;border-radius:6px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.6;max-height:120px;overflow-y:auto;"></div>
+                <div id="rv-health" style="margin-top:12px;font-size:11.5px;color:var(--text3);">Checking list health…</div>
               </div>
               <div class="delivery-guard" style="margin-bottom:16px;">
                 <div class="guard-head">
@@ -5783,6 +5784,38 @@ function buildReview(){
     const src=document.getElementById('guard-'+k),dst=document.getElementById('rv-guard-'+k);
     if(src&&dst){dst.textContent=src.textContent;dst.style.cssText=src.style.cssText;}
   });
+  checkListHealth();
+}
+// Shared by sendCampaign() and the list-health preview — resolves the same
+// platform/country/brand/audiences shape the backend's resolveContactsForCampaign expects.
+function buildAudienceResolutionPayload(){
+  const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
+  const selectedAudiences=allGroups?[]:S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return{platform,country,brand};});
+  const firstGroup=selectedAudiences[0];
+  const useAll=allGroups||selectedAudiences.length!==1;
+  return {
+    platform:useAll?'ALL':(firstGroup?.platform||'ALL'),
+    country:useAll?'ALL':(firstGroup?.country||'ALL'),
+    brand:useAll?'ALL':(firstGroup?.brand||'ALL'),
+    audiences:selectedAudiences,
+    audience_rules:getCampaignAudienceRules(),
+  };
+}
+// Real check against past permanent-failure history for this exact audience — not an
+// estimate. Runs on the review step rather than live per-filter-change, since it needs a
+// server round-trip over the resolved audience (which can run into the thousands).
+async function checkListHealth(){
+  const el=document.getElementById('rv-health');
+  if(!el)return;
+  el.textContent='Checking list health…';
+  try{
+    const d=await apiWMsg('api/campaigns/list-health','POST',buildAudienceResolutionPayload());
+    if(!d.total){el.textContent='';return;}
+    const pct=d.total?Math.round((d.atRisk/d.total)*100):0;
+    el.innerHTML=d.atRisk
+      ? `<span style="color:var(--amber);">⚠ ${d.atRisk} of ${d.total} (${pct}%) have a history of permanent delivery failures</span> — likely dead or invalid numbers, based on past send attempts.`
+      : `<span style="color:var(--green);">No known delivery-risk numbers in this audience, based on past send attempts.</span>`;
+  }catch(e){el.textContent='';}
 }
 function getCampaignAudienceRules(){
   return {
@@ -5834,16 +5867,8 @@ async function sendCampaign(){
   document.getElementById('send-progress').style.display='block';
   let prog=0;const interval=setInterval(()=>{prog=Math.min(prog+4,92);document.getElementById('prog-fill').style.width=prog+'%';document.getElementById('prog-text').textContent=`Processing queue arrays... ${prog}%`;},1000);
   try{
-    const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
-    const selectedAudiences=allGroups?[]:S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return{platform,country,brand};});
-    const firstGroup=selectedAudiences[0];
-    const useAll=allGroups||selectedAudiences.length!==1;
     const result=await apiWMsg('api/campaigns/send','POST',{
-      platform:useAll?'ALL':(firstGroup?.platform||'ALL'),
-      country:useAll?'ALL':(firstGroup?.country||'ALL'),
-      brand:useAll?'ALL':(firstGroup?.brand||'ALL'),
-      audiences:selectedAudiences,
-      audience_rules:getCampaignAudienceRules(),
+      ...buildAudienceResolutionPayload(),
       channel:getSelectedCampaignChannel(),
       inboxId:S.activeCampaignInboxId||undefined,
       template_name:S.selectedTemplate.name,
@@ -5857,6 +5882,7 @@ async function sendCampaign(){
     document.getElementById('prog-text').textContent=paused?`Campaign auto-paused for protection. Sent: ${result.sent||0}, Failed: ${result.failed||0}`:`Campaign complete. Sent: ${result.sent||0}, Suppressed: ${suppressed}, Failed: ${result.failed||0}`;
     showToast(paused?'Campaign paused automatically after a delivery-risk spike':result.quotaCapped?`Campaign completed: ${result.sent||0} sent — the rest held back, this number's daily send cap was reached`:`Campaign completed: ${result.sent||0} sent, ${suppressed} protected`,paused?'error':(result.quotaCapped?'info':'success'));
     const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,phone:r.phone,reason:r.reason})).slice(0,50);
+    const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
     saveHistory({template:S.selectedTemplate.name,language:S.selectedTemplate.language,templateHeader:S.selectedTemplate.header||'',templateBody:S.selectedTemplate.body||'',templateFooter:S.selectedTemplate.footer||'',audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total||0,sent:result.sent||0,failed:result.failed||0,suppressed,paused,failures,failedContacts,inboxId:S.activeCampaignInboxId||'',deliveryGuard:getDeliveryGuardConfig(),ts:Date.now()});
     setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
   }catch(e){clearInterval(interval);showToast(e.message||'Campaign send failed','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}

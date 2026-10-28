@@ -13,7 +13,7 @@ import { handleIFABookingCreate, handleIFABookingList } from './routes/ifaBookin
 import { handleLeadIntelligence } from './routes/leadIntelligence.js';
 import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettings, handleAddChatwootInbox, handleUpdateChatwootInbox, handleDeleteChatwootInbox, handleChatwootConversations, handleChatwootMessages, handleChatwootSendMessage, handleChatwootDeleteMessage } from './routes/chatwoot.js';
 import { handleGetMetaSettings, handleSaveMetaSettings, handleListMetaTemplates, handleCreateMetaTemplate, handleDeleteMetaTemplate } from './routes/metaTemplates.js';
-import { handleSendCampaignMeta, handleSendTemplateMessageMeta } from './routes/campaignSend.js';
+import { handleSendCampaignMeta, handleSendTemplateMessageMeta, handleListHealthPreview } from './routes/campaignSend.js';
 import { handleTeamActivityReport, handleInboxActivityReport } from './routes/teamActivity.js';
 import { handleListAudienceSegments, handleCreateAudienceSegment, handleDeleteAudienceSegment } from './routes/audienceSegments.js';
 import { handleListOptOuts, handleAddOptOut, handleRemoveOptOut, handleCheckOptOut } from './routes/optOuts.js';
@@ -53,6 +53,7 @@ const routes = [
   { method: 'GET', path: '/api/opt-outs', handler: handleListOptOuts },
   { method: 'POST', path: '/api/opt-outs', handler: handleAddOptOut },
   { method: 'GET', path: '/api/opt-outs/check', handler: handleCheckOptOut },
+  { method: 'POST', path: '/api/campaigns/list-health', handler: handleListHealthPreview },
 ];
 
 async function leadActor(request, env) {
