@@ -1296,7 +1296,8 @@ body.dark{
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>Cached. Click Refresh to reload.</span>
         </div>
-        <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap;">
+          <div class="chips" id="tpl-inbox-tabs" style="display:none;"></div>
           <button class="t-btn btn-primary" onclick="openTplModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Create Template
@@ -2976,7 +2977,7 @@ let S = {
   selectedConvId: null, liveSync: false, liveSyncTimer: null, convMessages: {}, conversationAssignees: [],
   convSearch: '', threadSearch: '', pinnedConvIds: loadConvIdSet(CONV_PINS_KEY), mutedConvIds: loadConvIdSet(CONV_MUTES_KEY), replyTo: null,
   pinnedMsgMap: loadPinnedMsgMap(), forwardingMsg: null,
-  chatwootInboxes: [], activeInboxId: '', activeCampaignInboxId: ''
+  chatwootInboxes: [], activeInboxId: '', activeCampaignInboxId: '', activeTplInboxId: ''
 };
 
 // ── Auth ──
@@ -5325,7 +5326,26 @@ function exportEnquiriesCSV(){
 }
 
 // ── Meta Template Module ──
+function renderTplInboxTabs(templates){
+  const el=document.getElementById('tpl-inbox-tabs');
+  if(!el)return;
+  const inboxes=S.chatwootInboxes||[];
+  if(inboxes.length<2){el.style.display='none';el.innerHTML='';S.activeTplInboxId='';return;}
+  el.style.display='flex';
+  const counts={};
+  templates.forEach(t=>{const k=t.inboxId||'';counts[k]=(counts[k]||0)+1;});
+  const allActive=!S.activeTplInboxId?' active':'';
+  el.innerHTML=`<div class="chip${allActive}" onclick="selectTplInboxTab('',this)">All (${templates.length})</div>`+
+    inboxes.map(ib=>`<div class="chip${S.activeTplInboxId===ib.inboxId?' active':''}" onclick="selectTplInboxTab('${ib.inboxId}',this)">${_hesc(ib.label)} (${counts[ib.inboxId]||0})</div>`).join('');
+}
+function selectTplInboxTab(inboxId,el){
+  document.querySelectorAll('#tpl-inbox-tabs .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  S.activeTplInboxId=inboxId;
+  renderTplPage(S.cache.templates||[]);
+}
 function renderTplPage(templates){
+  renderTplInboxTabs(templates);
   const el=document.getElementById('tpl-list');
   if(!templates.length){
     const diag=S.templateDiagnostics||[];
@@ -5338,7 +5358,7 @@ function renderTplPage(templates){
   }
   const inboxes=S.chatwootInboxes||[];
   const statusStyle={APPROVED:'background:var(--green-dim);color:var(--green);',PENDING:'background:var(--amber-dim);color:var(--amber);',REJECTED:'background:var(--red-dim);color:var(--red);',ERROR:'background:var(--red-dim);color:var(--red);'};
-  el.innerHTML=`<div class="tpl-grid">${templates.map(t=>{
+  const cardHtml=(t)=>{
     const inbox=inboxes.find(ib=>ib.inboxId===t.inboxId);
     const statusCls=statusStyle[t.status]||'background:var(--bg3);color:var(--text3);';
     return`<div class="tpl-card" style="cursor:default;">
@@ -5349,7 +5369,26 @@ function renderTplPage(templates){
         ${t.loadError?'':`<button class="t-btn btn-ghost t-btn-sm" style="color:var(--red);" onclick="deleteMetaTemplate('${_hesc(t.name).replace(/'/g,"\\'")}','${_hesc(t.inboxId).replace(/'/g,"\\'")}')">Delete</button>`}
       </div>
     </div>`;
-  }).join('')}</div>`;
+  };
+  const filtered=S.activeTplInboxId?templates.filter(t=>t.inboxId===S.activeTplInboxId):templates;
+  if(!filtered.length){el.innerHTML='<div class="empty-state">No templates for this number.</div>';return;}
+  if(S.activeTplInboxId||inboxes.length<2){
+    el.innerHTML=`<div class="tpl-grid">${filtered.map(cardHtml).join('')}</div>`;
+    return;
+  }
+  // "All" with 2+ inboxes configured — group into a section per number instead of one
+  // long flat grid, so it stays navigable as the template library grows.
+  const groups=new Map();
+  filtered.forEach(t=>{const key=t.inboxId||'';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(t);});
+  const orderedKeys=[...inboxes.map(ib=>ib.inboxId).filter(id=>groups.has(id)),...(groups.has('')?['']:[])];
+  el.innerHTML=orderedKeys.map(key=>{
+    const label=key?(inboxes.find(ib=>ib.inboxId===key)?.label||key):'Unknown number';
+    const items=groups.get(key);
+    return`<div style="margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:8px;">${_hesc(label)}<span style="font-size:10px;font-weight:500;color:var(--text3);">${items.length} template${items.length===1?'':'s'}</span></div>
+      <div class="tpl-grid">${items.map(cardHtml).join('')}</div>
+    </div>`;
+  }).join('');
 }
 function openTplModal(){
   document.getElementById('tpl-modal').classList.add('open');
