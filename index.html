@@ -2511,7 +2511,11 @@ body.dark{
       </div>
       <div class="fg"><label class="fl">Header (optional)</label><input class="fi" id="tpl-header" placeholder="Whizz Exim FZE"/></div>
       <div class="fg"><label class="fl">Body *</label><textarea class="ft" id="tpl-body" maxlength="1024" oninput="updateBodyCount()" placeholder="Hi {{1}}, Whizz Exim FZE is pleased to offer exclusive pricing on {{2}}..." style="min-height:110px;"></textarea><div class="fi-hint" style="display:flex;justify-content:space-between;"><span>Use {{1}}, {{2}} for variables. AI will generate and fill this.</span><span id="tpl-body-count" style="color:var(--text3);">0 / 1024</span></div></div>
-      <div class="fg"><label class="fl">Footer (optional)</label><input class="fi" id="tpl-footer" placeholder="Reply STOP to unsubscribe"/></div>
+      <div class="fg"><label class="fl">Footer (optional)</label><input class="fi" id="tpl-footer" placeholder="Reply STOP to unsubscribe" oninput="updateComplianceFooterPreview()"/></div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2);margin-bottom:4px;">
+        <input type="checkbox" id="tpl-compliance-footer" checked onchange="updateComplianceFooterPreview()"> Add opt-out instruction to the footer
+      </label>
+      <div class="fi-hint" id="tpl-compliance-hint" style="margin-bottom:10px;">Appends "Reply STOP to unsubscribe." to the footer above when submitted — matches what Whizz actually enforces opt-outs against (Integrations → Suppression List).</div>
     </div>
     <div class="modal-foot">
       <button class="t-btn btn-ghost" onclick="closeTplModal()">Cancel</button>
@@ -5443,11 +5447,12 @@ function renderTplPage(templates){
   const cardHtml=(t)=>{
     const inbox=inboxes.find(ib=>ib.inboxId===t.inboxId);
     const statusCls=statusStyle[t.status]||'background:var(--bg3);color:var(--text3);';
+    const compliant=templateHasComplianceFooter(t.footer);
     return`<div class="tpl-card" style="cursor:default;">
       <div class="tpl-name">${_hesc(t.name)}<span class="tpl-lang">${_hesc(t.language)}</span><span class="tpl-approved" style="${statusCls}">${_hesc(t.status||'UNKNOWN')}</span></div>
       <div class="tpl-body">${_hesc(t.body||'Empty body context')}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;gap:8px;">
-        <span style="font-size:10px;color:var(--text3);">${inbox?_hesc(inbox.label):(t.inboxId?'Unknown number':'')}</span>
+        <span style="font-size:10px;color:var(--text3);">${inbox?_hesc(inbox.label):(t.inboxId?'Unknown number':'')}${t.loadError?'':compliant?' · <span style="color:var(--green);">Has opt-out footer</span>':' · <span style="color:var(--amber);" title="Footer doesn\'t mention STOP/unsubscribe">No opt-out footer</span>'}</span>
         ${t.loadError?'':`<button class="t-btn btn-ghost t-btn-sm" style="color:var(--red);" onclick="deleteMetaTemplate('${_hesc(t.name).replace(/'/g,"\\'")}','${_hesc(t.inboxId).replace(/'/g,"\\'")}')">Delete</button>`}
       </div>
     </div>`;
@@ -5483,9 +5488,19 @@ function openTplModal(){
   }else{
     wrap.style.display='none';
   }
+  updateComplianceFooterPreview();
 }
 function closeTplModal(){document.getElementById('tpl-modal').classList.remove('open');}
 function updateBodyCount(){const ta=document.getElementById('tpl-body'),counter=document.getElementById('tpl-body-count');if(!ta||!counter)return;const len=ta.value.length;counter.textContent=`${len} / 1024`;counter.style.color=len>1024?'var(--red)':len>900?'var(--amber)':'var(--text3)';}
+const COMPLIANCE_FOOTER_TEXT='Reply STOP to unsubscribe.';
+function templateHasComplianceFooter(text){return /\bstop\b/i.test(String(text||''));}
+function updateComplianceFooterPreview(){
+  const hint=document.getElementById('tpl-compliance-hint'),checked=document.getElementById('tpl-compliance-footer')?.checked,footer=document.getElementById('tpl-footer')?.value||'';
+  if(!hint)return;
+  if(!checked){hint.textContent='Opt-out instruction will not be added — make sure the footer above already covers it for compliance.';return;}
+  if(templateHasComplianceFooter(footer)){hint.textContent='Footer already mentions STOP — nothing extra will be appended.';return;}
+  hint.textContent=`Appends "${COMPLIANCE_FOOTER_TEXT}" to the footer above when submitted — matches what Whizz actually enforces opt-outs against (Integrations → Suppression List).`;
+}
 async function createTemplate(){
   const name=document.getElementById('tpl-name').value.trim(),body=document.getElementById('tpl-body').value.trim();
   if(!name||!body){showToast('Structural template parameters missing','error');return;}
@@ -5495,8 +5510,12 @@ async function createTemplate(){
   const wabaSel=document.getElementById('tpl-waba-select');
   const targetInboxId=inboxes.length>1?wabaSel.value:inboxes[0].inboxId;
   if(inboxes.length>1&&!targetInboxId){showToast('Select a target number first','error');return;}
+  let footer=document.getElementById('tpl-footer').value.trim();
+  if(document.getElementById('tpl-compliance-footer').checked&&!templateHasComplianceFooter(footer)){
+    footer=footer?`${footer} ${COMPLIANCE_FOOTER_TEXT}`:COMPLIANCE_FOOTER_TEXT;
+  }
   try{
-    await mt('','POST',{inboxId:targetInboxId,name,body,language:document.getElementById('tpl-lang').value,category:document.getElementById('tpl-cat').value,header:document.getElementById('tpl-header').value.trim(),footer:document.getElementById('tpl-footer').value.trim()});
+    await mt('','POST',{inboxId:targetInboxId,name,body,language:document.getElementById('tpl-lang').value,category:document.getElementById('tpl-cat').value,header:document.getElementById('tpl-header').value.trim(),footer});
     showToast('Submitted to Meta for approval!','success');
     closeTplModal();refreshTemplates();
   }catch(e){showToast(e.message||'Failed to create template','error');}
