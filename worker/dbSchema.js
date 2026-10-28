@@ -146,6 +146,24 @@ async function repairSchema(env) {
     accessTokenEncrypted TEXT,
     updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  // webhookVerifyToken is the arbitrary string an Administrator pastes into Meta's App
+  // Dashboard webhook config (Verify Token field) — compared on the GET handshake in
+  // metaWebhook.js. Not a secret the worker generates; whatever the admin sets here must
+  // match what they typed into Meta's console.
+  await addColumns(env, 'meta_whatsapp_settings', [['webhookVerifyToken', "TEXT NOT NULL DEFAULT ''"]]);
+
+  // Per-message delivery/read status, updated by Meta's WhatsApp status webhook
+  // (metaWebhook.js) as it reports sent → delivered → read (or failed) for each wamid
+  // captured at send time in campaignSend.js. Lets Campaign History show a message's real
+  // delivery state instead of only "the Graph API accepted it".
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS message_delivery_status (
+    wamid TEXT PRIMARY KEY,
+    phone TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'sent',
+    errorMessage TEXT NOT NULL DEFAULT '',
+    sentAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
 
   // Per-user send activity, logged going forward only (no historical backfill is
   // possible — nothing recorded who sent a message before this table existed). Powers
@@ -225,7 +243,8 @@ async function repairSchema(env) {
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_chatwoot_inboxes_inbox_id ON chatwoot_inboxes(inboxId)',
     'CREATE INDEX IF NOT EXISTS idx_user_activity_log_email_created ON user_activity_log(email, createdAt)',
     'CREATE INDEX IF NOT EXISTS idx_audience_segments_owner ON audience_segments(ownerEmail)',
-    'CREATE INDEX IF NOT EXISTS idx_send_failures_phone ON send_failures(phone)'
+    'CREATE INDEX IF NOT EXISTS idx_send_failures_phone ON send_failures(phone)',
+    'CREATE INDEX IF NOT EXISTS idx_message_delivery_status_phone ON message_delivery_status(phone)'
   ]) await safeRun(env, sql);
 }
 

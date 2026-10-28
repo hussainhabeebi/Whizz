@@ -222,8 +222,13 @@ export async function handleSendCampaignMeta(request, env) {
         try { await env.DB.prepare('INSERT INTO send_failures (phone,bucket,reason) VALUES (?,?,?)').bind(toSendableNumber(contact.phone), bucket, String(data.error?.message || '').slice(0, 200)).run(); } catch (_) {}
         continue;
       }
-      results.push({ contactId: contact.id, name: contact.contactName, phone: contact.phone, status: 'sent', messageId: data.messages?.[0]?.id });
+      const wamid = data.messages?.[0]?.id;
+      results.push({ contactId: contact.id, name: contact.contactName, phone: contact.phone, status: 'sent', messageId: wamid });
       if (contact.id) await env.DB.prepare('UPDATE contacts SET lastContactedAt=CURRENT_TIMESTAMP WHERE id=?').bind(contact.id).run();
+      if (wamid) {
+        try { await env.DB.prepare('INSERT INTO message_delivery_status (wamid,phone,status) VALUES (?,?,?) ON CONFLICT(wamid) DO NOTHING').bind(wamid, toSendableNumber(contact.phone), 'sent').run(); }
+        catch (_) {}
+      }
     } catch (error) {
       totalFails++;
       results.push({ contactId: contact.id, name: contact.contactName, phone: contact.phone, status: 'failed', reason: error.message, bucket: 'transient' });
@@ -322,7 +327,12 @@ export async function handleSendTemplateMessageMeta(request, env) {
   } catch (error) { /* best-effort only — the real send above already succeeded */ }
 
   await logUserActivity(env, user.email, 'template_sent', 1, inbox.inboxId);
-  return json({ messageId: data.messages?.[0]?.id, mirrored });
+  const wamid = data.messages?.[0]?.id;
+  if (wamid) {
+    try { await env.DB.prepare('INSERT INTO message_delivery_status (wamid,phone,status) VALUES (?,?,?) ON CONFLICT(wamid) DO NOTHING').bind(wamid, phone, 'sent').run(); }
+    catch (_) {}
+  }
+  return json({ messageId: wamid, mirrored });
 }
 
 // Campaign review step's "list health" check — resolves the same audience a real send

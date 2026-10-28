@@ -66,7 +66,7 @@ export async function handleGetMetaSettings(request, env) {
   const user = await currentUser(request, env);
   if (!requireAdmin(user)) return json({ error: 'Administrator access required.' }, 403);
   const row = await getMetaSettingsRow(env);
-  return json({ hasToken: !!row?.accessTokenEncrypted });
+  return json({ hasToken: !!row?.accessTokenEncrypted, webhookVerifyToken: row?.webhookVerifyToken || '' });
 }
 
 export async function handleSaveMetaSettings(request, env) {
@@ -81,10 +81,18 @@ export async function handleSaveMetaSettings(request, env) {
     catch (error) { return json({ error: error.message }, 500); }
   }
   if (!accessTokenEncrypted) return json({ error: 'An access token is required.' }, 400);
-  await env.DB.prepare(`INSERT INTO meta_whatsapp_settings (id,accessTokenEncrypted,updatedAt) VALUES (1,?,CURRENT_TIMESTAMP)
-    ON CONFLICT(id) DO UPDATE SET accessTokenEncrypted=excluded.accessTokenEncrypted, updatedAt=CURRENT_TIMESTAMP`)
-    .bind(accessTokenEncrypted).run();
+  const webhookVerifyToken = body.webhookVerifyToken !== undefined
+    ? String(body.webhookVerifyToken).trim()
+    : (existing?.webhookVerifyToken || '');
+  await env.DB.prepare(`INSERT INTO meta_whatsapp_settings (id,accessTokenEncrypted,webhookVerifyToken,updatedAt) VALUES (1,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET accessTokenEncrypted=excluded.accessTokenEncrypted, webhookVerifyToken=excluded.webhookVerifyToken, updatedAt=CURRENT_TIMESTAMP`)
+    .bind(accessTokenEncrypted, webhookVerifyToken).run();
   return json({ success: true });
+}
+
+export async function loadWebhookVerifyToken(env) {
+  const row = await getMetaSettingsRow(env);
+  return row?.webhookVerifyToken || '';
 }
 
 function normalizeTemplate(raw, inboxId) {

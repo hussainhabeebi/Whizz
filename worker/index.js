@@ -18,6 +18,7 @@ import { handleTeamActivityReport, handleInboxActivityReport } from './routes/te
 import { handleListAudienceSegments, handleCreateAudienceSegment, handleDeleteAudienceSegment } from './routes/audienceSegments.js';
 import { handleListOptOuts, handleAddOptOut, handleRemoveOptOut, handleCheckOptOut } from './routes/optOuts.js';
 import { handleListCountryLanguageMap, handleSetCountryLanguageMap, handleDeleteCountryLanguageMap } from './routes/countryLanguage.js';
+import { handleMetaWebhookVerify, handleMetaWebhookEvent, handleGetDeliveryStatuses } from './routes/metaWebhook.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -57,6 +58,7 @@ const routes = [
   { method: 'POST', path: '/api/campaigns/list-health', handler: handleListHealthPreview },
   { method: 'GET', path: '/api/country-language-map', handler: handleListCountryLanguageMap },
   { method: 'POST', path: '/api/country-language-map', handler: handleSetCountryLanguageMap },
+  { method: 'POST', path: '/api/campaigns/delivery-status', handler: handleGetDeliveryStatuses },
 ];
 
 async function leadActor(request, env) {
@@ -135,6 +137,18 @@ export default {
     if (url.pathname === '/api/lead-intelligence/callback' && request.method === 'POST') {
       try { return await handleLeadIntelligence(request, env, 'callback'); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+
+    // Meta calls this directly — no Cf-Access-Authenticated-User-Email header, so it's
+    // handled before anything else that assumes a logged-in Whizz user. Requires a
+    // Cloudflare Access bypass policy for this exact path (see worker/routes/metaWebhook.js).
+    if (url.pathname === '/api/webhooks/meta' && request.method === 'GET') {
+      try { return await handleMetaWebhookVerify(request, env); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    if (url.pathname === '/api/webhooks/meta' && request.method === 'POST') {
+      try { return await handleMetaWebhookEvent(request, env); }
+      catch (err) { return Response.json({ received: true }); }
     }
 
     if (url.pathname.startsWith('/api/lead-intelligence/')) {
