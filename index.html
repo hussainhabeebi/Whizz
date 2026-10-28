@@ -2271,6 +2271,11 @@ body.dark{
               <input class="fi" id="int-meta-token" type="password" placeholder="Leave blank to keep the current token"/>
               <div class="fi-hint">Meta Business Settings → System Users → your system user → Generate Token (needs whatsapp_business_management). Stored encrypted server-side, never sent back to the browser.</div>
             </div>
+            <div class="fg">
+              <label class="fl">Webhook Verify Token</label>
+              <input class="fi" id="int-meta-webhook-token" placeholder="e.g. a random string you choose"/>
+              <div class="fi-hint">For real delivery/read receipts. Set this to any string, then paste the same string into Meta's App Dashboard → WhatsApp → Configuration → Webhook, with the callback URL <code>https://&lt;this app's domain&gt;/api/webhooks/meta</code>, and subscribe to the "messages" field. A Cloudflare Access bypass policy for that exact path is also required — Meta's servers can't complete an SSO login.</div>
+            </div>
             <button class="t-btn btn-primary" onclick="saveMetaIntegration()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
               Save Meta Connection
@@ -3220,13 +3225,15 @@ function renderHistoryList() {
     const failedList=h.failedContacts||[];
     const toggle=failedList.length?`<button type="button" style="background:none;border:0;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;padding:6px 0 0;" onclick="toggleHistoryDetails(${i})" id="hist-toggle-${i}">Show ${failedList.length} failure reason${failedList.length===1?'':'s'} ▾</button>`:'';
     const resendBtn=(failedList.length&&h.language)?`<button type="button" class="t-btn btn-ghost t-btn-sm" style="margin-top:6px;" onclick="resendToFailed(${i})" id="hist-resend-${i}">Resend to ${failedList.length} failed</button>`:'';
+    const sentList=h.sentContacts||[];
+    const deliveryBtn=sentList.length?`<button type="button" class="t-btn btn-ghost t-btn-sm" style="margin-top:6px;margin-left:6px;" onclick="checkHistoryDeliveryStatus(${i})" id="hist-delivery-btn-${i}">Check delivery status</button><span id="hist-delivery-${i}" style="font-size:11px;color:var(--text3);margin-left:8px;"></span>`:'';
     const details=failedList.length?`<div id="hist-details-${i}" style="display:none;margin-top:6px;padding:8px 10px;background:var(--bg3);border-radius:8px;max-height:180px;overflow-y:auto;">${failedList.map(c=>`<div style="display:flex;gap:8px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);"><span style="flex:1;color:var(--text);">${_hesc(c.name||'Unknown')}</span><span style="flex:1;color:var(--text3);">${_hesc(c.phone||'')}</span><span style="flex:2;color:var(--red);">${_hesc(c.reason||'')}</span></div>`).join('')}</div>`:'';
     // Lets a campaign sent before (or misrecorded after) per-campaign number tracking be
     // attributed manually, since there's no way to recover that automatically — picking it
     // here updates WhatsApp Number Activity's backfill on its next render, pulling this
     // entry out of "Other Campaigns — number not recorded" and into the right number.
     const inboxPicker=inboxes.length>1?`<div style="margin-top:5px;display:flex;align-items:center;gap:5px;" onclick="event.stopPropagation()"><span style="font-size:10px;color:var(--text3);">Sent from:</span><select class="fs" style="width:auto;padding:2px 6px;font-size:10.5px;height:auto;" onchange="assignHistoryInbox(${i},this.value)"><option value=""${h.inboxId?'':' selected'}>Unknown</option>${inboxes.map(ib=>`<option value="${_hesc(ib.inboxId)}"${h.inboxId===ib.inboxId?' selected':''}>${_hesc(ib.label)}</option>`).join('')}</select></div>`:'';
-    return `<div style="padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px;"><div class="hist-item" style="border:0;padding:10px 0;"><div class="hist-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="hist-info"><div class="hist-name">${h.template} — ${h.audience}${h.paused?' · AUTO-PAUSED':''}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total} contacts${detail?' · '+detail:''}</div>${toggle}${details}${resendBtn}${inboxPicker}</div><div class="hist-stats"><div class="hist-sent">${h.sent||0} sent</div><div class="hist-fail">${h.failed||0} failed</div></div></div></div>`;
+    return `<div style="padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px;"><div class="hist-item" style="border:0;padding:10px 0;"><div class="hist-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="hist-info"><div class="hist-name">${h.template} — ${h.audience}${h.paused?' · AUTO-PAUSED':''}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total} contacts${detail?' · '+detail:''}</div>${toggle}${details}${resendBtn}${deliveryBtn}${inboxPicker}</div><div class="hist-stats"><div class="hist-sent">${h.sent||0} sent</div><div class="hist-fail">${h.failed||0} failed</div></div></div></div>`;
   }).join('');
   renderCampaignTiming();
 }
@@ -3239,6 +3246,31 @@ function assignHistoryInbox(i,inboxId){
   const label=inboxId?(S.chatwootInboxes||[]).find(ib=>ib.inboxId===inboxId)?.label||inboxId:null;
   showToast(label?`Assigned to "${label}" — Reports → WhatsApp Number Activity will reflect it`:'Cleared — back to unattributed','success');
   if(S.cache.inboxActivity)renderInboxActivity();
+}
+// Real delivery/read receipts, powered by Meta's WhatsApp status webhook (worker/routes/
+// metaWebhook.js) writing into message_delivery_status as it arrives. Only meaningful once
+// an Administrator has configured the webhook in Meta's App Dashboard — until then every
+// message just stays "sent" here, which is still the truth (Meta hasn't reported more).
+async function checkHistoryDeliveryStatus(i){
+  const h=S.history[i];
+  const btn=document.getElementById(`hist-delivery-btn-${i}`);
+  const out=document.getElementById(`hist-delivery-${i}`);
+  if(!h||!h.sentContacts?.length||!out)return;
+  if(btn){btn.disabled=true;btn.textContent='Checking…';}
+  try{
+    const wamids=h.sentContacts.map(c=>c.messageId).filter(Boolean);
+    const {statuses}=await apiWMsg('api/campaigns/delivery-status','POST',{wamids});
+    let read=0,delivered=0,sentOnly=0,failed=0;
+    wamids.forEach(id=>{
+      const s=statuses[id]?.status;
+      if(s==='read')read++;
+      else if(s==='delivered')delivered++;
+      else if(s==='failed')failed++;
+      else sentOnly++;
+    });
+    out.textContent=`${read} read · ${delivered} delivered · ${sentOnly} sent (pending) ${failed?`· ${failed} failed after send`:''}`;
+  }catch(e){out.textContent=e.message||'Could not fetch delivery status';}
+  if(btn){btn.disabled=false;btn.textContent='Check delivery status';}
 }
 // Retargets exactly the contacts a previous campaign's own failedContacts list shows as
 // failed — sends them directly by name/phone rather than re-resolving a CRM audience, so
@@ -3259,8 +3291,9 @@ async function resendToFailed(i){
       delivery_guard:getDeliveryGuardConfig()
     });
     const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,phone:r.phone,reason:r.reason})).slice(0,50);
+    const sentContacts=(result.results||[]).filter(r=>r.status==='sent'&&r.messageId).map(r=>({name:r.name,phone:r.phone,messageId:r.messageId})).slice(0,500);
     showToast(`Resend complete: ${result.sent||0} sent, ${result.failed||0} failed`,result.failed?'error':'success');
-    saveHistory({template:h.template,language:h.language,audience:`Resend of failed from ${new Date(h.ts).toLocaleDateString('en-AE')}`,total:result.total||0,sent:result.sent||0,failed:result.failed||0,failures:classifyCampaignFailures(result),failedContacts,inboxId:h.inboxId||'',ts:Date.now()});
+    saveHistory({template:h.template,language:h.language,audience:`Resend of failed from ${new Date(h.ts).toLocaleDateString('en-AE')}`,total:result.total||0,sent:result.sent||0,failed:result.failed||0,failures:classifyCampaignFailures(result),failedContacts,sentContacts,inboxId:h.inboxId||'',ts:Date.now()});
   }catch(e){
     showToast(e.message||'Resend failed','error');
     if(btn){btn.disabled=false;btn.textContent=`Resend to ${h.failedContacts.length} failed`;}
@@ -5927,8 +5960,9 @@ async function sendCampaign(){
     document.getElementById('prog-text').textContent=paused?`Campaign auto-paused for protection. Sent: ${result.sent||0}, Failed: ${result.failed||0}`:`Campaign complete. Sent: ${result.sent||0}, Suppressed: ${suppressed}, Failed: ${result.failed||0}`;
     showToast(paused?'Campaign paused automatically after a delivery-risk spike':result.quotaCapped?`Campaign completed: ${result.sent||0} sent — the rest held back, this number's daily send cap was reached`:`Campaign completed: ${result.sent||0} sent, ${suppressed} protected`,paused?'error':(result.quotaCapped?'info':'success'));
     const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,phone:r.phone,reason:r.reason})).slice(0,50);
+    const sentContacts=(result.results||[]).filter(r=>r.status==='sent'&&r.messageId).map(r=>({name:r.name,phone:r.phone,messageId:r.messageId})).slice(0,500);
     const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
-    saveHistory({template:S.selectedTemplate.name,language:S.selectedTemplate.language,templateHeader:S.selectedTemplate.header||'',templateBody:S.selectedTemplate.body||'',templateFooter:S.selectedTemplate.footer||'',audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total||0,sent:result.sent||0,failed:result.failed||0,suppressed,paused,failures,failedContacts,inboxId:S.activeCampaignInboxId||'',deliveryGuard:getDeliveryGuardConfig(),ts:Date.now()});
+    saveHistory({template:S.selectedTemplate.name,language:S.selectedTemplate.language,templateHeader:S.selectedTemplate.header||'',templateBody:S.selectedTemplate.body||'',templateFooter:S.selectedTemplate.footer||'',audience:allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', '),total:result.total||0,sent:result.sent||0,failed:result.failed||0,suppressed,paused,failures,failedContacts,sentContacts,inboxId:S.activeCampaignInboxId||'',deliveryGuard:getDeliveryGuardConfig(),ts:Date.now()});
     setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
   }catch(e){clearInterval(interval);showToast(e.message||'Campaign send failed','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}
 }
@@ -8391,13 +8425,16 @@ async function loadMetaIntegration(){
     statusEl.textContent=d.hasToken?'Connected':'Not connected';
     statusEl.style.color=d.hasToken?'var(--green)':'var(--text3)';
     document.getElementById('int-meta-token').placeholder=d.hasToken?'Leave blank to keep the current token':'Paste your System User access token';
+    const webhookEl=document.getElementById('int-meta-webhook-token');
+    if(webhookEl&&!webhookEl.value)webhookEl.value=d.webhookVerifyToken||'';
   }catch(e){statusEl.textContent='Status unavailable';}
 }
 async function saveMetaIntegration(){
   const accessToken=document.getElementById('int-meta-token').value.trim();
-  if(!accessToken){showToast('Paste an access token first','error');return;}
+  const webhookVerifyToken=document.getElementById('int-meta-webhook-token').value.trim();
+  if(!accessToken&&!webhookVerifyToken){showToast('Paste an access token or a webhook verify token first','error');return;}
   try{
-    await mt('/settings','POST',{accessToken});
+    await mt('/settings','POST',{accessToken,webhookVerifyToken});
     document.getElementById('int-meta-token').value='';
     showToast('Meta WhatsApp connection saved','success');
     loadMetaIntegration();
@@ -9955,6 +9992,7 @@ async function fireScheduledJob(job) {
       delivery_guard: job.deliveryGuard || getDeliveryGuardConfig()
     });
     const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,phone:r.phone,reason:r.reason})).slice(0,50);
+    const sentContacts=(result.results||[]).filter(r=>r.status==='sent'&&r.messageId).map(r=>({name:r.name,phone:r.phone,messageId:r.messageId})).slice(0,500);
     saveHistory({
       template: job.template,
       language: job.language,
@@ -9966,6 +10004,7 @@ async function fireScheduledJob(job) {
       failed: result.failed||0,
       failures: classifyCampaignFailures(result),
       failedContacts,
+      sentContacts,
       inboxId: job.inboxId||'',
       ts: Date.now(),
       scheduled: true
