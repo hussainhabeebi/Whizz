@@ -15,6 +15,7 @@ import { handleChatwootMeta, handleGetChatwootSettings, handleSaveChatwootSettin
 import { handleGetMetaSettings, handleSaveMetaSettings, handleListMetaTemplates, handleCreateMetaTemplate, handleDeleteMetaTemplate } from './routes/metaTemplates.js';
 import { handleSendCampaignMeta, handleSendTemplateMessageMeta } from './routes/campaignSend.js';
 import { handleTeamActivityReport, handleInboxActivityReport } from './routes/teamActivity.js';
+import { handleListAudienceSegments, handleCreateAudienceSegment, handleDeleteAudienceSegment } from './routes/audienceSegments.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -46,6 +47,8 @@ const routes = [
   { method: 'POST', path: '/api/campaigns/send', handler: handleSendCampaignMeta },
   { method: 'GET', path: '/api/reports/team-activity', handler: handleTeamActivityReport },
   { method: 'GET', path: '/api/reports/inbox-activity', handler: handleInboxActivityReport },
+  { method: 'GET', path: '/api/audience-segments', handler: handleListAudienceSegments },
+  { method: 'POST', path: '/api/audience-segments', handler: handleCreateAudienceSegment },
 ];
 
 async function leadActor(request, env) {
@@ -219,6 +222,11 @@ export default {
     }
     if (chatwootInboxMatch && request.method === 'PUT') {
       try { return await handleUpdateChatwootInbox(request, env, Number(chatwootInboxMatch[1])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const audienceSegmentMatch = url.pathname.match(/^\/api\/audience-segments\/(\d+)$/);
+    if (audienceSegmentMatch && request.method === 'DELETE') {
+      try { return await handleDeleteAudienceSegment(request, env, Number(audienceSegmentMatch[1])); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)(?:\/(reset-access|sync-access))?$/);
