@@ -1278,6 +1278,18 @@ body.dark{
                   </button>
                 </div>
               </div>
+              <div id="stage-wrap" style="margin-top:14px;padding:14px 16px;background:var(--bg3);border-radius:10px;border:1px solid var(--border2);">
+                <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Stage Rollout Over Time</div>
+                <div class="fi-hint" style="margin-bottom:8px;">Sends in batches on a real schedule (every N minutes), re-checking opt-outs and the number's daily cap each batch — not a single-pass send. Track progress, pause or cancel under Campaign History → Staged Rollouts.</div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px;">Batch size <input type="number" id="stage-batch-size" class="fi" value="50" min="1" style="width:80px;padding:7px 10px;font-size:12px;"/></label>
+                  <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px;">Every <input type="number" id="stage-interval" class="fi" value="60" min="15" style="width:80px;padding:7px 10px;font-size:12px;"/> minutes</label>
+                  <button class="t-btn btn-ghost" id="stage-btn" onclick="stageCampaignRollout()" style="padding:7px 14px;font-size:12px;flex-shrink:0;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    Stage Instead
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1291,6 +1303,15 @@ body.dark{
           </div>
           <div class="card-body" id="scheduled-list">
             <div class="empty-state">No campaigns scheduled.</div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Staged Rollouts</div>
+            <span style="font-size:10px;color:var(--text3);">genuinely time-staged — sends in batches, on a real schedule</span>
+          </div>
+          <div class="card-body" id="staged-list">
+            <div class="empty-state">No staged rollouts.</div>
           </div>
         </div>
         <div class="two-col" style="margin-bottom:16px;align-items:start;">
@@ -4008,7 +4029,7 @@ function navigate(page, el) {
   if(page==='discovery'){Object.keys(S.disc).forEach(renderDiscoveryResults);}
   if(page==='users'){renderUsersPage();loadUsers().then(renderUsersPage);}
   if(page==='pipeline'){renderPipelinePage();}
-  if(page==='history'){renderScheduledList();}
+  if(page==='history'){renderScheduledList();loadStagedCampaigns();}
   if(page==='tasks'){renderTasksList();}
   // Background refresh (fresh data without blocking navigation)
   if(page==='dashboard'){refreshDashboard().catch(()=>{});}
@@ -9985,6 +10006,86 @@ function scheduleCampaign() {
   showToast(`Campaign scheduled for ${new Date(fireAt).toLocaleString('en-AE')}`, 'success');
   addNotif(`Campaign "${job.template}" scheduled for ${new Date(fireAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}`);
   renderScheduledList();
+}
+
+// Hands the campaign off to the backend's staged_campaign_runs table instead of sending
+// in one pass — worker/routes/stagedCampaigns.js's Cron Trigger (see wrangler.toml)
+// actually sends each batch, on its own schedule, re-checking opt-outs each time.
+async function stageCampaignRollout(){
+  if(!S.selectedTemplate){showToast('Select a template before staging a rollout','error');return;}
+  const batchSize=parseInt(document.getElementById('stage-batch-size')?.value,10)||50;
+  const intervalMinutes=parseInt(document.getElementById('stage-interval')?.value,10)||60;
+  const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
+  const audienceLabel=allGroups?'All':S.selectedGroups.map(k=>k.replaceAll('||',' / ')).join(', ');
+  const btn=document.getElementById('stage-btn');
+  if(btn){btn.disabled=true;btn.textContent='Staging…';}
+  try{
+    const result=await apiWMsg('api/staged-campaigns','POST',{
+      ...buildAudienceResolutionPayload(),
+      channel:getSelectedCampaignChannel(),
+      inboxId:S.activeCampaignInboxId||undefined,
+      template_name:S.selectedTemplate.name,
+      language:S.selectedTemplate.language,
+      template:{header:S.selectedTemplate.header||'',body:S.selectedTemplate.body||'',footer:S.selectedTemplate.footer||''},
+      audienceLabel,
+      batchSize,
+      intervalMinutes,
+      delivery_guard:getDeliveryGuardConfig()
+    });
+    showToast(`Staged: ${result.totalContacts} contacts over ${result.batches} batch${result.batches===1?'':'es'}, every ${intervalMinutes} min`,'success');
+    addNotif(`Campaign "${S.selectedTemplate.name}" staged — ${result.totalContacts} contacts over ${result.batches} batches`);
+    resetCampaign();
+    navigate('history');
+  }catch(e){showToast(e.message||'Failed to stage rollout','error');}
+  if(btn){btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Stage Instead';}
+}
+async function loadStagedCampaigns(){
+  const el=document.getElementById('staged-list');
+  if(!el)return;
+  el.innerHTML='<div class="empty-state">Checking…</div>';
+  try{
+    const d=await apiWMsg('api/staged-campaigns');
+    S.cache.stagedRuns=d.runs||[];
+    renderStagedCampaigns();
+  }catch(e){el.innerHTML=`<div class="empty-state">${_hesc(e.message||'Failed to load')}</div>`;}
+}
+function renderStagedCampaigns(){
+  const el=document.getElementById('staged-list');
+  if(!el)return;
+  const runs=S.cache.stagedRuns||[];
+  if(!runs.length){el.innerHTML='<div class="empty-state">No staged rollouts.</div>';return;}
+  const statusColor={active:'var(--accent)',paused:'var(--amber)',completed:'var(--green)',cancelled:'var(--text3)'};
+  el.innerHTML=runs.map(r=>{
+    const processed=r.sentCount+r.failedCount;
+    const pct=r.totalContacts?Math.round((processed/r.totalContacts)*100):0;
+    const actions=[];
+    if(r.status==='active')actions.push(`<button class="t-btn btn-ghost t-btn-sm" onclick="pauseStagedRun(${r.id})">Pause</button>`);
+    if(r.status==='paused')actions.push(`<button class="t-btn btn-ghost t-btn-sm" onclick="resumeStagedRun(${r.id})">Resume</button>`);
+    if(r.status==='active'||r.status==='paused')actions.push(`<button class="t-btn btn-ghost t-btn-sm" onclick="cancelStagedRun(${r.id})">Cancel</button>`);
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div><b style="font-size:12.5px;">${_hesc(r.templateName)}</b> <span style="font-size:11px;color:var(--text3);">— ${_hesc(r.audienceLabel||'All')}</span></div>
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:${statusColor[r.status]||'var(--text3)'};">${_hesc(r.status)}</span>
+      </div>
+      <div class="prog-wrap" style="margin-top:6px;"><div class="prog-fill" style="width:${pct}%;"></div></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">${processed} of ${r.totalContacts} processed (${r.sentCount} sent, ${r.failedCount} failed) · batches of ${r.batchSize} every ${r.intervalMinutes}min${r.status==='active'?` · next batch ~${new Date(r.nextRunAt+'Z').toLocaleString('en-AE')}`:''}</div>
+      ${r.lastNote?`<div style="font-size:11px;color:var(--amber);margin-top:3px;">${_hesc(r.lastNote)}</div>`:''}
+      ${actions.length?`<div style="margin-top:6px;display:flex;gap:6px;">${actions.join('')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+async function pauseStagedRun(id){
+  try{await apiWMsg(`api/staged-campaigns/${id}/pause`,'POST');showToast('Paused','success');loadStagedCampaigns();}
+  catch(e){showToast(e.message||'Failed to pause','error');}
+}
+async function resumeStagedRun(id){
+  try{await apiWMsg(`api/staged-campaigns/${id}/resume`,'POST');showToast('Resumed','success');loadStagedCampaigns();}
+  catch(e){showToast(e.message||'Failed to resume','error');}
+}
+async function cancelStagedRun(id){
+  if(!confirm('Cancel this staged rollout? Contacts not yet sent to will not be messaged.'))return;
+  try{await apiWMsg(`api/staged-campaigns/${id}/cancel`,'POST');showToast('Cancelled','success');loadStagedCampaigns();}
+  catch(e){showToast(e.message||'Failed to cancel','error');}
 }
 
 function cancelScheduled(id) {
