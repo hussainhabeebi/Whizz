@@ -176,6 +176,21 @@ async function repairSchema(env) {
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // The real opt-out/DNC list — before this, "clean & suppress" only ever removed
+  // missing/duplicate phone numbers, never an actual opt-out. phone is normalized
+  // (digits only, no leading zeros) so lookups match regardless of how a number was
+  // originally formatted. source is 'keyword_detected' (an inbound STOP-style reply,
+  // detected best-effort when Conversations messages are fetched/polled — there's no
+  // inbound webhook, so this only catches a reply once Whizz has actually loaded that
+  // conversation's messages) or 'manual' (added directly from the Suppression List).
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS opted_out_numbers (
+    phone TEXT PRIMARY KEY,
+    source TEXT NOT NULL DEFAULT 'manual',
+    reason TEXT NOT NULL DEFAULT '',
+    addedByEmail TEXT NOT NULL DEFAULT '',
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_team ON conversation_assignments(assignedTeamId)',

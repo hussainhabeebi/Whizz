@@ -5,6 +5,7 @@
 // rotated without a deploy. Multiple inboxes can be registered; each becomes its own tab
 // in the Conversations page.
 import { logUserActivity } from './teamActivity.js';
+import { detectOptOutsInMessages } from './optOuts.js';
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS }); }
 function emailFromAccess(request) { return (request.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase(); }
@@ -215,6 +216,14 @@ export async function handleChatwootConversations(request, env) {
   catch (error) { return json({ error: error.message }, 502); }
 
   const payload = data.data?.payload || data.payload || [];
+  // Also runs opt-out keyword detection off each conversation's last message — cheaper
+  // coverage than waiting for someone to open the full thread, since the list itself is
+  // already polled regularly by the Conversations page.
+  try {
+    await detectOptOutsInMessages(env, payload
+      .filter(raw => raw.last_non_activity_message)
+      .map(raw => ({ ...raw.last_non_activity_message, sender: raw.meta?.sender })));
+  } catch (_) { /* best-effort */ }
   const assignments = await assignmentsByConversation(env);
   const conversations = payload
     .map(raw => normalizeConversation(raw, assignments.get(String(raw.id))))
@@ -263,6 +272,8 @@ export async function handleChatwootMessages(request, env, conversationId) {
       if (batch.length < 20) break;
     }
   } catch (error) { return json({ error: error.message }, 502); }
+
+  try { await detectOptOutsInMessages(env, all); } catch (_) { /* best-effort */ }
 
   // message_type 2 = activity (Chatwoot system events like "conversation resolved") —
   // not a real message, so it's dropped rather than shown as a chat bubble.

@@ -14,13 +14,14 @@
 //   place to hold a multi-minute wait. Contacts are sent in one pass, respecting the
 //   circuit breaker. For audiences that genuinely need staged rollout over time, split
 //   the audience into smaller campaigns and send them separately.
-// - "Clean & suppress" only removes what Whizz actually knows about: missing/duplicate
-//   phone numbers. There's no opt-out/DNC table yet, so opted-out contacts aren't
-//   tracked or suppressed here — that would need its own feature.
+// - "Clean & suppress" removes missing/duplicate phone numbers, and — now that a real
+//   opt-out/DNC list exists (worker/routes/optOuts.js) — any number that has opted out,
+//   unconditionally, not as something a delivery-guard toggle could turn off.
 import { resolveContactsForCampaign } from './automation.js';
 import { loadMetaAccessToken, GRAPH_API_VERSION } from './metaTemplates.js';
 import { loadChatwootConfig, findOrCreateContact, findOrCreateConversation, chatwootFetch } from './chatwoot.js';
 import { logUserActivity } from './teamActivity.js';
+import { getOptedOutSet, isOptedOut } from './optOuts.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS }); }
@@ -128,6 +129,16 @@ export async function handleSendCampaignMeta(request, env) {
       if (!c.lastContactedAt) return true;
       const last = new Date(c.lastContactedAt).getTime();
       if (!Number.isNaN(last) && last > cutoff) { skipped.push({ contactId: c.id, name: c.contactName, phone: c.phone, reason: `Contacted within the last ${guard.frequency_cap_days} days` }); return false; }
+      return true;
+    });
+  }
+
+  // Opted-out numbers are suppressed unconditionally — this is not something
+  // "clean & suppress" being off should be able to bypass.
+  const optedOutSet = await getOptedOutSet(env, eligible.map(c => c.phone));
+  if (optedOutSet.size) {
+    eligible = eligible.filter(c => {
+      if (optedOutSet.has(toSendableNumber(c.phone))) { skipped.push({ contactId: c.id, name: c.contactName, phone: c.phone, reason: 'Opted out of marketing messages' }); return false; }
       return true;
     });
   }
@@ -244,6 +255,7 @@ export async function handleSendTemplateMessageMeta(request, env) {
   const renderedText = String(body.renderedText || '').trim();
   if (!phone) return json({ error: 'A phone number is required.' }, 400);
   if (!templateName || !language) return json({ error: 'A template is required.' }, 400);
+  if (await isOptedOut(env, phone)) return json({ error: 'This contact has opted out of marketing messages.' }, 400);
 
   const inboxLookup = await findInbox(env, String(body.inboxId || '').trim());
   if (inboxLookup.error) return json({ error: inboxLookup.error }, 400);
