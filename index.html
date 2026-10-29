@@ -12,6 +12,7 @@
   --amber:#f59e0b;--amber-dim:rgba(245,158,11,0.1);
   --red:#dc2626;--red-dim:rgba(220,38,38,0.1);
   --blue:#2563eb;--blue-dim:rgba(37,99,235,0.1);
+  --series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf7a;--series-4:#eda100;--series-5:#e87ba4;--series-6:#6250d6;--series-other:#94a3b8;
   --text:#0f172a;--text2:#475569;--text3:#94a3b8;
   --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.12);
   --shadow:0 4px 24px rgba(0,0,0,0.08);--shadow-sm:0 2px 8px rgba(0,0,0,0.06);--shadow-lift:0 8px 28px rgba(0,0,0,0.1);
@@ -26,6 +27,7 @@ body.dark{
   --amber:#f59e0b;--amber-dim:rgba(245,158,11,0.15);
   --red:#f87171;--red-dim:rgba(248,113,113,0.15);
   --blue:#60a5fa;--blue-dim:rgba(96,165,250,0.15);
+  --series-1:#3987e5;--series-2:#d95926;--series-3:#199e70;--series-4:#c98500;--series-5:#d55181;--series-6:#9085e9;--series-other:#64748b;
   --text:#f1f5f9;--text2:#94a3b8;--text3:#475569;
   --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.11);
   --shadow:0 4px 24px rgba(0,0,0,0.4);--shadow-sm:0 2px 10px rgba(0,0,0,0.3);--shadow-lift:0 10px 32px rgba(0,0,0,0.45);
@@ -375,6 +377,22 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .hist-stats{text-align:right;}
 .hist-sent{font-size:13px;font-weight:700;color:var(--green);}
 .hist-fail{font-size:10px;color:var(--text3);}
+
+/* Weekly campaign report charts */
+.wk-report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;}
+.wk-chart-card{padding:4px 0;}
+.wk-chart-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.wk-legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px;}
+.wk-legend-item{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text2);}
+.wk-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;display:inline-block;}
+.wk-bar-seg{cursor:pointer;}
+.wk-table-toggle{background:none;border:0;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;padding:6px 0 0;}
+.wk-table-wrap{margin-top:6px;max-height:220px;overflow:auto;}
+.wk-table{width:100%;border-collapse:collapse;font-size:10.5px;}
+.wk-table th,.wk-table td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;}
+.wk-table th:first-child,.wk-table td:first-child{text-align:left;color:var(--text2);}
+.wk-table th{color:var(--text3);font-weight:600;}
+.wk-tooltip{position:fixed;z-index:9999;background:var(--bg2);border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:11px;color:var(--text);box-shadow:var(--shadow-sm);pointer-events:none;display:none;max-width:220px;}
 
 /* Onboarding */
 .ob-step{display:flex;align-items:flex-start;gap:14px;padding:16px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg3);margin-bottom:10px;cursor:pointer;transition:all 0.15s var(--ease);}
@@ -1312,6 +1330,29 @@ body.dark{
           </div>
           <div class="card-body" id="staged-list">
             <div class="empty-state">No staged rollouts.</div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Weekly Campaign Reports</div>
+            <span style="font-size:10px;color:var(--text3);">last 8 weeks, from this device's Campaign History</span>
+          </div>
+          <div class="card-body">
+            <div class="wk-report-grid">
+              <div class="wk-chart-card">
+                <div class="wk-chart-title">What You're Sending</div>
+                <div id="wk-chart-template"><div class="empty-state">Send campaigns to build this report.</div></div>
+              </div>
+              <div class="wk-chart-card">
+                <div class="wk-chart-title">Which Inbox</div>
+                <div id="wk-chart-inbox"><div class="empty-state">Send campaigns to build this report.</div></div>
+              </div>
+              <div class="wk-chart-card">
+                <div class="wk-chart-title">Locations</div>
+                <div id="wk-chart-location"><div class="empty-state">Send campaigns to build this report.</div></div>
+              </div>
+            </div>
+            <div class="fi-hint" style="margin-top:10px;">Volume is each campaign's actual sent count. A campaign targeting more than one country credits its full count to each — totals across locations can run higher than total sent. Counts come only from campaigns sent on this device (same source as Campaign History / Export CSV below).</div>
           </div>
         </div>
         <div class="two-col" style="margin-bottom:16px;align-items:start;">
@@ -3239,7 +3280,7 @@ function saveHistory(entry) {
 }
 function renderHistoryList() {
   const el = document.getElementById('history-list');
-  if (!S.history.length) { el.innerHTML = '<div class="empty-state">No campaigns sent yet.</div>'; return; }
+  if (!S.history.length) { el.innerHTML = '<div class="empty-state">No campaigns sent yet.</div>'; renderCampaignTiming(); renderWeeklyCampaignReports(); return; }
   const inboxes=S.chatwootInboxes||[];
   el.innerHTML = S.history.map((h,i) => {
     const f=h.failures||{};
@@ -3258,6 +3299,7 @@ function renderHistoryList() {
     return `<div style="padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px;"><div class="hist-item" style="border:0;padding:10px 0;"><div class="hist-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="hist-info"><div class="hist-name">${h.template} — ${h.audience}${h.paused?' · AUTO-PAUSED':''}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total} contacts${detail?' · '+detail:''}</div>${toggle}${details}${resendBtn}${deliveryBtn}${inboxPicker}</div><div class="hist-stats"><div class="hist-sent">${h.sent||0} sent</div><div class="hist-fail">${h.failed||0} failed</div></div></div></div>`;
   }).join('');
   renderCampaignTiming();
+  renderWeeklyCampaignReports();
 }
 function assignHistoryInbox(i,inboxId){
   const h=S.history[i];
@@ -4029,7 +4071,7 @@ function navigate(page, el) {
   if(page==='discovery'){Object.keys(S.disc).forEach(renderDiscoveryResults);}
   if(page==='users'){renderUsersPage();loadUsers().then(renderUsersPage);}
   if(page==='pipeline'){renderPipelinePage();}
-  if(page==='history'){renderScheduledList();loadStagedCampaigns();}
+  if(page==='history'){renderScheduledList();loadStagedCampaigns();renderHistoryList();}
   if(page==='tasks'){renderTasksList();}
   // Background refresh (fresh data without blocking navigation)
   if(page==='dashboard'){refreshDashboard().catch(()=>{});}
@@ -8178,6 +8220,184 @@ function renderCampaignTiming() {
     </div>
     <div class="timing-rate">${r.rate}%</div>
   </div>`).join('');
+}
+
+// ── Weekly Campaign Reports (Campaign History page) ──
+// Everything here is derived from this device's own Campaign History (S.history) — the
+// same source Export CSV and the timing insights above already use. No server-side
+// aggregation exists for this, so it only reflects campaigns sent (or scheduled-fired)
+// from this browser, same caveat as the rest of Campaign History.
+const WK_CHART_COLOR_SLOTS=6;
+function _weekStartTs(ts){
+  const d=new Date(ts);
+  const day=(d.getDay()+6)%7; // Mon=0 … Sun=6
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate()-day);
+  return d.getTime();
+}
+function _buildRecentWeeks(n){
+  const weeks=[];
+  const thisWeekStart=_weekStartTs(Date.now());
+  for(let i=n-1;i>=0;i--){
+    const start=thisWeekStart-i*7*86400000;
+    weeks.push({key:start,label:new Date(start).toLocaleDateString('en-AE',{day:'2-digit',month:'short'})});
+  }
+  return weeks;
+}
+// categoryFn(h) returns an array of category labels this campaign's sent count should be
+// credited to (usually one; "Locations" can return several when a campaign targeted more
+// than one country — see the card's own hint text about that overlap).
+function _buildWeeklyBreakdown(categoryFn){
+  const weeks=_buildRecentWeeks(8);
+  const weekIndex=new Map(weeks.map((w,i)=>[w.key,i]));
+  const totals=new Map();
+  const perWeek=weeks.map(()=>new Map());
+  (S.history||[]).forEach(h=>{
+    const val=h.sent||0;
+    if(!val||!h.ts)return;
+    const idx=weekIndex.get(_weekStartTs(h.ts));
+    if(idx===undefined)return;
+    const cats=[...new Set(categoryFn(h)||[])];
+    cats.forEach(cat=>{
+      totals.set(cat,(totals.get(cat)||0)+val);
+      perWeek[idx].set(cat,(perWeek[idx].get(cat)||0)+val);
+    });
+  });
+  return {weeks,totals,perWeek};
+}
+function _niceAxisMax(v){
+  if(v<=0)return 1;
+  const mag=Math.pow(10,Math.floor(Math.log10(v)));
+  const norm=v/mag;
+  const step=norm<=1?1:norm<=2?2:norm<=5?5:10;
+  return step*mag;
+}
+function _compactNum(n){
+  if(n>=1000000)return (n/1000000).toFixed(1).replace(/\.0$/,'')+'M';
+  if(n>=1000)return (n/1000).toFixed(1).replace(/\.0$/,'')+'K';
+  return String(n);
+}
+function parseAudienceLocations(audience){
+  if(!audience||audience==='All')return ['All'];
+  const countries=new Set();
+  audience.split(',').map(s=>s.trim()).filter(Boolean).forEach(group=>{
+    const parts=group.split('/').map(s=>s.trim());
+    const country=parts[1]||'';
+    if(country&&country.toUpperCase()!=='ALL')countries.add(country);
+  });
+  return countries.size?[...countries]:['Unspecified'];
+}
+function showChartTooltip(e){
+  let tip=document.getElementById('wk-chart-tooltip');
+  if(!tip){tip=document.createElement('div');tip.id='wk-chart-tooltip';tip.className='wk-tooltip';document.body.appendChild(tip);}
+  const t=e.currentTarget;
+  tip.textContent=`${t.dataset.cat}: ${Number(t.dataset.val).toLocaleString()} sent — week of ${t.dataset.week}`;
+  tip.style.display='block';
+  moveChartTooltip(e);
+}
+function moveChartTooltip(e){
+  const tip=document.getElementById('wk-chart-tooltip');
+  if(!tip)return;
+  tip.style.left=(e.clientX+12)+'px';
+  tip.style.top=(e.clientY+12)+'px';
+}
+function hideChartTooltip(){
+  const tip=document.getElementById('wk-chart-tooltip');
+  if(tip)tip.style.display='none';
+}
+function toggleChartTable(containerId){
+  const el=document.getElementById(containerId);
+  const wrap=document.getElementById(containerId+'-table');
+  if(!el||!wrap)return;
+  const svg=el.querySelector('svg'),legend=el.querySelector('.wk-legend'),btn=el.querySelector('.wk-table-toggle');
+  const showingTable=wrap.style.display!=='none';
+  if(showingTable){
+    wrap.style.display='none';
+    if(svg)svg.style.display='block';
+    if(legend)legend.style.display='flex';
+    if(btn)btn.textContent='View as table';
+  }else{
+    const data=el._wkTableData;
+    if(data){
+      const{weeks,categories,weekSeries}=data;
+      wrap.innerHTML=`<table class="wk-table"><thead><tr><th>Week</th>${categories.map(c=>`<th>${_hesc(c)}</th>`).join('')}</tr></thead><tbody>${weeks.map((w,i)=>`<tr><td>${_hesc(w.label)}</td>${categories.map(c=>`<td>${(weekSeries[i][c]||0).toLocaleString()}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    }
+    wrap.style.display='block';
+    if(svg)svg.style.display='none';
+    if(legend)legend.style.display='none';
+    if(btn)btn.textContent='View as chart';
+  }
+}
+function _renderWeeklyStackedChart(containerId,weeks,perWeek,totals){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  const ranked=[...totals.entries()].sort((a,b)=>b[1]-a[1]).map(([k])=>k);
+  if(!ranked.length){el.innerHTML='<div class="empty-state">No sends in the last 8 weeks.</div>';return;}
+  const topCats=ranked.slice(0,WK_CHART_COLOR_SLOTS);
+  const topSet=new Set(topCats);
+  const hasOther=ranked.length>WK_CHART_COLOR_SLOTS;
+  const categories=hasOther?topCats.concat(['Other']):topCats;
+  const colorFor=cat=>cat==='Other'?'var(--series-other)':`var(--series-${topCats.indexOf(cat)+1})`;
+
+  const weekSeries=weeks.map((w,i)=>{
+    const m=perWeek[i];
+    const row={};
+    topCats.forEach(cat=>{row[cat]=m.get(cat)||0;});
+    if(hasOther){
+      let other=0;
+      m.forEach((v,k)=>{if(!topSet.has(k))other+=v;});
+      row.Other=other;
+    }
+    return row;
+  });
+  const weekTotals=weekSeries.map(row=>Object.values(row).reduce((a,b)=>a+b,0));
+  const niceMax=_niceAxisMax(Math.max(...weekTotals,1));
+
+  const W=Math.max(360,weeks.length*56+60),H=190,padL=34,padB=22,padT=10,padR=10;
+  const plotW=W-padL-padR,plotH=H-padT-padB;
+  const bandW=plotW/weeks.length;
+  const barW=Math.min(24,bandW*0.55);
+
+  const gridLines=[0,0.25,0.5,0.75,1].map(f=>{
+    const y=padT+plotH-f*plotH;
+    const val=Math.round(f*niceMax);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/><text x="${padL-6}" y="${(y+3).toFixed(1)}" font-size="9" text-anchor="end" fill="var(--text3)">${_compactNum(val)}</text>`;
+  }).join('');
+
+  let bars='';
+  weekSeries.forEach((row,i)=>{
+    const x=padL+i*bandW+(bandW-barW)/2;
+    let yCursor=padT+plotH;
+    categories.forEach(cat=>{
+      const val=row[cat]||0;
+      if(!val)return;
+      const segH=(val/niceMax)*plotH;
+      const y=yCursor-segH;
+      bars+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,segH-2).toFixed(1)}" rx="2" fill="${colorFor(cat)}" class="wk-bar-seg" data-week="${_hesc(weeks[i].label)}" data-cat="${_hesc(cat)}" data-val="${val}" onmouseenter="showChartTooltip(event)" onmousemove="moveChartTooltip(event)" onmouseleave="hideChartTooltip()"></rect>`;
+      yCursor=y-2;
+    });
+    bars+=`<text x="${(x+barW/2).toFixed(1)}" y="${H-6}" font-size="9" text-anchor="middle" fill="var(--text3)">${_hesc(weeks[i].label)}</text>`;
+  });
+
+  const legend=categories.length>1?`<div class="wk-legend">${categories.map(cat=>`<span class="wk-legend-item"><span class="wk-dot" style="background:${colorFor(cat)}"></span>${_hesc(cat)}</span>`).join('')}</div>`:'';
+
+  el.innerHTML=`${legend}<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;">${gridLines}${bars}</svg><button type="button" class="wk-table-toggle" onclick="toggleChartTable('${containerId}')">View as table</button><div class="wk-table-wrap" id="${containerId}-table" style="display:none;"></div>`;
+  el._wkTableData={weeks,categories,weekSeries};
+}
+function renderWeeklyCampaignReports(){
+  const tpl=_buildWeeklyBreakdown(h=>[h.template||'Unknown']);
+  _renderWeeklyStackedChart('wk-chart-template',tpl.weeks,tpl.perWeek,tpl.totals);
+
+  const inboxLabel=id=>{
+    if(!id)return 'Unassigned';
+    const ib=(S.chatwootInboxes||[]).find(x=>x.inboxId===id);
+    return ib?ib.label:id;
+  };
+  const inbox=_buildWeeklyBreakdown(h=>[inboxLabel(h.inboxId)]);
+  _renderWeeklyStackedChart('wk-chart-inbox',inbox.weeks,inbox.perWeek,inbox.totals);
+
+  const loc=_buildWeeklyBreakdown(h=>parseAudienceLocations(h.audience));
+  _renderWeeklyStackedChart('wk-chart-location',loc.weeks,loc.perWeek,loc.totals);
 }
 
 // ── Users Management ──
