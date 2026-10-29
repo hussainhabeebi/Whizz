@@ -1352,7 +1352,7 @@ body.dark{
                 <div id="wk-chart-location"><div class="empty-state">Send campaigns to build this report.</div></div>
               </div>
             </div>
-            <div class="fi-hint" style="margin-top:10px;">Volume is each campaign's actual sent count. A campaign targeting more than one country credits its full count to each — totals across locations can run higher than total sent. Counts come only from campaigns sent on this device (same source as Campaign History / Export CSV below).</div>
+            <div class="fi-hint" style="margin-top:10px;">Volume is each campaign's actual sent count, split evenly across every value it maps to (a campaign targeting several countries divides its count across them, so location totals stay in line with total sent). Counts come only from campaigns sent on this device (same source as Campaign History / Export CSV below) — a long gap with nothing in it means no campaign was sent from this browser in that week, not that data is missing.</div>
           </div>
         </div>
         <div class="two-col" style="margin-bottom:16px;align-items:start;">
@@ -8253,11 +8253,18 @@ function _buildWeeklyBreakdown(categoryFn){
   const totals=new Map();
   const perWeek=weeks.map(()=>new Map());
   (S.history||[]).forEach(h=>{
-    const val=h.sent||0;
-    if(!val||!h.ts)return;
+    const total=h.sent||0;
+    if(!total||!h.ts)return;
     const idx=weekIndex.get(_weekStartTs(h.ts));
     if(idx===undefined)return;
     const cats=[...new Set(categoryFn(h)||[])];
+    if(!cats.length)return;
+    // Split evenly across every category this campaign maps to (instead of crediting
+    // each fully) so a chart's weekly totals stay conserved against the campaign's actual
+    // sent count — matters most for Locations, where one campaign often targets several
+    // countries at once (full-credit-per-country made its totals balloon and "Other"
+    // dwarf every real series once a few such multi-country campaigns piled up).
+    const val=total/cats.length;
     cats.forEach(cat=>{
       totals.set(cat,(totals.get(cat)||0)+val);
       perWeek[idx].set(cat,(perWeek[idx].get(cat)||0)+val);
@@ -8342,11 +8349,11 @@ function _renderWeeklyStackedChart(containerId,weeks,perWeek,totals){
   const weekSeries=weeks.map((w,i)=>{
     const m=perWeek[i];
     const row={};
-    topCats.forEach(cat=>{row[cat]=m.get(cat)||0;});
+    topCats.forEach(cat=>{row[cat]=Math.round(m.get(cat)||0);});
     if(hasOther){
       let other=0;
       m.forEach((v,k)=>{if(!topSet.has(k))other+=v;});
-      row.Other=other;
+      row.Other=Math.round(other);
     }
     return row;
   });
