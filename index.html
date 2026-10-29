@@ -3583,6 +3583,47 @@ function buildReportsPageReportHtml(d){
   })():`<div class="section-title" style="margin-top:0;">New Leads Collected — Last 7 Days</div>
     <div class="empty-note">Couldn't load recent lead data. Ensure the contacts webhook is active and try again.</div>`;
 
+  const maxWaTemplate=d.waTemplates[0]?.[1]||1;
+  const maxWaInbox=d.waInboxes[0]?.[1]||1;
+  const maxWaLocation=d.waLocations[0]?.[1]||1;
+  const waTemplateRows=d.waTemplates.map(([k,v])=>reportBarRow(k,v,maxWaTemplate,'#f59e0b')).join('')||'<div class="muted">No campaigns sent for this period</div>';
+  const waInboxRows=d.waInboxes.map(([k,v])=>reportBarRow(k,v,maxWaInbox,'#2563eb')).join('')||'<div class="muted">No campaigns sent for this period</div>';
+  const waLocationRows=d.waLocations.map(([k,v])=>reportBarRow(k,v,maxWaLocation,'#16a34a')).join('')||'<div class="muted">No campaigns sent for this period</div>';
+  const waCampaignRows=d.waCampaigns.length?d.waCampaigns.map(h=>{
+    const f=h.failures||{};
+    const failDetail=[f.permanent?`${f.permanent} permanent`:null,f.transient?`${f.transient} temporary`:null,f.policy?`${f.policy} policy`:null].filter(Boolean).join(', ')||'—';
+    return `<tr><td>${new Date(h.ts).toLocaleDateString()}</td><td>${h.template||'—'}</td><td>${h.audience||'—'}</td><td>${(h.sent||0).toLocaleString()}</td><td>${(h.failed||0).toLocaleString()}</td><td style="font-size:11px;color:#94a3b8;">${failDetail}</td></tr>`;
+  }).join(''):`<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px;">No campaigns sent for ${d.periodLabel}</td></tr>`;
+  const waOutreachSection=`<div class="section-title" style="margin-top:0;">WhatsApp Outreach${d.periodLabel!=='All Time'?` — ${d.periodLabel}`:''}</div>
+    <div class="section-note">Every bulk campaign and resend sent from this device via the Meta WhatsApp Cloud API — same source as Campaign History.</div>
+    <div class="kpi-grid-5" style="margin-bottom:14px;">
+      <div class="kpi-card amber"><div class="kpi-label">Sent</div><div class="kpi-value">${d.waSent.toLocaleString()}</div><div class="kpi-sub">${d.waCampaignCount} campaign${d.waCampaignCount===1?'':'s'}</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Delivery Rate</div><div class="kpi-value">${d.waCampaignCount?d.waDeliveryRate+'%':'—'}</div><div class="kpi-sub">Accepted by Meta</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">Protected</div><div class="kpi-value">${d.waSuppressed.toLocaleString()}</div><div class="kpi-sub">Opted-out / duplicate numbers skipped</div></div>
+      <div class="kpi-card red"><div class="kpi-label">Permanent Failures</div><div class="kpi-value">${d.waPermanentFails.toLocaleString()}</div><div class="kpi-sub">Likely dead/invalid numbers</div></div>
+      <div class="kpi-card amber"><div class="kpi-label">Other Failures</div><div class="kpi-value">${(d.waTransientFails+d.waPolicyFails).toLocaleString()}</div><div class="kpi-sub">Temporary + policy</div></div>
+    </div>
+    <div class="two-col-section" style="margin-top:22px;">
+      <div>
+        <div class="sub-title">Top Templates</div>
+        ${waTemplateRows}
+      </div>
+      <div>
+        <div class="sub-title">Top Locations</div>
+        <div class="section-note" style="margin:-4px 0 10px;">A campaign targeting several countries splits its sent count across them.</div>
+        ${waLocationRows}
+      </div>
+    </div>
+    <div class="sub-block">
+      <div class="sub-title">Which Inbox</div>
+      ${waInboxRows}
+    </div>
+    <div class="sub-title" style="margin-top:22px;">Recent Campaigns</div>
+    <table>
+      <thead><tr><th>Date</th><th>Template</th><th>Audience</th><th>Sent</th><th>Failed</th><th>Failure Detail</th></tr></thead>
+      <tbody>${waCampaignRows}</tbody>
+    </table>`;
+
   return`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Whizz Analytics Report — ${d.generatedAt.toLocaleDateString()}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3658,6 +3699,8 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
   </div>
   <div class="body-pad">
     ${weeklyLeadsSection}
+
+    ${waOutreachSection}
 
     <div class="section-title">Website Visits — Last 7 Days</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px;">
@@ -3914,6 +3957,34 @@ async function downloadReportsPageReport(){
   const waFailed=history.reduce((sum,h)=>sum+(h.failed||0),0);
   const waDeliveryRate=(waSent+waFailed)?Math.round((waSent/(waSent+waFailed))*100):0;
 
+  // WhatsApp Outreach section — same source as Campaign History's own weekly charts
+  // (this device's S.history), broken down by template/inbox/location for the period
+  // the Reports page is set to, plus the real failure-bucket breakdown each send already
+  // classifies (classifyCampaignFailures), rather than just the one summary KPI below.
+  const waTemplateMap={},waInboxMap={},waLocationMap={};
+  let waSuppressed=0,waPermanentFails=0,waTransientFails=0,waPolicyFails=0;
+  history.forEach(h=>{
+    const sent=h.sent||0;
+    if(sent){
+      const tplKey=h.template||'Unknown';
+      waTemplateMap[tplKey]=(waTemplateMap[tplKey]||0)+sent;
+      const inboxLabel=h.inboxId?((S.chatwootInboxes||[]).find(ib=>ib.inboxId===h.inboxId)?.label||h.inboxId):'Unassigned';
+      waInboxMap[inboxLabel]=(waInboxMap[inboxLabel]||0)+sent;
+      const locs=parseAudienceLocations(h.audience);
+      const share=sent/locs.length;
+      locs.forEach(loc=>{waLocationMap[loc]=(waLocationMap[loc]||0)+share;});
+    }
+    waSuppressed+=h.suppressed||0;
+    const f=h.failures||{};
+    waPermanentFails+=f.permanent||0;
+    waTransientFails+=f.transient||0;
+    waPolicyFails+=f.policy||0;
+  });
+  const topWaTemplates=Object.entries(waTemplateMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const topWaInboxes=Object.entries(waInboxMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const topWaLocations=Object.entries(waLocationMap).map(([k,v])=>[k,Math.round(v)]).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const waCampaigns=history.slice(0,20);
+
   const today=todayStr();
   const allTasks=loadTasks();
   const taskStats={
@@ -3942,6 +4013,8 @@ async function downloadReportsPageReport(){
     brevoTotalLeads:S.cache.brevoTotalLeads,
     emailSent,emailOpenRate,
     waSent,waDeliveryRate,waCampaignCount:history.length,
+    waSuppressed,waPermanentFails,waTransientFails,waPolicyFails,
+    waTemplates:topWaTemplates,waInboxes:topWaInboxes,waLocations:topWaLocations,waCampaigns,
     topPlatforms,
     topCountries,
     brevoCampaigns,
