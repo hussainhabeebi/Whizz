@@ -1440,7 +1440,7 @@ body.dark{
               <div class="fg" style="margin-bottom:0;">
                 <label class="fl">Telegram Chat IDs</label>
                 <textarea class="fi" id="tg-chatid-list" rows="4" placeholder="One per line — a chat ID or @username, or Name, chatId&#10;e.g.&#10;987654321&#10;Uzbekshop, -1001234567890&#10;MacBro_Manager" oninput="previewTelegramAudience()"></textarea>
-                <div class="fi-hint">Sends straight to these chat IDs or @usernames — no CRM lookup, no need for the contact to exist in Whizz at all. A username only resolves for a public channel, supergroup or bot, not a private person's account. Everyone here still must have messaged your bot at some point (Telegram's own rule, not Whizz's) and must not be on the suppression list below.</div>
+                <div class="fi-hint">Sends straight to these chat IDs or @usernames — no CRM lookup, no need for the contact to exist in Whizz at all. A username only resolves for a public channel, supergroup or bot, not a private person's account. Everyone here still must have messaged your bot at some point (Telegram's own rule, not Whizz's) and must not be on the suppression list below. Not a phone number — unlike WhatsApp, a Telegram bot has no way to message one at all.</div>
               </div>
             </div>
 
@@ -8744,6 +8744,7 @@ function parseTelegramChatIdInput(){
   const valid=[];
   let invalidCount=0;
   let usernameCount=0;
+  let phoneLikeCount=0;
   text.split('\n').map(l=>l.trim()).filter(Boolean).forEach(line=>{
     const parts=line.split(',').map(p=>p.trim());
     const raw=parts[parts.length-1];
@@ -8755,13 +8756,17 @@ function parseTelegramChatIdInput(){
       chatId='@'+raw.replace(/^@/,'');
       usernameCount++;
     }else{
+      // "+"-prefixed, or otherwise phone-shaped, lines are a distinct and common mistake —
+      // a Telegram bot has no API to message a phone number at all (unlike WhatsApp), so this
+      // is worth calling out specifically rather than lumping it into a generic "invalid line".
+      if(/^\+?\d[\d\s-]{6,}$/.test(raw))phoneLikeCount++;
       invalidCount++;return;
     }
     if(seen.has(chatId))return;
     seen.add(chatId);
     valid.push({name,chatId});
   });
-  return {valid,invalidCount,usernameCount};
+  return {valid,invalidCount,usernameCount,phoneLikeCount};
 }
 function renderTelegramSelectedLeadsChips(){
   const badge=document.getElementById('tg-leads-mode-badge');
@@ -9021,10 +9026,11 @@ async function previewTelegramAudience(){
     return;
   }
   if(S.telegramAudienceMode==='chatid'){
-    const {valid,invalidCount,usernameCount}=parseTelegramChatIdInput();
+    const {valid,invalidCount,usernameCount,phoneLikeCount}=parseTelegramChatIdInput();
     const usernameNote=usernameCount?` ${usernameCount} ${usernameCount===1?'is a':'are'} @username${usernameCount===1?'':'s'} — those only resolve for a public channel, supergroup or bot, not a private person's account; Whizz will try to resolve them when you send and report any that fail.`:'';
-    el.innerHTML=valid.length
-      ?`<b>${valid.length}</b> target${valid.length===1?'':'s'} parsed and ready to send to${invalidCount?` — ${invalidCount} line${invalidCount===1?'':'s'} skipped (not a chat ID or username)`:''}.${usernameNote} Whizz can't confirm the rest have actually started your bot until it tries sending — any that haven't will show up as failed, not silently skipped.`
+    const phoneNote=phoneLikeCount?` <b style="color:var(--red,#d33);">${phoneLikeCount} line${phoneLikeCount===1?' looks':'s look'} like a phone number</b> — Telegram bots have no way to message a phone number at all, unlike WhatsApp. Paste that lead's numeric Telegram chat ID instead, or use "Specific Leads" above to send them an invite link so they can start the bot themselves.`:'';
+    el.innerHTML=valid.length||phoneLikeCount
+      ?`${valid.length?`<b>${valid.length}</b> target${valid.length===1?'':'s'} parsed and ready to send to`:'Nothing ready to send yet'}${invalidCount>phoneLikeCount?` — ${invalidCount-phoneLikeCount} other line${invalidCount-phoneLikeCount===1?'':'s'} skipped (not a chat ID or username)`:''}.${usernameNote}${phoneNote}${valid.length?' Whizz can\'t confirm the rest have actually started your bot until it tries sending — any that haven\'t will show up as failed, not silently skipped.':''}`
       :'Paste one chat ID or @username per line above.';
     return;
   }
