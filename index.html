@@ -927,6 +927,10 @@ body.dark{
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Campaign History
       </div>
+      <div class="nav-item" data-page="telegram" onclick="navigate('telegram',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>
+        Telegram Marketing
+      </div>
       <div class="nav-item" data-page="templates" onclick="navigate('templates',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Templates
@@ -1375,6 +1379,91 @@ body.dark{
             </div>
             <div class="card-body" id="timing-list">
               <div class="empty-state">Send campaigns to build timing insights.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-telegram">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Bot Setup</div>
+            <span class="eyebrow" id="tg-status" style="margin-bottom:0;">Checking…</span>
+          </div>
+          <div class="card-body">
+            <div class="fi-hint" style="margin-bottom:10px;">Create a bot via <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> on Telegram, paste its token below, then click "Set Webhook" so Whizz can capture every contact who starts a conversation with it. A bot can only message someone who has already messaged it first — there's no equivalent of a cold broadcast to an arbitrary phone number the way WhatsApp templates allow.</div>
+            <div class="fg">
+              <label class="fl">Bot Token</label>
+              <input class="fi" id="tg-bot-token" type="password" placeholder="Paste your bot token from @BotFather"/>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="t-btn btn-primary" onclick="saveTelegramBotSettings()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+                Save Bot Token
+              </button>
+              <button class="t-btn btn-ghost" onclick="setTelegramWebhook()">Set Webhook</button>
+            </div>
+            <div class="fi-hint" style="margin-top:8px;" id="tg-webhook-hint">Save a bot token, then click "Set Webhook" to start capturing contacts.</div>
+            <div class="fi-hint" style="margin-top:4px;">Requires a Cloudflare Access bypass policy for <code>/api/webhooks/telegram</code> — Telegram's servers can't complete an SSO login, same requirement as the Meta WhatsApp webhook.</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Audience &amp; Message</div>
+          </div>
+          <div class="card-body">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+              <div class="fg" style="margin-bottom:0;"><label class="fl">Platform</label><select class="fs" id="tg-platform"><option value="ALL">All Platforms</option></select></div>
+              <div class="fg" style="margin-bottom:0;"><label class="fl">Country</label><select class="fs" id="tg-country"><option value="ALL">All Countries</option></select></div>
+              <div class="fg" style="margin-bottom:0;"><label class="fl">Brand</label><select class="fs" id="tg-brand"><option value="ALL">All Brands</option></select></div>
+            </div>
+            <div class="fg">
+              <label class="fl">Message</label>
+              <textarea class="fi" id="tg-message" rows="5" placeholder="Hi {{name}}, ..."></textarea>
+              <div class="fi-hint">{{name}} is replaced with the contact's name. Plain text only — Telegram has no template-approval step like WhatsApp.</div>
+            </div>
+            <div class="fg" style="max-width:220px;">
+              <label class="fl">Frequency Cap (days)</label>
+              <input class="fi" id="tg-frequency-cap" type="number" min="0" value="7"/>
+              <div class="fi-hint">Skip a contact messaged on Telegram within this many days. 0 disables the cap.</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+              <button class="t-btn btn-ghost" onclick="previewTelegramAudience()">Preview Audience</button>
+              <button class="t-btn btn-success" id="tg-send-btn" onclick="sendTelegramCampaign()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Send Campaign
+              </button>
+            </div>
+            <div id="tg-audience-preview" style="margin-top:10px;font-size:12px;color:var(--text3);"></div>
+            <div id="tg-send-progress" style="display:none;margin-top:10px;">
+              <div class="prog-wrap"><div class="prog-fill" id="tg-prog-fill" style="width:0%"></div></div>
+              <div id="tg-prog-text" style="font-size:11px;color:var(--text3);margin-top:4px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="two-col" style="margin-bottom:16px;align-items:start;">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Suppression List (Telegram)</div>
+            </div>
+            <div class="card-body">
+              <div class="fi-hint" style="margin-bottom:12px;">A chat here is never messaged by any Telegram campaign. Added automatically when a contact replies STOP/UNSUBSCRIBE or blocks the bot, or manually below.</div>
+              <div style="display:flex;gap:8px;margin-bottom:14px;">
+                <input class="fi" id="tg-opt-out-new-chatid" placeholder="Telegram chat ID" style="flex:1;"/>
+                <input class="fi" id="tg-opt-out-new-reason" placeholder="Reason (optional)" style="flex:1;"/>
+                <button class="t-btn btn-primary" style="height:38px;" onclick="addTelegramOptOut()">Add</button>
+              </div>
+              <div id="tg-opt-out-list"><div class="empty-state">Checking…</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Send History</div>
+            </div>
+            <div class="card-body" id="tg-history-list">
+              <div class="empty-state">No campaigns sent yet.</div>
             </div>
           </div>
         </div>
@@ -3059,9 +3148,9 @@ function saveConvIdSet(key,set){ try{localStorage.setItem(key,JSON.stringify([..
 function loadPinnedMsgMap(){ try{return JSON.parse(localStorage.getItem(PINNED_MSG_KEY)||'{}');}catch(e){return{};} }
 function savePinnedMsgMap(map){ try{localStorage.setItem(PINNED_MSG_KEY,JSON.stringify(map));}catch(e){} }
 const ROLE_EXPERIENCES={
-  Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
-  Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
-  Sales:{label:'My sales workspace',copy:'Focus on assigned leads, live conversations, follow-ups and the next best action.',pages:['dashboard','conversations','enquiries','tasks','leads','stock','pipeline','campaigns','suggestions','history','templates'],actions:[['Open inbox','conversations'],['My leads','leads'],["Today's tasks",'tasks']]}
+  Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','telegram','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
+  Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','telegram','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
+  Sales:{label:'My sales workspace',copy:'Focus on assigned leads, live conversations, follow-ups and the next best action.',pages:['dashboard','conversations','enquiries','tasks','leads','stock','pipeline','campaigns','suggestions','history','telegram','templates'],actions:[['Open inbox','conversations'],['My leads','leads'],["Today's tasks",'tasks']]}
 };
 let CURRENT_SESSION=null;
 
@@ -4126,8 +4215,8 @@ function navigate(page, el) {
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
   if(page!=='conversations' && S.liveSync) stopLiveSync();
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events',reliability:'System Health'};
-  const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',telegram:'Telegram Marketing',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events',reliability:'System Health'};
+  const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',telegram:'Bulk outreach to contacts who’ve started your Telegram bot',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics'};
   document.getElementById('page-title').textContent=titles[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   S.page=page; document.body.dataset.page=page; closeSidebar();
@@ -4145,6 +4234,7 @@ function navigate(page, el) {
   if(page==='users'){renderUsersPage();loadUsers().then(renderUsersPage);}
   if(page==='pipeline'){renderPipelinePage();}
   if(page==='history'){renderScheduledList();loadStagedCampaigns();renderHistoryList();}
+  if(page==='telegram'){initTelegramModule();}
   if(page==='tasks'){renderTasksList();}
   // Background refresh (fresh data without blocking navigation)
   if(page==='dashboard'){refreshDashboard().catch(()=>{});}
@@ -8478,6 +8568,195 @@ function renderWeeklyCampaignReports(){
 
   const loc=_buildWeeklyBreakdown(h=>parseAudienceLocations(h.audience));
   _renderWeeklyStackedChart('wk-chart-location',loc.weeks,loc.perWeek,loc.totals);
+}
+
+// ── Telegram Bulk Marketing module ──
+// A separate module from the WhatsApp campaign system — talks to the Telegram Bot API
+// directly (worker/routes/telegramBot.js), not through Chatwoot/n8n. A bot can only message
+// a contact who has already started a conversation with it, so "audience size" here is
+// always bounded by how many resolved contacts already have a telegramChatId on file.
+// Send history is kept client-side (localStorage), same architecture and same device-only
+// caveat as WhatsApp's own Campaign History — fully separate state, own storage key.
+const TG_HISTORY_KEY='whizz_telegram_history';
+function loadTelegramHistory(){try{const raw=localStorage.getItem(TG_HISTORY_KEY);S.telegramHistory=raw?JSON.parse(raw):[];}catch{S.telegramHistory=[];}}
+function saveTelegramHistoryEntry(entry){
+  if(!S.telegramHistory)S.telegramHistory=[];
+  S.telegramHistory.unshift(entry);
+  if(S.telegramHistory.length>50)S.telegramHistory=S.telegramHistory.slice(0,50);
+  try{localStorage.setItem(TG_HISTORY_KEY,JSON.stringify(S.telegramHistory));}catch{}
+  renderTelegramHistoryList();
+}
+function renderTelegramHistoryList(){
+  const el=document.getElementById('tg-history-list');
+  if(!el)return;
+  const hist=S.telegramHistory||[];
+  if(!hist.length){el.innerHTML='<div class="empty-state">No campaigns sent yet.</div>';return;}
+  el.innerHTML=hist.map((h,i)=>{
+    const failedList=h.failedContacts||[];
+    const toggle=failedList.length?`<button type="button" style="background:none;border:0;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;padding:6px 0 0;" onclick="toggleTelegramHistoryDetails(${i})" id="tg-hist-toggle-${i}">Show ${failedList.length} failure reason${failedList.length===1?'':'s'} ▾</button>`:'';
+    const resendBtn=failedList.length?`<button type="button" class="t-btn btn-ghost t-btn-sm" style="margin-top:6px;" onclick="resendTelegramToFailed(${i})" id="tg-hist-resend-${i}">Resend to ${failedList.length} failed</button>`:'';
+    const details=failedList.length?`<div id="tg-hist-details-${i}" style="display:none;margin-top:6px;padding:8px 10px;background:var(--bg3);border-radius:8px;max-height:180px;overflow-y:auto;">${failedList.map(c=>`<div style="display:flex;gap:8px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);"><span style="flex:1;color:var(--text);">${_hesc(c.name||'Unknown')}</span><span style="flex:2;color:var(--red);">${_hesc(c.reason||'')}</span></div>`).join('')}</div>`:'';
+    return `<div style="padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px;"><div class="hist-item" style="border:0;padding:10px 0;"><div class="hist-icon" style="background:var(--blue-dim);color:var(--blue);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg></div><div class="hist-info"><div class="hist-name">${_hesc(h.audience||'All')}</div><div class="hist-meta">${new Date(h.ts).toLocaleString('en-AE')} · ${h.total||0} contacts${h.skipped?` · ${h.skipped} skipped`:''}</div>${toggle}${details}${resendBtn}</div><div class="hist-stats"><div class="hist-sent">${h.sent||0} sent</div><div class="hist-fail">${h.failed||0} failed</div></div></div></div>`;
+  }).join('');
+}
+function toggleTelegramHistoryDetails(i){
+  const el=document.getElementById(`tg-hist-details-${i}`);
+  const btn=document.getElementById(`tg-hist-toggle-${i}`);
+  if(!el)return;
+  const show=el.style.display==='none';
+  el.style.display=show?'block':'none';
+  const count=(S.telegramHistory[i]?.failedContacts||[]).length;
+  if(btn)btn.textContent=show?'Hide failure reasons ▴':`Show ${count} failure reason${count===1?'':'s'} ▾`;
+}
+async function initTelegramModule(){
+  loadTelegramHistory();
+  renderTelegramHistoryList();
+  loadTelegramSettings();
+  loadTelegramOptOuts();
+  populateTelegramAudienceFilters();
+}
+async function populateTelegramAudienceFilters(){
+  if(!S.cache.platforms||!S.cache.countries||!S.cache.brands){
+    try{await refreshLeadData();}catch(e){}
+  }
+  const fill=(id,values)=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    const current=el.value;
+    el.innerHTML='<option value="ALL">All</option>'+(values||[]).map(v=>`<option value="${_hesc(v)}">${_hesc(v)}</option>`).join('');
+    if(current&&[...el.options].some(o=>o.value===current))el.value=current;
+  };
+  fill('tg-platform',S.cache.platforms);
+  fill('tg-country',S.cache.countries);
+  fill('tg-brand',S.cache.brands);
+}
+function telegramAudiencePayload(){
+  return {
+    platform:document.getElementById('tg-platform')?.value||'ALL',
+    country:document.getElementById('tg-country')?.value||'ALL',
+    brand:document.getElementById('tg-brand')?.value||'ALL',
+  };
+}
+async function loadTelegramSettings(){
+  const statusEl=document.getElementById('tg-status');
+  if(!statusEl)return;
+  try{
+    const d=await apiWMsg('api/telegram/settings');
+    statusEl.textContent=d.hasToken?(d.botUsername?`Connected — @${d.botUsername}`:'Connected'):'Not connected';
+    statusEl.style.color=d.hasToken?'var(--green)':'var(--text3)';
+    document.getElementById('tg-bot-token').placeholder=d.hasToken?'Leave blank to keep the current token':'Paste your bot token from @BotFather';
+    document.getElementById('tg-webhook-hint').textContent=d.webhookConfigured?'Webhook secret is set — click "Set Webhook" again any time you change the domain.':'Save a bot token, then click "Set Webhook" to start capturing contacts.';
+  }catch(e){statusEl.textContent='Status unavailable';}
+}
+async function saveTelegramBotSettings(){
+  const botToken=document.getElementById('tg-bot-token').value.trim();
+  if(!botToken){showToast('Paste a bot token first','error');return;}
+  try{
+    const d=await apiWMsg('api/telegram/settings','POST',{botToken});
+    document.getElementById('tg-bot-token').value='';
+    showToast(d.botUsername?`Connected to @${d.botUsername}`:'Telegram bot connected','success');
+    loadTelegramSettings();
+  }catch(e){showToast(e.message||'Failed to save bot token','error');}
+}
+async function setTelegramWebhook(){
+  try{
+    const d=await apiWMsg('api/telegram/set-webhook','POST',{});
+    showToast('Webhook set','success');
+    const hint=document.getElementById('tg-webhook-hint');
+    if(hint)hint.textContent=`Webhook set to ${d.url}`;
+  }catch(e){showToast(e.message||'Failed to set webhook','error');}
+}
+async function previewTelegramAudience(){
+  const el=document.getElementById('tg-audience-preview');
+  if(!el)return;
+  el.textContent='Checking…';
+  try{
+    const d=await apiWMsg('api/telegram/audience-preview','POST',telegramAudiencePayload());
+    el.innerHTML=`<b>${d.withTelegram}</b> of ${d.total} resolved contacts can be reached on Telegram (have started the bot)${d.withoutTelegram?` — ${d.withoutTelegram} have no linked Telegram chat`:''}.`;
+  }catch(e){el.textContent=e.message||'Could not check audience';}
+}
+async function sendTelegramCampaign(){
+  const message=document.getElementById('tg-message').value.trim();
+  if(!message){showToast('Write a message first','error');return;}
+  if(!confirm('Send this Telegram campaign now?'))return;
+  const btn=document.getElementById('tg-send-btn');
+  const freqCap=parseInt(document.getElementById('tg-frequency-cap').value,10)||0;
+  btn.disabled=true;btn.textContent='Sending…';
+  document.getElementById('tg-send-progress').style.display='block';
+  document.getElementById('tg-prog-fill').style.width='50%';
+  document.getElementById('tg-prog-text').textContent='Sending via Telegram…';
+  try{
+    const audience=telegramAudiencePayload();
+    const result=await apiWMsg('api/telegram/send','POST',{...audience,message,delivery_guard:{frequency_cap_days:freqCap}});
+    document.getElementById('tg-prog-fill').style.width='100%';
+    document.getElementById('tg-prog-text').textContent=`Complete. Sent: ${result.sent||0}, Failed: ${result.failed||0}, Skipped: ${result.skipped||0}`;
+    showToast(`Telegram campaign complete: ${result.sent||0} sent`,result.failed?'error':'success');
+    const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,chatId:r.chatId,reason:r.reason})).slice(0,50);
+    const audLabel=[audience.platform!=='ALL'?audience.platform:null,audience.country!=='ALL'?audience.country:null,audience.brand!=='ALL'?audience.brand:null].filter(Boolean).join(' / ')||'All';
+    saveTelegramHistoryEntry({audience:audLabel,message,total:result.total||0,sent:result.sent||0,failed:result.failed||0,skipped:result.skipped||0,failedContacts,ts:Date.now()});
+    setTimeout(()=>{document.getElementById('tg-send-progress').style.display='none';},3000);
+  }catch(e){showToast(e.message||'Telegram send failed','error');}
+  btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';
+}
+// Retargets exactly the chats a previous campaign's own failedContacts list shows as
+// failed — same pattern as resendToFailed() in the WhatsApp module.
+async function resendTelegramToFailed(i){
+  const h=S.telegramHistory[i];
+  if(!h||!h.failedContacts?.length)return;
+  if(!confirm(`Resend to ${h.failedContacts.length} contact${h.failedContacts.length===1?'':'s'} who failed last time?`))return;
+  try{
+    const result=await apiWMsg('api/telegram/send','POST',{message:h.message,targetContacts:h.failedContacts.map(c=>({name:c.name,chatId:c.chatId}))});
+    const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,chatId:r.chatId,reason:r.reason})).slice(0,50);
+    showToast(`Resend complete: ${result.sent||0} sent, ${result.failed||0} failed`,result.failed?'error':'success');
+    saveTelegramHistoryEntry({audience:`Resend of failed from ${new Date(h.ts).toLocaleDateString('en-AE')}`,message:h.message,total:result.total||0,sent:result.sent||0,failed:result.failed||0,failedContacts,ts:Date.now()});
+  }catch(e){showToast(e.message||'Resend failed','error');}
+}
+// ── Telegram opt-outs (mirrors optOuts.js's WhatsApp UI, keyed on chatId) ──
+async function loadTelegramOptOuts(){
+  const el=document.getElementById('tg-opt-out-list');
+  if(!el)return;
+  el.innerHTML='<div class="empty-state">Checking…</div>';
+  try{
+    const d=await apiWMsg('api/telegram/opt-outs');
+    S.cache.telegramOptOuts=d.chats||[];
+    renderTelegramOptOutList();
+  }catch(e){el.innerHTML=`<div class="empty-state">${_hesc(e.message||'Failed to load')}</div>`;}
+}
+function renderTelegramOptOutList(){
+  const el=document.getElementById('tg-opt-out-list');
+  if(!el)return;
+  const chats=S.cache.telegramOptOuts||[];
+  if(!chats.length){el.innerHTML='<div class="empty-state">No opted-out chats yet.</div>';return;}
+  el.innerHTML=chats.map(c=>`
+    <div class="hist-item">
+      <div class="hist-icon" style="background:var(--red-dim);color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
+      <div class="hist-info">
+        <div class="hist-name">${_hesc(c.chatId)}</div>
+        <div class="hist-meta">${c.source==='keyword_detected'?'Auto-detected':'Added manually'}${c.reason?' · '+_hesc(c.reason):''} · ${new Date(c.createdAt).toLocaleDateString('en-AE')}</div>
+      </div>
+      <button class="t-btn btn-ghost t-btn-sm" style="flex-shrink:0;" onclick="removeTelegramOptOut('${_hesc(c.chatId)}')">Remove</button>
+    </div>
+  `).join('');
+}
+async function addTelegramOptOut(){
+  const chatId=document.getElementById('tg-opt-out-new-chatid').value.trim();
+  const reason=document.getElementById('tg-opt-out-new-reason').value.trim();
+  if(!chatId){showToast('A chat ID is required','error');return;}
+  try{
+    await apiWMsg('api/telegram/opt-outs','POST',{chatId,reason});
+    document.getElementById('tg-opt-out-new-chatid').value='';
+    document.getElementById('tg-opt-out-new-reason').value='';
+    showToast('Chat added to suppression list','success');
+    loadTelegramOptOuts();
+  }catch(e){showToast(e.message||'Failed to add','error');}
+}
+async function removeTelegramOptOut(chatId){
+  if(!confirm(`Remove ${chatId} from the suppression list?`))return;
+  try{
+    await apiWMsg(`api/telegram/opt-outs/${encodeURIComponent(chatId)}`,'DELETE');
+    showToast('Removed from suppression list','success');
+    loadTelegramOptOuts();
+  }catch(e){showToast(e.message||'Failed to remove','error');}
 }
 
 // ── Users Management ──

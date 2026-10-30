@@ -176,7 +176,7 @@ export async function resolveContactsForCampaign(env, user, body) {
     ];
     if (ownerParam !== undefined) binds.push(ownerParam);
     const { results } = await env.DB.prepare(
-      `SELECT id,contactName,phone,email,platform,country,brand,leadScore,lastContactedAt FROM contacts
+      `SELECT id,contactName,phone,email,platform,country,brand,leadScore,lastContactedAt,telegramChatId,telegramLastContactedAt FROM contacts
        WHERE (? = 'ALL' OR LOWER(platform) = LOWER(?))
          AND (? = 'ALL' OR LOWER(country) = LOWER(?))
          AND (? = 'ALL' OR (',' || REPLACE(LOWER(brand), ', ', ',') || ',') LIKE ('%,' || LOWER(?) || ',%'))
