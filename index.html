@@ -8753,19 +8753,29 @@ async function loadTelegramLeadPicker(){
   try{
     const platform=document.getElementById('tgl-platform').value;
     const country=document.getElementById('tgl-country').value;
+    const search=(document.getElementById('tgl-search')?.value||'').trim();
     const params=new URLSearchParams();
     if(platform&&platform!=='ALL')params.set('platform',platform);
     if(country&&country!=='ALL')params.set('country',country);
+    if(search)params.set('search',search);
     const d=await apiWMsg(`api/telegram/reachable-leads${params.toString()?'?'+params.toString():''}`);
     S._tglLeads=d.leads||[];
     renderTelegramLeadPicker();
   }catch(e){el.innerHTML=`<div class="empty-state">${_hesc(e.message||'Failed to load')}</div>`;}
 }
+// Platform/country/search are all applied server-side (the reachable-leads query caps at
+// 500 rows ordered by leadScore, so a client-side-only text filter would silently miss any
+// match past that cutoff) — this just layers "show selected only" on top of whatever the
+// server already returned.
 function _telegramLeadPickerFiltered(){
-  const search=(document.getElementById('tgl-search')?.value||'').toLowerCase();
-  return (S._tglLeads||[]).filter(l=>!search||(l.contactName||'').toLowerCase().includes(search)||(l.telegramUsername||'').toLowerCase().includes(search));
+  const showSelectedOnly=document.getElementById('tgl-show-selected')?.checked;
+  return (S._tglLeads||[]).filter(l=>!showSelectedOnly||S._tglChecked.has(l.id));
 }
-function filterTelegramLeadPicker(){renderTelegramLeadPicker();}
+let _tglSearchDebounce=null;
+function filterTelegramLeadPicker(){
+  clearTimeout(_tglSearchDebounce);
+  _tglSearchDebounce=setTimeout(loadTelegramLeadPicker,300);
+}
 // Relative "last messaged" phrasing, reused for both the plain display and the
 // frequency-cap heads-up below.
 function _telegramRelativeDays(iso){
@@ -8782,8 +8792,7 @@ function renderTelegramLeadPicker(){
   const el=document.getElementById('tgl-list');
   if(!el)return;
   const showSelectedOnly=document.getElementById('tgl-show-selected')?.checked;
-  let leads=_telegramLeadPickerFiltered();
-  if(showSelectedOnly)leads=leads.filter(l=>S._tglChecked.has(l.id));
+  const leads=_telegramLeadPickerFiltered();
   const shownEl=document.getElementById('tgl-shown-count');
   if(shownEl)shownEl.textContent=`${leads.length} shown`;
   if(!leads.length){el.innerHTML=`<div class="empty-state">${showSelectedOnly?'No selected leads match the current search/filter.':'No Telegram-linked leads match.'}</div>`;updateTelegramLeadPickerCount();return;}
