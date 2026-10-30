@@ -392,8 +392,26 @@ export async function handleSendTelegramCampaign(request, env) {
 
   const targetContacts = Array.isArray(body.targetContacts) ? body.targetContacts : null;
   let contacts;
+  const resolveFails = [];
   if (targetContacts) {
     contacts = targetContacts.map(c => ({ id: c.id || null, contactName: c.name || '', telegramChatId: c.chatId }));
+    // A pasted Chat ID List may mix numeric IDs with @usernames — resolve the usernames to a
+    // numeric chat ID up front via getChat, so the suppression-list and duplicate checks below
+    // (both keyed by the numeric ID Telegram's webhook records) still catch them, and a bad
+    // handle fails here with a clear reason instead of as an opaque sendMessage error later.
+    const unresolved = contacts.filter(c => c.telegramChatId && !/^-?\d+$/.test(String(c.telegramChatId)));
+    for (const c of unresolved) {
+      const username = String(c.telegramChatId).replace(/^@/, '');
+      const { ok, data } = await telegramApi(token, 'getChat', { chat_id: `@${username}` });
+      if (ok && data.result?.id !== undefined) {
+        c.telegramChatId = String(data.result.id);
+      } else {
+        resolveFails.push({ contactId: c.id, chatId: null, name: c.contactName, status: 'failed', bucket: 'permanent',
+          reason: `Telegram couldn’t resolve @${username}: ${data.description || 'not found'}. This only works for a public channel, supergroup or bot — a private person's username can’t be resolved this way; use their numeric chat ID instead.` });
+        c._unresolved = true;
+      }
+    }
+    contacts = contacts.filter(c => !c._unresolved);
   } else {
     try { contacts = await resolveContactsForCampaign(env, user, body); }
     catch (error) { return json({ error: error.message }, 500); }
@@ -456,5 +474,12 @@ export async function handleSendTelegramCampaign(request, env) {
     if (contact.id) await env.DB.prepare('UPDATE contacts SET telegramLastContactedAt=CURRENT_TIMESTAMP WHERE id=?').bind(contact.id).run();
   }
 
-  return json({ total: eligible.length, sent: eligible.length - totalFails, failed: totalFails, skipped: skipped.length, skippedDetail: skipped, results });
+  return json({
+    total: eligible.length + resolveFails.length,
+    sent: eligible.length - totalFails,
+    failed: totalFails + resolveFails.length,
+    skipped: skipped.length,
+    skippedDetail: skipped,
+    results: [...resolveFails, ...results],
+  });
 }
