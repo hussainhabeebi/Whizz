@@ -8735,9 +8735,9 @@ function selectTelegramAudienceMode(mode,el){
   if(mode==='leads')renderTelegramSelectedLeadsChips();
   previewTelegramAudience();
 }
-// Accepts a bare chat ID per line, or "Name, chatId" — the only validation is that the
-// last comma-separated piece parses as a plain integer (Telegram chat IDs are always
-// numeric; a username wouldn't work here since there's no contact to resolve it through).
+// Accepts a bare chat ID per line, or "Name, chatId" — the last comma-separated piece must
+// parse as a plain integer, or as a Telegram-shaped @username (resolved to a numeric chat ID
+// server-side before sending, since only a public channel/supergroup/bot can be resolved that way).
 function parseTelegramChatIdInput(){
   const text=document.getElementById('tg-chatid-list')?.value||'';
   const seen=new Set();
