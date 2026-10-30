@@ -244,6 +244,58 @@ export async function handleListTelegramReachableLeads(request, env) {
   return json({ leads: result.results || [] });
 }
 
+// Manual chat ID linking — for a lead whose numeric Telegram chat ID is already known from
+// somewhere else. There is no API-side fallback for this: Telegram's Bot API can't resolve
+// a username to a chat ID, and won't surface one at all until that person messages the bot
+// themselves, so a lead who hasn't done that can only become reachable this way.
+export async function handleSearchContactsForTelegramLink(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const url = new URL(request.url);
+  const search = (url.searchParams.get('search') || '').trim().toLowerCase();
+  if (!search) return json({ contacts: [] });
+
+  let ownerFilter = '';
+  let ownerParam;
+  if (user.role === 'Manager') { ownerFilter = 'AND (ownerEmail IS NULL OR teamId = ?)'; ownerParam = user.teamId || ''; }
+  else if (user.role === 'Sales') { ownerFilter = 'AND ownerEmail = ?'; ownerParam = user.email; }
+
+  const binds = [`%${search}%`, `%${search}%`, `%${search}%`];
+  if (ownerParam !== undefined) binds.push(ownerParam);
+
+  const result = await env.DB.prepare(`
+    SELECT id,contactName,company,platform,country,telegramUsername,telegramChatId
+    FROM contacts
+    WHERE (LOWER(contactName) LIKE ? OR LOWER(company) LIKE ? OR LOWER(telegramUsername) LIKE ?)
+      ${ownerFilter}
+    ORDER BY contactName COLLATE NOCASE
+    LIMIT 30
+  `).bind(...binds).all();
+
+  return json({ contacts: result.results || [] });
+}
+
+export async function handleLinkTelegramChatId(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const body = await request.json().catch(() => ({}));
+  const contactId = Number(body.contactId);
+  const chatId = String(body.chatId || '').trim();
+  if (!contactId) return json({ error: 'A lead is required.' }, 400);
+  if (!/^-?\d+$/.test(chatId)) return json({ error: 'A Telegram chat ID is a plain number (positive for a person, negative for a group/supergroup) — not a username or phone number.' }, 400);
+
+  let ownerFilter = '';
+  let ownerParam;
+  if (user.role === 'Manager') { ownerFilter = 'AND (ownerEmail IS NULL OR teamId = ?)'; ownerParam = user.teamId || ''; }
+  else if (user.role === 'Sales') { ownerFilter = 'AND ownerEmail = ?'; ownerParam = user.email; }
+
+  const binds = [chatId, contactId];
+  if (ownerParam !== undefined) binds.push(ownerParam);
+  const result = await env.DB.prepare(`UPDATE contacts SET telegramChatId=?, updatedAt=CURRENT_TIMESTAMP WHERE id=? ${ownerFilter}`).bind(...binds).run();
+  if (!result.meta.changes) return json({ error: 'Lead not found or access denied.' }, 404);
+  return json({ success: true });
+}
+
 function classifyTelegramError(description) {
   const d = String(description || '').toLowerCase();
   if (d.includes('blocked') || d.includes('chat not found') || d.includes('deactivated') || d.includes('kicked')) return 'permanent';

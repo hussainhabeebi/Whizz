@@ -3016,6 +3016,19 @@ body.dark{
       <div id="tgl-list" style="border:1px solid var(--border);border-radius:8px;max-height:360px;overflow-y:auto;">
         <div class="empty-state">Checking…</div>
       </div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px;">Can't find a lead? Link a Telegram chat ID directly</div>
+        <div class="fi-hint" style="margin-bottom:8px;">For a lead whose numeric Telegram chat ID you already have from somewhere else — Telegram's API has no way to look one up from just a username or name; it only appears once that person messages the bot.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="flex:2;min-width:160px;position:relative;">
+            <input class="fi" id="tgl-link-search" placeholder="Search any lead by name/company…" oninput="searchContactsForTelegramLink()" autocomplete="off"/>
+            <div id="tgl-link-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;margin-top:4px;max-height:200px;overflow-y:auto;z-index:20;box-shadow:var(--shadow-sm);"></div>
+          </div>
+          <input class="fi" id="tgl-link-chatid" placeholder="Telegram chat ID (numeric)" style="flex:1;min-width:140px;"/>
+          <button class="t-btn btn-primary t-btn-sm" onclick="linkTelegramChatId()">Link</button>
+        </div>
+        <div id="tgl-link-selected" style="font-size:11px;color:var(--text3);margin-top:6px;"></div>
+      </div>
     </div>
     <div class="modal-foot">
       <span style="font-size:11.5px;color:var(--text3);margin-right:auto;"><strong id="tgl-selected-count">0</strong> selected</span>
@@ -8743,6 +8756,11 @@ async function openTelegramLeadPicker(){
   fill('tgl-country',S.cache.countries);
   document.getElementById('tgl-search').value='';
   document.getElementById('tgl-show-selected').checked=false;
+  document.getElementById('tgl-link-search').value='';
+  document.getElementById('tgl-link-chatid').value='';
+  document.getElementById('tgl-link-selected').textContent='';
+  document.getElementById('tgl-link-results').style.display='none';
+  _tglLinkSelectedContact=null;
   S._tglChecked=new Set((S.selectedTelegramLeads||[]).map(l=>l.id));
   await loadTelegramLeadPicker();
 }
@@ -8835,6 +8853,56 @@ function confirmTelegramLeadPicker(){
   closeModal('modal-telegram-leads');
   renderTelegramSelectedLeadsChips();
   previewTelegramAudience();
+}
+// ── Manual chat ID linking ── Telegram's Bot API can't resolve a username to a chat ID,
+// and won't surface one at all until that person messages the bot themselves — so this is
+// the only way to make a known-but-not-yet-chatted lead reachable, for whoever already has
+// their numeric chat ID from somewhere else.
+let _tglLinkResults=[];
+let _tglLinkSelectedContact=null;
+let _tglLinkSearchDebounce=null;
+function searchContactsForTelegramLink(){
+  clearTimeout(_tglLinkSearchDebounce);
+  _tglLinkSearchDebounce=setTimeout(async ()=>{
+    const q=document.getElementById('tgl-link-search').value.trim();
+    const resultsEl=document.getElementById('tgl-link-results');
+    _tglLinkSelectedContact=null;
+    document.getElementById('tgl-link-selected').textContent='';
+    if(!q){resultsEl.style.display='none';_tglLinkResults=[];return;}
+    try{
+      const d=await apiWMsg(`api/telegram/search-contacts?search=${encodeURIComponent(q)}`);
+      _tglLinkResults=d.contacts||[];
+      if(!_tglLinkResults.length){
+        resultsEl.innerHTML='<div style="padding:8px 10px;font-size:11.5px;color:var(--text3);">No matches.</div>';
+      }else{
+        resultsEl.innerHTML=_tglLinkResults.map((c,i)=>`<div style="padding:8px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--border);" onclick="selectTelegramLinkContact(${i})">${_hesc(c.contactName||'Unknown')}${c.company?' · '+_hesc(c.company):''}${c.telegramChatId?' <span style="color:var(--green);">(already linked)</span>':''}</div>`).join('');
+      }
+      resultsEl.style.display='block';
+    }catch(e){resultsEl.style.display='none';}
+  },300);
+}
+function selectTelegramLinkContact(i){
+  const c=_tglLinkResults[i];
+  if(!c)return;
+  _tglLinkSelectedContact=c;
+  document.getElementById('tgl-link-search').value=c.contactName||'Unknown';
+  document.getElementById('tgl-link-results').style.display='none';
+  document.getElementById('tgl-link-selected').textContent=c.telegramChatId?`Selected: ${c.contactName} — currently linked to ${c.telegramChatId}; linking again will overwrite it.`:`Selected: ${c.contactName}`;
+}
+async function linkTelegramChatId(){
+  const chatId=document.getElementById('tgl-link-chatid').value.trim();
+  if(!_tglLinkSelectedContact){showToast('Search and pick a lead first','error');return;}
+  if(!chatId){showToast('Enter a Telegram chat ID','error');return;}
+  try{
+    await apiWMsg('api/telegram/link-chat-id','POST',{contactId:_tglLinkSelectedContact.id,chatId});
+    showToast(`Linked ${_tglLinkSelectedContact.contactName||'lead'} to Telegram`,'success');
+    document.getElementById('tgl-link-search').value='';
+    document.getElementById('tgl-link-chatid').value='';
+    document.getElementById('tgl-link-selected').textContent='';
+    document.getElementById('tgl-link-results').style.display='none';
+    _tglLinkSelectedContact=null;
+    await loadTelegramLeadPicker();
+  }catch(e){showToast(e.message||'Failed to link','error');}
 }
 async function loadTelegramSettings(){
   const statusEl=document.getElementById('tg-status');
