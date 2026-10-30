@@ -42,7 +42,7 @@ async function repairSchema(env) {
     ['ownerEmail', 'TEXT'], ['teamId', 'TEXT'], ['createdByEmail', 'TEXT'], ['createdAt', 'TEXT'],
     ['updatedAt', 'TEXT'], ['lastContactedAt', 'TEXT'], ['nextFollowUpAt', 'TEXT'],
     ['dealExpectedAt', 'TEXT'], ['leadScore', 'INTEGER NOT NULL DEFAULT 0'],
-    ['telegramChatId', 'TEXT'], ['telegramUsername', 'TEXT'],
+    ['telegramChatId', 'TEXT'], ['telegramUsername', 'TEXT'], ['telegramLastContactedAt', 'TEXT'],
     ['convertedAt', 'TEXT'],
     ['website', "TEXT NOT NULL DEFAULT ''"], ['address', "TEXT NOT NULL DEFAULT ''"],
     ['rating', 'REAL NOT NULL DEFAULT 0'], ['mapsUrl', "TEXT NOT NULL DEFAULT ''"],
@@ -67,6 +67,28 @@ async function repairSchema(env) {
     text TEXT NOT NULL DEFAULT '',
     messageId INTEGER,
     senderName TEXT NOT NULL DEFAULT '',
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Telegram Bulk Marketing module (worker/routes/telegramBot.js) — talks to the Telegram
+  // Bot API directly, not through Chatwoot/n8n. A single bot token covers the whole
+  // workspace (unlike WhatsApp's multiple Chatwoot inboxes), so one settings row is enough.
+  // webhookSecret is compared against the X-Telegram-Bot-Api-Secret-Token header on every
+  // inbound update, since (unlike Meta) Telegram has no built-in verify-token handshake.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS telegram_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    botTokenEncrypted TEXT,
+    botUsername TEXT NOT NULL DEFAULT '',
+    webhookSecret TEXT NOT NULL DEFAULT '',
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  // Telegram's own suppression list — a parallel table to opted_out_numbers rather than a
+  // shared one, since Telegram identity is a numeric chatId, not a phone number.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS telegram_opted_out (
+    chatId TEXT PRIMARY KEY,
+    source TEXT NOT NULL DEFAULT 'manual',
+    reason TEXT NOT NULL DEFAULT '',
+    addedByEmail TEXT NOT NULL DEFAULT '',
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 

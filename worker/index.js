@@ -20,6 +20,7 @@ import { handleListOptOuts, handleAddOptOut, handleRemoveOptOut, handleCheckOptO
 import { handleListCountryLanguageMap, handleSetCountryLanguageMap, handleDeleteCountryLanguageMap } from './routes/countryLanguage.js';
 import { handleMetaWebhookVerify, handleMetaWebhookEvent, handleGetDeliveryStatuses } from './routes/metaWebhook.js';
 import { handleCreateStagedRun, handleListStagedRuns, handlePauseStagedRun, handleResumeStagedRun, handleCancelStagedRun, processStagedCampaignRuns } from './routes/stagedCampaigns.js';
+import { handleGetTelegramSettings, handleSaveTelegramSettings, handleSetTelegramWebhook, handleTelegramWebhookEvent, handleListTelegramOptOuts, handleAddTelegramOptOut, handleRemoveTelegramOptOut, handleTelegramAudiencePreview, handleSendTelegramCampaign } from './routes/telegramBot.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -63,6 +64,13 @@ const routes = [
   { method: 'GET', path: '/api/chatwoot/send-time-suggestion', handler: handleSendTimeSuggestion },
   { method: 'GET', path: '/api/staged-campaigns', handler: handleListStagedRuns },
   { method: 'POST', path: '/api/staged-campaigns', handler: handleCreateStagedRun },
+  { method: 'GET', path: '/api/telegram/settings', handler: handleGetTelegramSettings },
+  { method: 'POST', path: '/api/telegram/settings', handler: handleSaveTelegramSettings },
+  { method: 'POST', path: '/api/telegram/set-webhook', handler: handleSetTelegramWebhook },
+  { method: 'GET', path: '/api/telegram/opt-outs', handler: handleListTelegramOptOuts },
+  { method: 'POST', path: '/api/telegram/opt-outs', handler: handleAddTelegramOptOut },
+  { method: 'POST', path: '/api/telegram/audience-preview', handler: handleTelegramAudiencePreview },
+  { method: 'POST', path: '/api/telegram/send', handler: handleSendTelegramCampaign },
 ];
 
 async function leadActor(request, env) {
@@ -152,6 +160,14 @@ export default {
     }
     if (url.pathname === '/api/webhooks/meta' && request.method === 'POST') {
       try { return await handleMetaWebhookEvent(request, env); }
+      catch (err) { return Response.json({ received: true }); }
+    }
+
+    // Telegram calls this directly — same Cloudflare Access bypass requirement as the Meta
+    // webhook above (see worker/routes/telegramBot.js), but authenticated via the
+    // X-Telegram-Bot-Api-Secret-Token header instead of a verify-token handshake.
+    if (url.pathname === '/api/webhooks/telegram' && request.method === 'POST') {
+      try { return await handleTelegramWebhookEvent(request, env); }
       catch (err) { return Response.json({ received: true }); }
     }
 
@@ -263,6 +279,11 @@ export default {
     const countryLangMatch = url.pathname.match(/^\/api\/country-language-map\/([^/]+)$/);
     if (countryLangMatch && request.method === 'DELETE') {
       try { return await handleDeleteCountryLanguageMap(request, env, countryLangMatch[1]); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const telegramOptOutMatch = url.pathname.match(/^\/api\/telegram\/opt-outs\/([^/]+)$/);
+    if (telegramOptOutMatch && request.method === 'DELETE') {
+      try { return await handleRemoveTelegramOptOut(request, env, telegramOptOutMatch[1]); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const stagedRunMatch = url.pathname.match(/^\/api\/staged-campaigns\/(\d+)\/(pause|resume|cancel)$/);
