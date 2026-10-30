@@ -280,9 +280,26 @@ export async function handleLinkTelegramChatId(request, env) {
   if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
   const body = await request.json().catch(() => ({}));
   const contactId = Number(body.contactId);
-  const chatId = String(body.chatId || '').trim();
+  const raw = String(body.chatId || '').trim();
   if (!contactId) return json({ error: 'A lead is required.' }, 400);
-  if (!/^-?\d+$/.test(chatId)) return json({ error: 'A Telegram chat ID is a plain number (positive for a person, negative for a group/supergroup) — not a username or phone number.' }, 400);
+  if (!raw) return json({ error: 'A chat ID or @username is required.' }, 400);
+
+  let chatId = raw;
+  if (!/^-?\d+$/.test(raw)) {
+    // Not a plain number — try it as a public @username. This only ever works for a public
+    // channel, supergroup or bot: Telegram's getChat refuses to resolve a private person's
+    // username at all (by design, for privacy) unless that person has already messaged the
+    // bot — in which case their numeric chat ID would already be on file from the webhook,
+    // and this manual path wouldn't be needed.
+    const token = await loadTelegramBotToken(env);
+    if (!token) return json({ error: 'Telegram isn’t connected yet — add a bot token first.' }, 503);
+    const username = raw.replace(/^@/, '');
+    const { ok, data } = await telegramApi(token, 'getChat', { chat_id: `@${username}` });
+    if (!ok || data.result?.id === undefined) {
+      return json({ error: `Telegram couldn’t resolve @${username}: ${data.description || 'not found'}. This only works for a public channel, supergroup or bot — a private person's username can’t be resolved this way; paste their numeric chat ID instead if you have it.` }, 400);
+    }
+    chatId = String(data.result.id);
+  }
 
   let ownerFilter = '';
   let ownerParam;
@@ -293,7 +310,7 @@ export async function handleLinkTelegramChatId(request, env) {
   if (ownerParam !== undefined) binds.push(ownerParam);
   const result = await env.DB.prepare(`UPDATE contacts SET telegramChatId=?, updatedAt=CURRENT_TIMESTAMP WHERE id=? ${ownerFilter}`).bind(...binds).run();
   if (!result.meta.changes) return json({ error: 'Lead not found or access denied.' }, 404);
-  return json({ success: true });
+  return json({ success: true, chatId });
 }
 
 function classifyTelegramError(description) {

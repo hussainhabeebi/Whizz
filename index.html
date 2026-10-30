@@ -3017,14 +3017,14 @@ body.dark{
         <div class="empty-state">Checking…</div>
       </div>
       <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
-        <div style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px;">Can't find a lead? Link a Telegram chat ID directly</div>
-        <div class="fi-hint" style="margin-bottom:8px;">For a lead whose numeric Telegram chat ID you already have from somewhere else — Telegram's API has no way to look one up from just a username or name; it only appears once that person messages the bot.</div>
+        <div style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px;">Can't find a lead? Link Telegram directly</div>
+        <div class="fi-hint" style="margin-bottom:8px;">Paste a numeric chat ID if you already have one, or an @username for a public channel/supergroup/bot (Whizz will resolve it). A private person's username can't be resolved this way — Telegram only hands over their chat ID once they message the bot themselves.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <div style="flex:2;min-width:160px;position:relative;">
             <input class="fi" id="tgl-link-search" placeholder="Search any lead by name/company…" oninput="searchContactsForTelegramLink()" autocomplete="off"/>
             <div id="tgl-link-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;margin-top:4px;max-height:200px;overflow-y:auto;z-index:20;box-shadow:var(--shadow-sm);"></div>
           </div>
-          <input class="fi" id="tgl-link-chatid" placeholder="Telegram chat ID (numeric)" style="flex:1;min-width:140px;"/>
+          <input class="fi" id="tgl-link-chatid" placeholder="Chat ID or @username" style="flex:1;min-width:140px;"/>
           <button class="t-btn btn-primary t-btn-sm" onclick="linkTelegramChatId()">Link</button>
         </div>
         <div id="tgl-link-selected" style="font-size:11px;color:var(--text3);margin-top:6px;"></div>
