@@ -1413,23 +1413,31 @@ body.dark{
             <div class="card-title">Audience &amp; Message</div>
           </div>
           <div class="card-body">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-              <div class="eyebrow" style="margin-bottom:0;">Audience</div>
+            <div class="eyebrow" style="margin-bottom:8px;">Audience</div>
+            <div class="chips" id="tg-audience-mode-chips" style="margin-bottom:12px;">
+              <div class="chip active" data-mode="filter" onclick="selectTelegramAudienceMode('filter',this)">By Filter</div>
+              <div class="chip" data-mode="leads" onclick="selectTelegramAudienceMode('leads',this)">Specific Leads<span id="tg-leads-mode-badge" style="display:none;"></span></div>
+            </div>
+
+            <div id="tg-filter-mode-panel">
+              <div id="tg-broad-filters" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;">
+                <div class="fg" style="margin-bottom:0;"><label class="fl">Platform</label><select class="fs" id="tg-platform" onchange="previewTelegramAudience()"><option value="ALL">All Platforms</option></select></div>
+                <div class="fg" style="margin-bottom:0;"><label class="fl">Country</label><select class="fs" id="tg-country" onchange="previewTelegramAudience()"><option value="ALL">All Countries</option></select></div>
+                <div class="fg" style="margin-bottom:0;"><label class="fl">Brand</label><select class="fs" id="tg-brand" onchange="previewTelegramAudience()"><option value="ALL">All Brands</option></select></div>
+              </div>
+            </div>
+
+            <div id="tg-leads-mode-panel" style="display:none;margin-bottom:4px;">
               <button class="t-btn btn-ghost t-btn-sm" onclick="openTelegramLeadPicker()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                Select Specific Leads…
+                Select Leads…
               </button>
+              <div id="tg-selected-leads-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;"></div>
             </div>
-            <div id="tg-selected-leads-summary" style="display:none;align-items:center;gap:8px;padding:9px 12px;background:var(--accent-dim);border:1px solid rgba(245,158,11,0.2);border-radius:8px;margin-bottom:12px;font-size:12px;color:var(--text);">
-              <span><strong id="tg-selected-leads-count">0</strong> specific lead(s) selected — these exact contacts will be messaged instead of the filters below.</span>
-              <button type="button" style="margin-left:auto;background:none;border:0;color:var(--accent2);font-weight:600;font-size:11px;cursor:pointer;" onclick="clearTelegramLeadSelection()">Clear</button>
-            </div>
-            <div id="tg-broad-filters" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
-              <div class="fg" style="margin-bottom:0;"><label class="fl">Platform</label><select class="fs" id="tg-platform"><option value="ALL">All Platforms</option></select></div>
-              <div class="fg" style="margin-bottom:0;"><label class="fl">Country</label><select class="fs" id="tg-country"><option value="ALL">All Countries</option></select></div>
-              <div class="fg" style="margin-bottom:0;"><label class="fl">Brand</label><select class="fs" id="tg-brand"><option value="ALL">All Brands</option></select></div>
-            </div>
-            <div class="fg">
+
+            <div id="tg-audience-preview" style="margin:10px 0 2px;font-size:12px;color:var(--text3);"></div>
+
+            <div class="fg" style="margin-top:14px;">
               <label class="fl">Message</label>
               <textarea class="fi" id="tg-message" rows="5" placeholder="Hi {{name}}, ..."></textarea>
               <div class="fi-hint">{{name}} is replaced with the contact's name. Plain text only — Telegram has no template-approval step like WhatsApp.</div>
@@ -1440,13 +1448,12 @@ body.dark{
               <div class="fi-hint">Skip a contact messaged on Telegram within this many days. 0 disables the cap.</div>
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
-              <button class="t-btn btn-ghost" onclick="previewTelegramAudience()">Preview Audience</button>
+              <button class="t-btn btn-ghost" onclick="previewTelegramAudience()">Refresh Preview</button>
               <button class="t-btn btn-success" id="tg-send-btn" onclick="sendTelegramCampaign()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 Send Campaign
               </button>
             </div>
-            <div id="tg-audience-preview" style="margin-top:10px;font-size:12px;color:var(--text3);"></div>
             <div id="tg-send-progress" style="display:none;margin-top:10px;">
               <div class="prog-wrap"><div class="prog-fill" id="tg-prog-fill" style="width:0%"></div></div>
               <div id="tg-prog-text" style="font-size:11px;color:var(--text3);margin-top:4px;"></div>
@@ -2997,9 +3004,12 @@ body.dark{
         <select class="fs" id="tgl-platform" style="flex:1;min-width:120px;" onchange="loadTelegramLeadPicker()"><option value="ALL">All Platforms</option></select>
         <select class="fs" id="tgl-country" style="flex:1;min-width:120px;" onchange="loadTelegramLeadPicker()"><option value="ALL">All Countries</option></select>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
         <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2);cursor:pointer;">
           <input type="checkbox" id="tgl-select-all" onchange="toggleAllTelegramLeadPicker(this)"> Select all shown
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2);cursor:pointer;">
+          <input type="checkbox" id="tgl-show-selected" onchange="renderTelegramLeadPicker()"> Show selected only
         </label>
         <span style="font-size:11px;color:var(--text3);" id="tgl-shown-count"></span>
       </div>
@@ -8652,12 +8662,14 @@ function toggleTelegramHistoryDetails(i){
   if(btn)btn.textContent=show?'Hide failure reasons ▴':`Show ${count} failure reason${count===1?'':'s'} ▾`;
 }
 async function initTelegramModule(){
+  if(!S.telegramAudienceMode)S.telegramAudienceMode='filter';
   loadTelegramHistory();
   renderTelegramHistoryList();
   loadTelegramSettings();
   loadTelegramOptOuts();
   populateTelegramAudienceFilters();
-  renderTelegramSelectedLeadsSummary();
+  renderTelegramSelectedLeadsChips();
+  previewTelegramAudience();
 }
 async function populateTelegramAudienceFilters(){
   if(!S.cache.platforms||!S.cache.countries||!S.cache.brands){
@@ -8684,27 +8696,40 @@ function telegramAudiencePayload(){
 // ── Telegram lead picker — select exact contacts instead of a broad platform/country/
 // brand filter. Only ever lists contacts with a telegramChatId already on file, since
 // anyone else can't be messaged yet (same constraint as the rest of this module).
-function renderTelegramSelectedLeadsSummary(){
-  const summary=document.getElementById('tg-selected-leads-summary');
-  const filters=document.getElementById('tg-broad-filters');
-  if(!summary||!filters)return;
-  const count=(S.selectedTelegramLeads||[]).length;
-  if(count){
-    summary.style.display='flex';
-    document.getElementById('tg-selected-leads-count').textContent=count;
-    filters.style.opacity='0.45';
-    filters.style.pointerEvents='none';
-  }else{
-    summary.style.display='none';
-    filters.style.opacity='';
-    filters.style.pointerEvents='';
-  }
+// Two explicit audience modes (tabs) rather than an implicit "filters dim once you pick
+// leads" state, so which definition will actually be used is never ambiguous.
+function selectTelegramAudienceMode(mode,el){
+  S.telegramAudienceMode=mode;
+  document.querySelectorAll('#tg-audience-mode-chips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tg-filter-mode-panel').style.display=mode==='filter'?'block':'none';
+  document.getElementById('tg-leads-mode-panel').style.display=mode==='leads'?'block':'none';
+  if(mode==='leads')renderTelegramSelectedLeadsChips();
+  previewTelegramAudience();
+}
+function renderTelegramSelectedLeadsChips(){
+  const badge=document.getElementById('tg-leads-mode-badge');
+  const wrap=document.getElementById('tg-selected-leads-chips');
+  const leads=S.selectedTelegramLeads||[];
+  if(badge)badge.textContent=leads.length?` (${leads.length})`:'';
+  if(badge)badge.style.display=leads.length?'inline':'none';
+  if(!wrap)return;
+  if(!leads.length){wrap.innerHTML='<span style="font-size:11.5px;color:var(--text3);">No leads selected yet.</span>';return;}
+  const MAX_SHOWN=12;
+  const shown=leads.slice(0,MAX_SHOWN);
+  const overflow=leads.length-shown.length;
+  wrap.innerHTML=shown.map(l=>`<span style="display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border2);border-radius:999px;padding:4px 6px 4px 10px;font-size:11.5px;color:var(--text);">${_hesc(l.contactName||'Unknown')}<button type="button" onclick="removeTelegramSelectedLead(${l.id})" style="background:none;border:0;cursor:pointer;color:var(--text3);font-size:13px;line-height:1;padding:0 2px;" title="Remove">✕</button></span>`).join('')
+    +(overflow>0?`<span style="font-size:11.5px;color:var(--text3);align-self:center;">+${overflow} more</span>`:'');
+}
+function removeTelegramSelectedLead(id){
+  S.selectedTelegramLeads=(S.selectedTelegramLeads||[]).filter(l=>l.id!==id);
+  renderTelegramSelectedLeadsChips();
+  previewTelegramAudience();
 }
 function clearTelegramLeadSelection(){
   S.selectedTelegramLeads=[];
-  renderTelegramSelectedLeadsSummary();
-  const el=document.getElementById('tg-audience-preview');
-  if(el)el.textContent='';
+  renderTelegramSelectedLeadsChips();
+  previewTelegramAudience();
 }
 async function openTelegramLeadPicker(){
   document.getElementById('modal-telegram-leads').classList.add('open');
@@ -8717,6 +8742,7 @@ async function openTelegramLeadPicker(){
   fill('tgl-platform',S.cache.platforms);
   fill('tgl-country',S.cache.countries);
   document.getElementById('tgl-search').value='';
+  document.getElementById('tgl-show-selected').checked=false;
   S._tglChecked=new Set((S.selectedTelegramLeads||[]).map(l=>l.id));
   await loadTelegramLeadPicker();
 }
@@ -8740,27 +8766,50 @@ function _telegramLeadPickerFiltered(){
   return (S._tglLeads||[]).filter(l=>!search||(l.contactName||'').toLowerCase().includes(search)||(l.telegramUsername||'').toLowerCase().includes(search));
 }
 function filterTelegramLeadPicker(){renderTelegramLeadPicker();}
+// Relative "last messaged" phrasing, reused for both the plain display and the
+// frequency-cap heads-up below.
+function _telegramRelativeDays(iso){
+  if(!iso)return null;
+  return Math.floor((Date.now()-new Date(iso).getTime())/86400000);
+}
+function _telegramRelativeLabel(days){
+  if(days<=0)return 'today';
+  if(days===1)return 'yesterday';
+  if(days<30)return `${days}d ago`;
+  return `${Math.floor(days/30)}mo ago`;
+}
 function renderTelegramLeadPicker(){
   const el=document.getElementById('tgl-list');
   if(!el)return;
-  const leads=_telegramLeadPickerFiltered();
+  const showSelectedOnly=document.getElementById('tgl-show-selected')?.checked;
+  let leads=_telegramLeadPickerFiltered();
+  if(showSelectedOnly)leads=leads.filter(l=>S._tglChecked.has(l.id));
   const shownEl=document.getElementById('tgl-shown-count');
   if(shownEl)shownEl.textContent=`${leads.length} shown`;
-  if(!leads.length){el.innerHTML='<div class="empty-state">No Telegram-linked leads match.</div>';updateTelegramLeadPickerCount();return;}
-  el.innerHTML=leads.map(l=>`
-    <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;">
+  if(!leads.length){el.innerHTML=`<div class="empty-state">${showSelectedOnly?'No selected leads match the current search/filter.':'No Telegram-linked leads match.'}</div>`;updateTelegramLeadPickerCount();return;}
+  const freqCapDays=parseInt(document.getElementById('tg-frequency-cap')?.value,10)||0;
+  el.innerHTML=leads.map(l=>{
+    const initials=(l.contactName||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';
+    const days=_telegramRelativeDays(l.telegramLastContactedAt);
+    const willSkip=freqCapDays>0&&days!==null&&days<freqCapDays;
+    const lastLabel=days!==null?`last messaged ${_telegramRelativeLabel(days)}`:'';
+    return `
+    <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;${willSkip?'opacity:0.65;':''}">
       <input type="checkbox" data-id="${l.id}" ${S._tglChecked.has(l.id)?'checked':''} onchange="onTelegramLeadPickerCheck(${l.id},this.checked)"/>
+      <div class="u-avatar" style="width:26px;height:26px;font-size:10px;">${_hesc(initials)}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:12.5px;font-weight:600;color:var(--text);">${_hesc(l.contactName||'Unknown')}</div>
-        <div style="font-size:11px;color:var(--text3);">${l.telegramUsername?'@'+_hesc(l.telegramUsername):'No username on file'} · ${_hesc(l.platform||'—')} · ${_hesc(l.country||'—')}</div>
+        <div style="font-size:11px;color:var(--text3);">${l.telegramUsername?'@'+_hesc(l.telegramUsername):'No username on file'} · ${_hesc(l.platform||'—')} · ${_hesc(l.country||'—')}${lastLabel?' · '+lastLabel:''}</div>
       </div>
-    </label>
-  `).join('');
+      ${willSkip?`<span style="font-size:10px;font-weight:700;color:var(--amber);background:var(--amber-dim);padding:3px 8px;border-radius:999px;flex-shrink:0;" title="Messaged within the ${freqCapDays}-day frequency cap — will likely be skipped at send time">May skip</span>`:''}
+    </label>`;
+  }).join('');
   updateTelegramLeadPickerCount();
 }
 function onTelegramLeadPickerCheck(id,checked){
   if(checked)S._tglChecked.add(id);else S._tglChecked.delete(id);
   updateTelegramLeadPickerCount();
+  if(document.getElementById('tgl-show-selected')?.checked)renderTelegramLeadPicker();
 }
 function toggleAllTelegramLeadPicker(cb){
   _telegramLeadPickerFiltered().forEach(l=>{if(cb.checked)S._tglChecked.add(l.id);else S._tglChecked.delete(l.id);});
@@ -8775,7 +8824,8 @@ function confirmTelegramLeadPicker(){
   const prevById=new Map((S.selectedTelegramLeads||[]).map(l=>[l.id,l]));
   S.selectedTelegramLeads=[...S._tglChecked].map(id=>byId.get(id)||prevById.get(id)).filter(Boolean);
   closeModal('modal-telegram-leads');
-  renderTelegramSelectedLeadsSummary();
+  renderTelegramSelectedLeadsChips();
+  previewTelegramAudience();
 }
 async function loadTelegramSettings(){
   const statusEl=document.getElementById('tg-status');
@@ -8809,8 +8859,9 @@ async function setTelegramWebhook(){
 async function previewTelegramAudience(){
   const el=document.getElementById('tg-audience-preview');
   if(!el)return;
-  if((S.selectedTelegramLeads||[]).length){
-    el.innerHTML=`<b>${S.selectedTelegramLeads.length}</b> specifically selected lead(s) — all reachable, since the picker only shows contacts with a linked Telegram chat.`;
+  if(S.telegramAudienceMode==='leads'){
+    const leads=S.selectedTelegramLeads||[];
+    el.innerHTML=leads.length?`<b>${leads.length}</b> specifically selected lead(s) — all reachable, since the picker only shows contacts with a linked Telegram chat.`:'Pick one or more leads above, or switch to "By Filter" to target a broader audience.';
     return;
   }
   el.textContent='Checking…';
@@ -8822,7 +8873,8 @@ async function previewTelegramAudience(){
 async function sendTelegramCampaign(){
   const message=document.getElementById('tg-message').value.trim();
   if(!message){showToast('Write a message first','error');return;}
-  const usingSelectedLeads=(S.selectedTelegramLeads||[]).length>0;
+  const usingSelectedLeads=S.telegramAudienceMode==='leads';
+  if(usingSelectedLeads&&!(S.selectedTelegramLeads||[]).length){showToast('Select at least one lead first','error');return;}
   if(!confirm(usingSelectedLeads?`Send this Telegram campaign to the ${S.selectedTelegramLeads.length} selected lead(s) now?`:'Send this Telegram campaign now?'))return;
   const btn=document.getElementById('tg-send-btn');
   const freqCap=parseInt(document.getElementById('tg-frequency-cap').value,10)||0;
