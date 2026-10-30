@@ -208,6 +208,42 @@ export async function handleTelegramAudiencePreview(request, env) {
   return json({ total: contacts.length, withTelegram, withoutTelegram: contacts.length - withTelegram });
 }
 
+// Backs the "Select Specific Leads" picker — only ever lists contacts who already have a
+// telegramChatId, since anyone else can't be messaged at all. Same role-based ownership
+// scoping as resolveContactsForCampaign (automation.js), reimplemented here rather than
+// shared since this is a flat, searchable browse rather than a platform/country/brand
+// group resolution.
+export async function handleListTelegramReachableLeads(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const url = new URL(request.url);
+  const search = (url.searchParams.get('search') || '').trim().toLowerCase();
+  const platform = url.searchParams.get('platform') || 'ALL';
+  const country = url.searchParams.get('country') || 'ALL';
+
+  let ownerFilter = '';
+  let ownerParam;
+  if (user.role === 'Manager') { ownerFilter = 'AND (ownerEmail IS NULL OR teamId = ?)'; ownerParam = user.teamId || ''; }
+  else if (user.role === 'Sales') { ownerFilter = 'AND ownerEmail = ?'; ownerParam = user.email; }
+
+  const binds = [platform, platform, country, country, `%${search}%`, `%${search}%`];
+  if (ownerParam !== undefined) binds.push(ownerParam);
+
+  const result = await env.DB.prepare(`
+    SELECT id,contactName,phone,platform,country,brand,telegramUsername,telegramChatId,telegramLastContactedAt,leadScore
+    FROM contacts
+    WHERE telegramChatId IS NOT NULL AND telegramChatId <> ''
+      AND (? = 'ALL' OR LOWER(platform) = LOWER(?))
+      AND (? = 'ALL' OR LOWER(country) = LOWER(?))
+      AND (LOWER(contactName) LIKE ? OR LOWER(telegramUsername) LIKE ?)
+      ${ownerFilter}
+    ORDER BY leadScore DESC, contactName COLLATE NOCASE
+    LIMIT 500
+  `).bind(...binds).all();
+
+  return json({ leads: result.results || [] });
+}
+
 function classifyTelegramError(description) {
   const d = String(description || '').toLowerCase();
   if (d.includes('blocked') || d.includes('chat not found') || d.includes('deactivated') || d.includes('kicked')) return 'permanent';
