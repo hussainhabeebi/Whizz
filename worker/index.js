@@ -20,7 +20,7 @@ import { handleListOptOuts, handleAddOptOut, handleRemoveOptOut, handleCheckOptO
 import { handleListCountryLanguageMap, handleSetCountryLanguageMap, handleDeleteCountryLanguageMap } from './routes/countryLanguage.js';
 import { handleMetaWebhookVerify, handleMetaWebhookEvent, handleGetDeliveryStatuses } from './routes/metaWebhook.js';
 import { handleCreateStagedRun, handleListStagedRuns, handlePauseStagedRun, handleResumeStagedRun, handleCancelStagedRun, processStagedCampaignRuns } from './routes/stagedCampaigns.js';
-import { handleGetTelegramSettings, handleSaveTelegramSettings, handleSetTelegramWebhook, handleTelegramWebhookEvent, handleListTelegramOptOuts, handleAddTelegramOptOut, handleRemoveTelegramOptOut, handleTelegramAudiencePreview, handleSendTelegramCampaign } from './routes/telegramBot.js';
+import { handleGetTelegramSettings, handleSaveTelegramSettings, handleSetTelegramWebhook, handleTelegramWebhookEvent, handleListTelegramOptOuts, handleAddTelegramOptOut, handleRemoveTelegramOptOut, handleTelegramAudiencePreview, handleListTelegramReachableLeads, handleSendTelegramCampaign } from './routes/telegramBot.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -71,6 +71,7 @@ const routes = [
   { method: 'POST', path: '/api/telegram/opt-outs', handler: handleAddTelegramOptOut },
   { method: 'POST', path: '/api/telegram/audience-preview', handler: handleTelegramAudiencePreview },
   { method: 'POST', path: '/api/telegram/send', handler: handleSendTelegramCampaign },
+  { method: 'GET', path: '/api/telegram/reachable-leads', handler: handleListTelegramReachableLeads },
 ];
 
 async function leadActor(request, env) {
