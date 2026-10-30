@@ -109,9 +109,14 @@ export async function handleSetTelegramWebhook(request, env) {
 // WhatsApp version: this only runs when a message actually reaches the webhook.
 const STOP_PATTERN = /^\s*(stop|unsubscribe|opt[\s-]?out|cancel|remove me|\/stop)\s*[.!]?\s*$/i;
 
-async function findOrCreateTelegramContact(env, chatId, username, firstName) {
+async function findOrCreateTelegramContact(env, chatId, username, firstName, startContactId) {
   const cleanUsername = String(username || '').trim();
   let contact = await env.DB.prepare('SELECT id,telegramChatId FROM contacts WHERE telegramChatId=?').bind(String(chatId)).first();
+  // A personal invite link (t.me/<bot>?start=<contactId>) names the exact contact to link —
+  // no name/username guessing needed, so this takes priority over the username fallback.
+  if (!contact && startContactId) {
+    contact = await env.DB.prepare('SELECT id,telegramChatId FROM contacts WHERE id=?').bind(startContactId).first();
+  }
   if (!contact && cleanUsername) {
     contact = await env.DB.prepare('SELECT id,telegramChatId FROM contacts WHERE LOWER(telegramUsername)=LOWER(?)').bind(cleanUsername).first();
   }
@@ -141,7 +146,9 @@ export async function handleTelegramWebhookEvent(request, env) {
       const username = message.from?.username || '';
       const firstName = message.from?.first_name || '';
       const text = String(message.text || '');
-      const contactId = await findOrCreateTelegramContact(env, chatId, username, firstName);
+      const startMatch = text.match(/^\/start(?:@\w+)?(?:\s+(\d+))?/);
+      const startContactId = startMatch?.[1] ? Number(startMatch[1]) : null;
+      const contactId = await findOrCreateTelegramContact(env, chatId, username, firstName, startContactId);
       if (STOP_PATTERN.test(text)) {
         await env.DB.prepare('INSERT INTO telegram_opted_out (chatId,source,reason) VALUES (?,?,?) ON CONFLICT(chatId) DO NOTHING')
           .bind(String(chatId), 'keyword_detected', `Replied "${text.trim().slice(0, 50)}"`).run();
@@ -205,7 +212,13 @@ export async function handleTelegramAudiencePreview(request, env) {
   try { contacts = await resolveContactsForCampaign(env, user, body); }
   catch (error) { return json({ error: error.message }, 500); }
   const withTelegram = contacts.filter(c => c.telegramChatId).length;
-  return json({ total: contacts.length, withTelegram, withoutTelegram: contacts.length - withTelegram });
+  // "Known handle, not yet reachable" — lead scanning/enrichment elsewhere in the app can
+  // populate telegramUsername (from a website/bio scan), which is not the same thing as a
+  // telegramChatId: Telegram never hands over a chat ID from a username alone, only once
+  // that person messages the bot. These are the leads an invite link (see the lead picker)
+  // can actually move into "reachable" — a username on file by itself never will.
+  const withKnownUsername = contacts.filter(c => !c.telegramChatId && c.telegramUsername).length;
+  return json({ total: contacts.length, withTelegram, withoutTelegram: contacts.length - withTelegram, withKnownUsername });
 }
 
 // Backs the "Select Specific Leads" picker — only ever lists contacts who already have a
@@ -242,6 +255,53 @@ export async function handleListTelegramReachableLeads(request, env) {
   `).bind(...binds).all();
 
   return json({ leads: result.results || [] });
+}
+
+// Leads one step away from reachable: a known Telegram handle (from a website/bio scan
+// under lead enrichment, or typed in manually) but no chat ID yet, since Telegram only
+// hands one over once this exact person messages the bot. Backs the lead picker's
+// "invite them to message the bot" list — each gets a personal deep link
+// (t.me/<bot>?start=<contactId>) so clicking it links that precise contact automatically.
+export async function handleListTelegramInvitableLeads(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const url = new URL(request.url);
+  const search = (url.searchParams.get('search') || '').trim().toLowerCase();
+  const platform = url.searchParams.get('platform') || 'ALL';
+  const country = url.searchParams.get('country') || 'ALL';
+
+  let ownerFilter = '';
+  let ownerParam;
+  if (user.role === 'Manager') { ownerFilter = 'AND (ownerEmail IS NULL OR teamId = ?)'; ownerParam = user.teamId || ''; }
+  else if (user.role === 'Sales') { ownerFilter = 'AND ownerEmail = ?'; ownerParam = user.email; }
+
+  const binds = [platform, platform, country, country, `%${search}%`, `%${search}%`];
+  if (ownerParam !== undefined) binds.push(ownerParam);
+
+  const result = await env.DB.prepare(`
+    SELECT id,contactName,phone,platform,country,telegramUsername
+    FROM contacts
+    WHERE telegramUsername IS NOT NULL AND telegramUsername <> ''
+      AND (telegramChatId IS NULL OR telegramChatId = '')
+      AND (? = 'ALL' OR LOWER(platform) = LOWER(?))
+      AND (? = 'ALL' OR LOWER(country) = LOWER(?))
+      AND (LOWER(contactName) LIKE ? OR LOWER(telegramUsername) LIKE ?)
+      ${ownerFilter}
+    ORDER BY contactName COLLATE NOCASE
+    LIMIT 500
+  `).bind(...binds).all();
+
+  return json({ leads: result.results || [] });
+}
+
+// Any provisioned user needs this to build an invite link — not just the Administrator who
+// configured the bot token — so it's deliberately a separate, narrower endpoint from
+// handleGetTelegramSettings rather than widening that one's access.
+export async function handleGetTelegramBotUsername(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const row = await getSettingsRow(env);
+  return json({ botUsername: row?.botUsername || '' });
 }
 
 // Manual chat ID linking — for a lead whose numeric Telegram chat ID is already known from
