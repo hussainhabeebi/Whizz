@@ -1439,8 +1439,8 @@ body.dark{
             <div id="tg-chatid-mode-panel" style="display:none;margin-bottom:4px;">
               <div class="fg" style="margin-bottom:0;">
                 <label class="fl">Telegram Chat IDs</label>
-                <textarea class="fi" id="tg-chatid-list" rows="4" placeholder="One per line — a bare chat ID, or Name, chatId&#10;e.g.&#10;987654321&#10;Uzbekshop, -1001234567890" oninput="previewTelegramAudience()"></textarea>
-                <div class="fi-hint">Sends straight to these chat IDs — no CRM lookup, no need for the contact to exist in Whizz at all. They still must have messaged your bot at some point (Telegram's own rule, not Whizz's) and aren't on the suppression list below.</div>
+                <textarea class="fi" id="tg-chatid-list" rows="4" placeholder="One per line — a chat ID or @username, or Name, chatId&#10;e.g.&#10;987654321&#10;Uzbekshop, -1001234567890&#10;MacBro_Manager" oninput="previewTelegramAudience()"></textarea>
+                <div class="fi-hint">Sends straight to these chat IDs or @usernames — no CRM lookup, no need for the contact to exist in Whizz at all. A username only resolves for a public channel, supergroup or bot, not a private person's account. Everyone here still must have messaged your bot at some point (Telegram's own rule, not Whizz's) and must not be on the suppression list below.</div>
               </div>
             </div>
 
@@ -8735,24 +8735,33 @@ function selectTelegramAudienceMode(mode,el){
   if(mode==='leads')renderTelegramSelectedLeadsChips();
   previewTelegramAudience();
 }
-// Accepts a bare chat ID per line, or "Name, chatId" — the only validation is that the
-// last comma-separated piece parses as a plain integer (Telegram chat IDs are always
-// numeric; a username wouldn't work here since there's no contact to resolve it through).
+// Accepts a bare chat ID per line, or "Name, chatId" — the last comma-separated piece must
+// parse as a plain integer, or as a Telegram-shaped @username (resolved to a numeric chat ID
+// server-side before sending, since only a public channel/supergroup/bot can be resolved that way).
 function parseTelegramChatIdInput(){
   const text=document.getElementById('tg-chatid-list')?.value||'';
   const seen=new Set();
   const valid=[];
   let invalidCount=0;
+  let usernameCount=0;
   text.split('\n').map(l=>l.trim()).filter(Boolean).forEach(line=>{
     const parts=line.split(',').map(p=>p.trim());
-    const chatId=parts[parts.length-1];
-    const name=parts.length>1?parts.slice(0,-1).join(', '):chatId;
-    if(!/^-?\d+$/.test(chatId)){invalidCount++;return;}
+    const raw=parts[parts.length-1];
+    const name=parts.length>1?parts.slice(0,-1).join(', '):raw;
+    let chatId;
+    if(/^-?\d+$/.test(raw)){
+      chatId=raw;
+    }else if(/^@?[A-Za-z][A-Za-z0-9_]{4,31}$/.test(raw)){
+      chatId='@'+raw.replace(/^@/,'');
+      usernameCount++;
+    }else{
+      invalidCount++;return;
+    }
     if(seen.has(chatId))return;
     seen.add(chatId);
     valid.push({name,chatId});
   });
-  return {valid,invalidCount};
+  return {valid,invalidCount,usernameCount};
 }
 function renderTelegramSelectedLeadsChips(){
   const badge=document.getElementById('tg-leads-mode-badge');
@@ -9012,10 +9021,11 @@ async function previewTelegramAudience(){
     return;
   }
   if(S.telegramAudienceMode==='chatid'){
-    const {valid,invalidCount}=parseTelegramChatIdInput();
+    const {valid,invalidCount,usernameCount}=parseTelegramChatIdInput();
+    const usernameNote=usernameCount?` ${usernameCount} ${usernameCount===1?'is a':'are'} @username${usernameCount===1?'':'s'} — those only resolve for a public channel, supergroup or bot, not a private person's account; Whizz will try to resolve them when you send and report any that fail.`:'';
     el.innerHTML=valid.length
-      ?`<b>${valid.length}</b> chat ID${valid.length===1?'':'s'} parsed and ready to send to${invalidCount?` — ${invalidCount} line${invalidCount===1?'':'s'} skipped (not a plain number)`:''}. Whizz can't confirm these have actually started your bot until it tries sending — any that haven't will show up as failed, not silently skipped.`
-      :'Paste one chat ID per line above.';
+      ?`<b>${valid.length}</b> target${valid.length===1?'':'s'} parsed and ready to send to${invalidCount?` — ${invalidCount} line${invalidCount===1?'':'s'} skipped (not a chat ID or username)`:''}.${usernameNote} Whizz can't confirm the rest have actually started your bot until it tries sending — any that haven't will show up as failed, not silently skipped.`
+      :'Paste one chat ID or @username per line above.';
     return;
   }
   el.textContent='Checking…';
