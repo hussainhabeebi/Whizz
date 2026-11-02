@@ -3789,9 +3789,30 @@ function buildReportsPageReportHtml(d){
   const maxWaTemplate=d.waTemplates[0]?.[1]||1;
   const maxWaInbox=d.waInboxes[0]?.[1]||1;
   const maxWaLocation=d.waLocations[0]?.[1]||1;
+  const maxWaBrand=d.waBrands[0]?.[1]||1;
   const waTemplateRows=d.waTemplates.map(([k,v])=>reportBarRow(k,v,maxWaTemplate,'#f59e0b')).join('')||'<div class="muted">No campaigns sent for this period</div>';
   const waInboxRows=d.waInboxes.map(([k,v])=>reportBarRow(k,v,maxWaInbox,'#2563eb')).join('')||'<div class="muted">No campaigns sent for this period</div>';
   const waLocationRows=d.waLocations.map(([k,v])=>reportBarRow(k,v,maxWaLocation,'#16a34a')).join('')||'<div class="muted">No campaigns sent for this period</div>';
+  const waBrandRows=d.waBrands.map(([k,v])=>reportBarRow(k,v,maxWaBrand,'#dc2626')).join('')||'<div class="muted">No campaigns sent for this period</div>';
+  // Brand × Inbox matrix — answers "which brands do we send from which inbox", not just the
+  // two breakdowns separately. Brand is derived from the template name (see
+  // brandFromTemplateName), since that's the only place a brand is recorded for a send.
+  const waBrandInboxTable=(()=>{
+    const inboxes=d.matrixInboxes||[];
+    if(!inboxes.length||!d.waBrands.length)return '<div class="muted">No campaigns sent for this period</div>';
+    const inboxTotals=inboxes.map(()=>0);
+    const bodyRows=d.waBrands.map(([brand,brandTotal])=>{
+      const perInbox=inboxes.map((inbox,i)=>{
+        const v=d.waBrandInboxMap[brand]?.[inbox]||0;
+        inboxTotals[i]+=v;
+        return `<td style="text-align:right;">${v?v.toLocaleString():'—'}</td>`;
+      }).join('');
+      return `<tr><td style="font-weight:700;">${brand}</td>${perInbox}<td style="text-align:right;font-weight:700;">${brandTotal.toLocaleString()}</td></tr>`;
+    }).join('');
+    const grandTotal=inboxTotals.reduce((s,v)=>s+v,0);
+    const totalsRow=`<tr style="border-top:2px solid #eef0f4;"><td style="font-weight:700;color:#475569;">Total</td>${inboxTotals.map(v=>`<td style="text-align:right;font-weight:700;color:#475569;">${v.toLocaleString()}</td>`).join('')}<td style="text-align:right;font-weight:700;color:#475569;">${grandTotal.toLocaleString()}</td></tr>`;
+    return `<table><thead><tr><th>Brand</th>${inboxes.map(i=>`<th style="text-align:right;">${i}</th>`).join('')}<th style="text-align:right;">Total</th></tr></thead><tbody>${bodyRows}${totalsRow}</tbody></table>`;
+  })();
   const waCampaignRows=d.waCampaigns.length?d.waCampaigns.map(h=>{
     const f=h.failures||{};
     const failDetail=[f.permanent?`${f.permanent} permanent`:null,f.transient?`${f.transient} temporary`:null,f.policy?`${f.policy} policy`:null].filter(Boolean).join(', ')||'—';
@@ -3817,9 +3838,21 @@ function buildReportsPageReportHtml(d){
         ${waLocationRows}
       </div>
     </div>
+    <div class="two-col-section" style="margin-top:22px;">
+      <div>
+        <div class="sub-title">Top Brands</div>
+        <div class="section-note" style="margin:-4px 0 10px;">Brand is read from the template name, e.g. "dyson_moh_nov2" → Dyson.</div>
+        ${waBrandRows}
+      </div>
+      <div>
+        <div class="sub-title">Which Inbox</div>
+        ${waInboxRows}
+      </div>
+    </div>
     <div class="sub-block">
-      <div class="sub-title">Which Inbox</div>
-      ${waInboxRows}
+      <div class="sub-title">Brands by Inbox</div>
+      <div class="section-note" style="margin:-4px 0 10px;">Which brand's campaigns went out from which inbox, this period.</div>
+      ${waBrandInboxTable}
     </div>
     <div class="sub-title" style="margin-top:22px;">Recent Campaigns</div>
     <table>
@@ -4164,7 +4197,18 @@ async function downloadReportsPageReport(){
   // (this device's S.history), broken down by template/inbox/location for the period
   // the Reports page is set to, plus the real failure-bucket breakdown each send already
   // classifies (classifyCampaignFailures), rather than just the one summary KPI below.
-  const waTemplateMap={},waInboxMap={},waLocationMap={};
+  // A template's name itself is the only place a brand is recorded for a WhatsApp send
+  // (e.g. "dyson_moh_nov2" → Dyson) — matched case-insensitively against the CRM's known
+  // brand list so the report shows "Dyson" rather than a raw lowercase slug, falling back to
+  // a title-cased guess when the brand isn't one Whizz already knows about.
+  const knownBrands=S.cache.brands||[];
+  function brandFromTemplateName(tplName){
+    const seg=(tplName||'').split('_')[0]||'';
+    if(!seg)return 'Unknown';
+    const known=knownBrands.find(b=>b.toLowerCase()===seg.toLowerCase());
+    return known||(seg.charAt(0).toUpperCase()+seg.slice(1));
+  }
+  const waTemplateMap={},waInboxMap={},waLocationMap={},waBrandMap={},waBrandInboxMap={};
   let waSuppressed=0,waPermanentFails=0,waTransientFails=0,waPolicyFails=0;
   history.forEach(h=>{
     const sent=h.sent||0;
@@ -4176,6 +4220,10 @@ async function downloadReportsPageReport(){
       const locs=parseAudienceLocations(h.audience);
       const share=sent/locs.length;
       locs.forEach(loc=>{waLocationMap[loc]=(waLocationMap[loc]||0)+share;});
+      const brand=brandFromTemplateName(h.template);
+      waBrandMap[brand]=(waBrandMap[brand]||0)+sent;
+      waBrandInboxMap[brand]=waBrandInboxMap[brand]||{};
+      waBrandInboxMap[brand][inboxLabel]=(waBrandInboxMap[brand][inboxLabel]||0)+sent;
     }
     waSuppressed+=h.suppressed||0;
     const f=h.failures||{};
@@ -4187,6 +4235,10 @@ async function downloadReportsPageReport(){
   const topWaInboxes=Object.entries(waInboxMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const topWaLocations=Object.entries(waLocationMap).map(([k,v])=>[k,Math.round(v)]).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const waCampaigns=history.slice(0,20);
+  const topWaBrands=Object.entries(waBrandMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  // Inboxes as matrix columns — capped at 6 so the table stays readable if the workspace
+  // ever has a long tail of inboxes; the rest still count toward each brand's own total.
+  const matrixInboxes=Object.entries(waInboxMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k])=>k);
 
   const today=todayStr();
   const allTasks=loadTasks();
@@ -4218,6 +4270,7 @@ async function downloadReportsPageReport(){
     waSent,waDeliveryRate,waCampaignCount:history.length,
     waSuppressed,waPermanentFails,waTransientFails,waPolicyFails,
     waTemplates:topWaTemplates,waInboxes:topWaInboxes,waLocations:topWaLocations,waCampaigns,
+    waBrands:topWaBrands,waBrandInboxMap,matrixInboxes,
     topPlatforms,
     topCountries,
     brevoCampaigns,
