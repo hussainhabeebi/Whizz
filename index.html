@@ -1424,6 +1424,10 @@ body.dark{
               </button>
               <button class="t-btn btn-ghost t-btn-sm" onclick="importTelegramLeadsFromCrm()">Import from CRM</button>
             </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+              <span style="font-size:11.5px;color:var(--text3);" id="tg1to1-selected-count">0 selected for 1:1 outreach</span>
+              <button class="t-btn btn-primary t-btn-sm" id="tg1to1-start-btn" onclick="openTelegram1to1Outreach()" disabled>Start 1:1 Outreach</button>
+            </div>
             <div id="tgleads-list" style="border:1px solid var(--border);border-radius:8px;max-height:320px;overflow-y:auto;">
               <div class="empty-state">Checking…</div>
             </div>
@@ -3082,6 +3086,31 @@ body.dark{
     <div class="modal-foot">
       <button class="t-btn btn-ghost" onclick="closeModal('modal-add-telegram-lead')">Cancel</button>
       <button class="t-btn btn-primary" onclick="submitAddTelegramLead()">Add Lead</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-tg-1to1">
+  <div class="modal" style="width:min(96vw,460px);">
+    <div class="modal-head">
+      <div class="modal-title">1:1 Outreach</div>
+      <button class="modal-close" onclick="closeTelegram1to1Outreach()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fi-hint" style="margin-bottom:12px;">Each "Open in Telegram" opens that person's chat in <strong>your own</strong> Telegram with the message pre-filled — you still press send yourself in Telegram. Whizz never sends anything on your behalf here; "Mark Sent" is just you telling Whizz you did.</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;" id="tg1to1-progress"></div>
+      <div class="fg">
+        <label class="fl">Message</label>
+        <textarea class="fi" id="tg1to1-message" rows="4" placeholder="Hi {{name}}, ..." oninput="renderTelegram1to1Step()"></textarea>
+        <div class="fi-hint">{{name}} is replaced with each lead's name as you go. Edit any time — it applies to whichever lead is current.</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:6px;" id="tg1to1-current-card">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="telegram1to1Skip()" id="tg1to1-skip-btn">Skip</button>
+      <button class="t-btn btn-ghost" onclick="telegram1to1OpenCurrent()" id="tg1to1-open-btn">Open in Telegram</button>
+      <button class="t-btn btn-primary" onclick="telegram1to1MarkSent()" id="tg1to1-sent-btn">Mark Sent &amp; Next</button>
     </div>
   </div>
 </div>
@@ -8863,13 +8892,22 @@ function renderTelegramLeadsTable(){
   const leads=S.cache.telegramLeads||[];
   if(countEl)countEl.textContent=leads.length?`${leads.length} lead${leads.length===1?'':'s'}`:'';
   if(!el)return;
-  if(!leads.length){el.innerHTML='<div class="empty-state">No Telegram leads yet — add one, or import known handles from the CRM.</div>';return;}
+  if(!S.tg1to1Selected)S.tg1to1Selected=new Set();
+  // Pruning a selection the current list no longer contains (e.g. after a search/tag filter
+  // change) keeps "N selected" honest rather than silently counting leads not even shown.
+  const presentIds=new Set(leads.map(l=>l.id));
+  [...S.tg1to1Selected].forEach(id=>{if(!presentIds.has(id))S.tg1to1Selected.delete(id);});
+  if(!leads.length){el.innerHTML='<div class="empty-state">No Telegram leads yet — add one, or import known handles from the CRM.</div>';updateTelegram1to1SelectedBar();return;}
   el.innerHTML=leads.map(l=>{
     const started=!!l.telegramChatId;
     const statusBadge=started
       ?`<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-dim);padding:3px 8px;border-radius:999px;">Started bot</span>`
       :`<span style="font-size:10px;font-weight:700;color:var(--amber);background:var(--amber-dim);padding:3px 8px;border-radius:999px;">Not yet</span>`;
+    const checkbox=l.telegramUsername
+      ?`<input type="checkbox" ${S.tg1to1Selected.has(l.id)?'checked':''} onchange="onTelegram1to1Check(${l.id},this.checked)" title="Select for 1:1 outreach"/>`
+      :`<span style="width:13px;display:inline-block;"></span>`;
     return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);">
+      ${checkbox}
       <div style="flex:1;min-width:0;">
         <div style="font-size:12.5px;font-weight:600;color:var(--text);">${_hesc(l.contactName||'Unknown')}</div>
         <div style="font-size:11px;color:var(--text3);">${l.telegramUsername?'@'+_hesc(l.telegramUsername):'No username on file'}${l.tags?' · '+_hesc(l.tags):''}</div>
@@ -8880,6 +8918,112 @@ function renderTelegramLeadsTable(){
       <button type="button" class="t-btn btn-ghost t-btn-sm" onclick="deleteTelegramLead(${l.id})" title="Delete">✕</button>
     </div>`;
   }).join('');
+  updateTelegram1to1SelectedBar();
+}
+function onTelegram1to1Check(id,checked){
+  if(!S.tg1to1Selected)S.tg1to1Selected=new Set();
+  if(checked)S.tg1to1Selected.add(id);else S.tg1to1Selected.delete(id);
+  updateTelegram1to1SelectedBar();
+}
+function updateTelegram1to1SelectedBar(){
+  const n=(S.tg1to1Selected||new Set()).size;
+  const countEl=document.getElementById('tg1to1-selected-count');
+  const btn=document.getElementById('tg1to1-start-btn');
+  if(countEl)countEl.textContent=`${n} selected for 1:1 outreach`;
+  if(btn)btn.disabled=n===0;
+}
+// ── 1:1 Outreach queue ── A safe stand-in for true bulk sending: each step opens the
+// lead's personal Telegram chat (t.me/<username>?text=...) with the message pre-filled, but
+// the person at the keyboard still presses Send in Telegram themselves every single time.
+// Whizz has no visibility into whether that actually happened — "Mark Sent" is a self-report,
+// not a confirmed delivery, and the history entry below says so explicitly.
+function openTelegram1to1Outreach(){
+  const leads=S.cache.telegramLeads||[];
+  const byId=new Map(leads.map(l=>[l.id,l]));
+  const queue=[...(S.tg1to1Selected||[])].map(id=>byId.get(id)).filter(l=>l&&l.telegramUsername);
+  if(!queue.length){showToast('Select at least one lead with a username first','error');return;}
+  S.tg1to1Queue=queue;
+  S.tg1to1Index=0;
+  S.tg1to1SentCount=0;
+  S.tg1to1SkippedCount=0;
+  document.getElementById('tg1to1-message').value=document.getElementById('tg-message')?.value||'';
+  document.getElementById('modal-tg-1to1').classList.add('open');
+  renderTelegram1to1Step();
+}
+// Saving happens here, once, whichever way the modal closes — reaching the end of the
+// queue naturally, or closing partway through with some leads still unhandled. Either way
+// whatever was actually marked sent/skipped is worth a history record; nothing is lost by
+// closing early, and nothing gets logged twice.
+function closeTelegram1to1Outreach(){
+  telegram1to1Finish();
+  closeModal('modal-tg-1to1');
+}
+function renderTelegram1to1Step(){
+  const queue=S.tg1to1Queue||[];
+  const i=S.tg1to1Index||0;
+  const progressEl=document.getElementById('tg1to1-progress');
+  const cardEl=document.getElementById('tg1to1-current-card');
+  const actionBtns=['tg1to1-skip-btn','tg1to1-open-btn','tg1to1-sent-btn'];
+  if(i>=queue.length){
+    if(progressEl)progressEl.textContent=`Done — ${queue.length} of ${queue.length}`;
+    if(cardEl)cardEl.innerHTML=`<div style="text-align:center;color:var(--text3);font-size:12.5px;">All leads in this batch handled. Close this to log it to Send History.</div>`;
+    actionBtns.forEach(id=>{const b=document.getElementById(id);if(b)b.style.display='none';});
+    return;
+  }
+  actionBtns.forEach(id=>{const b=document.getElementById(id);if(b)b.style.display='';});
+  const lead=queue[i];
+  if(progressEl)progressEl.textContent=`${i+1} of ${queue.length} — ${S.tg1to1SentCount} marked sent, ${S.tg1to1SkippedCount} skipped`;
+  if(cardEl)cardEl.innerHTML=`<div style="font-size:13px;font-weight:700;color:var(--text);">${_hesc(lead.contactName||'Unknown')}</div><div style="font-size:11.5px;color:var(--text3);">@${_hesc(lead.telegramUsername)}</div>`;
+}
+function telegram1to1CurrentMessage(){
+  const lead=(S.tg1to1Queue||[])[S.tg1to1Index||0];
+  const raw=document.getElementById('tg1to1-message')?.value||'';
+  return raw.replace(/\{\{\s*name\s*\}\}/gi,lead?.contactName||'there');
+}
+function telegram1to1OpenCurrent(){
+  const lead=(S.tg1to1Queue||[])[S.tg1to1Index||0];
+  if(!lead)return;
+  const text=telegram1to1CurrentMessage();
+  window.open(`https://t.me/${encodeURIComponent(lead.telegramUsername)}${text?`?text=${encodeURIComponent(text)}`:''}`,'_blank','noopener');
+}
+function telegram1to1MarkSent(){
+  if((S.tg1to1Index||0)>=((S.tg1to1Queue||[]).length))return;
+  S.tg1to1SentCount=(S.tg1to1SentCount||0)+1;
+  S.tg1to1Index=(S.tg1to1Index||0)+1;
+  renderTelegram1to1Step();
+}
+function telegram1to1Skip(){
+  if((S.tg1to1Index||0)>=((S.tg1to1Queue||[]).length))return;
+  S.tg1to1SkippedCount=(S.tg1to1SkippedCount||0)+1;
+  S.tg1to1Index=(S.tg1to1Index||0)+1;
+  renderTelegram1to1Step();
+}
+function telegram1to1Finish(){
+  const queue=S.tg1to1Queue||[];
+  // Nothing to log if the queue's already been cleared (this fires once per batch, whether
+  // reached via the natural end or an early close) or nothing was actually processed yet.
+  const processed=(S.tg1to1SentCount||0)+(S.tg1to1SkippedCount||0);
+  if(!queue.length||!processed)return;
+  const partial=processed<queue.length;
+  saveTelegramHistoryEntry({
+    audience:`${queue.length} lead(s), 1:1 outreach (self-sent)${partial?` — closed early at ${processed}/${queue.length}`:''}`,
+    message:document.getElementById('tg1to1-message')?.value||'',
+    total:queue.length,
+    sent:S.tg1to1SentCount||0,
+    failed:0,
+    skipped:S.tg1to1SkippedCount||0,
+    failedContacts:[],
+    ts:Date.now(),
+  });
+  // Only the ones actually handled (sent or skipped) leave the selection — anything left
+  // unprocessed stays checked, so closing early and reopening later picks up where it left off.
+  const queueIds=new Set(queue.slice(0,S.tg1to1Index||0).map(l=>l.id));
+  queueIds.forEach(id=>S.tg1to1Selected.delete(id));
+  S.tg1to1Queue=[];
+  S.tg1to1SentCount=0;
+  S.tg1to1SkippedCount=0;
+  renderTelegramLeadsTable();
+  showToast(`1:1 outreach logged: ${processed} of ${queue.length} handled`,'success');
 }
 function openAddTelegramLeadModal(){
   document.getElementById('tgadd-name').value='';
