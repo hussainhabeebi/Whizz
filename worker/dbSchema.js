@@ -91,6 +91,27 @@ async function repairSchema(env) {
     addedByEmail TEXT NOT NULL DEFAULT '',
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  // The Telegram module's own lead base — deliberately separate from the main CRM `contacts`
+  // table (which WhatsApp campaigns use). A Telegram bot only ever reaches an individual
+  // person's private chat (never a channel/group/supergroup, whose chat IDs are always
+  // negative), so this list exists independently of whether a row is also a CRM contact.
+  // crmContactId is an optional, best-effort breadcrumb back to a CRM contact this lead was
+  // imported/invited from — never a hard foreign key, since a Telegram lead must be able to
+  // exist (e.g. someone who just messaged the bot cold) with no CRM contact behind it at all.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS telegram_leads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contactName TEXT NOT NULL DEFAULT '',
+    telegramUsername TEXT NOT NULL DEFAULT '',
+    telegramChatId TEXT,
+    tags TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL DEFAULT 'manual',
+    crmContactId INTEGER,
+    ownerEmail TEXT,
+    teamId TEXT,
+    telegramLastContactedAt TEXT,
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
 
   await safeRun(env, `CREATE TABLE IF NOT EXISTS directory_accounts (
     source TEXT PRIMARY KEY,
@@ -288,6 +309,10 @@ async function repairSchema(env) {
     'CREATE INDEX IF NOT EXISTS idx_contacts_created_at ON contacts(createdAt)',
     'CREATE INDEX IF NOT EXISTS idx_tg_msg_chat ON telegram_messages(chatId, createdAt)',
     'CREATE INDEX IF NOT EXISTS idx_contacts_tg_chat ON contacts(telegramChatId)',
+    'CREATE INDEX IF NOT EXISTS idx_tg_leads_chat ON telegram_leads(telegramChatId)',
+    'CREATE INDEX IF NOT EXISTS idx_tg_leads_username ON telegram_leads(telegramUsername)',
+    'CREATE INDEX IF NOT EXISTS idx_tg_leads_owner ON telegram_leads(ownerEmail)',
+    'CREATE INDEX IF NOT EXISTS idx_tg_leads_team ON telegram_leads(teamId)',
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_source ON directory_prospects(source)',
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_status ON directory_prospects(status)',
     'CREATE INDEX IF NOT EXISTS idx_directory_prospects_score ON directory_prospects(leadScore)',
