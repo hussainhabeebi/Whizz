@@ -1,13 +1,18 @@
 // ── Telegram Bulk Marketing module ──
 // A separate module from the WhatsApp campaign system, talking to the Telegram Bot API
 // directly (https://api.telegram.org/bot<token>/...) — no Chatwoot, no n8n, no template
-// approval process. The fundamental constraint that shapes everything here: a Telegram bot
-// can only message a chat that has already started a conversation with it (pressed Start or
-// sent it any message). There is no equivalent of WhatsApp's "message any phone number via
-// an approved template" — bulk sending can only ever reach contacts who already have a
-// telegramChatId on file, captured by the webhook below when they first message the bot.
-import { resolveContactsForCampaign } from './automation.js';
-
+// approval process. Two constraints shape everything here, both Telegram's own rules, not
+// Whizz's:
+//   1. A bot can only message a chat that has already started a conversation with it (pressed
+//      Start or sent it any message) — there is no equivalent of WhatsApp's "message any
+//      phone number via an approved template".
+//   2. This module is direct-to-person only: every send target must be an individual's
+//      private chat. A Telegram group/channel/supergroup chat ID is always a negative number
+//      and is rejected outright; Whizz never broadcasts into one.
+// Leads live in their own table (telegram_leads) rather than the CRM `contacts` table that
+// WhatsApp campaigns use — a cold Telegram contact (someone who just messaged the bot, with
+// no CRM record at all) is the normal case here, not an edge case, so the lead base needed to
+// stand on its own rather than be bolted onto CRM contacts.
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS }); }
 
@@ -16,6 +21,16 @@ async function currentUser(request, env) {
   return email ? env.DB.prepare('SELECT email,name,role,teamId FROM users WHERE email=?').bind(email).first() : null;
 }
 function requireAdmin(user) { return user && user.role === 'Administrator'; }
+
+function ownerScope(user) {
+  if (user.role === 'Manager') return { filter: 'AND (ownerEmail IS NULL OR teamId = ?)', param: user.teamId || '' };
+  if (user.role === 'Sales') return { filter: 'AND ownerEmail = ?', param: user.email };
+  return { filter: '', param: undefined };
+}
+
+// A Telegram chat ID is only ever a private-user chat (positive integer) in this module —
+// a group/supergroup/channel ID is always negative, and those are never valid send targets.
+function isPrivateChatId(value) { return /^\d+$/.test(String(value || '').trim()); }
 
 // Same AES-GCM technique/secret as the Meta/Chatwoot tokens — kept as a local copy rather
 // than a shared import, matching this repo's existing pattern of small per-route duplication.
@@ -109,25 +124,27 @@ export async function handleSetTelegramWebhook(request, env) {
 // WhatsApp version: this only runs when a message actually reaches the webhook.
 const STOP_PATTERN = /^\s*(stop|unsubscribe|opt[\s-]?out|cancel|remove me|\/stop)\s*[.!]?\s*$/i;
 
-async function findOrCreateTelegramContact(env, chatId, username, firstName, startContactId) {
+// Resolves (or creates) the telegram_leads row for an inbound private-chat message. Only
+// ever called for chat.type === 'private' — see handleTelegramWebhookEvent.
+async function findOrCreateTelegramLead(env, chatId, username, firstName, startLeadId) {
   const cleanUsername = String(username || '').trim();
-  let contact = await env.DB.prepare('SELECT id,telegramChatId FROM contacts WHERE telegramChatId=?').bind(String(chatId)).first();
-  // A personal invite link (t.me/<bot>?start=<contactId>) names the exact contact to link —
-  // no name/username guessing needed, so this takes priority over the username fallback.
-  if (!contact && startContactId) {
-    contact = await env.DB.prepare('SELECT id,telegramChatId FROM contacts WHERE id=?').bind(startContactId).first();
+  let lead = await env.DB.prepare('SELECT id,telegramChatId FROM telegram_leads WHERE telegramChatId=?').bind(String(chatId)).first();
+  // A personal invite link (t.me/<bot>?start=<leadId>) names the exact lead to link — no
+  // name/username guessing needed, so this takes priority over the username fallback.
+  if (!lead && startLeadId) {
+    lead = await env.DB.prepare('SELECT id,telegramChatId FROM telegram_leads WHERE id=?').bind(startLeadId).first();
   }
-  if (!contact && cleanUsername) {
-    contact = await env.DB.prepare('SELECT id,telegramChatId FROM contacts WHERE LOWER(telegramUsername)=LOWER(?)').bind(cleanUsername).first();
+  if (!lead && cleanUsername) {
+    lead = await env.DB.prepare(`SELECT id,telegramChatId FROM telegram_leads WHERE LOWER(telegramUsername)=LOWER(?) AND (telegramChatId IS NULL OR telegramChatId='')`).bind(cleanUsername).first();
   }
-  if (contact) {
-    if (!contact.telegramChatId) await env.DB.prepare('UPDATE contacts SET telegramChatId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=?').bind(String(chatId), contact.id).run();
-    return contact.id;
+  if (lead) {
+    if (!lead.telegramChatId) await env.DB.prepare('UPDATE telegram_leads SET telegramChatId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=?').bind(String(chatId), lead.id).run();
+    return lead.id;
   }
   const name = firstName || (cleanUsername ? `@${cleanUsername}` : `Telegram ${chatId}`);
-  const result = await env.DB.prepare(`INSERT INTO contacts (contactName,source,platform,telegramChatId,telegramUsername,createdAt,updatedAt)
-    VALUES (?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
-    .bind(name, 'telegram', 'Telegram', String(chatId), cleanUsername).run();
+  const result = await env.DB.prepare(`INSERT INTO telegram_leads (contactName,telegramChatId,telegramUsername,source,createdAt,updatedAt)
+    VALUES (?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+    .bind(name, String(chatId), cleanUsername, 'bot_start').run();
   return result.meta.last_row_id;
 }
 
@@ -141,20 +158,23 @@ export async function handleTelegramWebhookEvent(request, env) {
   if (!update) return json({ received: true });
   try {
     const message = update.message;
-    if (message && message.chat) {
+    // Direct-to-person only: a message from a group/supergroup/channel chat (chat.type isn't
+    // 'private') is never turned into a lead or logged — this module has no group/channel
+    // audience at all, so there is nothing useful to do with it here.
+    if (message && message.chat && message.chat.type === 'private') {
       const chatId = message.chat.id;
       const username = message.from?.username || '';
       const firstName = message.from?.first_name || '';
       const text = String(message.text || '');
       const startMatch = text.match(/^\/start(?:@\w+)?(?:\s+(\d+))?/);
-      const startContactId = startMatch?.[1] ? Number(startMatch[1]) : null;
-      const contactId = await findOrCreateTelegramContact(env, chatId, username, firstName, startContactId);
+      const startLeadId = startMatch?.[1] ? Number(startMatch[1]) : null;
+      const leadId = await findOrCreateTelegramLead(env, chatId, username, firstName, startLeadId);
       if (STOP_PATTERN.test(text)) {
         await env.DB.prepare('INSERT INTO telegram_opted_out (chatId,source,reason) VALUES (?,?,?) ON CONFLICT(chatId) DO NOTHING')
           .bind(String(chatId), 'keyword_detected', `Replied "${text.trim().slice(0, 50)}"`).run();
       }
       await env.DB.prepare('INSERT INTO telegram_messages (chatId,contactId,direction,text,messageId,senderName) VALUES (?,?,?,?,?,?)')
-        .bind(String(chatId), contactId, 'in', text, message.message_id || null, firstName || username || '').run();
+        .bind(String(chatId), leadId, 'in', text, message.message_id || null, firstName || username || '').run();
     }
   } catch (_) {
     // Never fail the webhook response over a persistence hiccup — Telegram disables a
@@ -202,96 +222,121 @@ async function getTelegramOptedOutSet(env, chatIds) {
   return out;
 }
 
-// Preview how many of a resolved audience can actually be reached — the headline caveat of
-// this whole module, surfaced before anyone clicks Send rather than discovered after.
-export async function handleTelegramAudiencePreview(request, env) {
+// ── Telegram Leads (the module's own lead base — see file header) ──
+
+export async function handleListTelegramLeads(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const url = new URL(request.url);
+  const search = (url.searchParams.get('search') || '').trim().toLowerCase();
+  const tag = (url.searchParams.get('tag') || '').trim().toLowerCase();
+  const reachableOnly = url.searchParams.get('reachableOnly') === '1';
+
+  const scope = ownerScope(user);
+  const binds = [`%${search}%`, `%${search}%`, `%${tag}%`];
+  if (scope.param !== undefined) binds.push(scope.param);
+
+  const result = await env.DB.prepare(`
+    SELECT id,contactName,telegramUsername,telegramChatId,tags,source,crmContactId,telegramLastContactedAt,createdAt
+    FROM telegram_leads
+    WHERE (LOWER(contactName) LIKE ? OR LOWER(telegramUsername) LIKE ?)
+      AND LOWER(tags) LIKE ?
+      ${reachableOnly ? "AND telegramChatId IS NOT NULL AND telegramChatId <> ''" : ''}
+      ${scope.filter}
+    ORDER BY (telegramChatId IS NULL OR telegramChatId = ''), contactName COLLATE NOCASE
+    LIMIT 1000
+  `).bind(...binds).all();
+
+  return json({ leads: result.results || [] });
+}
+
+export async function handleCreateTelegramLead(request, env) {
   const user = await currentUser(request, env);
   if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
   const body = await request.json().catch(() => ({}));
-  let contacts;
-  try { contacts = await resolveContactsForCampaign(env, user, body); }
-  catch (error) { return json({ error: error.message }, 500); }
-  const withTelegram = contacts.filter(c => c.telegramChatId).length;
-  // "Known handle, not yet reachable" — lead scanning/enrichment elsewhere in the app can
-  // populate telegramUsername (from a website/bio scan), which is not the same thing as a
-  // telegramChatId: Telegram never hands over a chat ID from a username alone, only once
-  // that person messages the bot. These are the leads an invite link (see the lead picker)
-  // can actually move into "reachable" — a username on file by itself never will.
-  const withKnownUsername = contacts.filter(c => !c.telegramChatId && c.telegramUsername).length;
-  return json({ total: contacts.length, withTelegram, withoutTelegram: contacts.length - withTelegram, withKnownUsername });
+  const contactName = String(body.contactName || '').trim();
+  const telegramUsername = String(body.telegramUsername || '').trim().replace(/^@/, '');
+  const rawChatId = String(body.telegramChatId || '').trim();
+  const tags = String(body.tags || '').trim();
+  if (!contactName) return json({ error: 'A name is required.' }, 400);
+  if (rawChatId && !isPrivateChatId(rawChatId)) {
+    return json({ error: 'That chat ID looks like a group, channel or supergroup (its number is negative) — this module only messages an individual person directly, so a group/channel chat ID can’t be added here.' }, 400);
+  }
+  if (!rawChatId && !telegramUsername) return json({ error: 'Add a known chat ID, or at least a Telegram username so you can invite them.' }, 400);
+  if (rawChatId) {
+    const existing = await env.DB.prepare('SELECT id FROM telegram_leads WHERE telegramChatId=?').bind(rawChatId).first();
+    if (existing) return json({ error: 'That chat ID is already in your Telegram leads list.' }, 409);
+  }
+  const result = await env.DB.prepare(`INSERT INTO telegram_leads (contactName,telegramUsername,telegramChatId,tags,source,ownerEmail,teamId,createdAt,updatedAt)
+    VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+    .bind(contactName, telegramUsername, rawChatId || null, tags, 'manual', user.email, user.teamId || null).run();
+  return json({ success: true, id: result.meta.last_row_id });
 }
 
-// Backs the "Select Specific Leads" picker — only ever lists contacts who already have a
-// telegramChatId, since anyone else can't be messaged at all. Same role-based ownership
-// scoping as resolveContactsForCampaign (automation.js), reimplemented here rather than
-// shared since this is a flat, searchable browse rather than a platform/country/brand
-// group resolution.
-export async function handleListTelegramReachableLeads(request, env) {
+export async function handleUpdateTelegramLead(request, env, id) {
   const user = await currentUser(request, env);
   if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
-  const url = new URL(request.url);
-  const search = (url.searchParams.get('search') || '').trim().toLowerCase();
-  const platform = url.searchParams.get('platform') || 'ALL';
-  const country = url.searchParams.get('country') || 'ALL';
+  const body = await request.json().catch(() => ({}));
+  const contactName = String(body.contactName || '').trim();
+  const telegramUsername = String(body.telegramUsername || '').trim().replace(/^@/, '');
+  const tags = String(body.tags || '').trim();
+  const rawChatId = body.telegramChatId === undefined ? undefined : String(body.telegramChatId || '').trim();
+  if (!contactName) return json({ error: 'A name is required.' }, 400);
+  if (rawChatId && !isPrivateChatId(rawChatId)) {
+    return json({ error: 'That chat ID looks like a group, channel or supergroup (its number is negative) — this module only messages an individual person directly.' }, 400);
+  }
+  const scope = ownerScope(user);
+  const binds = [contactName, telegramUsername, tags];
+  let setChatId = '';
+  if (rawChatId !== undefined) { setChatId = ', telegramChatId=?'; binds.push(rawChatId || null); }
+  binds.push(id);
+  if (scope.param !== undefined) binds.push(scope.param);
+  const result = await env.DB.prepare(`UPDATE telegram_leads SET contactName=?,telegramUsername=?,tags=?${setChatId},updatedAt=CURRENT_TIMESTAMP WHERE id=? ${scope.filter}`).bind(...binds).run();
+  if (!result.meta.changes) return json({ error: 'Lead not found or access denied.' }, 404);
+  return json({ success: true });
+}
+
+export async function handleDeleteTelegramLead(request, env, id) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const scope = ownerScope(user);
+  const binds = [id];
+  if (scope.param !== undefined) binds.push(scope.param);
+  const result = await env.DB.prepare(`DELETE FROM telegram_leads WHERE id=? ${scope.filter}`).bind(...binds).run();
+  if (!result.meta.changes) return json({ error: 'Lead not found or access denied.' }, 404);
+  return json({ success: true });
+}
+
+// One-off bridge from the CRM: pulls in contacts that have a Telegram handle on file (e.g.
+// from lead-enrichment website scanning) and aren't already in the Telegram leads list, as
+// not-yet-started leads ready to be invited. Does not touch the CRM contacts table — this
+// only ever copies into telegram_leads, the lead base this module actually sends from.
+export async function handleImportTelegramLeadsFromCrm(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
 
   let ownerFilter = '';
   let ownerParam;
   if (user.role === 'Manager') { ownerFilter = 'AND (ownerEmail IS NULL OR teamId = ?)'; ownerParam = user.teamId || ''; }
   else if (user.role === 'Sales') { ownerFilter = 'AND ownerEmail = ?'; ownerParam = user.email; }
-
-  const binds = [platform, platform, country, country, `%${search}%`, `%${search}%`];
+  const binds = [];
   if (ownerParam !== undefined) binds.push(ownerParam);
 
-  const result = await env.DB.prepare(`
-    SELECT id,contactName,phone,platform,country,brand,telegramUsername,telegramChatId,telegramLastContactedAt,leadScore
-    FROM contacts
-    WHERE telegramChatId IS NOT NULL AND telegramChatId <> ''
-      AND (? = 'ALL' OR LOWER(platform) = LOWER(?))
-      AND (? = 'ALL' OR LOWER(country) = LOWER(?))
-      AND (LOWER(contactName) LIKE ? OR LOWER(telegramUsername) LIKE ?)
-      ${ownerFilter}
-    ORDER BY leadScore DESC, contactName COLLATE NOCASE
-    LIMIT 500
+  const candidates = await env.DB.prepare(`
+    SELECT id,contactName,telegramUsername,ownerEmail,teamId FROM contacts
+    WHERE telegramUsername IS NOT NULL AND telegramUsername <> '' ${ownerFilter}
   `).bind(...binds).all();
 
-  return json({ leads: result.results || [] });
-}
-
-// Leads one step away from reachable: a known Telegram handle (from a website/bio scan
-// under lead enrichment, or typed in manually) but no chat ID yet, since Telegram only
-// hands one over once this exact person messages the bot. Backs the lead picker's
-// "invite them to message the bot" list — each gets a personal deep link
-// (t.me/<bot>?start=<contactId>) so clicking it links that precise contact automatically.
-export async function handleListTelegramInvitableLeads(request, env) {
-  const user = await currentUser(request, env);
-  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
-  const url = new URL(request.url);
-  const search = (url.searchParams.get('search') || '').trim().toLowerCase();
-  const platform = url.searchParams.get('platform') || 'ALL';
-  const country = url.searchParams.get('country') || 'ALL';
-
-  let ownerFilter = '';
-  let ownerParam;
-  if (user.role === 'Manager') { ownerFilter = 'AND (ownerEmail IS NULL OR teamId = ?)'; ownerParam = user.teamId || ''; }
-  else if (user.role === 'Sales') { ownerFilter = 'AND ownerEmail = ?'; ownerParam = user.email; }
-
-  const binds = [platform, platform, country, country, `%${search}%`, `%${search}%`];
-  if (ownerParam !== undefined) binds.push(ownerParam);
-
-  const result = await env.DB.prepare(`
-    SELECT id,contactName,phone,platform,country,telegramUsername
-    FROM contacts
-    WHERE telegramUsername IS NOT NULL AND telegramUsername <> ''
-      AND (telegramChatId IS NULL OR telegramChatId = '')
-      AND (? = 'ALL' OR LOWER(platform) = LOWER(?))
-      AND (? = 'ALL' OR LOWER(country) = LOWER(?))
-      AND (LOWER(contactName) LIKE ? OR LOWER(telegramUsername) LIKE ?)
-      ${ownerFilter}
-    ORDER BY contactName COLLATE NOCASE
-    LIMIT 500
-  `).bind(...binds).all();
-
-  return json({ leads: result.results || [] });
+  let imported = 0;
+  for (const c of candidates.results || []) {
+    const existing = await env.DB.prepare('SELECT id FROM telegram_leads WHERE LOWER(telegramUsername)=LOWER(?)').bind(c.telegramUsername).first();
+    if (existing) continue;
+    await env.DB.prepare(`INSERT INTO telegram_leads (contactName,telegramUsername,source,crmContactId,ownerEmail,teamId,createdAt,updatedAt)
+      VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+      .bind(c.contactName || `@${c.telegramUsername}`, c.telegramUsername, 'imported_from_crm', c.id, c.ownerEmail || null, c.teamId || null).run();
+    imported++;
+  }
+  return json({ imported, skipped: (candidates.results || []).length - imported });
 }
 
 // Any provisioned user needs this to build an invite link — not just the Administrator who
@@ -304,73 +349,20 @@ export async function handleGetTelegramBotUsername(request, env) {
   return json({ botUsername: row?.botUsername || '' });
 }
 
-// Manual chat ID linking — for a lead whose numeric Telegram chat ID is already known from
-// somewhere else. There is no API-side fallback for this: Telegram's Bot API can't resolve
-// a username to a chat ID, and won't surface one at all until that person messages the bot
-// themselves, so a lead who hasn't done that can only become reachable this way.
-export async function handleSearchContactsForTelegramLink(request, env) {
+// Personal deep link (t.me/<bot>?start=<leadId>) for a lead who has a username on file but
+// hasn't started the bot yet. The moment they tap it and hit Start, the webhook links this
+// exact lead automatically — no name/username guessing needed on the way back.
+export async function handleGenerateTelegramInviteLink(request, env, id) {
   const user = await currentUser(request, env);
   if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
-  const url = new URL(request.url);
-  const search = (url.searchParams.get('search') || '').trim().toLowerCase();
-  if (!search) return json({ contacts: [] });
-
-  let ownerFilter = '';
-  let ownerParam;
-  if (user.role === 'Manager') { ownerFilter = 'AND (ownerEmail IS NULL OR teamId = ?)'; ownerParam = user.teamId || ''; }
-  else if (user.role === 'Sales') { ownerFilter = 'AND ownerEmail = ?'; ownerParam = user.email; }
-
-  const binds = [`%${search}%`, `%${search}%`, `%${search}%`];
-  if (ownerParam !== undefined) binds.push(ownerParam);
-
-  const result = await env.DB.prepare(`
-    SELECT id,contactName,company,platform,country,telegramUsername,telegramChatId
-    FROM contacts
-    WHERE (LOWER(contactName) LIKE ? OR LOWER(company) LIKE ? OR LOWER(telegramUsername) LIKE ?)
-      ${ownerFilter}
-    ORDER BY contactName COLLATE NOCASE
-    LIMIT 30
-  `).bind(...binds).all();
-
-  return json({ contacts: result.results || [] });
-}
-
-export async function handleLinkTelegramChatId(request, env) {
-  const user = await currentUser(request, env);
-  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
-  const body = await request.json().catch(() => ({}));
-  const contactId = Number(body.contactId);
-  const raw = String(body.chatId || '').trim();
-  if (!contactId) return json({ error: 'A lead is required.' }, 400);
-  if (!raw) return json({ error: 'A chat ID or @username is required.' }, 400);
-
-  let chatId = raw;
-  if (!/^-?\d+$/.test(raw)) {
-    // Not a plain number — try it as a public @username. This only ever works for a public
-    // channel, supergroup or bot: Telegram's getChat refuses to resolve a private person's
-    // username at all (by design, for privacy) unless that person has already messaged the
-    // bot — in which case their numeric chat ID would already be on file from the webhook,
-    // and this manual path wouldn't be needed.
-    const token = await loadTelegramBotToken(env);
-    if (!token) return json({ error: 'Telegram isn’t connected yet — add a bot token first.' }, 503);
-    const username = raw.replace(/^@/, '');
-    const { ok, data } = await telegramApi(token, 'getChat', { chat_id: `@${username}` });
-    if (!ok || data.result?.id === undefined) {
-      return json({ error: `Telegram couldn’t resolve @${username}: ${data.description || 'not found'}. This only works for a public channel, supergroup or bot — a private person's username can’t be resolved this way; paste their numeric chat ID instead if you have it.` }, 400);
-    }
-    chatId = String(data.result.id);
-  }
-
-  let ownerFilter = '';
-  let ownerParam;
-  if (user.role === 'Manager') { ownerFilter = 'AND (ownerEmail IS NULL OR teamId = ?)'; ownerParam = user.teamId || ''; }
-  else if (user.role === 'Sales') { ownerFilter = 'AND ownerEmail = ?'; ownerParam = user.email; }
-
-  const binds = [chatId, contactId];
-  if (ownerParam !== undefined) binds.push(ownerParam);
-  const result = await env.DB.prepare(`UPDATE contacts SET telegramChatId=?, updatedAt=CURRENT_TIMESTAMP WHERE id=? ${ownerFilter}`).bind(...binds).run();
-  if (!result.meta.changes) return json({ error: 'Lead not found or access denied.' }, 404);
-  return json({ success: true, chatId });
+  const scope = ownerScope(user);
+  const binds = [id];
+  if (scope.param !== undefined) binds.push(scope.param);
+  const lead = await env.DB.prepare(`SELECT id,contactName,telegramChatId FROM telegram_leads WHERE id=? ${scope.filter}`).bind(...binds).first();
+  if (!lead) return json({ error: 'Lead not found or access denied.' }, 404);
+  const row = await getSettingsRow(env);
+  if (!row?.botUsername) return json({ error: 'Bot username unavailable — save a bot token under Bot Setup first.' }, 503);
+  return json({ link: `https://t.me/${row.botUsername}?start=${lead.id}`, alreadyStarted: !!lead.telegramChatId });
 }
 
 function classifyTelegramError(description) {
@@ -378,6 +370,40 @@ function classifyTelegramError(description) {
   if (d.includes('blocked') || d.includes('chat not found') || d.includes('deactivated') || d.includes('kicked')) return 'permanent';
   if (d.includes('too many requests')) return 'transient';
   return 'unknown';
+}
+
+// Preview how many of a resolved audience can actually be reached — the headline caveat of
+// this whole module, surfaced before anyone clicks Send rather than discovered after.
+export async function handleTelegramAudiencePreview(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const body = await request.json().catch(() => ({}));
+  const search = String(body.search || '').trim().toLowerCase();
+  const tag = String(body.tag || '').trim().toLowerCase();
+  const scope = ownerScope(user);
+  const binds = [`%${search}%`, `%${search}%`, `%${tag}%`];
+  if (scope.param !== undefined) binds.push(scope.param);
+  const result = await env.DB.prepare(`
+    SELECT telegramChatId FROM telegram_leads
+    WHERE (LOWER(contactName) LIKE ? OR LOWER(telegramUsername) LIKE ?)
+      AND LOWER(tags) LIKE ?
+      ${scope.filter}
+  `).bind(...binds).all();
+  const rows = result.results || [];
+  const withTelegram = rows.filter(r => r.telegramChatId).length;
+  return json({ total: rows.length, withTelegram, withoutTelegram: rows.length - withTelegram });
+}
+
+// Upserts a chat ID pasted straight into the "Chat ID List" audience mode into the lead
+// base, so every send target ends up tracked there regardless of how it was entered — the
+// lead base stays the single source of truth for who Whizz has ever reached on Telegram.
+async function upsertTelegramLeadForChatId(env, user, chatId, name) {
+  const existing = await env.DB.prepare('SELECT id FROM telegram_leads WHERE telegramChatId=?').bind(chatId).first();
+  if (existing) return existing.id;
+  const result = await env.DB.prepare(`INSERT INTO telegram_leads (contactName,telegramChatId,source,ownerEmail,teamId,createdAt,updatedAt)
+    VALUES (?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+    .bind(name || chatId, chatId, 'chatid_paste', user.email, user.teamId || null).run();
+  return result.meta.last_row_id;
 }
 
 export async function handleSendTelegramCampaign(request, env) {
@@ -395,26 +421,36 @@ export async function handleSendTelegramCampaign(request, env) {
   const resolveFails = [];
   if (targetContacts) {
     contacts = targetContacts.map(c => ({ id: c.id || null, contactName: c.name || '', telegramChatId: c.chatId }));
-    // A pasted Chat ID List may mix numeric IDs with @usernames — resolve the usernames to a
-    // numeric chat ID up front via getChat, so the suppression-list and duplicate checks below
-    // (both keyed by the numeric ID Telegram's webhook records) still catch them, and a bad
-    // handle fails here with a clear reason instead of as an opaque sendMessage error later.
-    const unresolved = contacts.filter(c => c.telegramChatId && !/^-?\d+$/.test(String(c.telegramChatId)));
-    for (const c of unresolved) {
-      const username = String(c.telegramChatId).replace(/^@/, '');
-      const { ok, data } = await telegramApi(token, 'getChat', { chat_id: `@${username}` });
-      if (ok && data.result?.id !== undefined) {
-        c.telegramChatId = String(data.result.id);
-      } else {
+    // Reject anything that isn't an individual's private chat ID up front (negative numbers
+    // are always a group/supergroup/channel) — direct-to-person only, no exceptions.
+    for (const c of contacts) {
+      if (c.telegramChatId && !isPrivateChatId(c.telegramChatId)) {
         resolveFails.push({ contactId: c.id, chatId: null, name: c.contactName, status: 'failed', bucket: 'permanent',
-          reason: `Telegram couldn’t resolve @${username}: ${data.description || 'not found'}. This only works for a public channel, supergroup or bot — a private person's username can’t be resolved this way; use their numeric chat ID instead.` });
-        c._unresolved = true;
+          reason: `"${c.telegramChatId}" looks like a group, channel or supergroup chat ID (it's negative) — this module only messages an individual person directly, so it can't be sent to.` });
+        c._invalid = true;
       }
     }
-    contacts = contacts.filter(c => !c._unresolved);
+    contacts = contacts.filter(c => !c._invalid);
+    // A pasted Chat ID List bypasses the Telegram Leads table on entry — fold every valid
+    // target into it now, so the lead base stays the record of everyone ever reached here.
+    if (body.source === 'chatid_list') {
+      for (const c of contacts) {
+        if (c.telegramChatId) c.id = c.id || await upsertTelegramLeadForChatId(env, user, String(c.telegramChatId), c.contactName);
+      }
+    }
   } else {
-    try { contacts = await resolveContactsForCampaign(env, user, body); }
-    catch (error) { return json({ error: error.message }, 500); }
+    const search = String(body.search || '').trim().toLowerCase();
+    const tag = String(body.tag || '').trim().toLowerCase();
+    const scope = ownerScope(user);
+    const binds = [`%${search}%`, `%${search}%`, `%${tag}%`];
+    if (scope.param !== undefined) binds.push(scope.param);
+    const result = await env.DB.prepare(`
+      SELECT id,contactName,telegramChatId,telegramLastContactedAt FROM telegram_leads
+      WHERE (LOWER(contactName) LIKE ? OR LOWER(telegramUsername) LIKE ?)
+        AND LOWER(tags) LIKE ?
+        ${scope.filter}
+    `).bind(...binds).all();
+    contacts = result.results || [];
   }
 
   const guard = body.delivery_guard || {};
@@ -422,7 +458,7 @@ export async function handleSendTelegramCampaign(request, env) {
   const skipped = [];
   let eligible = contacts.filter(c => {
     const chatId = c.telegramChatId ? String(c.telegramChatId) : '';
-    if (!chatId) { skipped.push({ contactId: c.id, name: c.contactName, reason: 'No linked Telegram chat — this contact hasn’t started the bot yet' }); return false; }
+    if (!chatId) { skipped.push({ contactId: c.id, name: c.contactName, reason: 'No linked Telegram chat — this lead hasn’t started the bot yet' }); return false; }
     if (seenChats.has(chatId)) { skipped.push({ contactId: c.id, name: c.contactName, reason: 'Duplicate Telegram chat in this audience' }); return false; }
     seenChats.add(chatId);
     return true;
@@ -471,7 +507,7 @@ export async function handleSendTelegramCampaign(request, env) {
       continue;
     }
     results.push({ contactId: contact.id, chatId, name: contact.contactName, status: 'sent', messageId: sendResult.data.result?.message_id });
-    if (contact.id) await env.DB.prepare('UPDATE contacts SET telegramLastContactedAt=CURRENT_TIMESTAMP WHERE id=?').bind(contact.id).run();
+    if (contact.id) await env.DB.prepare('UPDATE telegram_leads SET telegramLastContactedAt=CURRENT_TIMESTAMP WHERE id=?').bind(contact.id).run();
   }
 
   return json({

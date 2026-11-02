@@ -1410,6 +1410,28 @@ body.dark{
 
         <div class="card" style="margin-bottom:16px;">
           <div class="card-head">
+            <div class="card-title">Telegram Leads</div>
+            <span class="eyebrow" id="tgleads-count" style="margin-bottom:0;"></span>
+          </div>
+          <div class="card-body">
+            <div class="fi-hint" style="margin-bottom:12px;">This module's own lead list — separate from the main CRM leads WhatsApp uses. Direct to a person only: Whizz never messages a group, channel or supergroup, only an individual's private chat, so a lead here is reachable only once they've personally started your bot.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+              <input class="fi" id="tgleads-search" placeholder="Search name or @handle…" style="flex:2;min-width:160px;" oninput="searchTelegramLeadsTable()"/>
+              <input class="fi" id="tgleads-tag-filter" placeholder="Filter by tag…" style="flex:1;min-width:120px;" oninput="searchTelegramLeadsTable()"/>
+              <button class="t-btn btn-ghost t-btn-sm" onclick="openAddTelegramLeadModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Lead
+              </button>
+              <button class="t-btn btn-ghost t-btn-sm" onclick="importTelegramLeadsFromCrm()">Import from CRM</button>
+            </div>
+            <div id="tgleads-list" style="border:1px solid var(--border);border-radius:8px;max-height:320px;overflow-y:auto;">
+              <div class="empty-state">Checking…</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
             <div class="card-title">Audience &amp; Message</div>
           </div>
           <div class="card-body">
@@ -1421,10 +1443,9 @@ body.dark{
             </div>
 
             <div id="tg-filter-mode-panel">
-              <div id="tg-broad-filters" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;">
-                <div class="fg" style="margin-bottom:0;"><label class="fl">Platform</label><select class="fs" id="tg-platform" onchange="previewTelegramAudience()"><option value="ALL">All Platforms</option></select></div>
-                <div class="fg" style="margin-bottom:0;"><label class="fl">Country</label><select class="fs" id="tg-country" onchange="previewTelegramAudience()"><option value="ALL">All Countries</option></select></div>
-                <div class="fg" style="margin-bottom:0;"><label class="fl">Brand</label><select class="fs" id="tg-brand" onchange="previewTelegramAudience()"><option value="ALL">All Brands</option></select></div>
+              <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:4px;">
+                <div class="fg" style="margin-bottom:0;"><label class="fl">Search</label><input class="fi" id="tg-filter-search" placeholder="Name or @handle…" oninput="previewTelegramAudience()"/></div>
+                <div class="fg" style="margin-bottom:0;"><label class="fl">Tag</label><input class="fi" id="tg-filter-tag" placeholder="e.g. vip" oninput="previewTelegramAudience()"/></div>
               </div>
             </div>
 
@@ -1439,8 +1460,8 @@ body.dark{
             <div id="tg-chatid-mode-panel" style="display:none;margin-bottom:4px;">
               <div class="fg" style="margin-bottom:0;">
                 <label class="fl">Telegram Chat IDs</label>
-                <textarea class="fi" id="tg-chatid-list" rows="4" placeholder="One per line — a chat ID or @username, or Name, chatId&#10;e.g.&#10;987654321&#10;Uzbekshop, -1001234567890&#10;MacBro_Manager" oninput="previewTelegramAudience()"></textarea>
-                <div class="fi-hint">Sends straight to these chat IDs or @usernames — no CRM lookup, no need for the contact to exist in Whizz at all. A username only resolves for a public channel, supergroup or bot, not a private person's account. Everyone here still must have messaged your bot at some point (Telegram's own rule, not Whizz's) and must not be on the suppression list below. Not a phone number — unlike WhatsApp, a Telegram bot has no way to message one at all.</div>
+                <textarea class="fi" id="tg-chatid-list" rows="4" placeholder="One per line — a chat ID, or Name, chatId&#10;e.g.&#10;987654321&#10;Uzbekshop, 554433221" oninput="previewTelegramAudience()"></textarea>
+                <div class="fi-hint">Sends straight to these chat IDs — no need for the lead to already be in the Telegram Leads list above (Whizz adds it there automatically once sent). Direct to a person only: a group/channel/supergroup chat ID (always negative) is rejected. Not a phone number — unlike WhatsApp, a Telegram bot has no way to message one at all. Everyone here still must have messaged your bot at some point and must not be on the suppression list below.</div>
               </div>
             </div>
 
@@ -3007,11 +3028,9 @@ body.dark{
       <button class="modal-close" onclick="closeModal('modal-telegram-leads')">✕</button>
     </div>
     <div class="modal-body" style="max-height:calc(88vh - 140px);overflow-y:auto;">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">Only leads who've already started a conversation with your bot are shown — anyone else can't be messaged yet, so there's nothing to pick them for.</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">Only leads who've already started a conversation with your bot are shown — anyone else can't be messaged yet. Add or invite a lead from the Telegram Leads table on the main page first.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-        <input class="fi" id="tgl-search" placeholder="Search name or @handle…" style="flex:2;min-width:160px;" oninput="filterTelegramLeadPicker()"/>
-        <select class="fs" id="tgl-platform" style="flex:1;min-width:120px;" onchange="loadTelegramLeadPicker()"><option value="ALL">All Platforms</option></select>
-        <select class="fs" id="tgl-country" style="flex:1;min-width:120px;" onchange="loadTelegramLeadPicker()"><option value="ALL">All Countries</option></select>
+        <input class="fi" id="tgl-search" placeholder="Search name or @handle…" style="flex:1;min-width:160px;" oninput="filterTelegramLeadPicker()"/>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
         <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2);cursor:pointer;">
@@ -3025,29 +3044,44 @@ body.dark{
       <div id="tgl-list" style="border:1px solid var(--border);border-radius:8px;max-height:360px;overflow-y:auto;">
         <div class="empty-state">Checking…</div>
       </div>
-      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
-        <div style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px;">Can't find a lead? Link Telegram directly</div>
-        <div class="fi-hint" style="margin-bottom:8px;">Paste a numeric chat ID if you already have one, or an @username for a public channel/supergroup/bot (Whizz will resolve it). A private person's username can't be resolved this way — Telegram only hands over their chat ID once they message the bot themselves.</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <div style="flex:2;min-width:160px;position:relative;">
-            <input class="fi" id="tgl-link-search" placeholder="Search any lead by name/company…" oninput="searchContactsForTelegramLink()" autocomplete="off"/>
-            <div id="tgl-link-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;margin-top:4px;max-height:200px;overflow-y:auto;z-index:20;box-shadow:var(--shadow-sm);"></div>
-          </div>
-          <input class="fi" id="tgl-link-chatid" placeholder="Chat ID or @username" style="flex:1;min-width:140px;"/>
-          <button class="t-btn btn-primary t-btn-sm" onclick="linkTelegramChatId()">Link</button>
-        </div>
-        <div id="tgl-link-selected" style="font-size:11px;color:var(--text3);margin-top:6px;"></div>
-      </div>
-      <div id="tgl-invite-section" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:none;">
-        <div style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px;">Known handle, not reachable yet — invite them to message the bot</div>
-        <div class="fi-hint" style="margin-bottom:8px;">These leads have a Telegram handle on file (e.g. from website scanning) but haven't started a chat with your bot, so there's no chat ID to message yet. Send them this personal link via WhatsApp/email — the moment they tap it and hit Start, Whizz links them automatically.</div>
-        <div id="tgl-invite-list" style="border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;"></div>
-      </div>
     </div>
     <div class="modal-foot">
       <span style="font-size:11.5px;color:var(--text3);margin-right:auto;"><strong id="tgl-selected-count">0</strong> selected</span>
       <button class="t-btn btn-ghost" onclick="closeModal('modal-telegram-leads')">Cancel</button>
       <button class="t-btn btn-primary" onclick="confirmTelegramLeadPicker()">Use Selected Leads</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-telegram-lead">
+  <div class="modal" style="width:min(96vw,440px);">
+    <div class="modal-head">
+      <div class="modal-title">Add Telegram Lead</div>
+      <button class="modal-close" onclick="closeModal('modal-add-telegram-lead')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <label class="fl">Name</label>
+        <input class="fi" id="tgadd-name" placeholder="Lead name"/>
+      </div>
+      <div class="fg">
+        <label class="fl">Telegram Username (optional)</label>
+        <input class="fi" id="tgadd-username" placeholder="handle, without the @"/>
+        <div class="fi-hint">If there's no chat ID yet, a username lets you generate an invite link once this lead is saved.</div>
+      </div>
+      <div class="fg">
+        <label class="fl">Telegram Chat ID (optional)</label>
+        <input class="fi" id="tgadd-chatid" placeholder="e.g. 987654321"/>
+        <div class="fi-hint">Only if you already have it. Must be a plain positive number — a group/channel/supergroup ID (negative) isn't supported here.</div>
+      </div>
+      <div class="fg">
+        <label class="fl">Tags (optional)</label>
+        <input class="fi" id="tgadd-tags" placeholder="comma-separated, e.g. vip, retail"/>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-add-telegram-lead')">Cancel</button>
+      <button class="t-btn btn-primary" onclick="submitAddTelegramLead()">Add Lead</button>
     </div>
   </div>
 </div>
@@ -8694,35 +8728,19 @@ async function initTelegramModule(){
   renderTelegramHistoryList();
   loadTelegramSettings();
   loadTelegramOptOuts();
-  populateTelegramAudienceFilters();
+  loadTelegramLeadsTable();
   renderTelegramSelectedLeadsChips();
   previewTelegramAudience();
 }
-async function populateTelegramAudienceFilters(){
-  if(!S.cache.platforms||!S.cache.countries||!S.cache.brands){
-    try{await refreshLeadData();}catch(e){}
-  }
-  const fill=(id,values)=>{
-    const el=document.getElementById(id);
-    if(!el)return;
-    const current=el.value;
-    el.innerHTML='<option value="ALL">All</option>'+(values||[]).map(v=>`<option value="${_hesc(v)}">${_hesc(v)}</option>`).join('');
-    if(current&&[...el.options].some(o=>o.value===current))el.value=current;
-  };
-  fill('tg-platform',S.cache.platforms);
-  fill('tg-country',S.cache.countries);
-  fill('tg-brand',S.cache.brands);
-}
 function telegramAudiencePayload(){
   return {
-    platform:document.getElementById('tg-platform')?.value||'ALL',
-    country:document.getElementById('tg-country')?.value||'ALL',
-    brand:document.getElementById('tg-brand')?.value||'ALL',
+    search:(document.getElementById('tg-filter-search')?.value||'').trim(),
+    tag:(document.getElementById('tg-filter-tag')?.value||'').trim(),
   };
 }
-// ── Telegram lead picker — select exact contacts instead of a broad platform/country/
-// brand filter. Only ever lists contacts with a telegramChatId already on file, since
-// anyone else can't be messaged yet (same constraint as the rest of this module).
+// ── Telegram lead picker — select exact leads from this module's own lead base instead of
+// a broad filter. Only ever lists leads with a telegramChatId already on file, since anyone
+// else can't be messaged yet (same constraint as the rest of this module).
 // Two explicit audience modes (tabs) rather than an implicit "filters dim once you pick
 // leads" state, so which definition will actually be used is never ambiguous.
 function selectTelegramAudienceMode(mode,el){
@@ -8736,37 +8754,120 @@ function selectTelegramAudienceMode(mode,el){
   previewTelegramAudience();
 }
 // Accepts a bare chat ID per line, or "Name, chatId" — the last comma-separated piece must
-// parse as a plain integer, or as a Telegram-shaped @username (resolved to a numeric chat ID
-// server-side before sending, since only a public channel/supergroup/bot can be resolved that way).
+// parse as a plain positive integer. Direct-to-person only: a negative number (always a
+// group/supergroup/channel chat ID on Telegram) is flagged, not silently treated as valid.
 function parseTelegramChatIdInput(){
   const text=document.getElementById('tg-chatid-list')?.value||'';
   const seen=new Set();
   const valid=[];
   let invalidCount=0;
-  let usernameCount=0;
+  let groupLikeCount=0;
   let phoneLikeCount=0;
   text.split('\n').map(l=>l.trim()).filter(Boolean).forEach(line=>{
     const parts=line.split(',').map(p=>p.trim());
     const raw=parts[parts.length-1];
     const name=parts.length>1?parts.slice(0,-1).join(', '):raw;
-    let chatId;
-    if(/^-?\d+$/.test(raw)){
-      chatId=raw;
-    }else if(/^@?[A-Za-z][A-Za-z0-9_]{4,31}$/.test(raw)){
-      chatId='@'+raw.replace(/^@/,'');
-      usernameCount++;
-    }else{
-      // "+"-prefixed, or otherwise phone-shaped, lines are a distinct and common mistake —
-      // a Telegram bot has no API to message a phone number at all (unlike WhatsApp), so this
-      // is worth calling out specifically rather than lumping it into a generic "invalid line".
-      if(/^\+?\d[\d\s-]{6,}$/.test(raw))phoneLikeCount++;
-      invalidCount++;return;
+    if(/^\d+$/.test(raw)){
+      const chatId=raw;
+      if(seen.has(chatId))return;
+      seen.add(chatId);
+      valid.push({name,chatId});
+      return;
     }
-    if(seen.has(chatId))return;
-    seen.add(chatId);
-    valid.push({name,chatId});
+    if(/^-\d+$/.test(raw)){groupLikeCount++;invalidCount++;return;}
+    // "+"-prefixed, or otherwise phone-shaped, lines are a distinct and common mistake —
+    // a Telegram bot has no API to message a phone number at all (unlike WhatsApp), so this
+    // is worth calling out specifically rather than lumping it into a generic "invalid line".
+    if(/^\+?\d[\d\s-]{6,}$/.test(raw))phoneLikeCount++;
+    invalidCount++;
   });
-  return {valid,invalidCount,usernameCount,phoneLikeCount};
+  return {valid,invalidCount,groupLikeCount,phoneLikeCount};
+}
+// ── Telegram Leads table (this module's own lead base — see the card above) ──
+let _tgLeadsSearchDebounce=null;
+function searchTelegramLeadsTable(){
+  clearTimeout(_tgLeadsSearchDebounce);
+  _tgLeadsSearchDebounce=setTimeout(loadTelegramLeadsTable,300);
+}
+async function loadTelegramLeadsTable(){
+  const el=document.getElementById('tgleads-list');
+  if(!el)return;
+  el.innerHTML='<div class="empty-state">Checking…</div>';
+  try{
+    const search=(document.getElementById('tgleads-search')?.value||'').trim();
+    const tag=(document.getElementById('tgleads-tag-filter')?.value||'').trim();
+    const params=new URLSearchParams();
+    if(search)params.set('search',search);
+    if(tag)params.set('tag',tag);
+    const d=await apiWMsg(`api/telegram/leads${params.toString()?'?'+params.toString():''}`);
+    S.cache.telegramLeads=d.leads||[];
+    renderTelegramLeadsTable();
+  }catch(e){el.innerHTML=`<div class="empty-state">${_hesc(e.message||'Failed to load')}</div>`;}
+}
+function renderTelegramLeadsTable(){
+  const el=document.getElementById('tgleads-list');
+  const countEl=document.getElementById('tgleads-count');
+  const leads=S.cache.telegramLeads||[];
+  if(countEl)countEl.textContent=leads.length?`${leads.length} lead${leads.length===1?'':'s'}`:'';
+  if(!el)return;
+  if(!leads.length){el.innerHTML='<div class="empty-state">No Telegram leads yet — add one, or import known handles from the CRM.</div>';return;}
+  el.innerHTML=leads.map(l=>{
+    const started=!!l.telegramChatId;
+    const statusBadge=started
+      ?`<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-dim);padding:3px 8px;border-radius:999px;">Started bot</span>`
+      :`<span style="font-size:10px;font-weight:700;color:var(--amber);background:var(--amber-dim);padding:3px 8px;border-radius:999px;">Not yet</span>`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12.5px;font-weight:600;color:var(--text);">${_hesc(l.contactName||'Unknown')}</div>
+        <div style="font-size:11px;color:var(--text3);">${l.telegramUsername?'@'+_hesc(l.telegramUsername):'No username on file'}${l.tags?' · '+_hesc(l.tags):''}</div>
+      </div>
+      ${statusBadge}
+      ${!started&&l.telegramUsername?`<button type="button" class="t-btn btn-ghost t-btn-sm" onclick="inviteTelegramLead(${l.id},this)">Invite</button>`:''}
+      <button type="button" class="t-btn btn-ghost t-btn-sm" onclick="deleteTelegramLead(${l.id})" title="Delete">✕</button>
+    </div>`;
+  }).join('');
+}
+function openAddTelegramLeadModal(){
+  document.getElementById('tgadd-name').value='';
+  document.getElementById('tgadd-username').value='';
+  document.getElementById('tgadd-chatid').value='';
+  document.getElementById('tgadd-tags').value='';
+  document.getElementById('modal-add-telegram-lead').classList.add('open');
+}
+async function submitAddTelegramLead(){
+  const contactName=document.getElementById('tgadd-name').value.trim();
+  const telegramUsername=document.getElementById('tgadd-username').value.trim();
+  const telegramChatId=document.getElementById('tgadd-chatid').value.trim();
+  const tags=document.getElementById('tgadd-tags').value.trim();
+  if(!contactName){showToast('A name is required','error');return;}
+  if(telegramChatId&&!/^\d+$/.test(telegramChatId)){showToast('Chat ID must be a plain positive number — groups/channels (negative numbers) aren\'t supported here','error');return;}
+  try{
+    await apiWMsg('api/telegram/leads','POST',{contactName,telegramUsername,telegramChatId,tags});
+    showToast('Lead added','success');
+    closeModal('modal-add-telegram-lead');
+    loadTelegramLeadsTable();
+  }catch(e){showToast(e.message||'Failed to add lead','error');}
+}
+async function deleteTelegramLead(id){
+  if(!confirm('Remove this lead from the Telegram leads list?'))return;
+  try{
+    await apiWMsg(`api/telegram/leads/${id}`,'DELETE');
+    showToast('Lead removed','success');
+    loadTelegramLeadsTable();
+  }catch(e){showToast(e.message||'Failed to remove','error');}
+}
+async function importTelegramLeadsFromCrm(){
+  try{
+    const d=await apiWMsg('api/telegram/leads/import-from-crm','POST',{});
+    showToast(d.imported?`Imported ${d.imported} lead(s) with a known Telegram handle`:'No new CRM leads with a Telegram handle to import','success');
+    loadTelegramLeadsTable();
+  }catch(e){showToast(e.message||'Import failed','error');}
+}
+async function inviteTelegramLead(id,btn){
+  try{
+    const d=await apiWMsg(`api/telegram/leads/${id}/invite-link`);
+    await copyTelegramInviteLink(d.link,btn);
+  }catch(e){showToast(e.message||'Could not generate invite link','error');}
 }
 function renderTelegramSelectedLeadsChips(){
   const badge=document.getElementById('tg-leads-mode-badge');
@@ -8794,53 +8895,10 @@ function clearTelegramLeadSelection(){
 }
 async function openTelegramLeadPicker(){
   document.getElementById('modal-telegram-leads').classList.add('open');
-  if(!S.cache.platforms||!S.cache.countries){try{await refreshLeadData();}catch(e){}}
-  const fill=(id,values)=>{
-    const el=document.getElementById(id);
-    if(!el)return;
-    el.innerHTML='<option value="ALL">All</option>'+(values||[]).map(v=>`<option value="${_hesc(v)}">${_hesc(v)}</option>`).join('');
-  };
-  fill('tgl-platform',S.cache.platforms);
-  fill('tgl-country',S.cache.countries);
   document.getElementById('tgl-search').value='';
   document.getElementById('tgl-show-selected').checked=false;
-  document.getElementById('tgl-link-search').value='';
-  document.getElementById('tgl-link-chatid').value='';
-  document.getElementById('tgl-link-selected').textContent='';
-  document.getElementById('tgl-link-results').style.display='none';
-  _tglLinkSelectedContact=null;
   S._tglChecked=new Set((S.selectedTelegramLeads||[]).map(l=>l.id));
   await loadTelegramLeadPicker();
-  loadTelegramInvitableLeads();
-}
-async function loadTelegramInvitableLeads(){
-  const section=document.getElementById('tgl-invite-section');
-  const listEl=document.getElementById('tgl-invite-list');
-  if(!section||!listEl)return;
-  try{
-    const [leadsRes,botRes]=await Promise.all([
-      apiWMsg('api/telegram/invitable-leads'),
-      apiWMsg('api/telegram/bot-username')
-    ]);
-    const leads=leadsRes.leads||[];
-    const botUsername=botRes.botUsername||'';
-    if(!leads.length){section.style.display='none';return;}
-    section.style.display='block';
-    if(!botUsername){
-      listEl.innerHTML='<div class="empty-state">Bot username unavailable — save a bot token under Bot Setup to generate invite links.</div>';
-      return;
-    }
-    listEl.innerHTML=leads.slice(0,50).map(l=>{
-      const link=`https://t.me/${botUsername}?start=${l.id}`;
-      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);">
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:12px;font-weight:600;color:var(--text);">${_hesc(l.contactName||'Unknown')}</div>
-          <div style="font-size:10.5px;color:var(--text3);">@${_hesc(l.telegramUsername)} · ${_hesc(l.platform||'—')} · ${_hesc(l.country||'—')}</div>
-        </div>
-        <button type="button" class="t-btn btn-ghost t-btn-sm" onclick="copyTelegramInviteLink('${link}',this)">Copy Invite Link</button>
-      </div>`;
-    }).join('')+(leads.length>50?`<div style="padding:8px 12px;font-size:11px;color:var(--text3);">+${leads.length-50} more — narrow by platform/country above to see them.</div>`:'');
-  }catch(e){section.style.display='none';}
 }
 async function copyTelegramInviteLink(link,btn){
   try{
@@ -8853,22 +8911,17 @@ async function loadTelegramLeadPicker(){
   if(!el)return;
   el.innerHTML='<div class="empty-state">Checking…</div>';
   try{
-    const platform=document.getElementById('tgl-platform').value;
-    const country=document.getElementById('tgl-country').value;
     const search=(document.getElementById('tgl-search')?.value||'').trim();
-    const params=new URLSearchParams();
-    if(platform&&platform!=='ALL')params.set('platform',platform);
-    if(country&&country!=='ALL')params.set('country',country);
+    const params=new URLSearchParams({reachableOnly:'1'});
     if(search)params.set('search',search);
-    const d=await apiWMsg(`api/telegram/reachable-leads${params.toString()?'?'+params.toString():''}`);
+    const d=await apiWMsg(`api/telegram/leads?${params.toString()}`);
     S._tglLeads=d.leads||[];
     renderTelegramLeadPicker();
   }catch(e){el.innerHTML=`<div class="empty-state">${_hesc(e.message||'Failed to load')}</div>`;}
 }
-// Platform/country/search are all applied server-side (the reachable-leads query caps at
-// 500 rows ordered by leadScore, so a client-side-only text filter would silently miss any
-// match past that cutoff) — this just layers "show selected only" on top of whatever the
-// server already returned.
+// Search is applied server-side (the leads query caps at 1000 rows, so a client-side-only
+// text filter would silently miss any match past that cutoff) — this just layers "show
+// selected only" on top of whatever the server already returned.
 function _telegramLeadPickerFiltered(){
   const showSelectedOnly=document.getElementById('tgl-show-selected')?.checked;
   return (S._tglLeads||[]).filter(l=>!showSelectedOnly||S._tglChecked.has(l.id));
@@ -8910,7 +8963,7 @@ function renderTelegramLeadPicker(){
       <div class="u-avatar" style="width:26px;height:26px;font-size:10px;">${_hesc(initials)}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:12.5px;font-weight:600;color:var(--text);">${_hesc(l.contactName||'Unknown')}</div>
-        <div style="font-size:11px;color:var(--text3);">${l.telegramUsername?'@'+_hesc(l.telegramUsername):'No username on file'} · ${_hesc(l.platform||'—')} · ${_hesc(l.country||'—')}${lastLabel?' · '+lastLabel:''}</div>
+        <div style="font-size:11px;color:var(--text3);">${l.telegramUsername?'@'+_hesc(l.telegramUsername):'No username on file'}${l.tags?' · '+_hesc(l.tags):''}${lastLabel?' · '+lastLabel:''}</div>
       </div>
       ${willSkip?`<span style="font-size:10px;font-weight:700;color:var(--amber);background:var(--amber-dim);padding:3px 8px;border-radius:999px;flex-shrink:0;" title="Messaged within the ${freqCapDays}-day frequency cap — will likely be skipped at send time">May skip</span>`:''}
     </label>`;
@@ -8937,56 +8990,6 @@ function confirmTelegramLeadPicker(){
   closeModal('modal-telegram-leads');
   renderTelegramSelectedLeadsChips();
   previewTelegramAudience();
-}
-// ── Manual chat ID linking ── Telegram's Bot API can't resolve a username to a chat ID,
-// and won't surface one at all until that person messages the bot themselves — so this is
-// the only way to make a known-but-not-yet-chatted lead reachable, for whoever already has
-// their numeric chat ID from somewhere else.
-let _tglLinkResults=[];
-let _tglLinkSelectedContact=null;
-let _tglLinkSearchDebounce=null;
-function searchContactsForTelegramLink(){
-  clearTimeout(_tglLinkSearchDebounce);
-  _tglLinkSearchDebounce=setTimeout(async ()=>{
-    const q=document.getElementById('tgl-link-search').value.trim();
-    const resultsEl=document.getElementById('tgl-link-results');
-    _tglLinkSelectedContact=null;
-    document.getElementById('tgl-link-selected').textContent='';
-    if(!q){resultsEl.style.display='none';_tglLinkResults=[];return;}
-    try{
-      const d=await apiWMsg(`api/telegram/search-contacts?search=${encodeURIComponent(q)}`);
-      _tglLinkResults=d.contacts||[];
-      if(!_tglLinkResults.length){
-        resultsEl.innerHTML='<div style="padding:8px 10px;font-size:11.5px;color:var(--text3);">No matches.</div>';
-      }else{
-        resultsEl.innerHTML=_tglLinkResults.map((c,i)=>`<div style="padding:8px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--border);" onclick="selectTelegramLinkContact(${i})">${_hesc(c.contactName||'Unknown')}${c.company?' · '+_hesc(c.company):''}${c.telegramChatId?' <span style="color:var(--green);">(already linked)</span>':''}</div>`).join('');
-      }
-      resultsEl.style.display='block';
-    }catch(e){resultsEl.style.display='none';}
-  },300);
-}
-function selectTelegramLinkContact(i){
-  const c=_tglLinkResults[i];
-  if(!c)return;
-  _tglLinkSelectedContact=c;
-  document.getElementById('tgl-link-search').value=c.contactName||'Unknown';
-  document.getElementById('tgl-link-results').style.display='none';
-  document.getElementById('tgl-link-selected').textContent=c.telegramChatId?`Selected: ${c.contactName} — currently linked to ${c.telegramChatId}; linking again will overwrite it.`:`Selected: ${c.contactName}`;
-}
-async function linkTelegramChatId(){
-  const chatId=document.getElementById('tgl-link-chatid').value.trim();
-  if(!_tglLinkSelectedContact){showToast('Search and pick a lead first','error');return;}
-  if(!chatId){showToast('Enter a Telegram chat ID','error');return;}
-  try{
-    await apiWMsg('api/telegram/link-chat-id','POST',{contactId:_tglLinkSelectedContact.id,chatId});
-    showToast(`Linked ${_tglLinkSelectedContact.contactName||'lead'} to Telegram`,'success');
-    document.getElementById('tgl-link-search').value='';
-    document.getElementById('tgl-link-chatid').value='';
-    document.getElementById('tgl-link-selected').textContent='';
-    document.getElementById('tgl-link-results').style.display='none';
-    _tglLinkSelectedContact=null;
-    await loadTelegramLeadPicker();
-  }catch(e){showToast(e.message||'Failed to link','error');}
 }
 async function loadTelegramSettings(){
   const statusEl=document.getElementById('tg-status');
@@ -9026,19 +9029,20 @@ async function previewTelegramAudience(){
     return;
   }
   if(S.telegramAudienceMode==='chatid'){
-    const {valid,invalidCount,usernameCount,phoneLikeCount}=parseTelegramChatIdInput();
-    const usernameNote=usernameCount?` ${usernameCount} ${usernameCount===1?'is a':'are'} @username${usernameCount===1?'':'s'} — those only resolve for a public channel, supergroup or bot, not a private person's account; Whizz will try to resolve them when you send and report any that fail.`:'';
+    const {valid,invalidCount,groupLikeCount,phoneLikeCount}=parseTelegramChatIdInput();
+    const groupNote=groupLikeCount?` <b style="color:var(--red,#d33);">${groupLikeCount} line${groupLikeCount===1?' looks':'s look'} like a group/channel/supergroup chat ID</b> (negative numbers) — this module is direct-to-person only and never messages a group or channel.`:'';
     const phoneNote=phoneLikeCount?` <b style="color:var(--red,#d33);">${phoneLikeCount} line${phoneLikeCount===1?' looks':'s look'} like a phone number</b> — Telegram bots have no way to message a phone number at all, unlike WhatsApp. Paste that lead's numeric Telegram chat ID instead, or use "Specific Leads" above to send them an invite link so they can start the bot themselves.`:'';
-    el.innerHTML=valid.length||phoneLikeCount
-      ?`${valid.length?`<b>${valid.length}</b> target${valid.length===1?'':'s'} parsed and ready to send to`:'Nothing ready to send yet'}${invalidCount>phoneLikeCount?` — ${invalidCount-phoneLikeCount} other line${invalidCount-phoneLikeCount===1?'':'s'} skipped (not a chat ID or username)`:''}.${usernameNote}${phoneNote}${valid.length?' Whizz can\'t confirm the rest have actually started your bot until it tries sending — any that haven\'t will show up as failed, not silently skipped.':''}`
-      :'Paste one chat ID or @username per line above.';
+    const otherInvalid=invalidCount-groupLikeCount-phoneLikeCount;
+    el.innerHTML=valid.length||groupLikeCount||phoneLikeCount
+      ?`${valid.length?`<b>${valid.length}</b> target${valid.length===1?'':'s'} parsed and ready to send to`:'Nothing ready to send yet'}${otherInvalid>0?` — ${otherInvalid} other line${otherInvalid===1?'':'s'} skipped (not a chat ID)`:''}.${groupNote}${phoneNote}${valid.length?' Whizz can\'t confirm the rest have actually started your bot until it tries sending — any that haven\'t will show up as failed, not silently skipped. Every valid target here is saved into the Telegram Leads list above once sent.':''}`
+      :'Paste one chat ID per line above.';
     return;
   }
   el.textContent='Checking…';
   try{
     const d=await apiWMsg('api/telegram/audience-preview','POST',telegramAudiencePayload());
-    const knownNote=d.withKnownUsername?` <a href="#" onclick="openTelegramLeadPicker();return false;" style="color:var(--accent);">${d.withKnownUsername} have a known Telegram handle but haven't started the bot yet — invite them →</a>`:'';
-    el.innerHTML=`<b>${d.withTelegram}</b> of ${d.total} resolved contacts can be reached on Telegram (have started the bot)${d.withoutTelegram?` — ${d.withoutTelegram} have no linked Telegram chat`:''}.${knownNote}`;
+    const inviteNote=d.withoutTelegram?` <a href="#" onclick="document.getElementById('tgleads-search').scrollIntoView({behavior:'smooth'});return false;" style="color:var(--accent);">${d.withoutTelegram} haven't started the bot yet — invite them from the Telegram Leads list above →</a>`:'';
+    el.innerHTML=`<b>${d.withTelegram}</b> of ${d.total} matching leads can be reached on Telegram (have started the bot).${inviteNote}`;
   }catch(e){el.textContent=e.message||'Could not check audience';}
 }
 async function sendTelegramCampaign(){
@@ -9066,12 +9070,12 @@ async function sendTelegramCampaign(){
       payload={message,targetContacts:S.selectedTelegramLeads.map(l=>({id:l.id,name:l.contactName,chatId:l.telegramChatId})),delivery_guard:{frequency_cap_days:freqCap}};
       audLabel=`${S.selectedTelegramLeads.length} specifically selected leads`;
     }else if(usingChatIdList){
-      payload={message,targetContacts:chatIdTargets,delivery_guard:{frequency_cap_days:freqCap}};
+      payload={message,targetContacts:chatIdTargets,source:'chatid_list',delivery_guard:{frequency_cap_days:freqCap}};
       audLabel=`${chatIdTargets.length} pasted chat ID(s)`;
     }else{
       const audience=telegramAudiencePayload();
       payload={...audience,message,delivery_guard:{frequency_cap_days:freqCap}};
-      audLabel=[audience.platform!=='ALL'?audience.platform:null,audience.country!=='ALL'?audience.country:null,audience.brand!=='ALL'?audience.brand:null].filter(Boolean).join(' / ')||'All';
+      audLabel=[audience.search?`"${audience.search}"`:null,audience.tag?`tag:${audience.tag}`:null].filter(Boolean).join(' / ')||'All leads';
     }
     const result=await apiWMsg('api/telegram/send','POST',payload);
     document.getElementById('tg-prog-fill').style.width='100%';
