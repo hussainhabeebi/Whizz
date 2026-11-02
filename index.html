@@ -1414,7 +1414,7 @@ body.dark{
             <span class="eyebrow" id="tgleads-count" style="margin-bottom:0;"></span>
           </div>
           <div class="card-body">
-            <div class="fi-hint" style="margin-bottom:12px;">This module's own lead list — separate from the main CRM leads WhatsApp uses. Direct to a person only: Whizz never messages a group, channel or supergroup, only an individual's private chat, so a lead here is reachable only once they've personally started your bot.</div>
+            <div class="fi-hint" style="margin-bottom:12px;">This module's own lead list — separate from the main CRM leads WhatsApp uses. Direct to a person only: Whizz never messages a group, channel or supergroup, only an individual's private chat. "Started bot" leads can be reached in bulk below; a lead with a username can also be messaged one-to-one right now via <strong>Message 1:1</strong> — that opens the chat in your own Telegram, you type and send it yourself, nothing here is automated.</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
               <input class="fi" id="tgleads-search" placeholder="Search name or @handle…" style="flex:2;min-width:160px;" oninput="searchTelegramLeadsTable()"/>
               <input class="fi" id="tgleads-tag-filter" placeholder="Filter by tag…" style="flex:1;min-width:120px;" oninput="searchTelegramLeadsTable()"/>
@@ -8875,6 +8875,7 @@ function renderTelegramLeadsTable(){
         <div style="font-size:11px;color:var(--text3);">${l.telegramUsername?'@'+_hesc(l.telegramUsername):'No username on file'}${l.tags?' · '+_hesc(l.tags):''}</div>
       </div>
       ${statusBadge}
+      ${l.telegramUsername?`<a class="t-btn btn-ghost t-btn-sm" href="https://t.me/${encodeURIComponent(l.telegramUsername)}" target="_blank" rel="noopener" title="Opens this person's chat in your own Telegram — you send it yourself, nothing here is automated">Message 1:1</a>`:''}
       ${!started&&l.telegramUsername?`<button type="button" class="t-btn btn-ghost t-btn-sm" onclick="inviteTelegramLead(${l.id},this)">Invite</button>`:''}
       <button type="button" class="t-btn btn-ghost t-btn-sm" onclick="deleteTelegramLead(${l.id})" title="Delete">✕</button>
     </div>`;
