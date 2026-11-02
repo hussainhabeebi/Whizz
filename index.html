@@ -309,6 +309,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .ch-wa{background:rgba(37,211,102,0.12);color:#25d366;}
 .ch-em{background:var(--accent-dim);color:var(--accent);}
 .ch-wc{background:var(--blue-dim);color:var(--blue);}
+.ch-tg{background:rgba(38,166,209,0.12);color:#26a6d1;}
 .unread{margin-left:auto;background:var(--accent);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:var(--r-pill);}
 .sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 .dot-open{background:var(--green);}
@@ -700,6 +701,7 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .c-channel-dot.ch-wa{background:#25d366;}
 .c-channel-dot.ch-em{background:var(--accent);}
 .c-channel-dot.ch-wc{background:var(--blue);}
+.c-channel-dot.ch-tg{background:#26a6d1;}
 .conv-item.has-unread .c-name{color:var(--text);font-weight:700;}
 .conv-item.has-unread .c-msg{color:var(--text);font-weight:600;}
 .conv-item.has-unread .c-time{color:var(--green);font-weight:700;}
@@ -1540,6 +1542,10 @@ body.dark{
         <div class="cache-banner" id="conv-banner">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>Cached. Click Refresh to reload.</span>
+        </div>
+        <div class="chips" style="margin-bottom:10px;">
+          <div class="chip active" id="conv-channel-whatsapp" onclick="selectConvChannel('whatsapp')">WhatsApp</div>
+          <div class="chip" id="conv-channel-telegram" onclick="selectConvChannel('telegram')">Telegram</div>
         </div>
         <div class="chips" id="conv-inbox-tabs" style="display:none;"></div>
         <div class="card" style="margin-bottom:14px;">
@@ -4683,7 +4689,47 @@ async function refreshLeadData(){
   document.getElementById('stat-platforms').textContent=_filtPlatforms.length||(S.cache.platforms||[]).length;
   renderDashCountries(_filtG);
 }
+// ── Conversation channel toggle (WhatsApp via Chatwoot, or Telegram via this module's
+// own telegram_messages log) ── Same list/thread UI either way; only the data source and
+// which thread-level actions make sense (Template/Replay/Open in Chatwoot are WhatsApp-only)
+// differ, decided per-item from each conversation's own `channel` field.
+function selectConvChannel(channel){
+  if(S.convChannel===channel)return;
+  S.convChannel=channel;
+  document.getElementById('conv-channel-whatsapp').classList.toggle('active',channel==='whatsapp');
+  document.getElementById('conv-channel-telegram').classList.toggle('active',channel==='telegram');
+  document.getElementById('conv-inbox-tabs').style.display=channel==='telegram'?'none':(getAllowedInboxes().length>1?'flex':'none');
+  S.selectedConvId=null;
+  S.convSearch='';
+  const searchInput=document.getElementById('conv-search-input');
+  if(searchInput)searchInput.value='';
+  renderThreadEmpty();
+  refreshConversations().catch(()=>{});
+}
+async function refreshTelegramConversationsList(){
+  try{
+    const d=await apiWMsg('api/telegram/conversations');
+    const mapped=(d.conversations||[]).map(c=>({
+      id:'tg-'+c.chatId,
+      chatId:c.chatId,
+      channel:'telegram',
+      contact_name:c.contactName,
+      telegramUsername:c.telegramUsername,
+      last_message:c.lastMessage,
+      last_activity:c.lastMessageAt?Math.floor(new Date(c.lastMessageAt).getTime()/1000):0,
+      status:'open',
+      unread:0,
+    }));
+    mapped.sort((a,b)=>(b.last_activity||0)-(a.last_activity||0));
+    S.cache.conversations=mapped;
+    renderConvs(mapped);
+  }catch(e){
+    S.cache.conversations=[];
+    renderConvs([]);
+  }
+}
 async function refreshConversations(){
+  if(S.convChannel==='telegram'){await refreshTelegramConversationsList();return;}
   const[o,p,r]=await Promise.all([
     cw(convQS('open')).catch(()=>({conversations:[]})),
     cw(convQS('pending')).catch(()=>({conversations:[]})),
@@ -4985,8 +5031,8 @@ function convPhone(c){
 function convHtml(c){
   const init=(c.contact_name||'U')[0].toUpperCase();
   const phone=convPhone(c);
-  const cls=c.channel?.includes('whatsapp')?'ch-wa':c.channel?.includes('email')?'ch-em':'ch-wc';
-  const lbl=c.channel?.includes('whatsapp')?'WhatsApp':c.channel?.includes('email')?'Email':'Chat';
+  const cls=c.channel==='telegram'?'ch-tg':c.channel?.includes('whatsapp')?'ch-wa':c.channel?.includes('email')?'ch-em':'ch-wc';
+  const lbl=c.channel==='telegram'?'Telegram':c.channel?.includes('whatsapp')?'WhatsApp':c.channel?.includes('email')?'Email':'Chat';
   const time=c.last_activity?new Date(c.last_activity*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
   const sel=String(c.id)===String(S.selectedConvId)?' selected':'';
   const matched=matchedProductsForConversation(c);
@@ -5002,7 +5048,8 @@ function convHtml(c){
   const unreadBadge=c.unread>0?(isMuted?'<span class="unread" style="background:var(--text3);" title="Muted — has unread messages"></span>':`<span class="unread">${c.unread}</span>`):'';
   const pinBtn=`<span class="conv-pin-btn" onclick="togglePinConv('${c.id}',event)" title="${isPinned?'Unpin':'Pin'} conversation"><svg viewBox="0 0 24 24" fill="${isPinned?'currentColor':'none'}" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg></span>`;
   const muteBtn=`<span class="conv-mute-btn" onclick="toggleMuteConv('${c.id}',event)" title="${isMuted?'Unmute':'Mute'} conversation">${isMuted?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 9v3a3 3 0 0 0 6 0V5a3 3 0 0 0-6 0v1"/><path d="M17 12a7 7 0 0 1-14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>'}</span>`;
-  return`<div class="conv-item${sel}${inquiryCls}${hasUnread}${isPinned?' pinned':''}${isMuted?' muted':''}" onclick="selectConv('${c.id}')"><div class="c-avatar-wrap"><div class="c-avatar">${init}</div><span class="c-channel-dot ${cls}"></span></div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${inquiryBadge}<span class="ch-badge" title="Conversation owner">${assignment}</span>${assignmentAction}${pinBtn}${muteBtn}${unreadBadge}<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></div></div></div>`;
+  const viewFullStack=c.channel==='telegram'?'':`<span class="open-cw" onclick="event.stopPropagation();window.open('${CW_URL}/${c.id}','_blank')">View Full Stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span>`;
+  return`<div class="conv-item${sel}${inquiryCls}${hasUnread}${isPinned?' pinned':''}${isMuted?' muted':''}" onclick="selectConv('${c.id}')"><div class="c-avatar-wrap"><div class="c-avatar">${init}</div><span class="c-channel-dot ${cls}"></span></div><div class="c-info"><div class="c-top" style="align-items:flex-start;"><div style="min-width:0;"><div class="c-name">${c.contact_name||'Unknown'}</div>${phone?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${phone}</div>`:c.telegramUsername?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">@${c.telegramUsername}</div>`:''}</div><div class="c-time">${time}</div></div><div class="c-msg">${c.last_message||'No messages logged'}</div><div class="c-meta"><div class="sdot ${c.status==='open'?'dot-open':c.status==='resolved'?'dot-res':'dot-pend'}"></div><span class="ch-badge ${cls}">${lbl}</span>${inquiryBadge}<span class="ch-badge" title="Conversation owner">${assignment}</span>${assignmentAction}${pinBtn}${muteBtn}${unreadBadge}${viewFullStack}</div></div></div>`;
 }
 async function assignConversation(id){
   const users=S.conversationAssignees||[];
@@ -5122,6 +5169,7 @@ async function selectConv(id){
   if(S.cache.conversations)renderConvs(S.cache.conversations);
   const c=findConv(id);
   if(!c)return;
+  if(c.channel==='telegram'){await selectTelegramConv(c);return;}
   const phone=convPhone(c);
   S.threadContact={phone,name:c.contact_name};
   document.getElementById('thread-contact-name').innerHTML=`${c.contact_name||'Unknown'}${phone?`<span style="font-weight:400;color:var(--text3);font-size:11px;margin-left:8px;">${phone}</span>`:''}`;
@@ -5134,6 +5182,36 @@ async function selectConv(id){
   closeThreadSearch();
   await loadThread(c,{silent:false});
   updateComposerState();
+}
+// Telegram threads are read-only here (no composer wiring to the Bot API from this view) —
+// replying happens from the Telegram module itself (Audience & Message, or the Leads
+// table's Message 1:1 / 1:1 Outreach). This just surfaces what Whizz has actually logged:
+// inbound messages from the webhook, and outbound messages a bot-API send actually sent.
+async function selectTelegramConv(c){
+  S.threadContact=null;
+  document.getElementById('thread-contact-name').innerHTML=`${_hesc(c.contact_name||'Unknown')}${c.telegramUsername?`<span style="font-weight:400;color:var(--text3);font-size:11px;margin-left:8px;">@${_hesc(c.telegramUsername)}</span>`:''}`;
+  document.getElementById('thread-sub').textContent='Telegram · read-only here';
+  const link=document.getElementById('open-cw-link');
+  link.removeAttribute('href');link.style.opacity=0.4;link.style.pointerEvents='none';
+  document.getElementById('replay-btn').disabled=true;
+  document.getElementById('template-msg-btn').disabled=true;
+  closeThreadSearch();
+  const body=document.getElementById('thread-body');
+  body.innerHTML='<div class="thread-empty">Loading thread…</div>';
+  const banner=document.getElementById('thread-pinned-banner');
+  if(banner)banner.style.display='none';
+  try{
+    const d=await apiWMsg(`api/telegram/conversations/${encodeURIComponent(c.chatId)}/messages`);
+    const messages=d.messages||[];
+    body.innerHTML=messages.length?messages.map(telegramBubbleHtml).join(''):'<div class="thread-empty">No messages logged for this chat yet.</div>';
+    scrollThreadToBottom(false);
+  }catch(e){body.innerHTML=`<div class="thread-empty">${_hesc(e.message||'Failed to load thread')}</div>`;}
+  updateComposerState();
+}
+function telegramBubbleHtml(m){
+  const outgoing=m.direction==='out';
+  const time=m.createdAt?new Date(m.createdAt.includes('Z')||m.createdAt.includes('T')?m.createdAt:m.createdAt.replace(' ','T')+'Z').toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+  return `<div class="t-bubble-row ${outgoing?'t-out':'t-in'}"><div class="t-bubble"><span class="t-bubble-text">${highlightSearch(m.text||'')}</span><span class="t-bubble-meta">${time}</span></div></div>`;
 }
 
 // ── Send Template Message (start/re-engage a WhatsApp thread with an approved template) ──
@@ -5376,15 +5454,18 @@ function isConvWindowLikelyClosed(id){
 }
 function updateComposerState(){
   const id=S.selectedConvId;
+  const isTelegram=id?findConv(id)?.channel==='telegram':false;
   const input=document.getElementById('composer-input'),sendBtn=document.getElementById('composer-send-btn');
   const emojiBtn=document.getElementById('emoji-toggle-btn'),searchBtn=document.getElementById('thread-search-btn');
   const contactBtn=document.getElementById('contact-panel-btn');
   const note=document.getElementById('composer-window-note'),wrap=document.getElementById('conv-composer');
   if(!input||!sendBtn||!wrap)return;
-  const enabled=!!id;
-  input.disabled=!enabled;sendBtn.disabled=!enabled;emojiBtn.disabled=!enabled;searchBtn.disabled=!enabled;
-  if(contactBtn)contactBtn.disabled=!enabled;
-  input.placeholder=enabled?'Type a message':'Select a conversation to reply…';
+  // A Telegram thread is read-only in this view (see selectTelegramConv) — the composer,
+  // its search, and the contact panel all assume a Chatwoot-backed conversation.
+  const enabled=!!id&&!isTelegram;
+  input.disabled=!enabled;sendBtn.disabled=!enabled;emojiBtn.disabled=!enabled;searchBtn.disabled=!enabled||isTelegram;
+  if(contactBtn)contactBtn.disabled=!enabled||isTelegram;
+  input.placeholder=isTelegram?'Reply from the Telegram module — this view is read-only':(enabled?'Type a message':'Select a conversation to reply…');
   wrap.classList.toggle('disabled',!enabled);
   if(note)note.style.display=(enabled&&isConvWindowLikelyClosed(id))?'flex':'none';
   if(!enabled){closeEmojiPicker();clearReplyTo();closeContactPanel();}
@@ -5744,7 +5825,8 @@ async function liveSyncTick(){
     await refreshConversations();
     if(S.selectedConvId){
       const c=findConv(S.selectedConvId);
-      if(c)await loadThread(c,{silent:true});
+      if(c&&c.channel==='telegram')await selectTelegramConv(c);
+      else if(c)await loadThread(c,{silent:true});
     }
   }catch(e){}
   if(dot)dot.className=S.liveSync?'sync-dot sync-ok':'sync-dot sync-idle';

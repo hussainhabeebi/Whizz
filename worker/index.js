@@ -20,7 +20,7 @@ import { handleListOptOuts, handleAddOptOut, handleRemoveOptOut, handleCheckOptO
 import { handleListCountryLanguageMap, handleSetCountryLanguageMap, handleDeleteCountryLanguageMap } from './routes/countryLanguage.js';
 import { handleMetaWebhookVerify, handleMetaWebhookEvent, handleGetDeliveryStatuses } from './routes/metaWebhook.js';
 import { handleCreateStagedRun, handleListStagedRuns, handlePauseStagedRun, handleResumeStagedRun, handleCancelStagedRun, processStagedCampaignRuns } from './routes/stagedCampaigns.js';
-import { handleGetTelegramSettings, handleSaveTelegramSettings, handleSetTelegramWebhook, handleTelegramWebhookEvent, handleListTelegramOptOuts, handleAddTelegramOptOut, handleRemoveTelegramOptOut, handleTelegramAudiencePreview, handleGetTelegramBotUsername, handleSendTelegramCampaign, handleListTelegramLeads, handleCreateTelegramLead, handleUpdateTelegramLead, handleDeleteTelegramLead, handleImportTelegramLeadsFromCrm, handleGenerateTelegramInviteLink } from './routes/telegramBot.js';
+import { handleGetTelegramSettings, handleSaveTelegramSettings, handleSetTelegramWebhook, handleTelegramWebhookEvent, handleListTelegramOptOuts, handleAddTelegramOptOut, handleRemoveTelegramOptOut, handleTelegramAudiencePreview, handleGetTelegramBotUsername, handleSendTelegramCampaign, handleListTelegramLeads, handleCreateTelegramLead, handleUpdateTelegramLead, handleDeleteTelegramLead, handleImportTelegramLeadsFromCrm, handleGenerateTelegramInviteLink, handleListTelegramConversations, handleGetTelegramConversationMessages } from './routes/telegramBot.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -75,6 +75,7 @@ const routes = [
   { method: 'GET', path: '/api/telegram/leads', handler: handleListTelegramLeads },
   { method: 'POST', path: '/api/telegram/leads', handler: handleCreateTelegramLead },
   { method: 'POST', path: '/api/telegram/leads/import-from-crm', handler: handleImportTelegramLeadsFromCrm },
+  { method: 'GET', path: '/api/telegram/conversations', handler: handleListTelegramConversations },
 ];
 
 async function leadActor(request, env) {
@@ -301,6 +302,11 @@ export default {
         if (request.method === 'PUT') return await handleUpdateTelegramLead(request, env, Number(telegramLeadMatch[1]));
         if (request.method === 'DELETE') return await handleDeleteTelegramLead(request, env, Number(telegramLeadMatch[1]));
       } catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const telegramConvMessagesMatch = url.pathname.match(/^\/api\/telegram\/conversations\/([^/]+)\/messages$/);
+    if (telegramConvMessagesMatch && request.method === 'GET') {
+      try { return await handleGetTelegramConversationMessages(request, env, decodeURIComponent(telegramConvMessagesMatch[1])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const stagedRunMatch = url.pathname.match(/^\/api\/staged-campaigns\/(\d+)\/(pause|resume|cancel)$/);
     if (stagedRunMatch && request.method === 'POST') {
