@@ -365,6 +365,67 @@ export async function handleGenerateTelegramInviteLink(request, env, id) {
   return json({ link: `https://t.me/${row.botUsername}?start=${lead.id}`, alreadyStarted: !!lead.telegramChatId });
 }
 
+// ── Conversations (surfaces telegram_messages in the same Conversations page as WhatsApp) ──
+// Only messages that actually went through Whizz end up here: inbound messages the webhook
+// received, and outbound messages a bulk/filtered campaign send actually sent via the Bot
+// API (see the INSERT in handleSendTelegramCampaign below). A message sent through the 1:1
+// Outreach queue is sent from the operator's own personal Telegram client, outside the Bot
+// API entirely — Whizz has no visibility into that at all, so it can never appear here.
+export async function handleListTelegramConversations(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+
+  const latest = await env.DB.prepare(`
+    SELECT t.chatId, t.text, t.createdAt
+    FROM telegram_messages t
+    INNER JOIN (SELECT chatId, MAX(id) AS maxId FROM telegram_messages GROUP BY chatId) x
+      ON t.chatId = x.chatId AND t.id = x.maxId
+    ORDER BY t.createdAt DESC
+    LIMIT 200
+  `).all();
+  const rows = latest.results || [];
+  if (!rows.length) return json({ conversations: [] });
+
+  const chatIds = rows.map(r => r.chatId);
+  const placeholders = chatIds.map(() => '?').join(',');
+  const leadsRes = await env.DB.prepare(`SELECT id,contactName,telegramUsername,telegramChatId,ownerEmail,teamId FROM telegram_leads WHERE telegramChatId IN (${placeholders})`).bind(...chatIds).all();
+  const leadByChat = new Map((leadsRes.results || []).map(l => [l.telegramChatId, l]));
+
+  const conversations = rows.map(r => {
+    const lead = leadByChat.get(r.chatId);
+    return {
+      chatId: r.chatId,
+      leadId: lead?.id || null,
+      contactName: lead?.contactName || `Telegram ${r.chatId}`,
+      telegramUsername: lead?.telegramUsername || '',
+      lastMessage: r.text || '',
+      lastMessageAt: r.createdAt,
+      ownerEmail: lead ? (lead.ownerEmail || null) : null,
+      teamId: lead ? (lead.teamId || null) : null,
+    };
+  }).filter(c => {
+    // Same ownership rule as everywhere else in this module: a chat with no lead row (or
+    // one with no owner) reads as unowned — visible to Administrator/Manager, not Sales.
+    if (user.role === 'Administrator') return true;
+    if (user.role === 'Manager') return !c.ownerEmail || c.teamId === (user.teamId || '');
+    return c.ownerEmail === user.email;
+  });
+
+  return json({ conversations });
+}
+
+export async function handleGetTelegramConversationMessages(request, env, chatId) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const lead = await env.DB.prepare('SELECT ownerEmail,teamId FROM telegram_leads WHERE telegramChatId=?').bind(chatId).first();
+  const ownerEmail = lead?.ownerEmail || null;
+  const teamId = lead?.teamId || null;
+  if (user.role === 'Sales' && ownerEmail !== user.email) return json({ error: 'Not found or access denied.' }, 404);
+  if (user.role === 'Manager' && ownerEmail && teamId !== (user.teamId || '')) return json({ error: 'Not found or access denied.' }, 404);
+  const result = await env.DB.prepare('SELECT id,direction,text,senderName,messageId,createdAt FROM telegram_messages WHERE chatId=? ORDER BY createdAt ASC, id ASC LIMIT 500').bind(chatId).all();
+  return json({ messages: result.results || [] });
+}
+
 function classifyTelegramError(description) {
   const d = String(description || '').toLowerCase();
   if (d.includes('blocked') || d.includes('chat not found') || d.includes('deactivated') || d.includes('kicked')) return 'permanent';
@@ -508,6 +569,10 @@ export async function handleSendTelegramCampaign(request, env) {
     }
     results.push({ contactId: contact.id, chatId, name: contact.contactName, status: 'sent', messageId: sendResult.data.result?.message_id });
     if (contact.id) await env.DB.prepare('UPDATE telegram_leads SET telegramLastContactedAt=CURRENT_TIMESTAMP WHERE id=?').bind(contact.id).run();
+    // Logged so this send shows up in the Conversations page alongside the webhook's own
+    // inbound messages — the only outbound path that can, since a 1:1 Outreach send never
+    // touches this handler at all (it's sent from the operator's own Telegram client).
+    try { await env.DB.prepare('INSERT INTO telegram_messages (chatId,contactId,direction,text,messageId,senderName) VALUES (?,?,?,?,?,?)').bind(chatId, contact.id || null, 'out', text, sendResult.data.result?.message_id || null, user.email).run(); } catch (_) {}
   }
 
   return json({
