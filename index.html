@@ -7563,12 +7563,13 @@ async function submitCsvImport() {
   }
 
   const BATCH = 150;
-  let imported = 0;
+  let imported = 0, insertedCount = 0, updatedCount = 0, retaggedCount = 0, serverDuplicates = 0;
   try {
     for (let i = 0; i < toImport.length; i += BATCH) {
       const batch = toImport.slice(i, i + BATCH);
       importBtn.textContent = `Importing ${imported}/${toImport.length}…`;
-      await api('whizz-save-contact', 'POST', { contacts: batch });
+      const r = await api('whizz-save-contact', 'POST', { contacts: batch });
+      insertedCount += r.inserted || 0; updatedCount += r.updated || 0; retaggedCount += r.retagged || 0; serverDuplicates += r.duplicates || 0;
       imported += batch.length;
     }
   } catch (e) {
@@ -7579,10 +7580,15 @@ async function submitCsvImport() {
 
   if (imported) {
     const extras = [];
+    // A row whose phone/email already existed under a different brand/platform/category
+    // isn't dropped — that existing lead gets re-tagged to match this row instead, so the
+    // summary says so explicitly rather than folding it into a vague "imported" count.
+    if (retaggedCount) extras.push(`${retaggedCount} existing lead${retaggedCount>1?'s':''} re-tagged (brand/category/platform updated)`);
+    if (serverDuplicates) extras.push(`${serverDuplicates} already up to date`);
     if (dupCount) extras.push(`${dupCount} duplicate${dupCount>1?'s':''} skipped`);
     if (skippedNoName) extras.push(`${skippedNoName} missing a name`);
     if (clearedBadPhone) extras.push(`${clearedBadPhone} phone${clearedBadPhone>1?'s':''} cleared — corrupted by spreadsheet formatting`);
-    showToast(`Imported ${imported} lead${imported>1?'s':''}${extras.length?` — ${extras.join(', ')}`:''}`, 'success');
+    showToast(`${insertedCount} new lead${insertedCount===1?'':'s'} added${extras.length?` — ${extras.join(', ')}`:''}`, 'success');
     addNotif(`Imported ${imported} lead${imported>1?'s':''} from CSV${extras.length?` (${extras.join(', ')})`:''}`);
     closeImportLeadsModal();
     refreshLeads();
