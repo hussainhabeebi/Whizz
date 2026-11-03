@@ -1,7 +1,7 @@
 import { handleGetContacts } from './routes/getContacts.js';
 import { handleUpdateContact } from './routes/updateContact.js';
 import { handleDetectCountry, handleBulkDetectCountry } from './routes/detectCountry.js';
-import { handleDeleteContact } from './routes/deleteContact.js';
+import { handleDeleteContact, handleBulkDeleteContacts } from './routes/deleteContact.js';
 import { handleMarkConversion } from './routes/markConversion.js';
 import { handleGetConversionStats } from './routes/getConversionStats.js';
 import { handleGetEnquiries } from './routes/getEnquiries.js';
@@ -29,6 +29,7 @@ const routes = [
   { method: 'POST', path: '/whizz-detect-country', handler: handleDetectCountry },
   { method: 'POST', path: '/whizz-bulk-detect-country', handler: handleBulkDetectCountry },
   { method: 'POST', path: '/whizz-delete-contact', handler: handleDeleteContact },
+  { method: 'POST', path: '/whizz-bulk-delete-contacts', handler: handleBulkDeleteContacts },
   { method: 'POST', path: '/whizz-mark-conversion', handler: handleMarkConversion },
   { method: 'GET', path: '/api/conversion-stats', handler: handleGetConversionStats },
   { method: 'GET', path: '/whizz-get-enquiries', handler: handleGetEnquiries },
