@@ -20,7 +20,7 @@ async function saveOwnedContacts(request, env, user) {
   const body = await request.json().catch(() => ({}));
   const contacts = Array.isArray(body.contacts) ? body.contacts : [];
   if (!contacts.length) return Response.json({ error: 'At least one contact is required.' }, { status: 400 });
-  let inserted = 0, updated = 0, duplicates = 0;
+  let inserted = 0, updated = 0, duplicates = 0, retagged = 0;
   for (const raw of contacts.slice(0, 1000)) {
     const contact = raw || {};
     const phone = String(contact.phone || '').trim();
@@ -62,9 +62,28 @@ async function saveOwnedContacts(request, env, user) {
     }
 
     const duplicate = phone
-      ? await env.DB.prepare("SELECT id FROM contacts WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','')=REPLACE(REPLACE(REPLACE(?,'+',''),' ',''),'-','') LIMIT 1").bind(phone).first()
-      : email ? await env.DB.prepare('SELECT id FROM contacts WHERE LOWER(email)=LOWER(?) LIMIT 1').bind(email).first() : null;
-    if (duplicate) { duplicates++; continue; }
+      ? await env.DB.prepare("SELECT id,platform,brand,category FROM contacts WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','')=REPLACE(REPLACE(REPLACE(?,'+',''),' ',''),'-','') LIMIT 1").bind(phone).first()
+      : email ? await env.DB.prepare('SELECT id,platform,brand,category FROM contacts WHERE LOWER(email)=LOWER(?) LIMIT 1').bind(email).first() : null;
+    if (duplicate) {
+      // Already in the system under this phone/email — just not tagged the same way this
+      // row has it (same-tag duplicates are filtered out before this ever reaches the
+      // worker). Re-tagging brand/category/platform from the new row is more useful than
+      // silently dropping it, e.g. the same wholesaler reappearing in a different brand's
+      // or product line's export. Only these three tags move; everything else about the
+      // existing contact (owner, name, phone, score, history) is left alone.
+      const newBrand = String(contact.brand || '').trim();
+      const nextPlatform = platform || duplicate.platform;
+      const nextBrand = newBrand || duplicate.brand;
+      const nextCategory = category || duplicate.category;
+      if (nextPlatform !== duplicate.platform || nextBrand !== duplicate.brand || nextCategory !== duplicate.category) {
+        await env.DB.prepare('UPDATE contacts SET platform=?,brand=?,category=?,updatedAt=CURRENT_TIMESTAMP WHERE id=?')
+          .bind(nextPlatform, nextBrand, nextCategory, duplicate.id).run();
+        retagged++;
+      } else {
+        duplicates++;
+      }
+      continue;
+    }
     await env.DB.prepare(`INSERT INTO contacts
       (contactName,company,phone,email,category,source,platform,country,brand,productInterest,
        website,address,rating,mapsUrl,sourceId,telegramUsername,linkedin,whatsapp,contactPersonName,contactPersonTitle,
@@ -80,7 +99,7 @@ async function saveOwnedContacts(request, env, user) {
         contact.nextFollowUpAt || null, contact.dealExpectedAt || null).run();
     inserted++;
   }
-  return Response.json({ success: true, inserted, updated, duplicates, ownerEmail: user.email, teamId: user.teamId || 'sales' });
+  return Response.json({ success: true, inserted, updated, duplicates, retagged, ownerEmail: user.email, teamId: user.teamId || 'sales' });
 }
 
 function _normStr(s) { return (s || '').trim().replace(/\s+/g, ' '); }
