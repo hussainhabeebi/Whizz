@@ -6646,6 +6646,7 @@ function renderLeadsContactsTable(contacts){
       <button class="t-btn btn-ghost t-btn-sm" id="leads-bulk-detect-btn" onclick="runBulkDetectCountry()" title="Identify/correct Country (and derived Region) from each selected lead's phone number using Cloudflare AI">📍 Detect Country/Region</button>
       <button class="t-btn btn-ghost t-btn-sm" id="leads-find-contact-btn" onclick="runFindContactPersonForSelected()">Find Contact Person</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="openExportContacts('selected')">Export Selected</button>
+      <button class="t-btn btn-ghost t-btn-sm" id="leads-bulk-delete-btn" style="color:var(--red);" onclick="runBulkDeleteLeads()">🗑 Delete Selected</button>
       <button class="t-btn btn-ghost t-btn-sm" onclick="clearLeadsSelection()">Clear selection</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;padding:8px 2px 10px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:10px;">
@@ -6912,6 +6913,30 @@ async function runBulkDetectCountry(){
     showToast(`Checked ${checked}: ${updated} corrected, ${unchanged} already correct${noPhone?`, ${noPhone} without phone`:''}${failed?`, ${failed} failed`:''}`,failed?'error':'success');
     loadLeadsContacts();
   }finally{if(btn){btn.disabled=false;btn.textContent='📍 Detect Country/Region';}}
+}
+async function runBulkDeleteLeads(){
+  if(!_leadsSelectedIds.size){showToast('Select at least one lead first','error');return;}
+  const ids=[..._leadsSelectedIds];
+  if(!confirm(`Delete ${ids.length} selected lead${ids.length===1?'':'s'}? This cannot be undone.`))return;
+  const CHUNK=200;
+  const btn=document.getElementById('leads-bulk-delete-btn');
+  if(btn){btn.disabled=true;}
+  let deleted=0,failed=0;
+  try{
+    for(let i=0;i<ids.length;i+=CHUNK){
+      const batch=ids.slice(i,i+CHUNK);
+      if(btn)btn.textContent=ids.length>CHUNK?`Deleting ${Math.min(i+CHUNK,ids.length)}/${ids.length}…`:'Deleting…';
+      try{
+        const r=await apiFetch('/whizz-bulk-delete-contacts',{method:'POST',body:JSON.stringify({ids:batch})});
+        deleted+=r.deleted||0;
+        if((r.deleted||0)<batch.length)failed+=batch.length-(r.deleted||0);
+      }catch(e){failed+=batch.length;}
+    }
+    showToast(`Deleted ${deleted} lead${deleted===1?'':'s'}${failed?` — ${failed} couldn't be deleted (not found or access denied)`:''}`,failed?'error':'success');
+    clearLeadsSelection();
+    loadLeadsContacts();
+    refreshLeads();
+  }finally{if(btn){btn.disabled=false;btn.textContent='🗑 Delete Selected';}}
 }
 
 async function submitEditLeadContact(){
