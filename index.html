@@ -3773,9 +3773,10 @@ function toggleHistoryDetails(i){
   btn.textContent=btn.textContent.replace(open?'▾':'▴',open?'▴':'▾');
 }
 function exportHistoryCSV() {
-  if (!S.history.length) { showToast('No history data available', 'error'); return; }
-  const rows = S.history.map(h => `"${new Date(h.ts).toLocaleString()}","${h.template}","${h.audience}",${h.total},${h.sent},${h.failed}`);
-  downloadCSV(['Date,Template,Audience,Total,Sent,Failed', ...rows].join('\n'), 'whizz_campaign_history.csv');
+  const combinedHistory=historyWithStagedRuns();
+  if (!combinedHistory.length) { showToast('No history data available', 'error'); return; }
+  const rows = combinedHistory.map(h => `"${new Date(h.ts).toLocaleString()}","${h.template}","${h.audience}",${h.total},${h.sent},${h.failed},"${h.staged?'Staged rollout':'Campaign'}"`);
+  downloadCSV(['Date,Template,Audience,Total,Sent,Failed,Source', ...rows].join('\n'), 'whizz_campaign_history.csv');
   showToast('Export complete!', 'success');
 }
 function downloadCSV(content, filename) { const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(content);a.download=filename;a.click(); }
@@ -8999,15 +9000,37 @@ function renderWpTrafficForSelectedSite(){
 }
 
 // ── Smart Campaign Timing ──
+// A staged rollout (worker/routes/stagedCampaigns.js) sends its batches server-side over
+// days via Cron Trigger, with no browser ever present to call saveHistory() — so without
+// this, its real sends (tracked the whole time in staged_campaign_runs.sentCount/
+// failedCount) simply never showed up in Campaign Timing, Weekly Campaign Reports, or the
+// CSV export, all of which are built from this device's local S.history only. This credits
+// a run's cumulative total to its most recent update week — not perfectly accurate for a
+// rollout spanning several weeks (no per-batch timestamp is kept), but far better than the
+// run being invisible to these reports entirely.
+function historyWithStagedRuns(){
+  const staged=(S.cache.stagedRuns||[]).filter(r=>(r.sentCount||0)+(r.failedCount||0)>0).map(r=>({
+    template:r.templateName,
+    audience:r.audienceLabel||'All',
+    total:r.totalContacts,
+    sent:r.sentCount||0,
+    failed:r.failedCount||0,
+    inboxId:r.inboxId||'',
+    ts:Date.parse((r.updatedAt||r.createdAt)+'Z')||Date.now(),
+    staged:true,
+  }));
+  return [...S.history,...staged];
+}
 function renderCampaignTiming() {
   const el = document.getElementById('timing-list');
   if (!el) return;
-  if (!S.history.length) {
+  const combinedHistory=historyWithStagedRuns();
+  if (!combinedHistory.length) {
     el.innerHTML = '<div class="empty-state">Send campaigns to build timing insights.</div>';
     return;
   }
   const slots = {};
-  S.history.forEach(h => {
+  combinedHistory.forEach(h => {
     const d = new Date(h.ts);
     const day = d.toLocaleDateString('en-AE', { weekday: 'long' });
     const hr = d.getHours();
@@ -9063,7 +9086,7 @@ function _buildWeeklyBreakdown(categoryFn){
   const weekIndex=new Map(weeks.map((w,i)=>[w.key,i]));
   const totals=new Map();
   const perWeek=weeks.map(()=>new Map());
-  (S.history||[]).forEach(h=>{
+  historyWithStagedRuns().forEach(h=>{
     const total=h.sent||0;
     if(!total||!h.ts)return;
     const idx=weekIndex.get(_weekStartTs(h.ts));
@@ -11665,6 +11688,10 @@ async function loadStagedCampaigns(){
     const d=await apiWMsg('api/staged-campaigns');
     S.cache.stagedRuns=d.runs||[];
     renderStagedCampaigns();
+    // These render off S.cache.stagedRuns too (historyWithStagedRuns) — re-render now that
+    // it just arrived, since renderHistoryList() already ran once before this fetch resolved.
+    renderCampaignTiming();
+    renderWeeklyCampaignReports();
   }catch(e){el.innerHTML=`<div class="empty-state">${_hesc(e.message||'Failed to load')}</div>`;}
 }
 function renderStagedCampaigns(){
