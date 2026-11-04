@@ -22,6 +22,18 @@ export async function recordOptOut(env, phone, source, reason, addedByEmail = ''
     await env.DB.prepare('INSERT INTO opted_out_numbers (phone,source,reason,addedByEmail) VALUES (?,?,?,?) ON CONFLICT(phone) DO NOTHING')
       .bind(normalized, source, String(reason || '').slice(0, 200), addedByEmail).run();
   } catch (_) { /* best-effort — never block a conversation fetch over this */ }
+  // The suppression-list entry above already blocks every future send on its own — this is
+  // purely visual, so an opted-out lead doesn't keep showing up in the Leads table looking
+  // like a normal, reachable "WhatsApp / SomeBrand / SomeCategory" contact. Same phone-match
+  // convention as the CSV-import duplicate check (automation.js): strip +, spaces and dashes.
+  try {
+    const simplified = String(phone || '').replace(/[+\s-]/g, '');
+    if (simplified) {
+      await env.DB.prepare(
+        "UPDATE contacts SET platform='Unsubscribed',brand='Unsubscribed',category='Unsubscribed',updatedAt=CURRENT_TIMESTAMP WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','')=?"
+      ).bind(simplified).run();
+    }
+  } catch (_) { /* best-effort — never block a conversation fetch over this */ }
 }
 
 // One query for a whole campaign's audience instead of one query per contact.
