@@ -137,6 +137,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .btn-ghost{background:var(--bg2);border:1px solid var(--border2);color:var(--text2);}
 .btn-ghost:hover{background:var(--bg3);color:var(--text);border-color:var(--accent);}
 .btn-success{background:var(--green);color:#fff;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-danger:hover{opacity:0.88;}
 .btn-success:hover{background:#16a34a;}
 .delivery-guard{margin:0 0 16px;padding:16px;border:1px solid var(--border2);border-radius:12px;background:var(--bg2);}
 .guard-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;}
@@ -468,6 +470,8 @@ body.dark .modal{box-shadow:0 24px 60px -12px rgba(0,0,0,0.6),0 4px 16px rgba(0,
 .toast.error .toast-icon{background:var(--red-dim);color:var(--red);}
 .toast.info{border-left-color:var(--blue);}
 .toast.info .toast-icon{background:var(--blue-dim);color:var(--blue);}
+.toast-action{flex-shrink:0;background:none;border:0;padding:0;margin-top:1px;color:var(--accent);font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline;}
+.toast-action:hover{opacity:0.75;}
 @keyframes slideOut{to{transform:translateX(24px);opacity:0;}}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
 .spin{animation:spinning 0.8s linear infinite;}
@@ -3121,6 +3125,58 @@ body.dark{
   </div>
 </div>
 
+<!-- Generic confirm modal — replaces the browser's native confirm() everywhere in the app,
+     so a "sure you want to delete this?" looks and themes like the rest of Whizz instead of
+     a plain unstyled OS dialog. Driven entirely by confirmModal() in JS; nothing calls this
+     modal's buttons directly. -->
+<div class="modal-overlay" id="modal-confirm" onclick="if(event.target===this)_confirmModalResolve(false)">
+  <div class="modal" style="width:min(92vw,420px);">
+    <div class="modal-head">
+      <div class="modal-title" id="confirm-modal-title">Please confirm</div>
+    </div>
+    <div class="modal-body">
+      <div id="confirm-modal-message" style="white-space:pre-line;font-size:13px;color:var(--text2);line-height:1.55;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="_confirmModalResolve(false)">Cancel</button>
+      <button class="t-btn btn-primary" id="confirm-modal-ok-btn" onclick="_confirmModalResolve(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic single-line text prompt — replaces the browser's native prompt(). -->
+<div class="modal-overlay" id="modal-prompt" onclick="if(event.target===this)_promptModalResolve(null)">
+  <div class="modal" style="width:min(92vw,420px);">
+    <div class="modal-head">
+      <div class="modal-title" id="prompt-modal-title">Enter a value</div>
+    </div>
+    <div class="modal-body">
+      <input class="fi" id="prompt-modal-input" onkeydown="if(event.key==='Enter')_promptModalResolve(document.getElementById('prompt-modal-input').value)"/>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="_promptModalResolve(null)">Cancel</button>
+      <button class="t-btn btn-primary" onclick="_promptModalResolve(document.getElementById('prompt-modal-input').value)">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic single-choice picker — replaces a numbered-list prompt() for "pick one of
+     these people/things" (e.g. assigning a conversation to a team member). -->
+<div class="modal-overlay" id="modal-select" onclick="if(event.target===this)_selectModalResolve(null)">
+  <div class="modal" style="width:min(92vw,420px);">
+    <div class="modal-head">
+      <div class="modal-title" id="select-modal-title">Choose one</div>
+    </div>
+    <div class="modal-body">
+      <select class="fs" id="select-modal-input" style="width:100%;"></select>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="_selectModalResolve(null)">Cancel</button>
+      <button class="t-btn btn-primary" onclick="_selectModalResolve(document.getElementById('select-modal-input').value)">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- Export Contacts Modal -->
 <div class="modal-overlay" id="modal-export-contacts">
   <div class="modal" style="width:min(96vw,520px);">
@@ -3412,6 +3468,7 @@ function initApp(session) {
   const navIntegrations = document.getElementById('nav-integrations');
   if (navIntegrations) navIntegrations.style.display = session.role === 'Administrator' ? 'flex' : 'none';
   applyRoleExperience(session);
+  applyNavTooltips();
   loadUsers();
   loadChatwootMeta();
   loadCache(); loadOnboarding(); loadNotifications();
@@ -3432,6 +3489,17 @@ function applyRoleExperience(session){
   document.getElementById('role-copy').textContent=experience.copy;
   document.getElementById('role-actions').innerHTML=experience.actions.map(([label,page],i)=>`<button class="role-action ${i===0?'primary':''}" onclick="goToPage('${page}')">${label}</button>`).join('');
   document.querySelectorAll('#mobile-dock button[data-mobile-page]').forEach(btn=>btn.style.display=experience.pages.includes(btn.dataset.mobilePage)?'flex':'none');
+}
+// The icon-only sidebar (see its dedicated <style> block) drops every nav item's visible
+// label down to font-size:0 — the label text is still in the DOM, just invisible, so a
+// native title tooltip can be built straight from it rather than hand-maintaining a
+// separate label list that would drift out of sync with the markup. Runs once; nav items
+// are static HTML (only show/hide via role filtering), so there's nothing to re-apply.
+function applyNavTooltips(){
+  document.querySelectorAll('.nav-item, .nav-ext').forEach(el=>{
+    const label=[...el.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE).map(n=>n.textContent.trim()).filter(Boolean).join(' ');
+    if(label)el.title=label;
+  });
 }
 function goToPage(page){const nav=document.querySelector(`.nav-item[data-page="${page}"]`)||document.getElementById('nav-'+page);navigate(page,nav);}
 function mobileNavigate(page,btn){goToPage(page);document.querySelectorAll('#mobile-dock button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
@@ -3580,7 +3648,7 @@ async function checkHistoryDeliveryStatus(i){
 async function resendToFailed(i){
   const h=S.history[i];
   if(!h||!h.failedContacts?.length)return;
-  if(!confirm(`Resend "${h.template}" to ${h.failedContacts.length} contact${h.failedContacts.length===1?'':'s'} who failed last time?`))return;
+  if(!await confirmModal(`Resend "${h.template}" to ${h.failedContacts.length} contact${h.failedContacts.length===1?'':'s'} who failed last time?`))return;
   const btn=document.getElementById(`hist-resend-${i}`);
   if(btn){btn.disabled=true;btn.textContent='Resending…';}
   try{
@@ -4485,6 +4553,108 @@ function showToast(msg,type='info'){
   document.getElementById('toast-wrap').appendChild(el);
   setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),200);},4000);
 }
+// A toast with a clickable action — used for "Undo" after a destructive action completes.
+// The action fires at most once (clicking after the toast has already dismissed does
+// nothing) and dismissing early (click/timeout) doesn't un-fire it.
+function showActionToast(msg,actionLabel,onAction,type='info',duration=6000){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  const icon=document.createElement('span');
+  icon.className='toast-icon';
+  icon.innerHTML=TOAST_ICONS[type]||TOAST_ICONS.info;
+  const text=document.createElement('span');
+  text.className='toast-msg';
+  text.textContent=msg;
+  el.appendChild(icon);el.appendChild(text);
+  let fired=false;
+  const dismiss=()=>{el.classList.add('out');setTimeout(()=>el.remove(),200);};
+  if(actionLabel&&onAction){
+    const btn=document.createElement('button');
+    btn.type='button';btn.className='toast-action';btn.textContent=actionLabel;
+    btn.onclick=()=>{if(fired)return;fired=true;clearTimeout(timer);dismiss();onAction();};
+    el.appendChild(btn);
+  }
+  document.getElementById('toast-wrap').appendChild(el);
+  const timer=setTimeout(dismiss,duration);
+}
+
+// ── Themed confirm dialog (replaces the browser's native confirm()) ──
+// confirmModal(message) resolves true/false, same calling convention as confirm() but
+// async: every call site becomes `if(!await confirmModal(...))return;`. Only one can be
+// open at a time, which matches how confirm() was always used here (one blocking dialog
+// per action) — a second call while one is open resolves the first as cancelled rather
+// than queuing, so a stale resolver is never left dangling.
+let _confirmModalResolver=null;
+function _confirmModalResolve(result){
+  if(!_confirmModalResolver)return;
+  const resolve=_confirmModalResolver;
+  _confirmModalResolver=null;
+  closeModal('modal-confirm');
+  resolve(result);
+}
+function confirmModal(message,opts={}){
+  if(_confirmModalResolver)_confirmModalResolve(false);
+  return new Promise(resolve=>{
+    document.getElementById('confirm-modal-title').textContent=opts.title||'Please confirm';
+    document.getElementById('confirm-modal-message').textContent=message;
+    const okBtn=document.getElementById('confirm-modal-ok-btn');
+    okBtn.textContent=opts.confirmText||'Confirm';
+    okBtn.className=opts.danger?'t-btn btn-danger':'t-btn btn-primary';
+    _confirmModalResolver=resolve;
+    document.getElementById('modal-confirm').classList.add('open');
+  });
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&_confirmModalResolver)_confirmModalResolve(false);
+});
+
+// ── Themed single-line text prompt (replaces the browser's native prompt()) ──
+let _promptModalResolver=null;
+function _promptModalResolve(value){
+  if(!_promptModalResolver)return;
+  const resolve=_promptModalResolver;
+  _promptModalResolver=null;
+  closeModal('modal-prompt');
+  resolve(value===''||value==null?null:value);
+}
+function promptModal(message,defaultValue=''){
+  if(_promptModalResolver)_promptModalResolve(null);
+  return new Promise(resolve=>{
+    document.getElementById('prompt-modal-title').textContent=message;
+    const input=document.getElementById('prompt-modal-input');
+    input.value=defaultValue||'';
+    _promptModalResolver=resolve;
+    document.getElementById('modal-prompt').classList.add('open');
+    setTimeout(()=>input.focus(),50);
+  });
+}
+
+// ── Themed single-choice picker (replaces a numbered-list prompt()) ──
+// options: [{value,label}]. Resolves the chosen value, or null if cancelled.
+let _selectModalResolver=null;
+function _selectModalResolve(value){
+  if(!_selectModalResolver)return;
+  const resolve=_selectModalResolver;
+  _selectModalResolver=null;
+  closeModal('modal-select');
+  resolve(value);
+}
+function selectModal(title,options,currentValue){
+  if(_selectModalResolver)_selectModalResolve(null);
+  return new Promise(resolve=>{
+    document.getElementById('select-modal-title').textContent=title;
+    const sel=document.getElementById('select-modal-input');
+    sel.innerHTML=options.map(o=>`<option value="${_hesc(o.value)}">${_hesc(o.label)}</option>`).join('');
+    if(currentValue!==undefined)sel.value=currentValue;
+    _selectModalResolver=resolve;
+    document.getElementById('modal-select').classList.add('open');
+  });
+}
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  if(_promptModalResolver)_promptModalResolve(null);
+  if(_selectModalResolver)_selectModalResolve(null);
+});
 
 // ── Phone normalization (for duplicate detection) ──
 // Strips everything but digits, drops a leading trunk "0", and compares
@@ -5055,15 +5225,13 @@ async function assignConversation(id){
   const users=S.conversationAssignees||[];
   if(!users.length){showToast('No eligible users are available in your team.','error');return;}
   const current=findConv(id)?.assignment?.userEmail||'';
-  const choices=users.map((u,i)=>`${i+1}. ${u.name} — ${u.email}`).join('\n');
-  const answer=prompt(`Assign conversation\n\n0. Unassigned\n${choices}\n\nEnter a number:`,current?String(users.findIndex(u=>u.email===current)+1):'');
-  if(answer===null)return;
-  const number=Number(answer),assignedUserEmail=number===0?'':users[number-1]?.email;
-  if(number!==0&&!assignedUserEmail){showToast('Select a valid user number.','error');return;}
+  const options=[{value:'',label:'Unassigned'},...users.map(u=>({value:u.email,label:`${u.name} — ${u.email}`}))];
+  const assignedUserEmail=await selectModal('Assign conversation',options,current);
+  if(assignedUserEmail===null)return;
   try{
     const response=await fetch(`/api/conversation-assignments/${encodeURIComponent(id)}`,{method:'PUT',credentials:'include',headers:{'content-type':'application/json'},body:JSON.stringify({assignedUserEmail})});
     const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Assignment failed');
-    showToast(number===0?'Conversation moved to the unassigned queue.':'Conversation assigned successfully.','success');
+    showToast(assignedUserEmail===''?'Conversation moved to the unassigned queue.':'Conversation assigned successfully.','success');
     await refreshConversations();
   }catch(error){showToast(error.message,'error');}
 }
@@ -5769,7 +5937,7 @@ async function deleteMessage(msgId){
     renderThread(S.convMessages[id],false);
     return;
   }
-  if(!confirm('Delete this message from Whizz/Chatwoot?\n\nThis does NOT unsend it — the customer\'s phone still has it. WhatsApp has no "delete for everyone" API.'))return;
+  if(!await confirmModal('Delete this message from Whizz/Chatwoot?\n\nThis does NOT unsend it — the customer\'s phone still has it. WhatsApp has no "delete for everyone" API.',{danger:true,confirmText:'Delete'}))return;
   try{
     await cw(`conversations/${encodeURIComponent(id)}/messages/${encodeURIComponent(msgId)}`,'DELETE');
     S.convMessages[id]=S.convMessages[id].filter(m=>m!==msg);
@@ -6081,7 +6249,7 @@ async function createTemplate(){
   }catch(e){showToast(e.message||'Failed to create template','error');}
 }
 async function deleteMetaTemplate(name,inboxId){
-  if(!confirm(`Delete template "${name}" from Meta?\n\nThis cannot be undone.`))return;
+  if(!await confirmModal(`Delete template "${name}" from Meta?\n\nThis cannot be undone.`,{danger:true,confirmText:'Delete'}))return;
   try{
     await mt('/delete','POST',{inboxId,name});
     showToast('Template deleted','success');
@@ -6215,7 +6383,7 @@ function renderAudienceSegmentSelect(){
   if(segments.some(s=>String(s.id)===current))sel.value=current;
 }
 async function saveCurrentAudienceSegment(){
-  const name=prompt('Name this segment (e.g. "UAE Mix buyers"):');
+  const name=await promptModal('Name this segment (e.g. "UAE Mix buyers"):');
   if(!name||!name.trim())return;
   try{
     await apiWMsg('api/audience-segments','POST',{name:name.trim(),platforms:S.activePlatforms,brands:S.activeBrands,region:S.activeCampaignRegion,country:S.activeCountry});
@@ -6241,7 +6409,7 @@ async function deleteCurrentAudienceSegment(){
   const id=sel?.value;
   if(!id)return;
   const segment=(S.cache.audienceSegments||[]).find(s=>String(s.id)===String(id));
-  if(!confirm(`Delete saved segment "${segment?.name||id}"?`))return;
+  if(!await confirmModal(`Delete saved segment "${segment?.name||id}"?`,{danger:true,confirmText:'Delete'}))return;
   try{
     await apiWMsg(`api/audience-segments/${id}`,'DELETE');
     showToast('Segment deleted','success');
@@ -6462,7 +6630,7 @@ async function sendCampaign(){
     const todayDup=getTodayCampaigns().find(h=>h.template===S.selectedTemplate.name);
     if(todayDup){
       const sentTime=new Date(todayDup.ts).toLocaleTimeString('en-AE',{hour:'2-digit',minute:'2-digit'});
-      if(!confirm(`"${S.selectedTemplate.name}" was already sent today at ${sentTime} (${todayDup.sent} contacts). Send again?`))return;
+      if(!await confirmModal(`"${S.selectedTemplate.name}" was already sent today at ${sentTime} (${todayDup.sent} contacts). Send again?`))return;
     }
   }
   btn.disabled=true;btn.textContent='Executing Dispatch...';
@@ -6493,9 +6661,9 @@ async function sendCampaign(){
 }
 function resetCampaign(){S.selectedGroups=[];S.selectedTemplate=null;campStep(1);document.getElementById('all-groups').checked=false;document.querySelectorAll('.group-card').forEach(c=>{c.classList.remove('selected');const cb=c.querySelector('input[type=checkbox]');if(cb)cb.checked=false;});updateAudienceLiveCount();}
 
-function launchSuggestedCampaign(brand, alreadySent) {
+async function launchSuggestedCampaign(brand, alreadySent) {
   if (alreadySent) {
-    if (!confirm(`A campaign targeting "${brand}" was already sent recently. Proceed anyway?`)) return;
+    if (!await confirmModal(`A campaign targeting "${brand}" was already sent recently. Proceed anyway?`)) return;
   }
   S.activeBrands = [brand];
   const campNav = document.querySelector('.nav-item[onclick*="\'campaigns\'"]');
@@ -6917,7 +7085,9 @@ async function runBulkDetectCountry(){
 async function runBulkDeleteLeads(){
   if(!_leadsSelectedIds.size){showToast('Select at least one lead first','error');return;}
   const ids=[..._leadsSelectedIds];
-  if(!confirm(`Delete ${ids.length} selected lead${ids.length===1?'':'s'}? This cannot be undone.`))return;
+  if(!await confirmModal(`Delete ${ids.length} selected lead${ids.length===1?'':'s'}?`,{danger:true,confirmText:'Delete'}))return;
+  const idSet=new Set(ids);
+  const snapshot=_currentLeadsContacts.filter(c=>idSet.has(c.id));
   const CHUNK=200;
   const btn=document.getElementById('leads-bulk-delete-btn');
   if(btn){btn.disabled=true;}
@@ -6932,11 +7102,35 @@ async function runBulkDeleteLeads(){
         if((r.deleted||0)<batch.length)failed+=batch.length-(r.deleted||0);
       }catch(e){failed+=batch.length;}
     }
-    showToast(`Deleted ${deleted} lead${deleted===1?'':'s'}${failed?` — ${failed} couldn't be deleted (not found or access denied)`:''}`,failed?'error':'success');
+    // Restoring the whole snapshot (not just the ones actually deleted) is safe even on a
+    // partial failure: re-submitting a lead that was never actually deleted just hits the
+    // existing-contact path in whizz-save-contact, which no-ops since nothing about it
+    // changed — it doesn't get duplicated.
+    showActionToast(
+      `Deleted ${deleted} lead${deleted===1?'':'s'}${failed?` — ${failed} couldn't be deleted (not found or access denied)`:''}`,
+      deleted?'Undo':null,
+      deleted?()=>restoreDeletedContacts(snapshot):null,
+      failed?'error':'success'
+    );
     clearLeadsSelection();
     loadLeadsContacts();
     refreshLeads();
   }finally{if(btn){btn.disabled=false;btn.textContent='🗑 Delete Selected';}}
+}
+// Shared by single and bulk delete's "Undo" toast action. The delete already actually
+// happened server-side by the time this can be called — restoring means re-creating the
+// contact via the normal save/insert path, not reversing a pending operation. That means a
+// restored lead gets a new id and is re-owned to whoever clicked Undo (the save endpoint
+// always assigns the current user as owner on insert); core fields, tags and history
+// otherwise carry over since the full pre-delete snapshot is what gets resubmitted.
+async function restoreDeletedContacts(contacts){
+  if(!contacts||!contacts.length)return;
+  try{
+    await api('whizz-save-contact','POST',{contacts});
+    showToast(`Restored ${contacts.length} lead${contacts.length===1?'':'s'}`,'success');
+    loadLeadsContacts();
+    refreshLeads();
+  }catch(e){showToast(e.message||'Failed to restore — you may need to re-add manually','error');}
 }
 
 async function submitEditLeadContact(){
@@ -7213,14 +7407,17 @@ function submitAddClosedDeal(){
   if(S.page==='pipeline')renderPipelinePage();
 }
 
+// No confirm dialog here deliberately — a single lead is low-risk enough that an instant
+// delete + "Undo" toast (restoreDeletedContacts) is less friction than a blocking dialog,
+// same tradeoff Gmail-style undo makes. Bulk delete still confirms first since its blast
+// radius is much larger.
 async function deleteLeadContact(id){
   const c=_currentLeadsContacts.find(c=>c.id===id);
   if(!c)return;
   const name=c.contactName||c.company||c.name||'this contact';
-  if(!confirm(`Delete "${name}"? This cannot be undone.`))return;
   try{
     await apiFetch('/whizz-delete-contact',{method:'POST',body:JSON.stringify({id:c.id})});
-    showToast(`${name} deleted`,'success');
+    showActionToast(`${name} deleted`,'Undo',()=>restoreDeletedContacts([c]),'success');
     loadLeadsContacts();
     refreshLeads();
   }catch(e){showToast(e.message||'Failed to delete contact','error');}
@@ -7696,8 +7893,8 @@ function pipelineMove(id,dir){
   if(next){c.stage=next;c.closedAt=next==='closed'?Date.now():null;pipelineSave(data);renderPipelinePage();}
 }
 
-function pipelineDelete(id){
-  if(!confirm('Remove this contact from the pipeline?'))return;
+async function pipelineDelete(id){
+  if(!await confirmModal('Remove this contact from the pipeline?',{danger:true,confirmText:'Remove'}))return;
   const data=pipelineLoad().filter(x=>x.id!==id);
   pipelineSave(data);renderPipelinePage();
 }
@@ -9160,7 +9357,7 @@ async function submitAddTelegramLead(){
   }catch(e){showToast(e.message||'Failed to add lead','error');}
 }
 async function deleteTelegramLead(id){
-  if(!confirm('Remove this lead from the Telegram leads list?'))return;
+  if(!await confirmModal('Remove this lead from the Telegram leads list?',{danger:true,confirmText:'Remove'}))return;
   try{
     await apiWMsg(`api/telegram/leads/${id}`,'DELETE');
     showToast('Lead removed','success');
@@ -9403,7 +9600,7 @@ async function sendTelegramCampaign(){
 async function resendTelegramToFailed(i){
   const h=S.telegramHistory[i];
   if(!h||!h.failedContacts?.length)return;
-  if(!confirm(`Resend to ${h.failedContacts.length} contact${h.failedContacts.length===1?'':'s'} who failed last time?`))return;
+  if(!await confirmModal(`Resend to ${h.failedContacts.length} contact${h.failedContacts.length===1?'':'s'} who failed last time?`))return;
   try{
     const result=await apiWMsg('api/telegram/send','POST',{message:h.message,targetContacts:h.failedContacts.map(c=>({name:c.name,chatId:c.chatId}))});
     const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,chatId:r.chatId,reason:r.reason})).slice(0,50);
@@ -9451,7 +9648,7 @@ async function addTelegramOptOut(){
   }catch(e){showToast(e.message||'Failed to add','error');}
 }
 async function removeTelegramOptOut(chatId){
-  if(!confirm(`Remove ${chatId} from the suppression list?`))return;
+  if(!await confirmModal(`Remove ${chatId} from the suppression list?`,{danger:true,confirmText:'Remove'}))return;
   try{
     await apiWMsg(`api/telegram/opt-outs/${encodeURIComponent(chatId)}`,'DELETE');
     showToast('Removed from suppression list','success');
@@ -9612,7 +9809,7 @@ async function submitEditUser(){
 async function deleteUser(email){
   const u=USERS[email];
   if(!u)return;
-  if(!confirm(`Delete "${u.name}" (${email})?\n\nThis cannot be undone.`))return;
+  if(!await confirmModal(`Delete "${u.name}" (${email})?`,{danger:true,confirmText:'Delete'}))return;
   try{
     await apiWMsg(`api/users/${encodeURIComponent(email)}`,'DELETE');
     showToast(`User "${u.name}" deleted successfully.`,'success');
@@ -9685,7 +9882,7 @@ async function addCountryLanguageMap(){
   }catch(e){showToast(e.message||'Failed to save','error');}
 }
 async function removeCountryLanguageMap(country){
-  if(!confirm(`Remove the language mapping for ${country}?`))return;
+  if(!await confirmModal(`Remove the language mapping for ${country}?`,{danger:true,confirmText:'Remove'}))return;
   try{
     await apiWMsg(`api/country-language-map/${encodeURIComponent(country)}`,'DELETE');
     showToast('Mapping removed','success');
@@ -9732,7 +9929,7 @@ async function addOptOut(){
   }catch(e){showToast(e.message||'Failed to add','error');}
 }
 async function removeOptOut(phone){
-  if(!confirm(`Remove ${phone} from the suppression list? Future campaigns will be able to message this number again.`))return;
+  if(!await confirmModal(`Remove ${phone} from the suppression list? Future campaigns will be able to message this number again.`,{danger:true,confirmText:'Remove'}))return;
   try{
     await apiWMsg(`api/opt-outs/${encodeURIComponent(phone)}`,'DELETE');
     showToast('Removed from suppression list','success');
@@ -9853,7 +10050,7 @@ async function addChatwootInbox(){
   }catch(e){showToast(e.message||'Failed to save inbox','error');}
 }
 async function deleteChatwootInbox(id){
-  if(!confirm('Remove this inbox? Its tab will disappear from Conversations.'))return;
+  if(!await confirmModal('Remove this inbox? Its tab will disappear from Conversations.',{danger:true,confirmText:'Remove'}))return;
   try{
     await cw(`inboxes/${id}`,'DELETE');
     showToast('Inbox removed','success');
@@ -9926,7 +10123,7 @@ async function submitWpSite(){
 async function deleteWpSite(id){
   const s=_wpSites.find(x=>x.id===id);
   if(!s)return;
-  if(!confirm(`Disconnect "${s.label||s.siteUrl}"? This cannot be undone.`))return;
+  if(!await confirmModal(`Disconnect "${s.label||s.siteUrl}"?`,{danger:true,confirmText:'Disconnect'}))return;
   try{
     await api('whizz-delete-integration','POST',{service:`wordpress:${id}`});
     showToast('Site disconnected','success');
@@ -11362,13 +11559,13 @@ async function resumeStagedRun(id){
   catch(e){showToast(e.message||'Failed to resume','error');}
 }
 async function cancelStagedRun(id){
-  if(!confirm('Cancel this staged rollout? Contacts not yet sent to will not be messaged.'))return;
+  if(!await confirmModal('Cancel this staged rollout? Contacts not yet sent to will not be messaged.',{danger:true,confirmText:'Cancel Rollout'}))return;
   try{await apiWMsg(`api/staged-campaigns/${id}/cancel`,'POST');showToast('Cancelled','success');loadStagedCampaigns();}
   catch(e){showToast(e.message||'Failed to cancel','error');}
 }
 
-function cancelScheduled(id) {
-  if (!confirm('Cancel this scheduled campaign?')) return;
+async function cancelScheduled(id) {
+  if (!await confirmModal('Cancel this scheduled campaign?',{danger:true,confirmText:'Cancel Campaign'})) return;
   const data = loadScheduled().filter(j => j.id !== id);
   saveScheduled(data);
   renderScheduledList();
@@ -11515,8 +11712,8 @@ function toggleTaskDone(id) {
   saveTasks(data);
   renderTasksList();
 }
-function deleteTask(id) {
-  if (!confirm('Delete this task/event?')) return;
+async function deleteTask(id) {
+  if (!await confirmModal('Delete this task/event?',{danger:true,confirmText:'Delete'})) return;
   saveTasks(loadTasks().filter(x => x.id !== id));
   renderTasksList();
 }
