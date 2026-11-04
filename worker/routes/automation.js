@@ -21,8 +21,10 @@ async function saveOwnedContacts(request, env, user) {
   const contacts = Array.isArray(body.contacts) ? body.contacts : [];
   if (!contacts.length) return Response.json({ error: 'At least one contact is required.' }, { status: 400 });
   let inserted = 0, updated = 0, duplicates = 0, retagged = 0;
+  const items = [];
   for (const raw of contacts.slice(0, 1000)) {
     const contact = raw || {};
+    const rowName = String(contact.contactName || contact.name || contact.company || 'Unnamed');
     const phone = String(contact.phone || '').trim();
     const email = String(contact.email || '').trim().toLowerCase();
     const platform = String(contact.platform || '').trim();
@@ -58,7 +60,7 @@ async function saveOwnedContacts(request, env, user) {
         directoryDescription=COALESCE(NULLIF(?,''),directoryDescription),
         updatedAt=CURRENT_TIMESTAMP WHERE id=?`)
         .bind(website, address, rating, mapsUrl, category, phone, email, telegramUsername, linkedin, whatsapp, contactPersonName, contactPersonTitle, volzaUrl, directoryUrl, directoryDescription, existing.id).run();
-      updated++; continue;
+      updated++; items.push({ name: rowName, phone, outcome: 'updated' }); continue;
     }
 
     const duplicate = phone
@@ -78,9 +80,9 @@ async function saveOwnedContacts(request, env, user) {
       if (nextPlatform !== duplicate.platform || nextBrand !== duplicate.brand || nextCategory !== duplicate.category) {
         await env.DB.prepare('UPDATE contacts SET platform=?,brand=?,category=?,updatedAt=CURRENT_TIMESTAMP WHERE id=?')
           .bind(nextPlatform, nextBrand, nextCategory, duplicate.id).run();
-        retagged++;
+        retagged++; items.push({ name: rowName, phone, outcome: 'retagged' });
       } else {
-        duplicates++;
+        duplicates++; items.push({ name: rowName, phone, outcome: 'duplicate' });
       }
       continue;
     }
@@ -97,9 +99,9 @@ async function saveOwnedContacts(request, env, user) {
         volzaUrl, directoryUrl, directoryDescription,
         user.email, user.teamId || 'sales', user.email, scoreLead(contact), contact.lastContactedAt || null,
         contact.nextFollowUpAt || null, contact.dealExpectedAt || null).run();
-    inserted++;
+    inserted++; items.push({ name: rowName, phone, outcome: 'inserted' });
   }
-  return Response.json({ success: true, inserted, updated, duplicates, retagged, ownerEmail: user.email, teamId: user.teamId || 'sales' });
+  return Response.json({ success: true, inserted, updated, duplicates, retagged, items, ownerEmail: user.email, teamId: user.teamId || 'sales' });
 }
 
 function _normStr(s) { return (s || '').trim().replace(/\s+/g, ' '); }

@@ -29,9 +29,29 @@ export async function recordOptOut(env, phone, source, reason, addedByEmail = ''
   try {
     const simplified = String(phone || '').replace(/[+\s-]/g, '');
     if (simplified) {
-      await env.DB.prepare(
-        "UPDATE contacts SET platform='Unsubscribed',brand='Unsubscribed',category='Unsubscribed',updatedAt=CURRENT_TIMESTAMP WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','')=?"
-      ).bind(simplified).run();
+      const matches = await env.DB.prepare(
+        "SELECT id FROM contacts WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','')=?"
+      ).bind(simplified).all();
+      const contactIds = (matches.results || []).map(r => r.id);
+      if (contactIds.length) {
+        await env.DB.prepare(
+          "UPDATE contacts SET platform='Unsubscribed',brand='Unsubscribed',category='Unsubscribed',updatedAt=CURRENT_TIMESTAMP WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','')=?"
+        ).bind(simplified).run();
+        // This same person may also be a Telegram lead (e.g. imported from this exact CRM
+        // contact via "Import from CRM") — if so, opting out on WhatsApp should opt them out
+        // on Telegram too, not leave that side still reachable because the two lead bases
+        // don't otherwise share an opt-out list.
+        const placeholders = contactIds.map(() => '?').join(',');
+        const tgLeads = await env.DB.prepare(
+          `SELECT telegramChatId FROM telegram_leads WHERE crmContactId IN (${placeholders}) AND telegramChatId IS NOT NULL AND telegramChatId <> ''`
+        ).bind(...contactIds).all();
+        for (const row of tgLeads.results || []) {
+          try {
+            await env.DB.prepare('INSERT INTO telegram_opted_out (chatId,source,reason) VALUES (?,?,?) ON CONFLICT(chatId) DO NOTHING')
+              .bind(row.telegramChatId, 'linked_whatsapp_optout', 'Opted out via linked WhatsApp contact').run();
+          } catch (_) {}
+        }
+      }
     }
   } catch (_) { /* best-effort — never block a conversation fetch over this */ }
 }

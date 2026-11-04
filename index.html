@@ -139,6 +139,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .btn-success{background:var(--green);color:#fff;}
 .btn-danger{background:var(--red);color:#fff;}
 .btn-danger:hover{opacity:0.88;}
+.cmdk-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text2);}
+.cmdk-item svg{width:15px;height:15px;flex-shrink:0;color:var(--text3);}
+.cmdk-item:hover,.cmdk-item.active{background:var(--bg3);color:var(--text);}
+.cmdk-item:hover svg,.cmdk-item.active svg{color:var(--accent);}
+.cmdk-empty{padding:16px;text-align:center;color:var(--text3);font-size:12.5px;}
 .btn-success:hover{background:#16a34a;}
 .delivery-guard{margin:0 0 16px;padding:16px;border:1px solid var(--border2);border-radius:12px;background:var(--bg2);}
 .guard-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;}
@@ -2869,6 +2874,36 @@ body.dark{
   </div>
 </div>
 
+<!-- CSV Import Results — per-row outcome, since a single toast can't show what actually
+     happened to each row (new / re-tagged / already up to date) once an import gets past a
+     handful of contacts. -->
+<div class="modal-overlay" id="modal-import-results">
+  <div class="modal" style="width:min(96vw,620px);max-height:88vh;">
+    <div class="modal-head">
+      <div class="modal-title">Import Results</div>
+      <button class="modal-close" onclick="closeModal('modal-import-results')">✕</button>
+    </div>
+    <div class="modal-body" style="max-height:calc(88vh - 140px);overflow-y:auto;">
+      <div id="import-results-summary" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
+      <input class="fi" id="import-results-filter" placeholder="Filter by name or phone…" style="margin-bottom:10px;" oninput="renderImportResultsTable()"/>
+      <div style="border:1px solid var(--border);border-radius:8px;max-height:400px;overflow-y:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);">
+            <th style="padding:7px 10px;text-align:left;">Name</th>
+            <th style="padding:7px 10px;text-align:left;">Phone</th>
+            <th style="padding:7px 10px;text-align:left;">Outcome</th>
+          </tr></thead>
+          <tbody id="import-results-rows"></tbody>
+        </table>
+      </div>
+      <div id="import-results-overflow-note" style="font-size:11px;color:var(--text3);margin-top:8px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-primary" onclick="closeModal('modal-import-results')">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- Edit Lead Contact Modal -->
 <div class="modal-overlay" id="modal-edit-contact">
   <div class="modal" style="width:min(96vw,520px);">
@@ -3174,6 +3209,19 @@ body.dark{
       <button class="t-btn btn-ghost" onclick="_selectModalResolve(null)">Cancel</button>
       <button class="t-btn btn-primary" onclick="_selectModalResolve(document.getElementById('select-modal-input').value)">OK</button>
     </div>
+  </div>
+</div>
+
+<!-- Command palette (Ctrl/Cmd+K) — the icon-only sidebar has no visible labels or search of
+     its own, so this is the fast way to get to a page without hunting icons. Built from
+     whichever sidebar nav items are actually visible right now, so it's automatically
+     correct for the current role without a second list to maintain. -->
+<div class="modal-overlay" id="modal-command-palette" style="align-items:flex-start;" onclick="if(event.target===this)closeCommandPalette()">
+  <div class="modal" style="width:min(92vw,480px);margin-top:12vh;">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);">
+      <input id="cmdk-input" placeholder="Jump to a page…" autocomplete="off" style="width:100%;border:0;outline:0;background:transparent;font-size:14px;color:var(--text);font-family:var(--font);" oninput="renderCommandPalette()" onkeydown="handleCommandPaletteKey(event)"/>
+    </div>
+    <div id="cmdk-list" style="max-height:360px;overflow-y:auto;padding:6px;"></div>
   </div>
 </div>
 
@@ -3502,6 +3550,54 @@ function applyNavTooltips(){
   });
 }
 function goToPage(page){const nav=document.querySelector(`.nav-item[data-page="${page}"]`)||document.getElementById('nav-'+page);navigate(page,nav);}
+
+// ── Command palette (Ctrl/Cmd+K) ── See its modal's own comment for why this exists.
+// Built fresh from the sidebar every time it opens rather than cached, so a role change
+// (re-login as someone else) or a badge count never shows a stale/wrong set of pages.
+let _cmdkItems=[],_cmdkActive=0;
+function openCommandPalette(){
+  _cmdkItems=[...document.querySelectorAll('.nav-item[data-page],.nav-ext[data-page]')]
+    .filter(el=>getComputedStyle(el).display!=='none')
+    .map(el=>({
+      page:el.dataset.page,
+      label:[...el.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE).map(n=>n.textContent.trim()).filter(Boolean).join(' '),
+      icon:el.querySelector('svg')?.outerHTML||'',
+    }))
+    .filter(it=>it.label);
+  _cmdkActive=0;
+  document.getElementById('cmdk-input').value='';
+  document.getElementById('modal-command-palette').classList.add('open');
+  renderCommandPalette();
+  setTimeout(()=>document.getElementById('cmdk-input').focus(),30);
+}
+function closeCommandPalette(){closeModal('modal-command-palette');}
+function renderCommandPalette(){
+  const q=(document.getElementById('cmdk-input')?.value||'').trim().toLowerCase();
+  const filtered=q?_cmdkItems.filter(it=>it.label.toLowerCase().includes(q)):_cmdkItems;
+  if(_cmdkActive>=filtered.length)_cmdkActive=Math.max(0,filtered.length-1);
+  document.getElementById('cmdk-list').innerHTML=filtered.length
+    ?filtered.map((it,i)=>`<div class="cmdk-item${i===_cmdkActive?' active':''}" onmouseenter="_cmdkActive=${i};renderCommandPalette()" onclick="selectCommandPaletteItem('${it.page}')">${it.icon}${_hesc(it.label)}</div>`).join('')
+    :'<div class="cmdk-empty">No page matches.</div>';
+  document.getElementById('cmdk-list')._cmdkFiltered=filtered;
+}
+function handleCommandPaletteKey(event){
+  const filtered=document.getElementById('cmdk-list')._cmdkFiltered||[];
+  if(event.key==='ArrowDown'){event.preventDefault();_cmdkActive=Math.min(_cmdkActive+1,filtered.length-1);renderCommandPalette();}
+  else if(event.key==='ArrowUp'){event.preventDefault();_cmdkActive=Math.max(_cmdkActive-1,0);renderCommandPalette();}
+  else if(event.key==='Enter'){event.preventDefault();if(filtered[_cmdkActive])selectCommandPaletteItem(filtered[_cmdkActive].page);}
+  else if(event.key==='Escape'){closeCommandPalette();}
+}
+function selectCommandPaletteItem(page){
+  closeCommandPalette();
+  goToPage(page);
+}
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){
+    e.preventDefault();
+    if(document.getElementById('modal-command-palette')?.classList.contains('open'))closeCommandPalette();
+    else if(CURRENT_SESSION)openCommandPalette();
+  }
+});
 function mobileNavigate(page,btn){goToPage(page);document.querySelectorAll('#mobile-dock button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
 
 // ── Mobile "More" sheet — everything that doesn't fit in the 5 fixed dock slots. Built live from
@@ -4508,6 +4604,10 @@ function navigate(page, el) {
   if(page==='tasks'){renderTasksList();}
   // Background refresh (fresh data without blocking navigation)
   if(page==='dashboard'){refreshDashboard().catch(()=>{});}
+  // Every sibling page below already refreshes itself in the background on every visit —
+  // leads was the one page missing from this list, so on a browser with no cache yet
+  // (first login, or cache cleared) it just sat on "Click Refresh to load" indefinitely.
+  if(page==='leads'){refreshLeads().catch(()=>{});}
   if(page==='campaigns'){refreshCampaign().catch(()=>{});}
   if(page==='templates'){refreshTemplates().catch(()=>{});}
   if(page==='conversations'){refreshConversations().catch(()=>{});}
@@ -7761,12 +7861,14 @@ async function submitCsvImport() {
 
   const BATCH = 150;
   let imported = 0, insertedCount = 0, updatedCount = 0, retaggedCount = 0, serverDuplicates = 0;
+  const resultItems = [];
   try {
     for (let i = 0; i < toImport.length; i += BATCH) {
       const batch = toImport.slice(i, i + BATCH);
       importBtn.textContent = `Importing ${imported}/${toImport.length}…`;
       const r = await api('whizz-save-contact', 'POST', { contacts: batch });
       insertedCount += r.inserted || 0; updatedCount += r.updated || 0; retaggedCount += r.retagged || 0; serverDuplicates += r.duplicates || 0;
+      if (Array.isArray(r.items)) resultItems.push(...r.items);
       imported += batch.length;
     }
   } catch (e) {
@@ -7790,7 +7892,47 @@ async function submitCsvImport() {
     closeImportLeadsModal();
     refreshLeads();
     syncContactsToBrevo(toImport.slice(0, imported));
+    openImportResultsModal(resultItems,{insertedCount,updatedCount,retaggedCount,serverDuplicates,dupCount,skippedNoName,clearedBadPhone});
   }
+}
+// ── CSV import results modal — per-row outcome, since a single toast can't show what
+// actually happened to each row once an import gets past a handful of contacts. ──
+const IMPORT_OUTCOME_STYLE={
+  inserted:['New','var(--green)','var(--green-dim)'],
+  updated:['Enrichment updated','var(--blue)','var(--blue-dim)'],
+  retagged:['Re-tagged','var(--amber)','var(--amber-dim)'],
+  duplicate:['Already up to date','var(--text3)','var(--bg3)'],
+};
+let _importResultItems=[];
+function openImportResultsModal(items,counts){
+  _importResultItems=items||[];
+  document.getElementById('import-results-filter').value='';
+  const summaryEl=document.getElementById('import-results-summary');
+  const pills=[
+    counts.insertedCount?[`${counts.insertedCount} new`,'green']:null,
+    counts.retaggedCount?[`${counts.retaggedCount} re-tagged`,'amber']:null,
+    counts.updatedCount?[`${counts.updatedCount} enrichment updated`,'blue']:null,
+    counts.serverDuplicates?[`${counts.serverDuplicates} already up to date`,'default']:null,
+    counts.dupCount?[`${counts.dupCount} duplicate in this file`,'default']:null,
+    counts.skippedNoName?[`${counts.skippedNoName} missing a name`,'default']:null,
+    counts.clearedBadPhone?[`${counts.clearedBadPhone} phone cleared`,'red']:null,
+  ].filter(Boolean);
+  const colorMap={green:['var(--green)','var(--green-dim)'],amber:['var(--amber)','var(--amber-dim)'],blue:['var(--blue)','var(--blue-dim)'],red:['var(--red)','var(--red-dim)'],default:['var(--text3)','var(--bg3)']};
+  summaryEl.innerHTML=pills.map(([label,key])=>{const[fg,bg]=colorMap[key];return `<span style="font-size:11px;font-weight:700;color:${fg};background:${bg};padding:4px 10px;border-radius:999px;">${label}</span>`;}).join('');
+  document.getElementById('modal-import-results').classList.add('open');
+  renderImportResultsTable();
+}
+function renderImportResultsTable(){
+  const q=(document.getElementById('import-results-filter')?.value||'').trim().toLowerCase();
+  const filtered=q?_importResultItems.filter(it=>(it.name||'').toLowerCase().includes(q)||(it.phone||'').includes(q)):_importResultItems;
+  const MAX_SHOWN=500;
+  const shown=filtered.slice(0,MAX_SHOWN);
+  document.getElementById('import-results-rows').innerHTML=shown.map(it=>{
+    const[label,fg,bg]=IMPORT_OUTCOME_STYLE[it.outcome]||['Unknown','var(--text3)','var(--bg3)'];
+    return `<tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 10px;">${_hesc(it.name||'—')}</td><td style="padding:6px 10px;color:var(--text3);">${_hesc(it.phone||'—')}</td><td style="padding:6px 10px;"><span style="font-size:10.5px;font-weight:700;color:${fg};background:${bg};padding:2px 8px;border-radius:999px;">${label}</span></td></tr>`;
+  }).join('')||`<tr><td colspan="3" style="padding:16px;text-align:center;color:var(--text3);">${q?'No rows match that filter.':'No per-row results for this import.'}</td></tr>`;
+  const overflowEl=document.getElementById('import-results-overflow-note');
+  if(overflowEl)overflowEl.textContent=filtered.length>MAX_SHOWN?`+${filtered.length-MAX_SHOWN} more row(s) not shown — narrow with the filter above.`:'';
 }
 
 // ── Lead Scoring ──
