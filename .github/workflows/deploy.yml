@@ -17,6 +17,35 @@ jobs:
 
       - run: npm install
 
+      - name: Baseline migrations tracker for pre-existing production schema
+        # Production's schema predates this migrations folder (it was built by executing SQL
+        # directly, never through `wrangler d1 migrations apply`), so `d1_migrations` started
+        # out empty even though every table/column 0001-0009 create already exists live —
+        # confirmed via PRAGMA table_info before writing this. Without this, "apply" tries to
+        # replay 0001_init.sql and fails on "table contacts already exists". Idempotent (UNIQUE
+        # constraint on name + INSERT OR IGNORE), safe to leave in permanently.
+        run: |
+          npx wrangler d1 execute whizz-db --remote --command "
+          CREATE TABLE IF NOT EXISTS d1_migrations(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+          );
+          INSERT OR IGNORE INTO d1_migrations (name) VALUES
+            ('0001_init.sql'),
+            ('0002_users.sql'),
+            ('0003_user_access_automation.sql'),
+            ('0004_conversation_access.sql'),
+            ('0005_lead_ownership.sql'),
+            ('0006_kaspi_leads.sql'),
+            ('0007_discovery_source_fields.sql'),
+            ('0008_contact_social_links.sql'),
+            ('0009_contact_directory_links.sql');
+          "
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Apply D1 migrations
         run: npx wrangler d1 migrations apply whizz-db --remote
         env:
