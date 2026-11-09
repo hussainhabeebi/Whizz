@@ -1721,10 +1721,16 @@ body.dark{
             <select class="fs" id="rep-period-select" style="width:auto;padding:6px 12px;font-size:12px;" onchange="onReportsPeriodChange()"></select>
             <span style="font-size:10.5px;color:var(--text3);">Leads &amp; Heatmap are always all-time — no date is stored for them yet</span>
           </div>
-          <button class="t-btn btn-primary" id="download-reports-page-btn" onclick="downloadReportsPageReport()" title="Download a presentable analytics report">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download Report
-          </button>
+          <div style="display:flex;gap:8px;">
+            <button class="t-btn btn-primary" id="download-reports-page-btn" onclick="downloadReportsPageReport()" title="Download a presentable analytics report">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Report
+            </button>
+            <button class="t-btn btn-ghost" id="download-messages-conv-report-btn" onclick="downloadMessagesConversationsReport()" title="Messages sent (email, WhatsApp normal, WhatsApp staged) and conversations, by brand and by inbox">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Messages &amp; Conversations Report
+            </button>
+          </div>
         </div>
         <div class="eyebrow">Performance Summary</div>
         <div class="stats-grid" id="rep-summary-grid">
@@ -3858,6 +3864,17 @@ function reportBarRow(label,value,max,color){
   const pct=max>0?Math.max(4,Math.round(value/max*100)):0;
   return`<div class="bar-row"><div class="bar-label">${label}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div><div class="bar-value">${value.toLocaleString()}</div></div>`;
 }
+// A WhatsApp template's name is the only place a brand is recorded for a send (e.g.
+// "dyson_moh_nov2" → Dyson) — matched case-insensitively against the CRM's known brand
+// list so reports show "Dyson" rather than a raw lowercase slug, falling back to a
+// title-cased guess when the brand isn't one Whizz already knows about. Shared by every
+// report that breaks WhatsApp sends down by brand.
+function brandFromTemplateName(tplName){
+  const seg=(tplName||'').split('_')[0]||'';
+  if(!seg)return 'Unknown';
+  const known=(S.cache.brands||[]).find(b=>b.toLowerCase()===seg.toLowerCase());
+  return known||(seg.charAt(0).toUpperCase()+seg.slice(1));
+}
 function buildDashboardReportHtml(d){
   const maxPlatform=d.topPlatforms[0]?.[1]||1;
   const maxCountry=d.topCountries[0]?.[1]||1;
@@ -4468,17 +4485,7 @@ async function downloadReportsPageReport(){
   // (this device's S.history), broken down by template/inbox/location for the period
   // the Reports page is set to, plus the real failure-bucket breakdown each send already
   // classifies (classifyCampaignFailures), rather than just the one summary KPI below.
-  // A template's name itself is the only place a brand is recorded for a WhatsApp send
-  // (e.g. "dyson_moh_nov2" → Dyson) — matched case-insensitively against the CRM's known
-  // brand list so the report shows "Dyson" rather than a raw lowercase slug, falling back to
-  // a title-cased guess when the brand isn't one Whizz already knows about.
-  const knownBrands=S.cache.brands||[];
-  function brandFromTemplateName(tplName){
-    const seg=(tplName||'').split('_')[0]||'';
-    if(!seg)return 'Unknown';
-    const known=knownBrands.find(b=>b.toLowerCase()===seg.toLowerCase());
-    return known||(seg.charAt(0).toUpperCase()+seg.slice(1));
-  }
+  // Brand comes from brandFromTemplateName (shared helper, see its own comment).
   const waTemplateMap={},waInboxMap={},waLocationMap={},waBrandMap={},waBrandInboxMap={};
   let waSuppressed=0,waPermanentFails=0,waTransientFails=0,waPolicyFails=0;
   history.forEach(h=>{
@@ -4552,6 +4559,201 @@ async function downloadReportsPageReport(){
   downloadHTML(html,`Whizz-Analytics-Report-${period}-${now.toISOString().slice(0,10)}.html`);
   showToast('Report downloaded!','success');
   if(btn){btn.disabled=false;btn.style.opacity='';}
+}
+
+// ── Downloadable Messages & Conversations Report ──
+// Cross-channel view "Download Report" doesn't give: every message sent (email, WhatsApp
+// normal sends, WhatsApp staged rollouts) and every conversation, each broken down by brand
+// and by inbox/number. Brand attribution is honest about its limits:
+// - WhatsApp sends: brandFromTemplateName (the template name is the only place a brand is
+//   actually recorded for a send) — falls back to a title-cased guess from the template's
+//   first underscore segment when it isn't a brand Whizz already knows.
+// - Email campaigns: Brevo campaign names are prose, not slugs, so a brand is only
+//   attributed when a known brand name literally appears in the campaign name — no
+//   guessing fallback, since guessing off an arbitrary subject-line word would be
+//   actively misleading. Unmatched campaigns show under "Unknown".
+// - Conversations: attributed by matching the conversation's phone number against the CRM
+//   (same normalized-phone convention used throughout — strip +, spaces, dashes). A
+//   conversation whose number isn't a saved contact (or that has no phone, e.g. email/web
+//   chat) shows under "Unknown".
+// Inbox has no concept for email at all (Brevo isn't tied to a WhatsApp number), so the
+// by-inbox table only ever covers WhatsApp sends and conversations.
+function normalizedPhoneKey(phone){ return String(phone||'').replace(/[+\s-]/g,''); }
+function brandFromEmailCampaignName(name){
+  const known=(S.cache.brands||[]).find(b=>String(name||'').toLowerCase().includes(b.toLowerCase()));
+  return known||'Unknown';
+}
+async function downloadMessagesConversationsReport(){
+  const btn=document.getElementById('download-messages-conv-report-btn');
+  if(btn){btn.disabled=true;btn.style.opacity='0.6';}
+  try{
+    const period=S.reportsPeriod||'all';
+    const periodLabel=reportsPeriodLabel();
+    const inboxLabelFor=id=>id?((S.chatwootInboxes||[]).find(ib=>ib.inboxId===id)?.label||id):'Unassigned';
+
+    let phoneToBrand=new Map();
+    try{
+      const data=await apiW('whizz-get-contacts');
+      (data.contacts||[]).forEach(c=>{
+        const key=normalizedPhoneKey(c.phone);
+        if(key&&c.brand)phoneToBrand.set(key,c.brand);
+      });
+    }catch(e){ /* best-effort — conversations just fall into "Unknown" brand if this fails */ }
+
+    let conversations=[];
+    try{
+      const[o,p,r]=await Promise.all([
+        cw(convQS('open')).catch(()=>({conversations:[]})),
+        cw(convQS('pending')).catch(()=>({conversations:[]})),
+        cw(convQS('resolved')).catch(()=>({conversations:[]}))
+      ]);
+      conversations=[...(o.conversations||[]),...(p.conversations||[]),...(r.conversations||[])];
+    }catch(e){ conversations=S.cache.conversations||[]; }
+    conversations=conversations.filter(c=>reportsPeriodMatchesTs((c.last_activity||0)*1000,period));
+
+    const convByBrand={},convByInbox={};
+    conversations.forEach(c=>{
+      const brand=phoneToBrand.get(normalizedPhoneKey(convPhone(c)))||'Unknown';
+      convByBrand[brand]=(convByBrand[brand]||0)+1;
+      const inbox=inboxLabelFor(c.inboxId);
+      convByInbox[inbox]=(convByInbox[inbox]||0)+1;
+    });
+
+    const brevoCampaigns=S.cache.brevoCampaigns||[];
+    const emailTotal=brevoCampaigns.reduce((sum,c)=>sum+(c.sent||0),0);
+    const emailByBrand={};
+    brevoCampaigns.forEach(c=>{
+      const brand=brandFromEmailCampaignName(c.name);
+      emailByBrand[brand]=(emailByBrand[brand]||0)+(c.sent||0);
+    });
+
+    // historyWithStagedRuns() is the same combined source Campaign History's own Weekly
+    // Campaign Reports / Campaign Timing use — real immediate/resend/scheduled sends plus
+    // staged rollout batches (flagged h.staged), so a staged rollout counts here too.
+    const waHistory=historyWithStagedRuns().filter(h=>reportsPeriodMatchesTs(h.ts,period));
+    let waNormalTotal=0,waStagedTotal=0;
+    const waNormalByBrand={},waStagedByBrand={},waNormalByInbox={},waStagedByInbox={};
+    waHistory.forEach(h=>{
+      const sent=h.sent||0;
+      if(!sent)return;
+      const brand=brandFromTemplateName(h.template);
+      const inbox=inboxLabelFor(h.inboxId);
+      if(h.staged){
+        waStagedTotal+=sent;
+        waStagedByBrand[brand]=(waStagedByBrand[brand]||0)+sent;
+        waStagedByInbox[inbox]=(waStagedByInbox[inbox]||0)+sent;
+      }else{
+        waNormalTotal+=sent;
+        waNormalByBrand[brand]=(waNormalByBrand[brand]||0)+sent;
+        waNormalByInbox[inbox]=(waNormalByInbox[inbox]||0)+sent;
+      }
+    });
+
+    const allBrands=new Set([...Object.keys(emailByBrand),...Object.keys(waNormalByBrand),...Object.keys(waStagedByBrand),...Object.keys(convByBrand)]);
+    const brandRows=[...allBrands].map(brand=>{
+      const email=emailByBrand[brand]||0,waNormal=waNormalByBrand[brand]||0,waStaged=waStagedByBrand[brand]||0;
+      return {brand,email,waNormal,waStaged,total:email+waNormal+waStaged,conversations:convByBrand[brand]||0};
+    }).sort((a,b)=>b.total-a.total);
+
+    const allInboxes=new Set([...Object.keys(waNormalByInbox),...Object.keys(waStagedByInbox),...Object.keys(convByInbox)]);
+    const inboxRows=[...allInboxes].map(inbox=>{
+      const waNormal=waNormalByInbox[inbox]||0,waStaged=waStagedByInbox[inbox]||0;
+      return {inbox,waNormal,waStaged,total:waNormal+waStaged,conversations:convByInbox[inbox]||0};
+    }).sort((a,b)=>b.total-a.total);
+
+    const now=new Date();
+    const html=buildMessagesConversationsReportHtml({
+      generatedAt:now,periodLabel,
+      allTotal:emailTotal+waNormalTotal+waStagedTotal,
+      emailTotal,waNormalTotal,waStagedTotal,convTotal:conversations.length,
+      brandRows,inboxRows
+    });
+    downloadHTML(html,`Whizz-Messages-Conversations-Report-${period}-${now.toISOString().slice(0,10)}.html`);
+    showToast('Report downloaded!','success');
+  }catch(e){
+    showToast(e.message||'Failed to build report','error');
+  }
+  if(btn){btn.disabled=false;btn.style.opacity='';}
+}
+function buildMessagesConversationsReportHtml(d){
+  const brandRowsHtml=d.brandRows.length?d.brandRows.map(r=>
+    `<tr><td>${_hesc(r.brand)}</td><td style="text-align:right;">${r.email.toLocaleString()}</td><td style="text-align:right;">${r.waNormal.toLocaleString()}</td><td style="text-align:right;">${r.waStaged.toLocaleString()}</td><td style="text-align:right;font-weight:700;">${r.total.toLocaleString()}</td><td style="text-align:right;">${r.conversations.toLocaleString()}</td></tr>`
+  ).join(''):'<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px;">No messages or conversations for this period</td></tr>';
+  const inboxRowsHtml=d.inboxRows.length?d.inboxRows.map(r=>
+    `<tr><td>${_hesc(r.inbox)}</td><td style="text-align:right;">${r.waNormal.toLocaleString()}</td><td style="text-align:right;">${r.waStaged.toLocaleString()}</td><td style="text-align:right;font-weight:700;">${r.total.toLocaleString()}</td><td style="text-align:right;">${r.conversations.toLocaleString()}</td></tr>`
+  ).join(''):'<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px;">No WhatsApp sends or conversations for this period</td></tr>';
+  return`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Whizz Messages &amp; Conversations Report — ${d.periodLabel}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',Arial,sans-serif;background:#f1f3f7;color:#0f172a;padding:32px;}
+.page{max-width:960px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,0.08);padding:40px;}
+.report-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #f1f3f7;padding-bottom:20px;margin-bottom:28px;}
+.brand{font-family:Georgia,serif;font-weight:800;font-size:26px;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.header-meta{text-align:right;font-size:13px;}
+.header-meta .title{font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px;}
+.muted{color:#94a3b8;font-size:12px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:32px;}
+.kpi-card{border-radius:12px;padding:16px;border:1px solid #e8ecf2;}
+.kpi-card.amber{background:rgba(245,158,11,0.08);}
+.kpi-card.green{background:rgba(22,163,74,0.08);}
+.kpi-card.blue{background:rgba(37,99,235,0.08);}
+.kpi-card.red{background:rgba(220,38,38,0.08);}
+.kpi-card.purple{background:rgba(139,92,246,0.08);}
+.kpi-label{font-size:10.5px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+.kpi-value{font-size:26px;font-weight:800;line-height:1;margin-bottom:6px;}
+.kpi-card.amber .kpi-value{color:#d97706;}
+.kpi-card.green .kpi-value{color:#16a34a;}
+.kpi-card.blue .kpi-value{color:#2563eb;}
+.kpi-card.red .kpi-value{color:#dc2626;}
+.kpi-card.purple .kpi-value{color:#8b5cf6;}
+.kpi-sub{font-size:11px;color:#94a3b8;}
+.section{margin-bottom:28px;}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#0f172a;margin-bottom:4px;padding-bottom:8px;border-bottom:1px solid #e8ecf2;}
+.section-note{font-size:11.5px;color:#94a3b8;margin:6px 0 12px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#475569;padding:8px 10px;border-bottom:2px solid #e8ecf2;}
+td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
+.print-btn{display:block;margin:0 auto 20px;padding:10px 20px;background:#f59e0b;color:#000;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;}
+.report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #e8ecf2;}
+@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;padding:0;}}
+</style></head>
+<body>
+<div class="page">
+  <div class="report-header">
+    <div class="brand">Whizz.</div>
+    <div class="header-meta">
+      <div class="title">Messages &amp; Conversations Report</div>
+      <div class="muted">Generated ${d.generatedAt.toLocaleString()} · ${d.periodLabel}</div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card blue"><div class="kpi-label">All Messages Sent</div><div class="kpi-value">${d.allTotal.toLocaleString()}</div><div class="kpi-sub">Email + WhatsApp, all sources</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Email Sent</div><div class="kpi-value">${d.emailTotal.toLocaleString()}</div><div class="kpi-sub">Brevo campaigns</div></div>
+    <div class="kpi-card amber"><div class="kpi-label">WhatsApp — Normal</div><div class="kpi-value">${d.waNormalTotal.toLocaleString()}</div><div class="kpi-sub">Immediate, resend &amp; scheduled</div></div>
+    <div class="kpi-card red"><div class="kpi-label">WhatsApp — Staged Rollout</div><div class="kpi-value">${d.waStagedTotal.toLocaleString()}</div><div class="kpi-sub">Time-staged batches</div></div>
+    <div class="kpi-card purple"><div class="kpi-label">Conversations</div><div class="kpi-value">${d.convTotal.toLocaleString()}</div><div class="kpi-sub">Open + pending + resolved</div></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Messages &amp; Conversations by Brand</div>
+    <div class="section-note">Brand for a WhatsApp send comes from its template name; for an email campaign, from a known brand name appearing in the campaign name; for a conversation, from matching its phone number against the CRM. Unmatched rows show as "Unknown" rather than a guess.</div>
+    <table>
+      <thead><tr><th>Brand</th><th style="text-align:right;">Email</th><th style="text-align:right;">WhatsApp (Normal)</th><th style="text-align:right;">WhatsApp (Staged)</th><th style="text-align:right;">Total Messages</th><th style="text-align:right;">Conversations</th></tr></thead>
+      <tbody>${brandRowsHtml}</tbody>
+    </table>
+  </div>
+  <div class="section">
+    <div class="section-title">Messages &amp; Conversations by Inbox</div>
+    <div class="section-note">Email has no inbox/number concept (Brevo isn't tied to a WhatsApp number), so this table only covers WhatsApp sends and conversations.</div>
+    <table>
+      <thead><tr><th>Inbox</th><th style="text-align:right;">WhatsApp (Normal)</th><th style="text-align:right;">WhatsApp (Staged)</th><th style="text-align:right;">Total WhatsApp</th><th style="text-align:right;">Conversations</th></tr></thead>
+      <tbody>${inboxRowsHtml}</tbody>
+    </table>
+  </div>
+  <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+  <div class="report-footer">Whizz Marketing Console — Messages &amp; Conversations Report</div>
+</div>
+</body></html>`;
 }
 
 // ── Notifications ──
