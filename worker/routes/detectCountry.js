@@ -157,11 +157,23 @@ export async function handleBulkDetectCountry(request, env) {
   const ownership = actor.role === 'Administrator' ? '1=1'
     : actor.role === 'Manager' ? '(ownerEmail IS NULL OR teamId = ?)'
     : 'ownerEmail = ?';
-  const placeholders = capped.map(() => '?').join(',');
-  const bindArgs = actor.role === 'Administrator' ? capped : [...capped, actor.role === 'Sales' ? actor.email : (actor.teamId || '')];
-  const { results } = await env.DB.prepare(
-    `SELECT id, phone, country FROM contacts WHERE id IN (${placeholders}) AND ${ownership}`
-  ).bind(...bindArgs).all();
+  const ownerParam = actor.role === 'Sales' ? actor.email : (actor.teamId || '');
+
+  // Chunked at 99 (not 100) — a non-Administrator adds one more bind param (ownerParam)
+  // on top of the id list, so 100 ids would still overflow D1's own per-statement
+  // bound-parameter limit by one. A cap of 300 ids in one IN(...) is otherwise enough to
+  // hit this (same issue as the unchunked opt-out lookup that broke campaign sends for
+  // larger audiences — see optOuts.js's getOptedOutSet).
+  const results = [];
+  for (let i = 0; i < capped.length; i += 99) {
+    const batch = capped.slice(i, i + 99);
+    const placeholders = batch.map(() => '?').join(',');
+    const bindArgs = actor.role === 'Administrator' ? batch : [...batch, ownerParam];
+    const { results: batchResults } = await env.DB.prepare(
+      `SELECT id, phone, country FROM contacts WHERE id IN (${placeholders}) AND ${ownership}`
+    ).bind(...bindArgs).all();
+    results.push(...(batchResults || []));
+  }
 
   let updated = 0, unchanged = 0, noPhone = 0;
   const items = [];

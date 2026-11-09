@@ -853,15 +853,26 @@ async function checkExistingContacts(request, env) {
   const existingSourceIds = [];
   const existingPhones = [];
 
+  // Chunked — D1 enforces its own per-statement bound-parameter limit (~100), and up to
+  // CHECK_EXISTING_MAX_ITEMS=200 ids in one IN(...) risks hitting it (same issue as the
+  // unchunked opt-out lookup that broke campaign sends for larger audiences — see
+  // optOuts.js's getOptedOutSet). 99 per batch for sourceIds, leaving room for the extra
+  // platform= bind.
   if (platform && sourceIds.length) {
-    const placeholders = sourceIds.map(() => '?').join(',');
-    const rows = await env.DB.prepare(`SELECT sourceId FROM contacts WHERE platform=? AND sourceId IN (${placeholders})`).bind(platform, ...sourceIds).all();
-    for (const r of rows.results || []) existingSourceIds.push(r.sourceId);
+    for (let i = 0; i < sourceIds.length; i += 99) {
+      const batch = sourceIds.slice(i, i + 99);
+      const placeholders = batch.map(() => '?').join(',');
+      const rows = await env.DB.prepare(`SELECT sourceId FROM contacts WHERE platform=? AND sourceId IN (${placeholders})`).bind(platform, ...batch).all();
+      for (const r of rows.results || []) existingSourceIds.push(r.sourceId);
+    }
   }
   if (phones.length) {
-    const placeholders = phones.map(() => '?').join(',');
-    const rows = await env.DB.prepare(`SELECT DISTINCT REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','') AS normPhone FROM contacts WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','') IN (${placeholders})`).bind(...phones).all();
-    for (const r of rows.results || []) if (r.normPhone) existingPhones.push(r.normPhone);
+    for (let i = 0; i < phones.length; i += 100) {
+      const batch = phones.slice(i, i + 100);
+      const placeholders = batch.map(() => '?').join(',');
+      const rows = await env.DB.prepare(`SELECT DISTINCT REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','') AS normPhone FROM contacts WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','') IN (${placeholders})`).bind(...batch).all();
+      for (const r of rows.results || []) if (r.normPhone) existingPhones.push(r.normPhone);
+    }
   }
 
   return json({ existingSourceIds, existingPhones });

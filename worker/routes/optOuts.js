@@ -56,13 +56,21 @@ export async function recordOptOut(env, phone, source, reason, addedByEmail = ''
   } catch (_) { /* best-effort — never block a conversation fetch over this */ }
 }
 
-// One query for a whole campaign's audience instead of one query per contact.
+// One query per 100 contacts instead of one per contact — chunked since a campaign
+// audience can run into the thousands and a single IN(...) with that many placeholders
+// risks hitting D1's own per-statement bound-parameter limit (same fix as the identically
+// named limit documented in campaignSend.js's list-health preview).
 export async function getOptedOutSet(env, phones) {
   const normalized = [...new Set((phones || []).map(normalizeOptOutPhone).filter(Boolean))];
   if (!normalized.length) return new Set();
-  const placeholders = normalized.map(() => '?').join(',');
-  const result = await env.DB.prepare(`SELECT phone FROM opted_out_numbers WHERE phone IN (${placeholders})`).bind(...normalized).all();
-  return new Set((result.results || []).map(r => r.phone));
+  const out = new Set();
+  for (let i = 0; i < normalized.length; i += 100) {
+    const batch = normalized.slice(i, i + 100);
+    const placeholders = batch.map(() => '?').join(',');
+    const result = await env.DB.prepare(`SELECT phone FROM opted_out_numbers WHERE phone IN (${placeholders})`).bind(...batch).all();
+    for (const r of result.results || []) out.add(r.phone);
+  }
+  return out;
 }
 
 export async function isOptedOut(env, phone) {
