@@ -15,6 +15,30 @@
 //      before it reaches this route.
 import { loadWebhookVerifyToken } from './metaTemplates.js';
 
+// "Sent" only ever means Meta's Graph API accepted the request — whether it then actually
+// reaches the recipient (delivered) is reported later, asynchronously, by this same status
+// webhook. A message stuck at "sent" forever is almost always one of: the webhook was never
+// configured in Meta's App Dashboard, the Cloudflare Access bypass policy for this path is
+// missing (Meta's servers can't complete an SSO login, so every post gets rejected before
+// reaching handleMetaWebhookEvent), or the "messages" field was never subscribed on the
+// WABA — not a real delivery failure. This tells the two apart: updatedAt only diverges
+// from sentAt once a real webhook event has landed for that row (the webhook's own
+// ON CONFLICT UPDATE is the only thing that ever changes updatedAt after insert).
+export async function getWebhookHealth(env) {
+  const verifyToken = await loadWebhookVerifyToken(env);
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) total, SUM(CASE WHEN updatedAt > sentAt THEN 1 ELSE 0 END) everUpdated,
+      MAX(CASE WHEN updatedAt > sentAt THEN updatedAt END) lastRealUpdate
+    FROM message_delivery_status`
+  ).first();
+  return {
+    verifyTokenConfigured: !!verifyToken,
+    totalTracked: Number(row?.total) || 0,
+    everReceivedUpdate: Number(row?.everUpdated) > 0,
+    lastReceiptAt: row?.lastRealUpdate || null,
+  };
+}
+
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS }); }
 
@@ -72,14 +96,15 @@ export async function handleGetDeliveryStatuses(request, env) {
   if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
   const body = await request.json().catch(() => ({}));
   const wamids = Array.isArray(body.wamids) ? [...new Set(body.wamids.filter(Boolean))] : [];
-  if (!wamids.length) return json({ statuses: {} });
+  const webhookHealth = await getWebhookHealth(env);
+  if (!wamids.length) return json({ statuses: {}, webhookHealth });
   const statuses = {};
   for (let i = 0; i < wamids.length; i += 100) {
     const batch = wamids.slice(i, i + 100);
     const placeholders = batch.map(() => '?').join(',');
-    const result = await env.DB.prepare(`SELECT wamid,status,errorMessage,updatedAt FROM message_delivery_status WHERE wamid IN (${placeholders})`)
+    const result = await env.DB.prepare(`SELECT wamid,phone,status,errorMessage,sentAt,updatedAt FROM message_delivery_status WHERE wamid IN (${placeholders})`)
       .bind(...batch).all();
-    for (const row of result.results || []) statuses[row.wamid] = { status: row.status, errorMessage: row.errorMessage, updatedAt: row.updatedAt };
+    for (const row of result.results || []) statuses[row.wamid] = { status: row.status, errorMessage: row.errorMessage, sentAt: row.sentAt, updatedAt: row.updatedAt };
   }
-  return json({ statuses });
+  return json({ statuses, webhookHealth });
 }

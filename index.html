@@ -3225,6 +3225,32 @@ body.dark{
   </div>
 </div>
 
+<!-- Delivery Status Detail Modal — per-contact breakdown behind "Check delivery status",
+     plus a webhook-health banner that tells "stuck at sent because the webhook isn't
+     configured" apart from a real per-message delivery failure. -->
+<div class="modal-overlay" id="modal-delivery-detail">
+  <div class="modal" style="width:min(96vw,640px);">
+    <div class="modal-head">
+      <div class="modal-title">Delivery Status Detail</div>
+      <button class="modal-close" onclick="closeModal('modal-delivery-detail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="delivery-detail-webhook-banner"></div>
+      <div style="max-height:420px;overflow-y:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="text-align:left;color:var(--text3);border-bottom:1px solid var(--border);">
+            <th style="padding:6px 4px;">Contact</th><th style="padding:6px 4px;">Phone</th><th style="padding:6px 4px;">Status</th><th style="padding:6px 4px;">Detail</th>
+          </tr></thead>
+          <tbody id="delivery-detail-rows"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-delivery-detail')">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Export Contacts Modal -->
 <div class="modal-overlay" id="modal-export-contacts">
   <div class="modal" style="width:min(96vw,520px);">
@@ -3717,6 +3743,29 @@ function assignHistoryInbox(i,inboxId){
 // metaWebhook.js) writing into message_delivery_status as it arrives. Only meaningful once
 // an Administrator has configured the webhook in Meta's App Dashboard — until then every
 // message just stays "sent" here, which is still the truth (Meta hasn't reported more).
+// "Sent" is only ever "the Graph API accepted it" — whether it actually reaches the
+// recipient is reported later, asynchronously, by Meta's own status webhook
+// (worker/routes/metaWebhook.js). A message stuck at "Sent (pending)" forever almost
+// always means that webhook isn't configured/reachable, not a real delivery failure —
+// webhookHealth (from the same API call) tells the two apart so this can say which one
+// it actually is instead of leaving "not delivering" unexplained.
+function timeAgo(isoLike){
+  if(!isoLike)return 'never';
+  const ms=Date.now()-Date.parse(isoLike.includes('Z')||isoLike.includes('+')?isoLike:isoLike+'Z');
+  if(!Number.isFinite(ms)||ms<0)return 'just now';
+  const m=Math.round(ms/60000);
+  if(m<1)return 'just now';
+  if(m<60)return `${m}m ago`;
+  const hr=Math.round(m/60);
+  if(hr<24)return `${hr}h ago`;
+  return `${Math.round(hr/24)}d ago`;
+}
+const DELIVERY_STATUS_STYLE={
+  read:['Read','var(--green)','var(--green-dim)'],
+  delivered:['Delivered','var(--blue)','var(--blue-dim)'],
+  sent:['Sent (pending)','var(--amber)','var(--amber-dim)'],
+  failed:['Failed','var(--red)','var(--red-dim)'],
+};
 async function checkHistoryDeliveryStatus(i){
   const h=S.history[i];
   const btn=document.getElementById(`hist-delivery-btn-${i}`);
@@ -3724,19 +3773,41 @@ async function checkHistoryDeliveryStatus(i){
   if(!h||!h.sentContacts?.length||!out)return;
   if(btn){btn.disabled=true;btn.textContent='Checking…';}
   try{
-    const wamids=h.sentContacts.map(c=>c.messageId).filter(Boolean);
-    const {statuses}=await apiWMsg('api/campaigns/delivery-status','POST',{wamids});
+    const {statuses,webhookHealth}=await apiWMsg('api/campaigns/delivery-status','POST',{wamids:h.sentContacts.map(c=>c.messageId).filter(Boolean)});
     let read=0,delivered=0,sentOnly=0,failed=0;
-    wamids.forEach(id=>{
-      const s=statuses[id]?.status;
-      if(s==='read')read++;
-      else if(s==='delivered')delivered++;
-      else if(s==='failed')failed++;
-      else sentOnly++;
+    const rows=h.sentContacts.map(c=>{
+      const s=c.messageId?statuses[c.messageId]:null;
+      const status=s?.status||'sent';
+      if(status==='read')read++;else if(status==='delivered')delivered++;else if(status==='failed')failed++;else sentOnly++;
+      return {name:c.name,phone:c.phone,status,errorMessage:s?.errorMessage||'',updatedAt:s?.updatedAt||null};
     });
-    out.textContent=`${read} read · ${delivered} delivered · ${sentOnly} sent (pending) ${failed?`· ${failed} failed after send`:''}`;
+    h._deliveryRows=rows;
+    h._webhookHealth=webhookHealth;
+    out.innerHTML=`${read} read · ${delivered} delivered · ${sentOnly} sent (pending) ${failed?`· ${failed} failed after send`:''} · <button type="button" style="background:none;border:0;color:var(--accent);font-weight:600;cursor:pointer;padding:0;font-size:11px;" onclick="openDeliveryDetailModal(${i})">View details</button>`;
   }catch(e){out.textContent=e.message||'Could not fetch delivery status';}
   if(btn){btn.disabled=false;btn.textContent='Check delivery status';}
+}
+function openDeliveryDetailModal(i){
+  const h=S.history[i];
+  if(!h||!h._deliveryRows)return;
+  const banner=document.getElementById('delivery-detail-webhook-banner');
+  const wh=h._webhookHealth||{};
+  const allStillSent=h._deliveryRows.length>0&&h._deliveryRows.every(r=>r.status==='sent');
+  const sentLongAgo=h.ts&&(Date.now()-h.ts)>10*60*1000;
+  let bannerHtml='';
+  if(!wh.verifyTokenConfigured){
+    bannerHtml=`<div style="padding:10px 12px;border-radius:8px;background:var(--amber-dim);color:var(--amber);font-size:12px;margin-bottom:10px;"><b>No delivery webhook configured.</b> Every message will show "Sent (pending)" forever regardless of what actually happens on WhatsApp's side. Add a webhook verify token under Integrations → Meta WhatsApp, then point Meta's App Dashboard at this Worker's status webhook.</div>`;
+  }else if(wh.totalTracked>0&&!wh.everReceivedUpdate){
+    bannerHtml=`<div style="padding:10px 12px;border-radius:8px;background:var(--amber-dim);color:var(--amber);font-size:12px;margin-bottom:10px;"><b>Webhook configured, but no receipts have ever arrived.</b> Check that Meta's App Dashboard points at this Worker's /api/webhooks/meta, that the "messages" field is subscribed on the WABA, and that a Cloudflare Access bypass policy exists for that path (Meta's servers can't complete an SSO login).</div>`;
+  }else if(allStillSent&&sentLongAgo){
+    bannerHtml=`<div style="padding:10px 12px;border-radius:8px;background:var(--amber-dim);color:var(--amber);font-size:12px;margin-bottom:10px;">Every message in this campaign is still "Sent (pending)"${wh.lastReceiptAt?` — the webhook last reported an update ${timeAgo(wh.lastReceiptAt)}`:' and the webhook has never reported an update at all'}. If other recent campaigns show real delivered/read/failed statuses, this one may just need more time; if nothing ever updates, re-check the webhook setup under Integrations → Meta WhatsApp.</div>`;
+  }
+  if(banner)banner.innerHTML=bannerHtml;
+  document.getElementById('delivery-detail-rows').innerHTML=h._deliveryRows.map(r=>{
+    const [label,color,bg]=DELIVERY_STATUS_STYLE[r.status]||DELIVERY_STATUS_STYLE.sent;
+    return `<tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 4px;">${_hesc(r.name||'Unknown')}</td><td style="padding:6px 4px;color:var(--text3);">${_hesc(r.phone||'')}</td><td style="padding:6px 4px;white-space:nowrap;"><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${bg};color:${color};">${label}</span></td><td style="padding:6px 4px;color:var(--text3);">${_hesc(r.errorMessage||(r.updatedAt?`Updated ${timeAgo(r.updatedAt)}`:'No update received yet'))}</td></tr>`;
+  }).join('');
+  document.getElementById('modal-delivery-detail').classList.add('open');
 }
 // Retargets exactly the contacts a previous campaign's own failedContacts list shows as
 // failed — sends them directly by name/phone rather than re-resolving a CRM audience, so
@@ -4629,6 +4700,12 @@ async function runSystemHealthChecks(){
     {name:'D1 Contacts',detail:'Lead database route',run:()=>fetch('/whizz-get-contacts',{credentials:'include'}).then(r=>{if(!r.ok)throw Error(`HTTP ${r.status}`);return r.json();})},
     {name:'n8n Operations',detail:'Stats workflow gateway',run:()=>api('whizz-get-stats')},
     {name:'WhatsApp Templates',detail:'Meta Graph API connection',run:()=>mt('/settings')},
+    {name:'WhatsApp Delivery Webhook',detail:'Meta status receipts (sent vs. actually delivered)',run:async()=>{
+      const{webhookHealth:wh}=await apiWMsg('api/campaigns/delivery-status','POST',{wamids:[]});
+      if(!wh.verifyTokenConfigured)throw Error('No verify token set — add one under Integrations → Meta WhatsApp, then point Meta\'s App Dashboard at this Worker.');
+      if(wh.totalTracked>0&&!wh.everReceivedUpdate)throw Error('Configured but no receipts have ever arrived — check the Meta App Dashboard subscription and the Cloudflare Access bypass policy for /api/webhooks/meta.');
+      return wh;
+    }},
     {name:'Browser storage',detail:'Non-critical cache only',run:()=>Promise.resolve(localStorage.length)}
   ];
   grid.innerHTML=checks.map(c=>`<div class="health-card"><div class="health-row"><span class="health-dot" id="health-${c.name.replace(/\W/g,'')}"></span><span class="health-name">${c.name}</span></div><div class="health-detail">Checking ${c.detail.toLowerCase()}…</div></div>`).join('');
