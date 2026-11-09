@@ -37,10 +37,22 @@ export async function handleBulkDeleteContacts(request, env) {
   const ownership = actor.role === 'Administrator' ? '1=1'
     : actor.role === 'Manager' ? '(ownerEmail IS NULL OR teamId = ?)'
     : 'ownerEmail = ?';
-  const placeholders = capped.map(() => '?').join(',');
-  const bindArgs = actor.role === 'Administrator' ? capped : [...capped, actor.role === 'Sales' ? actor.email : (actor.teamId || '')];
+  const ownerParam = actor.role === 'Sales' ? actor.email : (actor.teamId || '');
 
-  const result = await env.DB.prepare(`DELETE FROM contacts WHERE id IN (${placeholders}) AND ${ownership}`).bind(...bindArgs).run();
+  // Chunked at 99 (not 100) — a non-Administrator adds one more bind param (ownerParam)
+  // on top of the id list, so 100 ids would still overflow D1's own per-statement
+  // bound-parameter limit by one. The frontend's own bulk-delete already batches at 200
+  // ids per request, which alone is enough to hit this (same issue as the unchunked
+  // opt-out lookup that broke campaign sends for larger audiences — see optOuts.js's
+  // getOptedOutSet).
+  let deleted = 0;
+  for (let i = 0; i < capped.length; i += 99) {
+    const batch = capped.slice(i, i + 99);
+    const placeholders = batch.map(() => '?').join(',');
+    const bindArgs = actor.role === 'Administrator' ? batch : [...batch, ownerParam];
+    const result = await env.DB.prepare(`DELETE FROM contacts WHERE id IN (${placeholders}) AND ${ownership}`).bind(...bindArgs).run();
+    deleted += result.meta.changes || 0;
+  }
 
-  return Response.json({ success: true, requested: ids.length, deleted: result.meta.changes || 0 });
+  return Response.json({ success: true, requested: ids.length, deleted });
 }

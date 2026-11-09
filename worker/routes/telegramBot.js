@@ -386,10 +386,19 @@ export async function handleListTelegramConversations(request, env) {
   const rows = latest.results || [];
   if (!rows.length) return json({ conversations: [] });
 
+  // Chunked at 100 — up to 200 chatIds (this query's own LIMIT) in one IN(...) risks
+  // hitting D1's own per-statement bound-parameter limit (same issue as the unchunked
+  // opt-out lookup that broke campaign sends for larger audiences — see optOuts.js's
+  // getOptedOutSet).
   const chatIds = rows.map(r => r.chatId);
-  const placeholders = chatIds.map(() => '?').join(',');
-  const leadsRes = await env.DB.prepare(`SELECT id,contactName,telegramUsername,telegramChatId,ownerEmail,teamId FROM telegram_leads WHERE telegramChatId IN (${placeholders})`).bind(...chatIds).all();
-  const leadByChat = new Map((leadsRes.results || []).map(l => [l.telegramChatId, l]));
+  const leadRows = [];
+  for (let i = 0; i < chatIds.length; i += 100) {
+    const batch = chatIds.slice(i, i + 100);
+    const placeholders = batch.map(() => '?').join(',');
+    const leadsRes = await env.DB.prepare(`SELECT id,contactName,telegramUsername,telegramChatId,ownerEmail,teamId FROM telegram_leads WHERE telegramChatId IN (${placeholders})`).bind(...batch).all();
+    leadRows.push(...(leadsRes.results || []));
+  }
+  const leadByChat = new Map(leadRows.map(l => [l.telegramChatId, l]));
 
   const conversations = rows.map(r => {
     const lead = leadByChat.get(r.chatId);
