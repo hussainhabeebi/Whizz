@@ -1274,6 +1274,12 @@ body.dark{
                 </div>
                 <div class="s-label" style="margin-bottom:6px;">Message Preview</div>
                 <div id="rv-msg" style="font-size:12px;color:var(--text2);background:var(--bg2);padding:10px;border-radius:6px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.6;max-height:120px;overflow-y:auto;"></div>
+                <div id="rv-header-image-wrap" style="display:none;margin-top:12px;">
+                  <div class="s-label" style="margin-bottom:6px;">Header Image <span style="color:var(--red);">*</span></div>
+                  <div class="fi-hint" style="margin-bottom:6px;">This template needs an image attached to its header — one upload, reused for every contact in this send.</div>
+                  <input type="file" class="fi" id="rv-header-image-file" accept="image/jpeg,image/png" onchange="onRvHeaderImageSelected(event)"/>
+                  <img id="rv-header-image-preview" style="display:none;max-width:160px;max-height:100px;margin-top:8px;border-radius:6px;border:1px solid var(--border);object-fit:cover;"/>
+                </div>
                 <div id="rv-health" style="margin-top:12px;font-size:11.5px;color:var(--text3);">Checking list health…</div>
                 <div id="rv-send-time" style="margin-top:8px;font-size:11.5px;color:var(--text3);">Checking historical reply timing…</div>
               </div>
@@ -2501,6 +2507,11 @@ body.dark{
               <input class="fi" id="int-meta-webhook-token" placeholder="e.g. a random string you choose"/>
               <div class="fi-hint">For real delivery/read receipts. Set this to any string, then paste the same string into Meta's App Dashboard → WhatsApp → Configuration → Webhook, with the callback URL <code>https://&lt;this app's domain&gt;/api/webhooks/meta</code>, and subscribe to the "messages" field. A Cloudflare Access bypass policy for that exact path is also required — Meta's servers can't complete an SSO login.</div>
             </div>
+            <div class="fg">
+              <label class="fl">App ID</label>
+              <input class="fi" id="int-meta-app-id" placeholder="e.g. 123456789012345"/>
+              <div class="fi-hint">Meta's Developer App Dashboard → Settings → Basic — only needed to create a WhatsApp template with an image header (Meta's Resumable Upload API requires it). Not needed for text-only templates or for sending.</div>
+            </div>
             <button class="t-btn btn-primary" onclick="saveMetaIntegration()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
               Save Meta Connection
@@ -2761,7 +2772,20 @@ body.dark{
           <span id="ai-gen-label">Generate Template with AI</span>
         </button>
       </div>
-      <div class="fg"><label class="fl">Header (optional)</label><input class="fi" id="tpl-header" placeholder="Whizz Exim FZE"/></div>
+      <div class="fg">
+        <label class="fl">Header (optional)</label>
+        <div style="display:flex;gap:14px;margin-bottom:8px;">
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="radio" name="tpl-header-type" value="none" checked onchange="onTplHeaderTypeChange()"> None</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="radio" name="tpl-header-type" value="text" onchange="onTplHeaderTypeChange()"> Text</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="radio" name="tpl-header-type" value="image" onchange="onTplHeaderTypeChange()"> Image</label>
+        </div>
+        <input class="fi" id="tpl-header" placeholder="Whizz Exim FZE" style="display:none;"/>
+        <div id="tpl-header-image-wrap" style="display:none;">
+          <input type="file" class="fi" id="tpl-header-image-file" accept="image/jpeg,image/png" onchange="onTplHeaderImageSelected(event)"/>
+          <div class="fi-hint">JPEG or PNG. Meta needs a concrete example image to review the template, and this exact image is what gets submitted with it (requires an App ID under Integrations → Meta WhatsApp).</div>
+          <img id="tpl-header-image-preview" style="display:none;max-width:160px;max-height:100px;margin-top:8px;border-radius:6px;border:1px solid var(--border);object-fit:cover;"/>
+        </div>
+      </div>
       <div class="fg"><label class="fl">Body *</label><textarea class="ft" id="tpl-body" maxlength="1024" oninput="updateBodyCount()" placeholder="Hi {{1}}, Whizz Exim FZE is pleased to offer exclusive pricing on {{2}}..." style="min-height:110px;"></textarea><div class="fi-hint" style="display:flex;justify-content:space-between;"><span>Use {{1}}, {{2}} for variables. AI will generate and fill this.</span><span id="tpl-body-count" style="color:var(--text3);">0 / 1024</span></div></div>
       <div class="fg"><label class="fl">Footer (optional)</label><input class="fi" id="tpl-footer" placeholder="Reply STOP to unsubscribe" oninput="updateComplianceFooterPreview()"/></div>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2);margin-bottom:4px;">
@@ -6639,8 +6663,38 @@ function openTplModal(){
     wrap.style.display='none';
   }
   updateComplianceFooterPreview();
+  // Reset header-type state from any previous use of this modal — each template creation
+  // starts clean rather than carrying over a leftover image/base64 from last time.
+  document.querySelector('input[name="tpl-header-type"][value="none"]').checked=true;
+  _tplHeaderImageBase64='';_tplHeaderImageMimeType='';
+  const preview=document.getElementById('tpl-header-image-preview');
+  if(preview){preview.style.display='none';preview.src='';}
+  const fileInput=document.getElementById('tpl-header-image-file');
+  if(fileInput)fileInput.value='';
+  onTplHeaderTypeChange();
 }
 function closeTplModal(){document.getElementById('tpl-modal').classList.remove('open');}
+let _tplHeaderImageBase64='',_tplHeaderImageMimeType='';
+function onTplHeaderTypeChange(){
+  const type=document.querySelector('input[name="tpl-header-type"]:checked')?.value||'none';
+  document.getElementById('tpl-header').style.display=type==='text'?'block':'none';
+  document.getElementById('tpl-header-image-wrap').style.display=type==='image'?'block':'none';
+  if(type!=='text')document.getElementById('tpl-header').value='';
+}
+function onTplHeaderImageSelected(event){
+  const file=event.target.files?.[0];
+  if(!file)return;
+  if(!['image/jpeg','image/png'].includes(file.type)){showToast('Use a JPEG or PNG image','error');event.target.value='';return;}
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const dataUrl=reader.result;
+    _tplHeaderImageBase64=String(dataUrl).split(',')[1]||'';
+    _tplHeaderImageMimeType=file.type;
+    const preview=document.getElementById('tpl-header-image-preview');
+    if(preview){preview.src=dataUrl;preview.style.display='block';}
+  };
+  reader.readAsDataURL(file);
+}
 function updateBodyCount(){const ta=document.getElementById('tpl-body'),counter=document.getElementById('tpl-body-count');if(!ta||!counter)return;const len=ta.value.length;counter.textContent=`${len} / 1024`;counter.style.color=len>1024?'var(--red)':len>900?'var(--amber)':'var(--text3)';}
 const COMPLIANCE_FOOTER_TEXT='Reply STOP to unsubscribe.';
 function templateHasComplianceFooter(text){return /\bstop\b/i.test(String(text||''));}
@@ -6664,8 +6718,19 @@ async function createTemplate(){
   if(document.getElementById('tpl-compliance-footer').checked&&!templateHasComplianceFooter(footer)){
     footer=footer?`${footer} ${COMPLIANCE_FOOTER_TEXT}`:COMPLIANCE_FOOTER_TEXT;
   }
+  const headerType=document.querySelector('input[name="tpl-header-type"]:checked')?.value||'none';
+  if(headerType==='image'&&!_tplHeaderImageBase64){showToast('Choose a header image first','error');return;}
+  const payload={inboxId:targetInboxId,name,body,language:document.getElementById('tpl-lang').value,category:document.getElementById('tpl-cat').value,footer};
+  if(headerType==='text'){
+    payload.headerFormat='TEXT';
+    payload.header=document.getElementById('tpl-header').value.trim();
+  }else if(headerType==='image'){
+    payload.headerFormat='IMAGE';
+    payload.headerImageBase64=_tplHeaderImageBase64;
+    payload.headerImageMimeType=_tplHeaderImageMimeType;
+  }
   try{
-    await mt('','POST',{inboxId:targetInboxId,name,body,language:document.getElementById('tpl-lang').value,category:document.getElementById('tpl-cat').value,header:document.getElementById('tpl-header').value.trim(),footer});
+    await mt('','POST',payload);
     showToast('Submitted to Meta for approval!','success');
     closeTplModal();refreshTemplates();
   }catch(e){showToast(e.message||'Failed to create template','error');}
@@ -6927,7 +6992,19 @@ function updateAudienceLiveCount(){
   const plural=document.getElementById('aud-live-count-plural');
   if(plural)plural.textContent=total===1?'':'s';
 }
-function selectTpl(name,language,el){document.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');S.selectedTemplate=S.templates.find(t=>t.name===name&&t.language===language)||S.templates.find(t=>t.name===name);renderLanguageAutoPickOption();}
+function selectTpl(name,language,el){
+  document.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');
+  S.selectedTemplate=S.templates.find(t=>t.name===name&&t.language===language)||S.templates.find(t=>t.name===name);
+  renderLanguageAutoPickOption();
+  // A header image chosen for a previous template selection must never carry over to a
+  // different one picked afterward — two image-header templates in a row would otherwise
+  // silently reuse the first template's image on the second.
+  _rvHeaderImageBase64='';_rvHeaderImageMimeType='';
+  const preview=document.getElementById('rv-header-image-preview');
+  if(preview){preview.style.display='none';preview.src='';}
+  const fileInput=document.getElementById('rv-header-image-file');
+  if(fileInput)fileInput.value='';
+}
 function campStep(n){
   if(n>=2&&!S.groups.length){showToast('Synchronize CRM cache boundaries first','error');return;}
   if(n===4&&!S.selectedTemplate){showToast('Select target template structure context','error');return;}
@@ -6951,6 +7028,11 @@ function buildReview(){
   document.getElementById('rv-template').textContent=S.selectedTemplate?.name||'—';
   document.getElementById('rv-time').textContent=`~${Math.ceil(totalCount*2/60)} minute engine execution window`;
   document.getElementById('rv-msg').textContent=S.selectedTemplate?.body||'';
+  // Clearing any stale image from a previously selected template happens in selectTpl()
+  // itself (the moment a different template is picked), not here — this just reflects
+  // whatever the currently selected template needs.
+  const rvHeaderImageWrap=document.getElementById('rv-header-image-wrap');
+  if(rvHeaderImageWrap)rvHeaderImageWrap.style.display=S.selectedTemplate?.headerFormat==='IMAGE'?'block':'none';
   updateDeliveryGuard(totalCount);
   ['score','eligible','suppressed','first-batch','risk'].forEach(k=>{
     const src=document.getElementById('guard-'+k),dst=document.getElementById('rv-guard-'+k);
@@ -6958,6 +7040,30 @@ function buildReview(){
   });
   checkListHealth();
   checkSendTimeSuggestion();
+}
+let _rvHeaderImageBase64='',_rvHeaderImageMimeType='';
+function onRvHeaderImageSelected(event){
+  const file=event.target.files?.[0];
+  if(!file)return;
+  if(!['image/jpeg','image/png'].includes(file.type)){showToast('Use a JPEG or PNG image','error');event.target.value='';return;}
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const dataUrl=reader.result;
+    _rvHeaderImageBase64=String(dataUrl).split(',')[1]||'';
+    _rvHeaderImageMimeType=file.type;
+    const preview=document.getElementById('rv-header-image-preview');
+    if(preview){preview.src=dataUrl;preview.style.display='block';}
+  };
+  reader.readAsDataURL(file);
+}
+// Shared by sendCampaign(), stageCampaignRollout() and scheduleCampaign() — returns null
+// (nothing required) when the selected template has no image header, {} when it does but
+// no image has been chosen yet (caller should block and tell the user), or the payload
+// fields to merge into the request body once one has been.
+function requiredHeaderImagePayload(){
+  if(S.selectedTemplate?.headerFormat!=='IMAGE')return null;
+  if(!_rvHeaderImageBase64)return {};
+  return {headerImageBase64:_rvHeaderImageBase64,headerImageMimeType:_rvHeaderImageMimeType};
 }
 // Shared by sendCampaign() and the list-health preview — resolves the same
 // platform/country/brand/audiences shape the backend's resolveContactsForCampaign expects.
@@ -7055,6 +7161,8 @@ async function sendCampaign(){
       if(!await confirmModal(`"${S.selectedTemplate.name}" was already sent today at ${sentTime} (${todayDup.sent} contacts). Send again?`))return;
     }
   }
+  const headerImagePayload=requiredHeaderImagePayload();
+  if(headerImagePayload&&!headerImagePayload.headerImageBase64){showToast('Choose a header image first','error');return;}
   btn.disabled=true;btn.textContent='Executing Dispatch...';
   document.getElementById('send-progress').style.display='block';
   let prog=0;const interval=setInterval(()=>{prog=Math.min(prog+4,92);document.getElementById('prog-fill').style.width=prog+'%';document.getElementById('prog-text').textContent=`Processing queue arrays... ${prog}%`;},1000);
@@ -7065,9 +7173,10 @@ async function sendCampaign(){
       inboxId:S.activeCampaignInboxId||undefined,
       template_name:S.selectedTemplate.name,
       language:S.selectedTemplate.language,
-      template:{header:S.selectedTemplate.header||'',body:S.selectedTemplate.body||'',footer:S.selectedTemplate.footer||''},
+      template:{header:S.selectedTemplate.header||'',body:S.selectedTemplate.body||'',footer:S.selectedTemplate.footer||'',headerFormat:S.selectedTemplate.headerFormat||''},
       languageVariants:buildLanguageVariantsPayload(),
-      delivery_guard:getDeliveryGuardConfig()
+      delivery_guard:getDeliveryGuardConfig(),
+      ...(headerImagePayload||{})
     });
     clearInterval(interval);
     document.getElementById('prog-fill').style.width='100%';
@@ -7081,7 +7190,7 @@ async function sendCampaign(){
     setTimeout(()=>{document.getElementById('send-progress').style.display='none';btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';resetCampaign();},3000);
   }catch(e){clearInterval(interval);showToast(e.message||'Campaign send failed','error');btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';}
 }
-function resetCampaign(){S.selectedGroups=[];S.selectedTemplate=null;campStep(1);document.getElementById('all-groups').checked=false;document.querySelectorAll('.group-card').forEach(c=>{c.classList.remove('selected');const cb=c.querySelector('input[type=checkbox]');if(cb)cb.checked=false;});updateAudienceLiveCount();}
+function resetCampaign(){S.selectedGroups=[];S.selectedTemplate=null;_rvHeaderImageBase64='';_rvHeaderImageMimeType='';campStep(1);document.getElementById('all-groups').checked=false;document.querySelectorAll('.group-card').forEach(c=>{c.classList.remove('selected');const cb=c.querySelector('input[type=checkbox]');if(cb)cb.checked=false;});updateAudienceLiveCount();}
 
 async function launchSuggestedCampaign(brand, alreadySent) {
   if (alreadySent) {
@@ -10431,14 +10540,17 @@ async function loadMetaIntegration(){
     document.getElementById('int-meta-token').placeholder=d.hasToken?'Leave blank to keep the current token':'Paste your System User access token';
     const webhookEl=document.getElementById('int-meta-webhook-token');
     if(webhookEl&&!webhookEl.value)webhookEl.value=d.webhookVerifyToken||'';
+    const appIdEl=document.getElementById('int-meta-app-id');
+    if(appIdEl&&!appIdEl.value)appIdEl.value=d.appId||'';
   }catch(e){statusEl.textContent='Status unavailable';}
 }
 async function saveMetaIntegration(){
   const accessToken=document.getElementById('int-meta-token').value.trim();
   const webhookVerifyToken=document.getElementById('int-meta-webhook-token').value.trim();
-  if(!accessToken&&!webhookVerifyToken){showToast('Paste an access token or a webhook verify token first','error');return;}
+  const appId=document.getElementById('int-meta-app-id').value.trim();
+  if(!accessToken&&!webhookVerifyToken&&!appId){showToast('Paste an access token, webhook verify token or App ID first','error');return;}
   try{
-    await mt('/settings','POST',{accessToken,webhookVerifyToken});
+    await mt('/settings','POST',{accessToken,webhookVerifyToken,appId});
     document.getElementById('int-meta-token').value='';
     showToast('Meta WhatsApp connection saved','success');
     loadMetaIntegration();
@@ -11941,6 +12053,8 @@ function scheduleCampaign() {
   if (!S.selectedTemplate) { showToast('Select a template before scheduling', 'error'); return; }
   const fireAt = new Date(dtVal).getTime();
   if (fireAt <= Date.now()) { showToast('Scheduled time must be in the future', 'error'); return; }
+  const headerImagePayload = requiredHeaderImagePayload();
+  if (headerImagePayload && !headerImagePayload.headerImageBase64) { showToast('Choose a header image first', 'error'); return; }
 
   const allGroups = document.getElementById('all-groups').checked || S.selectedGroups.length === 0;
   const job = {
@@ -11958,6 +12072,11 @@ function scheduleCampaign() {
     inboxId: S.activeCampaignInboxId || '',
     templateBody: S.selectedTemplate.body||'',
     templateHeader: S.selectedTemplate.header||'',
+    templateHeaderFormat: S.selectedTemplate.headerFormat||'',
+    // Stored in this device's localStorage along with the rest of the scheduled job
+    // (same device-local tradeoff already documented for scheduled campaigns generally) —
+    // kept here, not re-prompted at fire time, since nothing is interactive by then.
+    ...(headerImagePayload||{}),
     deliveryGuard: getDeliveryGuardConfig(),
     createdAt: Date.now()
   };
@@ -11975,6 +12094,8 @@ function scheduleCampaign() {
 // actually sends each batch, on its own schedule, re-checking opt-outs each time.
 async function stageCampaignRollout(){
   if(!S.selectedTemplate){showToast('Select a template before staging a rollout','error');return;}
+  const headerImagePayload=requiredHeaderImagePayload();
+  if(headerImagePayload&&!headerImagePayload.headerImageBase64){showToast('Choose a header image first','error');return;}
   const batchSize=parseInt(document.getElementById('stage-batch-size')?.value,10)||50;
   const intervalMinutes=parseInt(document.getElementById('stage-interval')?.value,10)||60;
   const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
@@ -11988,11 +12109,12 @@ async function stageCampaignRollout(){
       inboxId:S.activeCampaignInboxId||undefined,
       template_name:S.selectedTemplate.name,
       language:S.selectedTemplate.language,
-      template:{header:S.selectedTemplate.header||'',body:S.selectedTemplate.body||'',footer:S.selectedTemplate.footer||''},
+      template:{header:S.selectedTemplate.header||'',body:S.selectedTemplate.body||'',footer:S.selectedTemplate.footer||'',headerFormat:S.selectedTemplate.headerFormat||''},
       audienceLabel,
       batchSize,
       intervalMinutes,
-      delivery_guard:getDeliveryGuardConfig()
+      delivery_guard:getDeliveryGuardConfig(),
+      ...(headerImagePayload||{})
     });
     showToast(`Staged: ${result.totalContacts} contacts over ${result.batches} batch${result.batches===1?'':'es'}, every ${intervalMinutes} min`,'success');
     addNotif(`Campaign "${S.selectedTemplate.name}" staged — ${result.totalContacts} contacts over ${result.batches} batches`);
@@ -12072,12 +12194,13 @@ async function fireScheduledJob(job) {
       brand: _jobUseAll?'ALL':(job.brand||'ALL'),
       template_name: job.template,
       language: job.language,
-      template: {header: job.templateHeader||'', body: job.templateBody||''},
+      template: {header: job.templateHeader||'', body: job.templateBody||'', headerFormat: job.templateHeaderFormat||''},
       audiences: _jobAudiences,
       audience_rules: job.audienceRules || getCampaignAudienceRules(),
       channel: job.channel || 'whatsapp',
       inboxId: job.inboxId || undefined,
-      delivery_guard: job.deliveryGuard || getDeliveryGuardConfig()
+      delivery_guard: job.deliveryGuard || getDeliveryGuardConfig(),
+      ...(job.templateHeaderFormat==='IMAGE'?{headerImageBase64:job.headerImageBase64||'',headerImageMimeType:job.headerImageMimeType||''}:{})
     });
     const failedContacts=(result.results||[]).filter(r=>r.status==='failed').map(r=>({name:r.name,phone:r.phone,reason:r.reason})).slice(0,50);
     const sentContacts=(result.results||[]).filter(r=>r.status==='sent'&&r.messageId).map(r=>({name:r.name,phone:r.phone,messageId:r.messageId})).slice(0,500);

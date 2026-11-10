@@ -66,7 +66,7 @@ export async function handleGetMetaSettings(request, env) {
   const user = await currentUser(request, env);
   if (!requireAdmin(user)) return json({ error: 'Administrator access required.' }, 403);
   const row = await getMetaSettingsRow(env);
-  return json({ hasToken: !!row?.accessTokenEncrypted, webhookVerifyToken: row?.webhookVerifyToken || '' });
+  return json({ hasToken: !!row?.accessTokenEncrypted, webhookVerifyToken: row?.webhookVerifyToken || '', appId: row?.appId || '' });
 }
 
 export async function handleSaveMetaSettings(request, env) {
@@ -84,9 +84,10 @@ export async function handleSaveMetaSettings(request, env) {
   const webhookVerifyToken = body.webhookVerifyToken !== undefined
     ? String(body.webhookVerifyToken).trim()
     : (existing?.webhookVerifyToken || '');
-  await env.DB.prepare(`INSERT INTO meta_whatsapp_settings (id,accessTokenEncrypted,webhookVerifyToken,updatedAt) VALUES (1,?,?,CURRENT_TIMESTAMP)
-    ON CONFLICT(id) DO UPDATE SET accessTokenEncrypted=excluded.accessTokenEncrypted, webhookVerifyToken=excluded.webhookVerifyToken, updatedAt=CURRENT_TIMESTAMP`)
-    .bind(accessTokenEncrypted, webhookVerifyToken).run();
+  const appId = body.appId !== undefined ? String(body.appId).trim() : (existing?.appId || '');
+  await env.DB.prepare(`INSERT INTO meta_whatsapp_settings (id,accessTokenEncrypted,webhookVerifyToken,appId,updatedAt) VALUES (1,?,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET accessTokenEncrypted=excluded.accessTokenEncrypted, webhookVerifyToken=excluded.webhookVerifyToken, appId=excluded.appId, updatedAt=CURRENT_TIMESTAMP`)
+    .bind(accessTokenEncrypted, webhookVerifyToken, appId).run();
   return json({ success: true });
 }
 
@@ -95,9 +96,41 @@ export async function loadWebhookVerifyToken(env) {
   return row?.webhookVerifyToken || '';
 }
 
+export async function loadMetaAppId(env) {
+  const row = await getMetaSettingsRow(env);
+  return row?.appId || '';
+}
+
+// Meta's Resumable Upload API — the only way to attach a concrete example image to an
+// image-header template submission (required for Meta to review it). Two calls: start a
+// session (returns an "upload:..." session id), then upload the bytes to that session
+// (returns the "h" handle the template creation call references). Distinct from the plain
+// /media endpoint campaignSend.js uses to upload an image for actually *sending* a message
+// — different Meta API, different purpose, not interchangeable.
+export async function uploadResumableTemplateMedia(accessToken, appId, base64Data, mimeType) {
+  const bytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+  const startParams = new URLSearchParams({ file_length: String(bytes.length), file_type: mimeType, access_token: accessToken });
+  const startResponse = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${appId}/uploads?${startParams.toString()}`, { method: 'POST' });
+  const startData = await startResponse.json().catch(() => ({}));
+  if (!startResponse.ok) throw new Error(startData.error?.message || `Upload session failed (${startResponse.status})`);
+  const sessionId = startData.id;
+  if (!sessionId) throw new Error('Meta did not return an upload session id.');
+
+  const uploadResponse = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${sessionId}`, {
+    method: 'POST',
+    headers: { authorization: `OAuth ${accessToken}`, file_offset: '0' },
+    body: bytes,
+  });
+  const uploadData = await uploadResponse.json().catch(() => ({}));
+  if (!uploadResponse.ok) throw new Error(uploadData.error?.message || `Upload failed (${uploadResponse.status})`);
+  if (!uploadData.h) throw new Error('Meta did not return a file handle.');
+  return uploadData.h;
+}
+
 function normalizeTemplate(raw, inboxId) {
   const components = raw.components || [];
   const header = components.find(c => c.type === 'HEADER' && c.format === 'TEXT');
+  const imageHeader = components.find(c => c.type === 'HEADER' && c.format === 'IMAGE');
   const body = components.find(c => c.type === 'BODY');
   const footer = components.find(c => c.type === 'FOOTER');
   return {
@@ -107,6 +140,9 @@ function normalizeTemplate(raw, inboxId) {
     category: raw.category,
     status: raw.status,
     header: header?.text || '',
+    // 'IMAGE' when this template needs a header image attached at send time (campaignSend.js
+    // / stagedCampaigns.js both check this), 'TEXT' for a plain text header, '' for none.
+    headerFormat: imageHeader ? 'IMAGE' : (header ? 'TEXT' : ''),
     body: body?.text || '',
     footer: footer?.text || '',
     inboxId,
@@ -165,17 +201,28 @@ export async function handleCreateMetaTemplate(request, env) {
   const name = String(body.name || '').trim();
   const language = String(body.language || '').trim();
   const category = String(body.category || 'MARKETING').trim();
+  const headerFormat = String(body.headerFormat || (body.header ? 'TEXT' : '')).trim().toUpperCase();
   const headerText = String(body.header || '').trim();
+  const headerImageBase64 = String(body.headerImageBase64 || '');
+  const headerImageMimeType = String(body.headerImageMimeType || 'image/jpeg').trim();
   const bodyText = String(body.body || '').trim();
   const footerText = String(body.footer || '').trim();
   if (!name || !language || !bodyText) return json({ error: 'Name, language and body are required.' }, 400);
+  if (headerFormat === 'IMAGE' && !headerImageBase64) return json({ error: 'An image is required for an image header.' }, 400);
 
   const inboxes = await listInboxesWithWaba(env);
   const inbox = inboxId ? inboxes.find(ib => ib.inboxId === inboxId) : inboxes[0];
   if (!inbox) return json({ error: 'No matching inbox with a WABA ID was found. Set one under Integrations → Chatwoot.' }, 400);
 
   const components = [];
-  if (headerText) {
+  if (headerFormat === 'IMAGE') {
+    const appId = await loadMetaAppId(env);
+    if (!appId) return json({ error: 'Meta App ID isn’t set — add one under Integrations → Meta WhatsApp before creating an image-header template.' }, 400);
+    let handle;
+    try { handle = await uploadResumableTemplateMedia(accessToken, appId, headerImageBase64, headerImageMimeType); }
+    catch (error) { return json({ error: `Image upload failed: ${error.message}` }, 502); }
+    components.push({ type: 'HEADER', format: 'IMAGE', example: { header_handle: [handle] } });
+  } else if (headerText) {
     const example = exampleTextFor(headerText);
     components.push({ type: 'HEADER', format: 'TEXT', text: headerText, ...(example ? { example: { header_text: example } } : {}) });
   }
