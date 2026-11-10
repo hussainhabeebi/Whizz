@@ -62,6 +62,28 @@ export async function chatwootFetch(config, path, options = {}) {
   return data;
 }
 
+// Chatwoot's /conversations endpoint paginates (25 per page by default) — a single fetch
+// silently returns only the first page, undercounting every status/inbox with more than one
+// page's worth of chats. Walks pages until Chatwoot's own meta.all_count (the true total
+// under this exact filter) is reached, or a page comes back short/empty, whichever first —
+// so this doesn't depend on guessing Chatwoot's page size. Capped at 80 pages (2000+
+// conversations under one filter) purely as a runaway-loop safety net, not an expected limit.
+export async function fetchAllConversations(config, baseParams) {
+  const all = [];
+  for (let page = 1; page <= 80; page++) {
+    const params = new URLSearchParams(baseParams);
+    params.set('page', String(page));
+    const data = await chatwootFetch(config, `/conversations?${params.toString()}`);
+    const payload = data.data?.payload || data.payload || [];
+    all.push(...payload);
+    const allCount = data.data?.meta?.all_count ?? data.meta?.all_count;
+    if (!payload.length) break;
+    if (typeof allCount === 'number' && all.length >= allCount) break;
+    if (payload.length < 25) break; // short page with no meta to confirm against — assume it's the last
+  }
+  return all;
+}
+
 async function assignmentsByConversation(env) {
   const result = await env.DB.prepare(`SELECT a.conversationId,a.assignedUserEmail,a.assignedTeamId,
     u.name assignedUserName FROM conversation_assignments a LEFT JOIN users u ON u.email=a.assignedUserEmail`).all();
@@ -211,11 +233,10 @@ export async function handleChatwootConversations(request, env) {
   const params = new URLSearchParams({ status });
   if (inboxId) params.set('inbox_id', inboxId);
 
-  let data;
-  try { data = await chatwootFetch(config, `/conversations?${params.toString()}`); }
+  let payload;
+  try { payload = await fetchAllConversations(config, params); }
   catch (error) { return json({ error: error.message }, 502); }
 
-  const payload = data.data?.payload || data.payload || [];
   // Also runs opt-out keyword detection off each conversation's last message — cheaper
   // coverage than waiting for someone to open the full thread, since the list itself is
   // already polled regularly by the Conversations page.
@@ -263,10 +284,9 @@ export async function handleSendTimeSuggestion(request, env) {
   const country = String(url.searchParams.get('country') || '').trim().toLowerCase();
   const platform = String(url.searchParams.get('platform') || '').trim().toLowerCase();
 
-  let data;
-  try { data = await chatwootFetch(config, '/conversations?status=all'); }
+  let payload;
+  try { payload = await fetchAllConversations(config, { status: 'all' }); }
   catch (error) { return json({ error: error.message }, 502); }
-  const payload = data.data?.payload || data.payload || [];
 
   const incoming = payload
     .map(raw => ({
