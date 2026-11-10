@@ -8,7 +8,7 @@
 // cap each time since real time has actually passed between batches.
 import { resolveContactsForCampaign } from './automation.js';
 import { loadMetaAccessToken, GRAPH_API_VERSION } from './metaTemplates.js';
-import { findInbox, sentTodayForInbox, toSendableNumber, buildComponents, classifyMetaErrorCode } from './campaignSend.js';
+import { findInbox, sentTodayForInbox, toSendableNumber, buildComponents, classifyMetaErrorCode, uploadWhatsappMedia } from './campaignSend.js';
 import { getOptedOutSet } from './optOuts.js';
 import { logUserActivity } from './teamActivity.js';
 
@@ -53,11 +53,24 @@ export async function handleCreateStagedRun(request, env) {
   const guard = body.delivery_guard || {};
   const template = body.template || {};
 
+  // Image-header templates: upload the header image once now (not per-batch) and store the
+  // resulting media id on the run — every batch, however many days apart, reuses it.
+  let headerImageMediaId = '';
+  if (template.headerFormat === 'IMAGE') {
+    const headerImageBase64 = String(body.headerImageBase64 || '');
+    if (!headerImageBase64) return json({ error: 'This template has an image header — a header image is required to stage this rollout.' }, 400);
+    const accessToken = await loadMetaAccessToken(env);
+    if (!accessToken) return json({ error: 'Meta WhatsApp isn’t connected yet. Add an access token under Integrations.' }, 503);
+    try { headerImageMediaId = await uploadWhatsappMedia(accessToken, inbox.phoneNumberId, headerImageBase64, String(body.headerImageMimeType || 'image/jpeg')); }
+    catch (error) { return json({ error: `Header image upload failed: ${error.message}` }, 502); }
+  }
+
   const result = await env.DB.prepare(`INSERT INTO staged_campaign_runs
-    (templateName,language,templateHeader,templateBody,templateFooter,inboxId,audienceLabel,batchSize,intervalMinutes,maxPermanentFailureRate,maxTotalFailureRate,remainingContacts,totalContacts,createdByEmail,nextRunAt)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`)
+    (templateName,language,templateHeader,templateBody,templateFooter,templateHeaderFormat,headerImageMediaId,inboxId,audienceLabel,batchSize,intervalMinutes,maxPermanentFailureRate,maxTotalFailureRate,remainingContacts,totalContacts,createdByEmail,nextRunAt)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`)
     .bind(
       templateName, language, template.header || '', template.body || '', template.footer || '',
+      template.headerFormat || '', headerImageMediaId,
       inbox.inboxId, String(body.audienceLabel || '').slice(0, 200), batchSize, intervalMinutes,
       Number(guard.max_permanent_failure_rate ?? 8), Number(guard.max_total_failure_rate ?? 15),
       JSON.stringify(cleaned), cleaned.length, user.email
@@ -131,12 +144,12 @@ async function processOneStagedRun(env, run, accessToken) {
     }
   }
 
-  const template = { name: run.templateName, header: run.templateHeader, body: run.templateBody, footer: run.templateFooter };
+  const template = { name: run.templateName, header: run.templateHeader, body: run.templateBody, footer: run.templateFooter, headerFormat: run.templateHeaderFormat || '' };
   let sentCount = 0, failedCount = 0, permanentFailedCount = 0;
 
   for (const contact of batch) {
     let components;
-    try { components = buildComponents(template, contact); }
+    try { components = buildComponents(template, contact, run.headerImageMediaId); }
     catch (_error) { failedCount++; continue; }
     const payload = {
       messaging_product: 'whatsapp',

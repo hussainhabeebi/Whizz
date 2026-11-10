@@ -194,6 +194,11 @@ async function repairSchema(env) {
   // metaWebhook.js. Not a secret the worker generates; whatever the admin sets here must
   // match what they typed into Meta's console.
   await addColumns(env, 'meta_whatsapp_settings', [['webhookVerifyToken', "TEXT NOT NULL DEFAULT ''"]]);
+  // appId is the Meta App ID from the Developer App Dashboard (distinct from the WABA ID
+  // and phone number ID already tracked on chatwoot_inboxes) — only needed for creating an
+  // image-header template, which requires Meta's Resumable Upload API
+  // (POST /{app-id}/uploads) to get a header_handle before the template can be submitted.
+  await addColumns(env, 'meta_whatsapp_settings', [['appId', "TEXT NOT NULL DEFAULT ''"]]);
 
   // Per-message delivery/read status, updated by Meta's WhatsApp status webhook
   // (metaWebhook.js) as it reports sent → delivered → read (or failed) for each wamid
@@ -300,6 +305,16 @@ async function repairSchema(env) {
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  // Image-header templates: the header media is uploaded once at staging time (not
+  // per-batch — same media id is reused across every batch of this run) via Meta's regular
+  // /media endpoint, distinct from the Resumable Upload API template creation itself uses.
+  // templateHeaderFormat carries 'IMAGE'/'TEXT'/'' through to processOneStagedRun, since the
+  // run's own template fields (templateHeader etc.) don't otherwise say which kind of header
+  // this is.
+  await addColumns(env, 'staged_campaign_runs', [
+    ['templateHeaderFormat', "TEXT NOT NULL DEFAULT ''"],
+    ['headerImageMediaId', "TEXT NOT NULL DEFAULT ''"],
+  ]);
 
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',

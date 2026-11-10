@@ -59,17 +59,45 @@ export function toSendableNumber(phone) {
 // order. {{1}} is filled with the contact's name (a real, useful default); anything beyond
 // that isn't data Whizz has per-contact, so those templates are rejected up front rather
 // than silently sent with placeholder junk.
-export function buildComponents(template, contact) {
+//
+// headerMediaId is required when template.headerFormat is 'IMAGE' — the same uploaded
+// media id (see uploadWhatsappMedia below) is reused for every contact in a campaign,
+// uploaded once rather than per-contact.
+export function buildComponents(template, contact, headerMediaId) {
   const bodyVars = [...new Set([...(template?.body || '').matchAll(/\{\{(\d+)\}\}/g)].map(m => Number(m[1])))].sort((a, b) => a - b);
   const headerVars = [...new Set([...(template?.header || '').matchAll(/\{\{(\d+)\}\}/g)].map(m => Number(m[1])))].sort((a, b) => a - b);
-  if (bodyVars.some(n => n > 1) || headerVars.length) {
+  if (bodyVars.some(n => n > 1) || (template?.headerFormat !== 'IMAGE' && headerVars.length)) {
     throw new Error(`Template "${template?.name}" needs variables beyond {{1}} — bulk sends can only auto-fill {{1}} with the contact's name. Use a simpler template for bulk campaigns.`);
   }
   const components = [];
+  if (template?.headerFormat === 'IMAGE') {
+    if (!headerMediaId) throw new Error(`Template "${template?.name}" has an image header — a header image is required to send it.`);
+    components.push({ type: 'header', parameters: [{ type: 'image', image: { id: headerMediaId } }] });
+  }
   if (bodyVars.length) {
     components.push({ type: 'body', parameters: [{ type: 'text', text: contact.contactName || 'there' }] });
   }
   return components;
+}
+
+// Uploads an image once via Meta's regular /media endpoint (distinct from the Resumable
+// Upload API metaTemplates.js uses to attach an example image to a template submission —
+// this is for actually sending a message, not approving a template) and returns the
+// resulting media id for buildComponents' headerMediaId.
+export async function uploadWhatsappMedia(accessToken, phoneNumberId, base64Data, mimeType) {
+  const bytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+  const form = new FormData();
+  form.append('messaging_product', 'whatsapp');
+  form.append('file', new Blob([bytes], { type: mimeType }), 'header-image');
+  const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/media`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: form,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error?.message || `Meta media upload failed (${response.status})`);
+  if (!data.id) throw new Error('Meta did not return a media id.');
+  return data.id;
 }
 
 // A rough, documented classification of Meta's WhatsApp Cloud API error codes — not
@@ -163,6 +191,19 @@ export async function handleSendCampaignMeta(request, env) {
     template = { name: templateName, body: '', header: '' };
   }
 
+  // Image-header templates: upload the header image once here (not per-contact) and reuse
+  // the resulting media id for the whole send. headerFormat is a property of the approved
+  // template itself (same image family regardless of which language variant a contact gets
+  // auto-picked into below), so this check and upload happen against the top-level template,
+  // not whatever per-language variant resolveTemplateForContact ends up choosing.
+  let headerMediaId = null;
+  if (template.headerFormat === 'IMAGE') {
+    const headerImageBase64 = String(body.headerImageBase64 || '');
+    if (!headerImageBase64) return json({ error: 'This template has an image header — a header image is required to send it.' }, 400);
+    try { headerMediaId = await uploadWhatsappMedia(accessToken, inbox.phoneNumberId, headerImageBase64, String(body.headerImageMimeType || 'image/jpeg')); }
+    catch (error) { return json({ error: `Header image upload failed: ${error.message}` }, 502); }
+  }
+
   // Optional per-contact template-language auto-pick: the frontend passes every approved
   // language variant it already has cached for this template name (same name, different
   // Meta-approved language), and this picks the one matching the contact's country via
@@ -197,7 +238,7 @@ export async function handleSendCampaignMeta(request, env) {
     }
     const { templateName: contactTemplateName, language: contactLanguage, template: contactTemplate } = resolveTemplateForContact(contact);
     let components;
-    try { components = buildComponents(contactTemplate, contact); }
+    try { components = buildComponents({ ...contactTemplate, headerFormat: template.headerFormat }, contact, headerMediaId); }
     catch (error) { results.push({ contactId: contact.id, name: contact.contactName, phone: contact.phone, status: 'failed', reason: error.message, bucket: 'policy' }); totalFails++; continue; }
 
     const payload = {
