@@ -4661,12 +4661,43 @@ async function downloadMessagesConversationsReport(){
       return {inbox,waNormal,waStaged,total:waNormal+waStaged,conversations:convByInbox[inbox]||0};
     }).sort((a,b)=>b.total-a.total);
 
+    // Monthly breakdown — most useful with the period selector on "All Time" (a specific
+    // month naturally collapses to one row). "Unknown month" catches the rare row with no
+    // usable date (a Brevo campaign with no sentDate, a conversation with no last_activity)
+    // rather than silently dropping it from this table while it still counts in the KPIs above.
+    const monthKeyOf=ts=>{
+      const n=typeof ts==='number'?ts:Date.parse(ts);
+      if(!Number.isFinite(n)||n<=0)return null;
+      const d=new Date(n);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    };
+    const monthLabelOf=key=>{
+      if(key==='unknown')return 'Unknown month';
+      const[y,m]=key.split('-').map(Number);
+      return new Date(y,m-1,1).toLocaleString('default',{month:'long',year:'numeric'});
+    };
+    const monthly={};
+    const bumpMonth=(key,field,amount)=>{
+      const k=key||'unknown';
+      monthly[k]=monthly[k]||{email:0,waNormal:0,waStaged:0,conversations:0};
+      monthly[k][field]+=amount;
+    };
+    brevoCampaigns.forEach(c=>{ if(c.sent)bumpMonth(monthKeyOf(c.sentDate),'email',c.sent||0); });
+    waHistory.forEach(h=>{ if(h.sent)bumpMonth(monthKeyOf(h.ts),h.staged?'waStaged':'waNormal',h.sent); });
+    conversations.forEach(c=>{ bumpMonth(monthKeyOf((c.last_activity||0)*1000),'conversations',1); });
+    const monthRows=Object.keys(monthly)
+      .sort((a,b)=>a==='unknown'?1:b==='unknown'?-1:a.localeCompare(b))
+      .map(key=>{
+        const m=monthly[key];
+        return {monthLabel:monthLabelOf(key),email:m.email,waNormal:m.waNormal,waStaged:m.waStaged,total:m.email+m.waNormal+m.waStaged,conversations:m.conversations};
+      });
+
     const now=new Date();
     const html=buildMessagesConversationsReportHtml({
       generatedAt:now,periodLabel,
       allTotal:emailTotal+waNormalTotal+waStagedTotal,
       emailTotal,waNormalTotal,waStagedTotal,convTotal:conversations.length,
-      brandRows,inboxRows
+      brandRows,inboxRows,monthRows
     });
     downloadHTML(html,`Whizz-Messages-Conversations-Report-${period}-${now.toISOString().slice(0,10)}.html`);
     showToast('Report downloaded!','success');
@@ -4682,6 +4713,9 @@ function buildMessagesConversationsReportHtml(d){
   const inboxRowsHtml=d.inboxRows.length?d.inboxRows.map(r=>
     `<tr><td>${_hesc(r.inbox)}</td><td style="text-align:right;">${r.waNormal.toLocaleString()}</td><td style="text-align:right;">${r.waStaged.toLocaleString()}</td><td style="text-align:right;font-weight:700;">${r.total.toLocaleString()}</td><td style="text-align:right;">${r.conversations.toLocaleString()}</td></tr>`
   ).join(''):'<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px;">No WhatsApp sends or conversations for this period</td></tr>';
+  const monthRowsHtml=d.monthRows.length?d.monthRows.map(r=>
+    `<tr><td>${_hesc(r.monthLabel)}</td><td style="text-align:right;">${r.email.toLocaleString()}</td><td style="text-align:right;">${r.waNormal.toLocaleString()}</td><td style="text-align:right;">${r.waStaged.toLocaleString()}</td><td style="text-align:right;font-weight:700;">${r.total.toLocaleString()}</td><td style="text-align:right;">${r.conversations.toLocaleString()}</td></tr>`
+  ).join(''):'<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px;">No dated messages or conversations for this period</td></tr>';
   return`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Whizz Messages &amp; Conversations Report — ${d.periodLabel}</title>
 <style>
@@ -4733,6 +4767,14 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
     <div class="kpi-card amber"><div class="kpi-label">WhatsApp — Normal</div><div class="kpi-value">${d.waNormalTotal.toLocaleString()}</div><div class="kpi-sub">Immediate, resend &amp; scheduled</div></div>
     <div class="kpi-card red"><div class="kpi-label">WhatsApp — Staged Rollout</div><div class="kpi-value">${d.waStagedTotal.toLocaleString()}</div><div class="kpi-sub">Time-staged batches</div></div>
     <div class="kpi-card purple"><div class="kpi-label">Conversations</div><div class="kpi-value">${d.convTotal.toLocaleString()}</div><div class="kpi-sub">Open + pending + resolved</div></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Messages &amp; Conversations by Month</div>
+    <div class="section-note">Most useful with the period selector set to "All Time" — a single selected month naturally collapses to one row here. A row with no usable date (an email campaign with no send date on file, a conversation with no recorded activity) is shown as "Unknown month" rather than silently dropped — it still counts in the totals above.</div>
+    <table>
+      <thead><tr><th>Month</th><th style="text-align:right;">Email</th><th style="text-align:right;">WhatsApp (Normal)</th><th style="text-align:right;">WhatsApp (Staged)</th><th style="text-align:right;">Total Messages</th><th style="text-align:right;">Conversations</th></tr></thead>
+      <tbody>${monthRowsHtml}</tbody>
+    </table>
   </div>
   <div class="section">
     <div class="section-title">Messages &amp; Conversations by Brand</div>
