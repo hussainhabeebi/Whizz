@@ -217,6 +217,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .s-icon.green{background:var(--green-dim);color:var(--green);}
 .s-icon.blue{background:var(--blue-dim);color:var(--blue);}
 .s-icon.red{background:var(--red-dim);color:var(--red);}
+.s-icon.purple{background:rgba(139,92,246,0.1);color:#8b5cf6;}
 .s-icon svg{width:17px;height:17px;}
 
 /* Card */
@@ -966,6 +967,10 @@ body.dark{
       <div class="nav-item" data-page="reports" onclick="navigate('reports',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         Reports
+      </div>
+      <div class="nav-item" data-page="marketing-activity" onclick="navigate('marketing-activity',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 15l2.5 2.5L15 13"/></svg>
+        Daily Activity
       </div>
       <div class="nav-section">Data</div>
       <div class="nav-item" data-page="leads" onclick="navigate('leads',this)">
@@ -1902,6 +1907,44 @@ body.dark{
             <div class="stats-grid" id="li-kpis" style="margin-bottom:16px;"></div>
             <div class="eyebrow" style="margin-bottom:8px;">Top 10 Leads by Score</div>
             <div id="li-top10"><div class="empty-state">Click Refresh to load lead intelligence.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily Marketing Activity Dashboard -->
+      <div class="page" id="page-marketing-activity">
+        <div class="cache-banner" id="ma-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Cached. Click Refresh to reload.</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+          <div>
+            <div class="eyebrow">Today</div>
+            <div style="font-size:11px;color:var(--text3);" id="ma-today-label"></div>
+          </div>
+          <button class="t-btn btn-primary" onclick="refreshMarketingActivity()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div class="stats-grid" id="ma-today-stats">
+          <div class="stat-card blue"><div class="s-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="s-label">Messages Sent Today</div><div class="s-value" id="ma-today-total">—</div><div class="s-sub">Email + WhatsApp, all sources</div></div>
+          <div class="stat-card green"><div class="s-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div class="s-label">Email Today</div><div class="s-value" id="ma-today-email">—</div><div class="s-sub">Brevo campaigns</div></div>
+          <div class="stat-card amber"><div class="s-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="s-label">WhatsApp Today</div><div class="s-value" id="ma-today-whatsapp">—</div><div class="s-sub"><span id="ma-today-wa-split">—</span></div></div>
+          <div class="stat-card purple"><div class="s-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="s-label">Conversations Today</div><div class="s-value" id="ma-today-conv">—</div><div class="s-sub">Across all inboxes</div></div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head"><div class="card-title">Messages Sent — Last 14 Days</div></div>
+          <div class="card-body"><div id="ma-trend-chart"><div class="empty-state">Click Refresh to load.</div></div></div>
+        </div>
+        <div class="two-col-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Conversations by Inbox</div><span style="font-size:10.5px;color:var(--text3);">Last 30 days</span></div>
+            <div class="card-body"><div id="ma-inbox-conv"><div class="empty-state">Click Refresh to load.</div></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">Conversations by Brand</div><span style="font-size:10.5px;color:var(--text3);">Last 30 days</span></div>
+            <div class="card-body"><div id="ma-brand-conv"><div class="empty-state">Click Refresh to load.</div></div></div>
           </div>
         </div>
       </div>
@@ -3457,8 +3500,8 @@ function saveConvIdSet(key,set){ try{localStorage.setItem(key,JSON.stringify([..
 function loadPinnedMsgMap(){ try{return JSON.parse(localStorage.getItem(PINNED_MSG_KEY)||'{}');}catch(e){return{};} }
 function savePinnedMsgMap(map){ try{localStorage.setItem(PINNED_MSG_KEY,JSON.stringify(map));}catch(e){} }
 const ROLE_EXPERIENCES={
-  Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','telegram','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
-  Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','telegram','templates','conversations','enquiries','tasks','reports','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
+  Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','telegram','templates','conversations','enquiries','tasks','reports','marketing-activity','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
+  Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','telegram','templates','conversations','enquiries','tasks','reports','marketing-activity','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
   Sales:{label:'My sales workspace',copy:'Focus on assigned leads, live conversations, follow-ups and the next best action.',pages:['dashboard','conversations','enquiries','tasks','leads','stock','pipeline','campaigns','suggestions','history','telegram','templates'],actions:[['Open inbox','conversations'],['My leads','leads'],["Today's tasks",'tasks']]}
 };
 let CURRENT_SESSION=null;
@@ -4607,32 +4650,44 @@ function brandFromEmailCampaignName(name){
   const known=(S.cache.brands||[]).find(b=>String(name||'').toLowerCase().includes(b.toLowerCase()));
   return known||'Unknown';
 }
+function inboxLabelFor(id){ return id?((S.chatwootInboxes||[]).find(ib=>ib.inboxId===id)?.label||id):'Unassigned'; }
+// Shared by downloadMessagesConversationsReport() and the Daily Marketing Activity
+// dashboard — a conversation's own record carries no brand, so this is the only signal:
+// match its phone number against the CRM (same normalized-phone convention used
+// throughout — strip +, spaces, dashes). No match (or no phone at all, e.g. an email/web
+// chat) means "Unknown" rather than a guess.
+async function buildPhoneToBrandMap(){
+  const map=new Map();
+  try{
+    const data=await apiW('whizz-get-contacts');
+    (data.contacts||[]).forEach(c=>{
+      const key=normalizedPhoneKey(c.phone);
+      if(key&&c.brand)map.set(key,c.brand);
+    });
+  }catch(e){ /* best-effort — callers treat a missing match as "Unknown" */ }
+  return map;
+}
+// Same three-status merge refreshConversations() uses, factored out so every feature that
+// needs "every conversation regardless of status" (not just the open queue) shares it.
+async function fetchAllConversationsMerged(){
+  try{
+    const[o,p,r]=await Promise.all([
+      cw(convQS('open')).catch(()=>({conversations:[]})),
+      cw(convQS('pending')).catch(()=>({conversations:[]})),
+      cw(convQS('resolved')).catch(()=>({conversations:[]}))
+    ]);
+    return [...(o.conversations||[]),...(p.conversations||[]),...(r.conversations||[])];
+  }catch(e){ return S.cache.conversations||[]; }
+}
 async function downloadMessagesConversationsReport(){
   const btn=document.getElementById('download-messages-conv-report-btn');
   if(btn){btn.disabled=true;btn.style.opacity='0.6';}
   try{
     const period=S.reportsPeriod||'all';
     const periodLabel=reportsPeriodLabel();
-    const inboxLabelFor=id=>id?((S.chatwootInboxes||[]).find(ib=>ib.inboxId===id)?.label||id):'Unassigned';
 
-    let phoneToBrand=new Map();
-    try{
-      const data=await apiW('whizz-get-contacts');
-      (data.contacts||[]).forEach(c=>{
-        const key=normalizedPhoneKey(c.phone);
-        if(key&&c.brand)phoneToBrand.set(key,c.brand);
-      });
-    }catch(e){ /* best-effort — conversations just fall into "Unknown" brand if this fails */ }
-
-    let conversations=[];
-    try{
-      const[o,p,r]=await Promise.all([
-        cw(convQS('open')).catch(()=>({conversations:[]})),
-        cw(convQS('pending')).catch(()=>({conversations:[]})),
-        cw(convQS('resolved')).catch(()=>({conversations:[]}))
-      ]);
-      conversations=[...(o.conversations||[]),...(p.conversations||[]),...(r.conversations||[])];
-    }catch(e){ conversations=S.cache.conversations||[]; }
+    const phoneToBrand=await buildPhoneToBrandMap();
+    let conversations=await fetchAllConversationsMerged();
     conversations=conversations.filter(c=>reportsPeriodMatchesTs((c.last_activity||0)*1000,period));
 
     const convByBrand={},convByInbox={};
@@ -4822,6 +4877,112 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
 </body></html>`;
 }
 
+// ── Daily Marketing Activity Dashboard ──
+// The live, in-app counterpart to the Messages & Conversations Report above (which is a
+// static, printable snapshot) — same underlying sources (historyWithStagedRuns, Brevo
+// campaigns, conversations merged across every status), but daily granularity, and
+// rendered straight into the page instead of downloaded. Reuses this app's own existing
+// chart building blocks (_renderWeeklyStackedChart, reportBarRow — same series palette
+// already used by Weekly Campaign Reports) rather than introducing a new charting approach.
+function _maDayKey(ts){
+  const d=new Date(ts);
+  d.setHours(0,0,0,0);
+  return d.getTime();
+}
+function _maBuildRecentDays(n){
+  const days=[];
+  const today=_maDayKey(Date.now());
+  for(let i=n-1;i>=0;i--){
+    const key=today-i*86400000;
+    days.push({key,label:new Date(key).toLocaleDateString('default',{day:'2-digit',month:'short'})});
+  }
+  return days;
+}
+async function refreshMarketingActivity(){
+  try{
+    const todayKey=_maDayKey(Date.now());
+    const todayLabelEl=document.getElementById('ma-today-label');
+    if(todayLabelEl)todayLabelEl.textContent=new Date(todayKey).toLocaleDateString('en-AE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+
+    const [phoneToBrand,conversationsAll]=await Promise.all([buildPhoneToBrandMap(),fetchAllConversationsMerged()]);
+
+    // Fetched independently of whatever period the Reports page's own selector happens to
+    // be set to, so "today" / "last 14 days" here always reflect real calendar days
+    // regardless of that unrelated page's state.
+    let brevoCampaigns=[];
+    try{ const d=await api('whizz-get-brevo-stats?period=all'); brevoCampaigns=d.campaigns||[]; }catch(e){ brevoCampaigns=[]; }
+
+    const waHistory=historyWithStagedRuns();
+    const days=_maBuildRecentDays(14);
+    const dayIndex=new Map(days.map((d,i)=>[d.key,i]));
+    const perDay=days.map(()=>({email:0,waNormal:0,waStaged:0}));
+    let todayEmail=0,todayWaNormal=0,todayWaStaged=0;
+
+    brevoCampaigns.forEach(c=>{
+      const sent=c.sent||0;
+      if(!sent||!c.sentDate)return;
+      const key=_maDayKey(Date.parse(c.sentDate));
+      if(key===todayKey)todayEmail+=sent;
+      const idx=dayIndex.get(key);
+      if(idx!==undefined)perDay[idx].email+=sent;
+    });
+    waHistory.forEach(h=>{
+      const sent=h.sent||0;
+      if(!sent||!h.ts)return;
+      const key=_maDayKey(h.ts);
+      if(key===todayKey){ if(h.staged)todayWaStaged+=sent; else todayWaNormal+=sent; }
+      const idx=dayIndex.get(key);
+      if(idx===undefined)return;
+      if(h.staged)perDay[idx].waStaged+=sent; else perDay[idx].waNormal+=sent;
+    });
+
+    const conv30=conversationsAll.filter(c=>Date.now()-(c.last_activity||0)*1000<=30*86400000);
+    const convToday=conversationsAll.filter(c=>_maDayKey((c.last_activity||0)*1000)===todayKey).length;
+    const convByInbox={},convByBrand={};
+    conv30.forEach(c=>{
+      const inbox=inboxLabelFor(c.inboxId);
+      convByInbox[inbox]=(convByInbox[inbox]||0)+1;
+      const brand=phoneToBrand.get(normalizedPhoneKey(convPhone(c)))||'Unknown';
+      convByBrand[brand]=(convByBrand[brand]||0)+1;
+    });
+
+    renderMarketingActivityDashboard({
+      todayEmail,todayWaNormal,todayWaStaged,convToday,days,perDay,
+      inboxRows:Object.entries(convByInbox).sort((a,b)=>b[1]-a[1]),
+      brandRows:Object.entries(convByBrand).sort((a,b)=>b[1]-a[1]),
+    });
+    hideBanner('ma');
+  }catch(e){
+    showToast(e.message||'Failed to load marketing activity','error');
+  }
+}
+function renderMarketingActivityDashboard(d){
+  document.getElementById('ma-today-total').textContent=(d.todayEmail+d.todayWaNormal+d.todayWaStaged).toLocaleString();
+  document.getElementById('ma-today-email').textContent=d.todayEmail.toLocaleString();
+  document.getElementById('ma-today-whatsapp').textContent=(d.todayWaNormal+d.todayWaStaged).toLocaleString();
+  document.getElementById('ma-today-wa-split').textContent=`${d.todayWaNormal.toLocaleString()} normal · ${d.todayWaStaged.toLocaleString()} staged`;
+  document.getElementById('ma-today-conv').textContent=d.convToday.toLocaleString();
+
+  const catMaps=d.perDay.map(x=>new Map([['Email',x.email],['WhatsApp (Normal)',x.waNormal],['WhatsApp (Staged)',x.waStaged]]));
+  const totals=new Map();
+  d.perDay.forEach(x=>{
+    totals.set('Email',(totals.get('Email')||0)+x.email);
+    totals.set('WhatsApp (Normal)',(totals.get('WhatsApp (Normal)')||0)+x.waNormal);
+    totals.set('WhatsApp (Staged)',(totals.get('WhatsApp (Staged)')||0)+x.waStaged);
+  });
+  _renderWeeklyStackedChart('ma-trend-chart',d.days,catMaps,totals);
+
+  const renderRanked=(containerId,rows,color)=>{
+    const el=document.getElementById(containerId);
+    if(!el)return;
+    if(!rows.length){el.innerHTML='<div class="empty-state">No conversations in the last 30 days.</div>';return;}
+    const max=rows[0]?.[1]||1;
+    el.innerHTML=rows.slice(0,10).map(([k,v])=>reportBarRow(_hesc(k),v,max,color)).join('');
+  };
+  renderRanked('ma-inbox-conv',d.inboxRows,'var(--blue)');
+  renderRanked('ma-brand-conv',d.brandRows,'var(--green)');
+}
+
 // ── Notifications ──
 function loadNotifications() { const raw=localStorage.getItem(NOTIF_KEY);S.notifications=raw?JSON.parse(raw):[];renderNotifs(); }
 function addNotif(text) {
@@ -4921,8 +5082,8 @@ function navigate(page, el) {
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
   if(page!=='conversations' && S.liveSync) stopLiveSync();
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',telegram:'Telegram Marketing',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events',reliability:'System Health'};
-  const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',telegram:'Bulk outreach to contacts who’ve started your Telegram bot',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',telegram:'Telegram Marketing',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports','marketing-activity':'Daily Marketing Activity',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events',reliability:'System Health'};
+  const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',telegram:'Bulk outreach to contacts who’ve started your Telegram bot',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms','marketing-activity':'Today\'s activity, a 14-day trend, and conversations by inbox & brand',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics'};
   document.getElementById('page-title').textContent=titles[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   S.page=page; document.body.dataset.page=page; closeSidebar();
@@ -4953,6 +5114,7 @@ function navigate(page, el) {
   if(page==='conversations'){refreshConversations().catch(()=>{});}
   if(page==='enquiries'){refreshEnquiries().catch(()=>{});}
   if(page==='reports'){refreshReportsPage().catch(()=>{});}
+  if(page==='marketing-activity'){refreshMarketingActivity().catch(()=>{});}
   if(page==='stock'){refreshStock().catch(()=>{});}
   if(page==='integrations'){loadIntegrationsStatus();}
   if(page==='reliability'){runSystemHealthChecks();}
