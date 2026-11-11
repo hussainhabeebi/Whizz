@@ -1922,10 +1922,16 @@ body.dark{
             <div class="eyebrow">Today</div>
             <div style="font-size:11px;color:var(--text3);" id="ma-today-label"></div>
           </div>
-          <button class="t-btn btn-primary" onclick="refreshMarketingActivity()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            Refresh
-          </button>
+          <div style="display:flex;gap:8px;">
+            <button class="t-btn btn-ghost" id="download-marketing-activity-report-btn" onclick="downloadMarketingActivityReport()" title="Download a presentable, printable snapshot of this page">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Report
+            </button>
+            <button class="t-btn btn-primary" onclick="refreshMarketingActivity()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Refresh
+            </button>
+          </div>
         </div>
         <div class="stats-grid" id="ma-today-stats">
           <div class="stat-card blue"><div class="s-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><div class="s-label">Messages Sent Today</div><div class="s-value" id="ma-today-total">—</div><div class="s-sub">Email + WhatsApp, all sources</div></div>
@@ -4898,59 +4904,66 @@ function _maBuildRecentDays(n){
   }
   return days;
 }
+// Shared by the live dashboard and its downloadable report — one fetch/compute pass, two
+// renderers. todayKey is also returned since both callers need it for their own date
+// labeling (the live header, the report's "generated" line).
+async function computeMarketingActivityData(){
+  const todayKey=_maDayKey(Date.now());
+
+  const [phoneToBrand,conversationsAll]=await Promise.all([buildPhoneToBrandMap(),fetchAllConversationsMerged()]);
+
+  // Fetched independently of whatever period the Reports page's own selector happens to
+  // be set to, so "today" / "last 14 days" here always reflect real calendar days
+  // regardless of that unrelated page's state.
+  let brevoCampaigns=[];
+  try{ const d=await api('whizz-get-brevo-stats?period=all'); brevoCampaigns=d.campaigns||[]; }catch(e){ brevoCampaigns=[]; }
+
+  const waHistory=historyWithStagedRuns();
+  const days=_maBuildRecentDays(14);
+  const dayIndex=new Map(days.map((d,i)=>[d.key,i]));
+  const perDay=days.map(()=>({email:0,waNormal:0,waStaged:0}));
+  let todayEmail=0,todayWaNormal=0,todayWaStaged=0;
+
+  brevoCampaigns.forEach(c=>{
+    const sent=c.sent||0;
+    if(!sent||!c.sentDate)return;
+    const key=_maDayKey(Date.parse(c.sentDate));
+    if(key===todayKey)todayEmail+=sent;
+    const idx=dayIndex.get(key);
+    if(idx!==undefined)perDay[idx].email+=sent;
+  });
+  waHistory.forEach(h=>{
+    const sent=h.sent||0;
+    if(!sent||!h.ts)return;
+    const key=_maDayKey(h.ts);
+    if(key===todayKey){ if(h.staged)todayWaStaged+=sent; else todayWaNormal+=sent; }
+    const idx=dayIndex.get(key);
+    if(idx===undefined)return;
+    if(h.staged)perDay[idx].waStaged+=sent; else perDay[idx].waNormal+=sent;
+  });
+
+  const conv30=conversationsAll.filter(c=>Date.now()-(c.last_activity||0)*1000<=30*86400000);
+  const convToday=conversationsAll.filter(c=>_maDayKey((c.last_activity||0)*1000)===todayKey).length;
+  const convByInbox={},convByBrand={};
+  conv30.forEach(c=>{
+    const inbox=inboxLabelFor(c.inboxId);
+    convByInbox[inbox]=(convByInbox[inbox]||0)+1;
+    const brand=phoneToBrand.get(normalizedPhoneKey(convPhone(c)))||'Unknown';
+    convByBrand[brand]=(convByBrand[brand]||0)+1;
+  });
+
+  return {
+    todayKey,todayEmail,todayWaNormal,todayWaStaged,convToday,days,perDay,
+    inboxRows:Object.entries(convByInbox).sort((a,b)=>b[1]-a[1]),
+    brandRows:Object.entries(convByBrand).sort((a,b)=>b[1]-a[1]),
+  };
+}
 async function refreshMarketingActivity(){
   try{
-    const todayKey=_maDayKey(Date.now());
+    const d=await computeMarketingActivityData();
     const todayLabelEl=document.getElementById('ma-today-label');
-    if(todayLabelEl)todayLabelEl.textContent=new Date(todayKey).toLocaleDateString('en-AE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
-
-    const [phoneToBrand,conversationsAll]=await Promise.all([buildPhoneToBrandMap(),fetchAllConversationsMerged()]);
-
-    // Fetched independently of whatever period the Reports page's own selector happens to
-    // be set to, so "today" / "last 14 days" here always reflect real calendar days
-    // regardless of that unrelated page's state.
-    let brevoCampaigns=[];
-    try{ const d=await api('whizz-get-brevo-stats?period=all'); brevoCampaigns=d.campaigns||[]; }catch(e){ brevoCampaigns=[]; }
-
-    const waHistory=historyWithStagedRuns();
-    const days=_maBuildRecentDays(14);
-    const dayIndex=new Map(days.map((d,i)=>[d.key,i]));
-    const perDay=days.map(()=>({email:0,waNormal:0,waStaged:0}));
-    let todayEmail=0,todayWaNormal=0,todayWaStaged=0;
-
-    brevoCampaigns.forEach(c=>{
-      const sent=c.sent||0;
-      if(!sent||!c.sentDate)return;
-      const key=_maDayKey(Date.parse(c.sentDate));
-      if(key===todayKey)todayEmail+=sent;
-      const idx=dayIndex.get(key);
-      if(idx!==undefined)perDay[idx].email+=sent;
-    });
-    waHistory.forEach(h=>{
-      const sent=h.sent||0;
-      if(!sent||!h.ts)return;
-      const key=_maDayKey(h.ts);
-      if(key===todayKey){ if(h.staged)todayWaStaged+=sent; else todayWaNormal+=sent; }
-      const idx=dayIndex.get(key);
-      if(idx===undefined)return;
-      if(h.staged)perDay[idx].waStaged+=sent; else perDay[idx].waNormal+=sent;
-    });
-
-    const conv30=conversationsAll.filter(c=>Date.now()-(c.last_activity||0)*1000<=30*86400000);
-    const convToday=conversationsAll.filter(c=>_maDayKey((c.last_activity||0)*1000)===todayKey).length;
-    const convByInbox={},convByBrand={};
-    conv30.forEach(c=>{
-      const inbox=inboxLabelFor(c.inboxId);
-      convByInbox[inbox]=(convByInbox[inbox]||0)+1;
-      const brand=phoneToBrand.get(normalizedPhoneKey(convPhone(c)))||'Unknown';
-      convByBrand[brand]=(convByBrand[brand]||0)+1;
-    });
-
-    renderMarketingActivityDashboard({
-      todayEmail,todayWaNormal,todayWaStaged,convToday,days,perDay,
-      inboxRows:Object.entries(convByInbox).sort((a,b)=>b[1]-a[1]),
-      brandRows:Object.entries(convByBrand).sort((a,b)=>b[1]-a[1]),
-    });
+    if(todayLabelEl)todayLabelEl.textContent=new Date(d.todayKey).toLocaleDateString('en-AE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+    renderMarketingActivityDashboard(d);
     hideBanner('ma');
   }catch(e){
     showToast(e.message||'Failed to load marketing activity','error');
@@ -4970,7 +4983,7 @@ function renderMarketingActivityDashboard(d){
     totals.set('WhatsApp (Normal)',(totals.get('WhatsApp (Normal)')||0)+x.waNormal);
     totals.set('WhatsApp (Staged)',(totals.get('WhatsApp (Staged)')||0)+x.waStaged);
   });
-  _renderWeeklyStackedChart('ma-trend-chart',d.days,catMaps,totals);
+  _renderWeeklyStackedChart('ma-trend-chart',d.days,catMaps,totals,'No messages sent in the last 14 days.');
 
   const renderRanked=(containerId,rows,color)=>{
     const el=document.getElementById(containerId);
@@ -4981,6 +4994,112 @@ function renderMarketingActivityDashboard(d){
   };
   renderRanked('ma-inbox-conv',d.inboxRows,'var(--blue)');
   renderRanked('ma-brand-conv',d.brandRows,'var(--green)');
+}
+async function downloadMarketingActivityReport(){
+  const btn=document.getElementById('download-marketing-activity-report-btn');
+  if(btn){btn.disabled=true;btn.style.opacity='0.6';}
+  try{
+    const d=await computeMarketingActivityData();
+    const now=new Date();
+    const html=buildMarketingActivityReportHtml({generatedAt:now,...d});
+    downloadHTML(html,`Whizz-Daily-Marketing-Activity-${now.toISOString().slice(0,10)}.html`);
+    showToast('Report downloaded!','success');
+  }catch(e){
+    showToast(e.message||'Failed to build report','error');
+  }
+  if(btn){btn.disabled=false;btn.style.opacity='';}
+}
+// Static, printable snapshot of the live dashboard above — same computeMarketingActivityData
+// source, same honesty conventions as the Messages & Conversations Report (an email
+// campaign/conversation that can't be dated or brand-matched still counts in the totals,
+// it just doesn't get its own row). The live page's interactive stacked SVG chart has no
+// equivalent here — a day-by-day table is this app's own established convention for a
+// time series in a downloadable report (see "Daily Leads — Last 7 Days" elsewhere).
+function buildMarketingActivityReportHtml(d){
+  const todayTotal=d.todayEmail+d.todayWaNormal+d.todayWaStaged;
+  const dayRows=d.days.map((day,i)=>{
+    const p=d.perDay[i];
+    const total=p.email+p.waNormal+p.waStaged;
+    return `<tr><td>${day.label}</td><td style="text-align:right;">${p.email.toLocaleString()}</td><td style="text-align:right;">${p.waNormal.toLocaleString()}</td><td style="text-align:right;">${p.waStaged.toLocaleString()}</td><td style="text-align:right;font-weight:700;">${total.toLocaleString()}</td></tr>`;
+  }).join('');
+  const inboxRowsHtml=d.inboxRows.length?d.inboxRows.map(([k,v])=>`<tr><td>${_hesc(k)}</td><td style="text-align:right;font-weight:700;">${v.toLocaleString()}</td></tr>`).join(''):'<tr><td colspan="2" style="text-align:center;color:#94a3b8;padding:20px;">No conversations in the last 30 days</td></tr>';
+  const brandRowsHtml=d.brandRows.length?d.brandRows.map(([k,v])=>`<tr><td>${_hesc(k)}</td><td style="text-align:right;font-weight:700;">${v.toLocaleString()}</td></tr>`).join(''):'<tr><td colspan="2" style="text-align:center;color:#94a3b8;padding:20px;">No conversations in the last 30 days</td></tr>';
+  return`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Whizz Daily Marketing Activity — ${d.generatedAt.toLocaleDateString()}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',Arial,sans-serif;background:#f1f3f7;color:#0f172a;padding:32px;}
+.page{max-width:900px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,0.08);padding:40px;}
+.report-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #f1f3f7;padding-bottom:20px;margin-bottom:28px;}
+.brand{font-family:Georgia,serif;font-weight:800;font-size:26px;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.header-meta{text-align:right;font-size:13px;}
+.header-meta .title{font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px;}
+.muted{color:#94a3b8;font-size:12px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px;}
+.kpi-card{border-radius:12px;padding:18px;border:1px solid #e8ecf2;}
+.kpi-card.blue{background:rgba(37,99,235,0.08);}
+.kpi-card.green{background:rgba(22,163,74,0.08);}
+.kpi-card.amber{background:rgba(245,158,11,0.08);}
+.kpi-card.purple{background:rgba(139,92,246,0.08);}
+.kpi-label{font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+.kpi-value{font-size:28px;font-weight:800;line-height:1;margin-bottom:6px;}
+.kpi-card.blue .kpi-value{color:#2563eb;}
+.kpi-card.green .kpi-value{color:#16a34a;}
+.kpi-card.amber .kpi-value{color:#d97706;}
+.kpi-card.purple .kpi-value{color:#8b5cf6;}
+.kpi-sub{font-size:11px;color:#94a3b8;}
+.section{margin-bottom:28px;}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#0f172a;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e8ecf2;}
+.two-col-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#475569;padding:8px 10px;border-bottom:2px solid #e8ecf2;}
+td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
+.print-btn{display:block;margin:0 auto 20px;padding:10px 20px;background:#f59e0b;color:#000;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;}
+.report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #e8ecf2;}
+@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;padding:0;}}
+</style></head>
+<body>
+<div class="page">
+  <div class="report-header">
+    <div class="brand">Whizz.</div>
+    <div class="header-meta">
+      <div class="title">Daily Marketing Activity</div>
+      <div class="muted">Generated ${d.generatedAt.toLocaleString()}</div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card blue"><div class="kpi-label">Messages Sent Today</div><div class="kpi-value">${todayTotal.toLocaleString()}</div><div class="kpi-sub">Email + WhatsApp, all sources</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Email Today</div><div class="kpi-value">${d.todayEmail.toLocaleString()}</div><div class="kpi-sub">Brevo campaigns</div></div>
+    <div class="kpi-card amber"><div class="kpi-label">WhatsApp Today</div><div class="kpi-value">${(d.todayWaNormal+d.todayWaStaged).toLocaleString()}</div><div class="kpi-sub">${d.todayWaNormal.toLocaleString()} normal · ${d.todayWaStaged.toLocaleString()} staged</div></div>
+    <div class="kpi-card purple"><div class="kpi-label">Conversations Today</div><div class="kpi-value">${d.convToday.toLocaleString()}</div><div class="kpi-sub">Across all inboxes</div></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Messages Sent — Last 14 Days</div>
+    <table>
+      <thead><tr><th>Day</th><th style="text-align:right;">Email</th><th style="text-align:right;">WhatsApp (Normal)</th><th style="text-align:right;">WhatsApp (Staged)</th><th style="text-align:right;">Total</th></tr></thead>
+      <tbody>${dayRows}</tbody>
+    </table>
+  </div>
+  <div class="two-col-section section">
+    <div>
+      <div class="section-title">Conversations by Inbox — Last 30 Days</div>
+      <table>
+        <thead><tr><th>Inbox</th><th style="text-align:right;">Conversations</th></tr></thead>
+        <tbody>${inboxRowsHtml}</tbody>
+      </table>
+    </div>
+    <div>
+      <div class="section-title">Conversations by Brand — Last 30 Days</div>
+      <table>
+        <thead><tr><th>Brand</th><th style="text-align:right;">Conversations</th></tr></thead>
+        <tbody>${brandRowsHtml}</tbody>
+      </table>
+    </div>
+  </div>
+  <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+  <div class="report-footer">Whizz Marketing Console — Daily Marketing Activity</div>
+</div>
+</body></html>`;
 }
 
 // ── Notifications ──
@@ -9761,11 +9880,11 @@ function toggleChartTable(containerId){
     if(btn)btn.textContent='View as chart';
   }
 }
-function _renderWeeklyStackedChart(containerId,weeks,perWeek,totals){
+function _renderWeeklyStackedChart(containerId,weeks,perWeek,totals,emptyLabel){
   const el=document.getElementById(containerId);
   if(!el)return;
   const ranked=[...totals.entries()].sort((a,b)=>b[1]-a[1]).map(([k])=>k);
-  if(!ranked.length){el.innerHTML='<div class="empty-state">No sends in the last 8 weeks.</div>';return;}
+  if(!ranked.length){el.innerHTML=`<div class="empty-state">${_hesc(emptyLabel||'No sends in the last 8 weeks.')}</div>`;return;}
   const topCats=ranked.slice(0,WK_CHART_COLOR_SLOTS);
   const topSet=new Set(topCats);
   const hasOther=ranked.length>WK_CHART_COLOR_SLOTS;
