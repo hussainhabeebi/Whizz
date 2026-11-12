@@ -4781,16 +4781,24 @@ async function buildPhoneToBrandMap(){
   }catch(e){ /* best-effort — callers treat a missing match as "Unknown" */ }
   return map;
 }
-// Same three-status merge refreshConversations() uses, factored out so every feature that
+// Same four-status merge refreshConversations() uses, factored out so every feature that
 // needs "every conversation regardless of status" (not just the open queue) shares it.
+// Deliberately does NOT use convQS() — convQS() scopes to S.activeInboxId (whichever inbox
+// tab was last clicked on the Conversations page), which is exactly right for that page's
+// own live view but silently wrong here: "Conversations by Inbox" needs every inbox's
+// conversations in order to bucket them correctly, and a stale activeInboxId from an
+// earlier visit to Conversations would otherwise make this look account-wide while
+// actually returning only one inbox — every other inbox then reads as near-zero.
+function allInboxConvQS(status){return`conversations?status=${status}`;}
 async function fetchAllConversationsMerged(){
   try{
-    const[o,p,r]=await Promise.all([
-      cw(convQS('open')).catch(()=>({conversations:[]})),
-      cw(convQS('pending')).catch(()=>({conversations:[]})),
-      cw(convQS('resolved')).catch(()=>({conversations:[]}))
+    const[o,p,r,s]=await Promise.all([
+      cw(allInboxConvQS('open')).catch(()=>({conversations:[]})),
+      cw(allInboxConvQS('pending')).catch(()=>({conversations:[]})),
+      cw(allInboxConvQS('resolved')).catch(()=>({conversations:[]})),
+      cw(allInboxConvQS('snoozed')).catch(()=>({conversations:[]}))
     ]);
-    return [...(o.conversations||[]),...(p.conversations||[]),...(r.conversations||[])];
+    return [...(o.conversations||[]),...(p.conversations||[]),...(r.conversations||[]),...(s.conversations||[])];
   }catch(e){ return S.cache.conversations||[]; }
 }
 async function downloadMessagesConversationsReport(){
