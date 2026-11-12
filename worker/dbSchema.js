@@ -316,6 +316,71 @@ async function repairSchema(env) {
     ['headerImageMediaId', "TEXT NOT NULL DEFAULT ''"],
   ]);
 
+  // Email Marketing module (worker/routes/emailCampaigns.js) — sends via Resend's API
+  // directly, reusing the same `contacts` leadbase/audience filters as WhatsApp campaigns.
+  // One Resend account/API key covers the whole workspace, same singleton-row pattern as
+  // meta_whatsapp_settings/telegram_settings. webhookSecret is pasted into Resend's
+  // dashboard (Webhooks → Signing Secret) the same direction as Telegram's webhookSecret —
+  // generated here, not typed in.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS email_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    apiKeyEncrypted TEXT,
+    fromEmail TEXT NOT NULL DEFAULT '',
+    fromName TEXT NOT NULL DEFAULT '',
+    webhookSecret TEXT NOT NULL DEFAULT '',
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS email_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    subject TEXT NOT NULL DEFAULT '',
+    bodyHtml TEXT NOT NULL DEFAULT '',
+    createdByEmail TEXT NOT NULL DEFAULT '',
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  // One row per send — audienceLabel mirrors staged_campaign_runs' same free-text
+  // convention rather than re-deriving the filter description later.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS email_campaigns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    templateId INTEGER,
+    name TEXT NOT NULL DEFAULT '',
+    subject TEXT NOT NULL DEFAULT '',
+    bodyHtml TEXT NOT NULL DEFAULT '',
+    audienceLabel TEXT NOT NULL DEFAULT '',
+    totalContacts INTEGER NOT NULL DEFAULT 0,
+    sentCount INTEGER NOT NULL DEFAULT 0,
+    failedCount INTEGER NOT NULL DEFAULT 0,
+    createdByEmail TEXT NOT NULL DEFAULT '',
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  // Per-recipient send + delivery/open/click tracking, updated by Resend's webhook
+  // (matched back to a row by resendId, the message id Resend returned at send time).
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS email_sends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    campaignId INTEGER NOT NULL,
+    contactId INTEGER,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    resendId TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'sent',
+    errorMessage TEXT NOT NULL DEFAULT '',
+    openCount INTEGER NOT NULL DEFAULT 0,
+    clickCount INTEGER NOT NULL DEFAULT 0,
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  // The email module's own Do Not Contact list — parallel to opted_out_numbers/
+  // telegram_opted_out rather than a shared table, since identity here is an email
+  // address, not a phone number or chat id.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS email_opted_out (
+    email TEXT PRIMARY KEY,
+    source TEXT NOT NULL DEFAULT 'manual',
+    reason TEXT NOT NULL DEFAULT '',
+    addedByEmail TEXT NOT NULL DEFAULT '',
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_team ON conversation_assignments(assignedTeamId)',
@@ -337,7 +402,9 @@ async function repairSchema(env) {
     'CREATE INDEX IF NOT EXISTS idx_audience_segments_owner ON audience_segments(ownerEmail)',
     'CREATE INDEX IF NOT EXISTS idx_send_failures_phone ON send_failures(phone)',
     'CREATE INDEX IF NOT EXISTS idx_message_delivery_status_phone ON message_delivery_status(phone)',
-    "CREATE INDEX IF NOT EXISTS idx_staged_campaign_runs_due ON staged_campaign_runs(status, nextRunAt)"
+    "CREATE INDEX IF NOT EXISTS idx_staged_campaign_runs_due ON staged_campaign_runs(status, nextRunAt)",
+    'CREATE INDEX IF NOT EXISTS idx_email_sends_campaign ON email_sends(campaignId)',
+    'CREATE INDEX IF NOT EXISTS idx_email_sends_resend_id ON email_sends(resendId)',
   ]) await safeRun(env, sql);
 }
 
