@@ -2045,6 +2045,18 @@ body.dark{
             <div class="card-body"><div id="ma-brand-conv"><div class="empty-state">Click Refresh to load.</div></div></div>
           </div>
         </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head">
+            <div class="card-title">Brand vs Inbox</div>
+            <select class="fs" id="ma-matrix-week-sel" style="width:auto;padding:5px 10px;font-size:12px;" onchange="renderBrandInboxMatrix()"></select>
+          </div>
+          <div class="card-body">
+            <div class="eyebrow" style="margin-bottom:8px;">WhatsApp Sends</div>
+            <div id="ma-matrix-sends" style="margin-bottom:22px;"><div class="empty-state">Click Refresh to load.</div></div>
+            <div class="eyebrow" style="margin-bottom:8px;">Conversations</div>
+            <div id="ma-matrix-conv"><div class="empty-state">Click Refresh to load.</div></div>
+          </div>
+        </div>
       </div>
 
       <div class="page" id="page-leads">
@@ -5072,18 +5084,110 @@ async function computeMarketingActivityData(){
     todayKey,todayEmail,todayWaNormal,todayWaStaged,convToday,days,perDay,
     inboxRows:Object.entries(convByInbox).sort((a,b)=>b[1]-a[1]),
     brandRows:Object.entries(convByBrand).sort((a,b)=>b[1]-a[1]),
+    // Raw, unaggregated sources for the Brand vs Inbox matrix below — kept here (rather
+    // than pre-aggregated into a single window) since its own Week filter can change after
+    // this data is fetched, and both sources already cover far more than 30/14 days on
+    // their own (historyWithStagedRuns() is full campaign history; fetchAllConversationsMerged()
+    // is unrestricted by date), so no extra fetch is needed to support picking an older week.
+    waHistory,conversationsAll,phoneToBrand,
   };
 }
 async function refreshMarketingActivity(){
   try{
     const d=await computeMarketingActivityData();
+    S.cache.maRaw=d; // reused by renderBrandInboxMatrix() when the Week filter changes, without re-fetching
     const todayLabelEl=document.getElementById('ma-today-label');
     if(todayLabelEl)todayLabelEl.textContent=new Date(d.todayKey).toLocaleDateString('en-AE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
     renderMarketingActivityDashboard(d);
+    populateMaMatrixWeekSelect();
+    renderBrandInboxMatrix();
     hideBanner('ma');
   }catch(e){
     showToast(e.message||'Failed to load marketing activity','error');
   }
+}
+// ── Brand vs Inbox matrix — same sources as the ranked lists above, cross-tabbed and
+// filterable by week (reuses _weekStartTs/_buildRecentWeeks, the same Monday-start week
+// convention Weekly Campaign Reports already uses) instead of only ever showing the fixed
+// 30-day/14-day windows the rest of this dashboard is locked to. ──
+function populateMaMatrixWeekSelect(){
+  const sel=document.getElementById('ma-matrix-week-sel');
+  if(!sel)return;
+  const weeks=_buildRecentWeeks(8);
+  const prevValue=sel.value;
+  sel.innerHTML=weeks.map((w,i)=>{
+    const endLabel=new Date(w.key+6*86400000).toLocaleDateString('en-AE',{day:'2-digit',month:'short'});
+    const label=i===weeks.length-1?`This week (${w.label} – ${endLabel})`:`${w.label} – ${endLabel}`;
+    return `<option value="${w.key}">${label}</option>`;
+  }).reverse().join('');
+  const stillValid=weeks.some(w=>String(w.key)===prevValue);
+  sel.value=stillValid?prevValue:String(weeks[weeks.length-1].key);
+}
+function computeBrandInboxMatrix(d,weekStartTs){
+  const weekEnd=weekStartTs+7*86400000;
+  const sendMatrix={},convMatrix={};
+  const sendInboxes=new Set(),sendBrands=new Set(),convInboxes=new Set(),convBrands=new Set();
+  (d.waHistory||[]).forEach(h=>{
+    const sent=h.sent||0;
+    if(!sent||!h.ts||h.ts<weekStartTs||h.ts>=weekEnd)return;
+    const brand=brandFromTemplateName(h.template),inbox=inboxLabelFor(h.inboxId);
+    sendMatrix[brand]=sendMatrix[brand]||{};
+    sendMatrix[brand][inbox]=(sendMatrix[brand][inbox]||0)+sent;
+    sendInboxes.add(inbox);sendBrands.add(brand);
+  });
+  (d.conversationsAll||[]).forEach(c=>{
+    const ts=(c.last_activity||0)*1000;
+    if(!ts||ts<weekStartTs||ts>=weekEnd)return;
+    const brand=(d.phoneToBrand&&d.phoneToBrand.get(normalizedPhoneKey(convPhone(c))))||'Unknown';
+    const inbox=inboxLabelFor(c.inboxId);
+    convMatrix[brand]=convMatrix[brand]||{};
+    convMatrix[brand][inbox]=(convMatrix[brand][inbox]||0)+1;
+    convInboxes.add(inbox);convBrands.add(brand);
+  });
+  return {
+    sendMatrix,convMatrix,
+    sendInboxes:[...sendInboxes].sort(),sendBrands:[...sendBrands],
+    convInboxes:[...convInboxes].sort(),convBrands:[...convBrands],
+  };
+}
+function renderBrandInboxTable(containerId,matrix,inboxes,brands){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  if(!brands.length||!inboxes.length){el.innerHTML='<div class="empty-state">No data for this week.</div>';return;}
+  const brandTotal=b=>inboxes.reduce((sum,ib)=>sum+(matrix[b]?.[ib]||0),0);
+  const sortedBrands=[...brands].sort((a,b)=>brandTotal(b)-brandTotal(a));
+  const inboxTotal=ib=>sortedBrands.reduce((sum,b)=>sum+(matrix[b]?.[ib]||0),0);
+  const grandTotal=sortedBrands.reduce((sum,b)=>sum+brandTotal(b),0);
+  el.innerHTML=`<div style="overflow:auto;border:1px solid var(--border);border-radius:10px;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:${280+inboxes.length*110}px;">
+      <thead><tr style="border-bottom:2px solid var(--border);background:var(--bg3);">
+        <th style="padding:9px 12px;text-align:left;color:var(--text3);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;">Brand</th>
+        ${inboxes.map(ib=>`<th style="padding:9px 12px;text-align:right;color:var(--text3);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;">${_hesc(ib)}</th>`).join('')}
+        <th style="padding:9px 12px;text-align:right;color:var(--text3);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;">Total</th>
+      </tr></thead>
+      <tbody>
+        ${sortedBrands.map(b=>`<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:9px 12px;font-weight:600;">${_hesc(b)}</td>
+          ${inboxes.map(ib=>`<td style="padding:9px 12px;text-align:right;">${(matrix[b]?.[ib]||0).toLocaleString()}</td>`).join('')}
+          <td style="padding:9px 12px;text-align:right;font-weight:700;color:var(--accent);">${brandTotal(b).toLocaleString()}</td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot><tr style="border-top:2px solid var(--border);background:var(--bg3);">
+        <td style="padding:9px 12px;font-weight:800;">Total</td>
+        ${inboxes.map(ib=>`<td style="padding:9px 12px;text-align:right;font-weight:800;">${inboxTotal(ib).toLocaleString()}</td>`).join('')}
+        <td style="padding:9px 12px;text-align:right;font-weight:800;">${grandTotal.toLocaleString()}</td>
+      </tr></tfoot>
+    </table>
+  </div>`;
+}
+function renderBrandInboxMatrix(){
+  const d=S.cache.maRaw;
+  const sel=document.getElementById('ma-matrix-week-sel');
+  if(!d||!sel)return;
+  const weekStartTs=Number(sel.value)||_weekStartTs(Date.now());
+  const {sendMatrix,convMatrix,sendInboxes,sendBrands,convInboxes,convBrands}=computeBrandInboxMatrix(d,weekStartTs);
+  renderBrandInboxTable('ma-matrix-sends',sendMatrix,sendInboxes,sendBrands);
+  renderBrandInboxTable('ma-matrix-conv',convMatrix,convInboxes,convBrands);
 }
 function renderMarketingActivityDashboard(d){
   document.getElementById('ma-today-total').textContent=(d.todayEmail+d.todayWaNormal+d.todayWaStaged).toLocaleString();
