@@ -943,6 +943,10 @@ body.dark{
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>
         Telegram Marketing
       </div>
+      <div class="nav-item" data-page="email-marketing" onclick="navigate('email-marketing',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Email Marketing
+      </div>
       <div class="nav-item" data-page="templates" onclick="navigate('templates',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Templates
@@ -1537,6 +1541,94 @@ body.dark{
               <div class="card-title">Send History</div>
             </div>
             <div class="card-body" id="tg-history-list">
+              <div class="empty-state">No campaigns sent yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-email-marketing">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Email Settings</div>
+            <span class="eyebrow" id="em-status" style="margin-bottom:0;">Checking…</span>
+          </div>
+          <div class="card-body">
+            <div class="fi-hint" style="margin-bottom:10px;">Sends via <a href="https://resend.com" target="_blank" rel="noopener">Resend</a> directly — create an account, verify your sending domain there, then paste an API key below. Uses the same contacts leadbase as WhatsApp campaigns, narrowed to contacts with an email on file.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div class="fg"><label class="fl">Resend API Key</label><input class="fi" id="em-api-key" type="password" placeholder="Paste your Resend API key"/></div>
+              <div class="fg"><label class="fl">Webhook Signing Secret</label><div id="em-webhook-secret" style="font-size:12px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);word-break:break-all;">Save settings once to generate one</div></div>
+              <div class="fg"><label class="fl">From Name</label><input class="fi" id="em-from-name" placeholder="e.g. Whizz Exim"/></div>
+              <div class="fg"><label class="fl">From Email</label><input class="fi" id="em-from-email" placeholder="marketing@yourdomain.com"/></div>
+            </div>
+            <button class="t-btn btn-primary" onclick="saveEmailSettings()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+              Save Email Settings
+            </button>
+            <div class="fi-hint" style="margin-top:8px;">After saving, paste the Webhook Signing Secret above into Resend → Webhooks → Add Endpoint (URL: <code>/api/webhooks/resend</code>, events: sent, delivered, bounced, opened, clicked, complained). Requires a Cloudflare Access bypass policy for <code>/api/webhooks/resend</code> and <code>/api/email/unsubscribe</code> — same requirement as the Meta/Telegram webhooks.</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Email Templates</div>
+            <button class="t-btn btn-ghost t-btn-sm" onclick="openEmailTplModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Create Template
+            </button>
+          </div>
+          <div class="card-body">
+            <div id="em-template-list"><div class="empty-state">Checking…</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head"><div class="card-title">Audience &amp; Message</div></div>
+          <div class="card-body">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;">
+              <div class="fg" style="margin-bottom:0;"><label class="fl">Platform</label><select class="fi" id="em-platform-sel" onchange="previewEmailAudience()"><option value="ALL">All Platforms</option></select></div>
+              <div class="fg" style="margin-bottom:0;"><label class="fl">Country</label><select class="fi" id="em-country-sel" onchange="previewEmailAudience()"><option value="ALL">All Countries</option></select></div>
+              <div class="fg" style="margin-bottom:0;"><label class="fl">Brand</label><select class="fi" id="em-brand-sel" onchange="previewEmailAudience()"><option value="ALL">All Brands</option></select></div>
+            </div>
+            <div id="em-audience-preview" style="margin:6px 0 14px;font-size:12px;color:var(--text3);"></div>
+
+            <div class="fg"><label class="fl">Template</label><select class="fi" id="em-template-sel" onchange="applyEmailTemplateSelection(this.value)"><option value="">Start from scratch…</option></select></div>
+            <div class="fg"><label class="fl">Subject</label><input class="fi" id="em-subject" placeholder="Your subject line"/></div>
+            <div class="fg">
+              <label class="fl">Body (HTML)</label>
+              <textarea class="fi" id="em-body" rows="8" placeholder="&lt;p&gt;Hi {{name}}, ...&lt;/p&gt;"></textarea>
+              <div class="fi-hint">{{name}} is replaced with the contact's name. A plain-text unsubscribe link and a List-Unsubscribe header are added to every send automatically.</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <button class="t-btn btn-ghost" onclick="previewEmailAudience()">Refresh Preview</button>
+              <button class="t-btn btn-success" id="em-send-btn" onclick="sendEmailCampaign()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Send Campaign
+              </button>
+            </div>
+            <div id="em-send-progress" style="display:none;margin-top:10px;">
+              <div class="prog-wrap"><div class="prog-fill" id="em-prog-fill" style="width:0%"></div></div>
+              <div id="em-prog-text" style="font-size:11px;color:var(--text3);margin-top:4px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="two-col" style="margin-bottom:16px;align-items:start;">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Suppression List (Email)</div></div>
+            <div class="card-body">
+              <div class="fi-hint" style="margin-bottom:12px;">An address here is never emailed by any campaign. Added automatically when someone clicks the unsubscribe link, or manually below.</div>
+              <div style="display:flex;gap:8px;margin-bottom:14px;">
+                <input class="fi" id="em-opt-out-new-email" placeholder="email@example.com" style="flex:1;"/>
+                <input class="fi" id="em-opt-out-new-reason" placeholder="Reason (optional)" style="flex:1;"/>
+                <button class="t-btn btn-primary" style="height:38px;" onclick="addEmailOptOut()">Add</button>
+              </div>
+              <div id="em-opt-out-list"><div class="empty-state">Checking…</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">Campaign History</div></div>
+            <div class="card-body" id="em-history-list">
               <div class="empty-state">No campaigns sent yet.</div>
             </div>
           </div>
@@ -2849,6 +2941,22 @@ body.dark{
   </div>
 </div>
 
+<div class="modal-overlay" id="em-tpl-modal">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="em-tpl-modal-title">Create Email Template</div><button class="modal-close" onclick="closeEmailTplModal()">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="em-tpl-id"/>
+      <div class="fg"><label class="fl">Template Name</label><input class="fi" id="em-tpl-name" placeholder="e.g. November promo"/></div>
+      <div class="fg"><label class="fl">Subject</label><input class="fi" id="em-tpl-subject" placeholder="Your subject line"/></div>
+      <div class="fg"><label class="fl">Body (HTML)</label><textarea class="ft" id="em-tpl-body" placeholder="&lt;p&gt;Hi {{name}}, ...&lt;/p&gt;" style="min-height:160px;"></textarea><div class="fi-hint">{{name}} is replaced with the contact's name when sent.</div></div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeEmailTplModal()">Cancel</button>
+      <button class="t-btn btn-primary" onclick="saveEmailTemplate()">Save Template</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add Contact Modal -->
 <div class="modal-overlay" id="modal-add-contact">
   <div class="modal" style="width:min(96vw,1100px);max-height:90vh;">
@@ -3506,9 +3614,9 @@ function saveConvIdSet(key,set){ try{localStorage.setItem(key,JSON.stringify([..
 function loadPinnedMsgMap(){ try{return JSON.parse(localStorage.getItem(PINNED_MSG_KEY)||'{}');}catch(e){return{};} }
 function savePinnedMsgMap(map){ try{localStorage.setItem(PINNED_MSG_KEY,JSON.stringify(map));}catch(e){} }
 const ROLE_EXPERIENCES={
-  Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','telegram','templates','conversations','enquiries','tasks','reports','marketing-activity','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
-  Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','telegram','templates','conversations','enquiries','tasks','reports','marketing-activity','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
-  Sales:{label:'My sales workspace',copy:'Focus on assigned leads, live conversations, follow-ups and the next best action.',pages:['dashboard','conversations','enquiries','tasks','leads','stock','pipeline','campaigns','suggestions','history','telegram','templates'],actions:[['Open inbox','conversations'],['My leads','leads'],["Today's tasks",'tasks']]}
+  Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','telegram','email-marketing','templates','conversations','enquiries','tasks','reports','marketing-activity','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
+  Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','telegram','email-marketing','templates','conversations','enquiries','tasks','reports','marketing-activity','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
+  Sales:{label:'My sales workspace',copy:'Focus on assigned leads, live conversations, follow-ups and the next best action.',pages:['dashboard','conversations','enquiries','tasks','leads','stock','pipeline','campaigns','suggestions','history','telegram','email-marketing','templates'],actions:[['Open inbox','conversations'],['My leads','leads'],["Today's tasks",'tasks']]}
 };
 let CURRENT_SESSION=null;
 
@@ -5201,8 +5309,8 @@ function navigate(page, el) {
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
   if(page!=='conversations' && S.liveSync) stopLiveSync();
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',telegram:'Telegram Marketing',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports','marketing-activity':'Daily Marketing Activity',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events',reliability:'System Health'};
-  const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',telegram:'Bulk outreach to contacts who’ve started your Telegram bot',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms','marketing-activity':'Today\'s activity, a 14-day trend, and conversations by inbox & brand',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',telegram:'Telegram Marketing','email-marketing':'Email Marketing',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports','marketing-activity':'Daily Marketing Activity',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events',reliability:'System Health'};
+  const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',telegram:'Bulk outreach to contacts who’ve started your Telegram bot','email-marketing':'Bulk email outreach to contacts with an email on file',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms','marketing-activity':'Today\'s activity, a 14-day trend, and conversations by inbox & brand',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics'};
   document.getElementById('page-title').textContent=titles[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   S.page=page; document.body.dataset.page=page; closeSidebar();
@@ -5221,6 +5329,7 @@ function navigate(page, el) {
   if(page==='pipeline'){renderPipelinePage();}
   if(page==='history'){renderScheduledList();loadStagedCampaigns();renderHistoryList();}
   if(page==='telegram'){initTelegramModule();}
+  if(page==='email-marketing'){initEmailMarketingModule();}
   if(page==='tasks'){renderTasksList();}
   // Background refresh (fresh data without blocking navigation)
   if(page==='dashboard'){refreshDashboard().catch(()=>{});}
@@ -10530,6 +10639,266 @@ async function removeTelegramOptOut(chatId){
     showToast('Removed from suppression list','success');
     loadTelegramOptOuts();
   }catch(e){showToast(e.message||'Failed to remove','error');}
+}
+
+// ── Email Marketing module (worker/routes/emailCampaigns.js) — mirrors the Telegram
+// Marketing module's shape (its own settings card, its own suppression list, its own send
+// history) rather than being wedged into the WhatsApp campaign wizard, since email has
+// none of WhatsApp's template-approval or per-number concepts. Audience targeting reuses
+// the same contacts leadbase/platform-country-brand filters as WhatsApp campaigns
+// (resolveContactsForCampaign), narrowed server-side to contacts with an email on file.
+async function initEmailMarketingModule(){
+  if(!S.platforms || !S.platforms.length) await refreshLeadData().catch(()=>{});
+  populateEmailAudienceSelects();
+  loadEmailSettings();
+  loadEmailTemplates();
+  loadEmailOptOuts();
+  loadEmailCampaignHistory();
+  previewEmailAudience();
+}
+function populateEmailAudienceSelects(){
+  const plat=document.getElementById('em-platform-sel'), ctry=document.getElementById('em-country-sel'), brand=document.getElementById('em-brand-sel');
+  if(plat)plat.innerHTML='<option value="ALL">All Platforms</option>'+(S.platforms||[]).map(p=>`<option value="${_hesc(p)}">${_hesc(p)}</option>`).join('');
+  if(ctry)ctry.innerHTML='<option value="ALL">All Countries</option>'+(S.countries||[]).map(c=>`<option value="${_hesc(c)}">${_hesc(c)}</option>`).join('');
+  if(brand)brand.innerHTML='<option value="ALL">All Brands</option>'+(S.brands||[]).map(b=>`<option value="${_hesc(b)}">${_hesc(b)}</option>`).join('');
+}
+function emailAudiencePayload(){
+  return {
+    platform: document.getElementById('em-platform-sel')?.value || 'ALL',
+    country: document.getElementById('em-country-sel')?.value || 'ALL',
+    brand: document.getElementById('em-brand-sel')?.value || 'ALL',
+  };
+}
+async function previewEmailAudience(){
+  const el=document.getElementById('em-audience-preview');
+  if(!el)return;
+  el.textContent='Checking…';
+  try{
+    const d=await apiWMsg('api/email/audience-preview','POST',emailAudiencePayload());
+    el.innerHTML=`<b>${d.eligible}</b> of ${d.total} matching contact${d.total===1?'':'s'} can be emailed${d.suppressed?` (${d.suppressed} opted out)`:''}.`;
+  }catch(e){el.textContent=e.message||'Could not check audience';}
+}
+
+// ── Settings ──
+async function loadEmailSettings(){
+  const statusEl=document.getElementById('em-status');
+  if(!statusEl)return;
+  try{
+    const d=await apiWMsg('api/email/settings');
+    statusEl.textContent=d.hasApiKey?'Connected':'Not connected';
+    statusEl.style.color=d.hasApiKey?'var(--green)':'var(--text3)';
+    document.getElementById('em-api-key').placeholder=d.hasApiKey?'Leave blank to keep the current key':'Paste your Resend API key';
+    document.getElementById('em-from-name').value=d.fromName||'';
+    document.getElementById('em-from-email').value=d.fromEmail||'';
+    const secEl=document.getElementById('em-webhook-secret');
+    if(secEl&&!secEl.dataset.revealed)secEl.textContent=d.webhookConfigured?'Already generated — check Resend\'s webhook config, or re-save to rotate it.':'Save settings once to generate one';
+  }catch(e){statusEl.textContent='Status unavailable';}
+}
+async function saveEmailSettings(){
+  const apiKey=document.getElementById('em-api-key').value.trim();
+  const fromEmail=document.getElementById('em-from-email').value.trim();
+  const fromName=document.getElementById('em-from-name').value.trim();
+  if(!fromEmail){showToast('A From email address is required','error');return;}
+  try{
+    const d=await apiWMsg('api/email/settings','POST',{apiKey,fromEmail,fromName});
+    document.getElementById('em-api-key').value='';
+    const secEl=document.getElementById('em-webhook-secret');
+    if(secEl&&d.webhookSecret){secEl.textContent=d.webhookSecret;secEl.dataset.revealed='1';}
+    showToast('Email settings saved','success');
+    loadEmailSettings();
+  }catch(e){showToast(e.message||'Failed to save settings','error');}
+}
+
+// ── Templates ──
+async function loadEmailTemplates(){
+  const el=document.getElementById('em-template-list');
+  if(!el)return;
+  el.innerHTML='<div class="empty-state">Checking…</div>';
+  try{
+    const d=await apiWMsg('api/email/templates');
+    S.cache.emailTemplates=d.templates||[];
+    renderEmailTemplateList();
+    renderEmailTemplateSelect();
+  }catch(e){el.innerHTML=`<div class="empty-state">${_hesc(e.message||'Failed to load')}</div>`;}
+}
+function renderEmailTemplateList(){
+  const el=document.getElementById('em-template-list');
+  if(!el)return;
+  const templates=S.cache.emailTemplates||[];
+  if(!templates.length){el.innerHTML='<div class="empty-state">No templates yet.</div>';return;}
+  el.innerHTML=templates.map(t=>`
+    <div class="hist-item">
+      <div class="hist-icon" style="background:var(--accent-dim);color:var(--accent);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+      <div class="hist-info">
+        <div class="hist-name">${_hesc(t.name)}</div>
+        <div class="hist-meta">${_hesc(t.subject)}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="t-btn btn-ghost t-btn-sm" onclick="openEmailTplModal(${t.id})">Edit</button>
+        <button class="t-btn btn-ghost t-btn-sm" style="color:var(--red);" onclick="deleteEmailTemplate(${t.id})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+function renderEmailTemplateSelect(){
+  const sel=document.getElementById('em-template-sel');
+  if(!sel)return;
+  const templates=S.cache.emailTemplates||[];
+  const current=sel.value;
+  sel.innerHTML='<option value="">Start from scratch…</option>'+templates.map(t=>`<option value="${t.id}">${_hesc(t.name)}</option>`).join('');
+  if(templates.some(t=>String(t.id)===current))sel.value=current;
+}
+function applyEmailTemplateSelection(id){
+  if(!id)return;
+  const t=(S.cache.emailTemplates||[]).find(t=>String(t.id)===String(id));
+  if(!t)return;
+  document.getElementById('em-subject').value=t.subject||'';
+  document.getElementById('em-body').value=t.bodyHtml||'';
+}
+function openEmailTplModal(id){
+  const modal=document.getElementById('em-tpl-modal');
+  const t=id?(S.cache.emailTemplates||[]).find(t=>t.id===id):null;
+  document.getElementById('em-tpl-modal-title').textContent=t?'Edit Email Template':'Create Email Template';
+  document.getElementById('em-tpl-id').value=t?.id||'';
+  document.getElementById('em-tpl-name').value=t?.name||'';
+  document.getElementById('em-tpl-subject').value=t?.subject||'';
+  document.getElementById('em-tpl-body').value=t?.bodyHtml||'';
+  modal.classList.add('open');
+}
+function closeEmailTplModal(){document.getElementById('em-tpl-modal').classList.remove('open');}
+async function saveEmailTemplate(){
+  const idVal=document.getElementById('em-tpl-id').value;
+  const name=document.getElementById('em-tpl-name').value.trim();
+  const subject=document.getElementById('em-tpl-subject').value.trim();
+  const bodyHtml=document.getElementById('em-tpl-body').value;
+  if(!name||!subject||!bodyHtml.trim()){showToast('Name, subject and body are all required','error');return;}
+  try{
+    await apiWMsg('api/email/templates','POST',{id:idVal?Number(idVal):undefined,name,subject,bodyHtml});
+    showToast('Template saved','success');
+    closeEmailTplModal();
+    loadEmailTemplates();
+  }catch(e){showToast(e.message||'Failed to save template','error');}
+}
+async function deleteEmailTemplate(id){
+  if(!await confirmModal('Delete this email template?',{danger:true,confirmText:'Delete'}))return;
+  try{
+    await apiWMsg(`api/email/templates/${id}`,'DELETE');
+    showToast('Template deleted','success');
+    loadEmailTemplates();
+  }catch(e){showToast(e.message||'Failed to delete','error');}
+}
+
+// ── Send ──
+async function sendEmailCampaign(){
+  const subject=document.getElementById('em-subject').value.trim();
+  const bodyHtml=document.getElementById('em-body').value;
+  if(!subject||!bodyHtml.trim()){showToast('Write a subject and body first','error');return;}
+  const audience=emailAudiencePayload();
+  const audienceLabel=[audience.platform!=='ALL'?audience.platform:null,audience.country!=='ALL'?audience.country:null,audience.brand!=='ALL'?audience.brand:null].filter(Boolean).join(' / ')||'All contacts';
+  if(!await confirmModal(`Send this email campaign to contacts matching "${audienceLabel}" now?`))return;
+  const btn=document.getElementById('em-send-btn');
+  btn.disabled=true;btn.textContent='Sending…';
+  document.getElementById('em-send-progress').style.display='block';
+  document.getElementById('em-prog-fill').style.width='50%';
+  document.getElementById('em-prog-text').textContent='Sending via Resend…';
+  try{
+    const templateSel=document.getElementById('em-template-sel').value;
+    const result=await apiWMsg('api/email/campaigns','POST',{...audience,subject,bodyHtml,audienceLabel,templateId:templateSel||undefined,name:subject});
+    document.getElementById('em-prog-fill').style.width='100%';
+    document.getElementById('em-prog-text').textContent=`Complete. Sent: ${result.sent||0}, Failed: ${result.failed||0}`;
+    showToast(`Email campaign complete: ${result.sent||0} sent`,result.failed?'error':'success');
+    loadEmailCampaignHistory();
+    setTimeout(()=>{document.getElementById('em-send-progress').style.display='none';},3000);
+  }catch(e){showToast(e.message||'Email send failed','error');}
+  btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Campaign';
+}
+
+// ── Email opt-outs (mirrors optOuts.js/Telegram's suppression list UI, keyed on email) ──
+async function loadEmailOptOuts(){
+  const el=document.getElementById('em-opt-out-list');
+  if(!el)return;
+  el.innerHTML='<div class="empty-state">Checking…</div>';
+  try{
+    const d=await apiWMsg('api/email/opt-outs');
+    S.cache.emailOptOuts=d.emails||[];
+    renderEmailOptOutList();
+  }catch(e){el.innerHTML=`<div class="empty-state">${_hesc(e.message||'Failed to load')}</div>`;}
+}
+function renderEmailOptOutList(){
+  const el=document.getElementById('em-opt-out-list');
+  if(!el)return;
+  const emails=S.cache.emailOptOuts||[];
+  if(!emails.length){el.innerHTML='<div class="empty-state">No opted-out addresses yet.</div>';return;}
+  el.innerHTML=emails.map(e=>`
+    <div class="hist-item">
+      <div class="hist-icon" style="background:var(--red-dim);color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
+      <div class="hist-info">
+        <div class="hist-name">${_hesc(e.email)}</div>
+        <div class="hist-meta">${e.source==='unsubscribe_link'?'Clicked unsubscribe link':'Added manually'}${e.reason?' · '+_hesc(e.reason):''} · ${new Date(e.createdAt).toLocaleDateString('en-AE')}</div>
+      </div>
+      <button class="t-btn btn-ghost t-btn-sm" style="flex-shrink:0;" onclick="removeEmailOptOut('${_hesc(e.email)}')">Remove</button>
+    </div>
+  `).join('');
+}
+async function addEmailOptOut(){
+  const email=document.getElementById('em-opt-out-new-email').value.trim();
+  const reason=document.getElementById('em-opt-out-new-reason').value.trim();
+  if(!email){showToast('An email address is required','error');return;}
+  try{
+    await apiWMsg('api/email/opt-outs','POST',{email,reason});
+    document.getElementById('em-opt-out-new-email').value='';
+    document.getElementById('em-opt-out-new-reason').value='';
+    showToast('Address added to suppression list','success');
+    loadEmailOptOuts();
+  }catch(e){showToast(e.message||'Failed to add','error');}
+}
+async function removeEmailOptOut(email){
+  if(!await confirmModal(`Remove ${email} from the suppression list?`,{danger:true,confirmText:'Remove'}))return;
+  try{
+    await apiWMsg(`api/email/opt-outs/${encodeURIComponent(email)}`,'DELETE');
+    showToast('Removed from suppression list','success');
+    loadEmailOptOuts();
+  }catch(e){showToast(e.message||'Failed to remove','error');}
+}
+
+// ── Campaign history — server-backed (unlike Telegram's localStorage-only history),
+// since email_campaigns/email_sends already exist in D1 for Resend webhook tracking. ──
+async function loadEmailCampaignHistory(){
+  const el=document.getElementById('em-history-list');
+  if(!el)return;
+  try{
+    const d=await apiWMsg('api/email/campaigns');
+    S.cache.emailCampaigns=d.campaigns||[];
+    renderEmailHistoryList();
+  }catch(e){el.innerHTML=`<div class="empty-state">${_hesc(e.message||'Failed to load')}</div>`;}
+}
+function renderEmailHistoryList(){
+  const el=document.getElementById('em-history-list');
+  if(!el)return;
+  const campaigns=S.cache.emailCampaigns||[];
+  if(!campaigns.length){el.innerHTML='<div class="empty-state">No campaigns sent yet.</div>';return;}
+  el.innerHTML=campaigns.map(c=>`
+    <div class="hist-item" style="cursor:pointer;" onclick="toggleEmailCampaignDetail(${c.id})">
+      <div class="hist-icon" style="background:var(--green-dim);color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+      <div class="hist-info">
+        <div class="hist-name">${_hesc(c.subject||c.name)}</div>
+        <div class="hist-meta">${_hesc(c.audienceLabel)} · Sent ${c.sentCount||0}/${c.totalContacts||0} · Delivered ${c.delivered||0} · Opened ${c.opened||0} · Clicked ${c.clicked||0}${c.bounced?` · Bounced ${c.bounced}`:''} · ${new Date(c.createdAt).toLocaleDateString('en-AE')}</div>
+        <div class="em-campaign-detail" id="em-campaign-detail-${c.id}" style="display:none;margin-top:8px;" onclick="event.stopPropagation()"></div>
+      </div>
+    </div>
+  `).join('');
+}
+async function toggleEmailCampaignDetail(id){
+  const detailEl=document.getElementById(`em-campaign-detail-${id}`);
+  if(!detailEl)return;
+  if(detailEl.style.display==='block'){detailEl.style.display='none';return;}
+  detailEl.style.display='block';
+  detailEl.innerHTML='<div style="font-size:11px;color:var(--text3);">Loading…</div>';
+  try{
+    const d=await apiWMsg(`api/email/campaigns/${id}`);
+    const rows=(d.recipients||[]).slice(0,200).map(r=>`<tr><td>${_hesc(r.email)}</td><td>${_hesc(r.status)}</td><td>${r.openCount||0}</td><td>${r.clickCount||0}</td></tr>`).join('');
+    detailEl.innerHTML=`<div style="overflow:auto;max-height:220px;border:1px solid var(--border);border-radius:6px;"><table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:var(--bg3);"><th style="padding:5px 8px;text-align:left;">Email</th><th style="padding:5px 8px;text-align:left;">Status</th><th style="padding:5px 8px;text-align:left;">Opens</th><th style="padding:5px 8px;text-align:left;">Clicks</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }catch(e){detailEl.innerHTML=`<div style="font-size:11px;color:var(--red);">${_hesc(e.message||'Failed to load')}</div>`;}
 }
 
 // ── Users Management ──

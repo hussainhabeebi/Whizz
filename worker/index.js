@@ -21,6 +21,7 @@ import { handleListCountryLanguageMap, handleSetCountryLanguageMap, handleDelete
 import { handleMetaWebhookVerify, handleMetaWebhookEvent, handleGetDeliveryStatuses } from './routes/metaWebhook.js';
 import { handleCreateStagedRun, handleListStagedRuns, handlePauseStagedRun, handleResumeStagedRun, handleCancelStagedRun, processStagedCampaignRuns } from './routes/stagedCampaigns.js';
 import { handleGetTelegramSettings, handleSaveTelegramSettings, handleSetTelegramWebhook, handleTelegramWebhookEvent, handleListTelegramOptOuts, handleAddTelegramOptOut, handleRemoveTelegramOptOut, handleTelegramAudiencePreview, handleGetTelegramBotUsername, handleSendTelegramCampaign, handleListTelegramLeads, handleCreateTelegramLead, handleUpdateTelegramLead, handleDeleteTelegramLead, handleImportTelegramLeadsFromCrm, handleGenerateTelegramInviteLink, handleListTelegramConversations, handleGetTelegramConversationMessages } from './routes/telegramBot.js';
+import { handleGetEmailSettings, handleSaveEmailSettings, handleListEmailTemplates, handleCreateEmailTemplate, handleDeleteEmailTemplate, handlePreviewEmailAudience, handleSendEmailCampaign, handleListEmailCampaigns, handleGetEmailCampaignDetail, handleListEmailOptOuts, handleAddEmailOptOut, handleRemoveEmailOptOut, handleEmailUnsubscribe, handleResendWebhookEvent } from './routes/emailCampaigns.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -77,6 +78,15 @@ const routes = [
   { method: 'POST', path: '/api/telegram/leads', handler: handleCreateTelegramLead },
   { method: 'POST', path: '/api/telegram/leads/import-from-crm', handler: handleImportTelegramLeadsFromCrm },
   { method: 'GET', path: '/api/telegram/conversations', handler: handleListTelegramConversations },
+  { method: 'GET', path: '/api/email/settings', handler: handleGetEmailSettings },
+  { method: 'POST', path: '/api/email/settings', handler: handleSaveEmailSettings },
+  { method: 'GET', path: '/api/email/templates', handler: handleListEmailTemplates },
+  { method: 'POST', path: '/api/email/templates', handler: handleCreateEmailTemplate },
+  { method: 'POST', path: '/api/email/audience-preview', handler: handlePreviewEmailAudience },
+  { method: 'POST', path: '/api/email/campaigns', handler: handleSendEmailCampaign },
+  { method: 'GET', path: '/api/email/campaigns', handler: handleListEmailCampaigns },
+  { method: 'GET', path: '/api/email/opt-outs', handler: handleListEmailOptOuts },
+  { method: 'POST', path: '/api/email/opt-outs', handler: handleAddEmailOptOut },
 ];
 
 async function leadActor(request, env) {
@@ -175,6 +185,22 @@ export default {
     if (url.pathname === '/api/webhooks/telegram' && request.method === 'POST') {
       try { return await handleTelegramWebhookEvent(request, env); }
       catch (err) { return Response.json({ received: true }); }
+    }
+
+    // Resend calls this directly — same Cloudflare Access bypass requirement as the Meta/
+    // Telegram webhooks above, authenticated via Svix's signed-header scheme instead of a
+    // verify-token handshake (see worker/routes/emailCampaigns.js).
+    if (url.pathname === '/api/webhooks/resend' && request.method === 'POST') {
+      try { return await handleResendWebhookEvent(request, env); }
+      catch (err) { return Response.json({ received: true }); }
+    }
+
+    // The unsubscribe link in a campaign email is clicked by someone who, by definition,
+    // is not necessarily logged into Whizz — same Cloudflare Access bypass requirement,
+    // verified instead via its own signed token (worker/routes/emailCampaigns.js).
+    if (url.pathname === '/api/email/unsubscribe' && request.method === 'GET') {
+      try { return await handleEmailUnsubscribe(request, env); }
+      catch (err) { return new Response(err.message, { status: 500 }); }
     }
 
     if (url.pathname.startsWith('/api/lead-intelligence/')) {
@@ -307,6 +333,21 @@ export default {
     const telegramConvMessagesMatch = url.pathname.match(/^\/api\/telegram\/conversations\/([^/]+)\/messages$/);
     if (telegramConvMessagesMatch && request.method === 'GET') {
       try { return await handleGetTelegramConversationMessages(request, env, decodeURIComponent(telegramConvMessagesMatch[1])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const emailTemplateMatch = url.pathname.match(/^\/api\/email\/templates\/(\d+)$/);
+    if (emailTemplateMatch && request.method === 'DELETE') {
+      try { return await handleDeleteEmailTemplate(request, env, Number(emailTemplateMatch[1])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const emailCampaignMatch = url.pathname.match(/^\/api\/email\/campaigns\/(\d+)$/);
+    if (emailCampaignMatch && request.method === 'GET') {
+      try { return await handleGetEmailCampaignDetail(request, env, Number(emailCampaignMatch[1])); }
+      catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
+    }
+    const emailOptOutMatch = url.pathname.match(/^\/api\/email\/opt-outs\/([^/]+)$/);
+    if (emailOptOutMatch && request.method === 'DELETE') {
+      try { return await handleRemoveEmailOptOut(request, env, decodeURIComponent(emailOptOutMatch[1])); }
       catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
     }
     const stagedRunMatch = url.pathname.match(/^\/api\/staged-campaigns\/(\d+)\/(pause|resume|cancel)$/);
