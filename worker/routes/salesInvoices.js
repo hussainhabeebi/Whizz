@@ -67,13 +67,13 @@ export async function handleSaveSalesInvoiceSettings(request, env) {
   return json({ success: true });
 }
 
-// The external API's exact field names weren't something this environment could probe
-// (the server isn't reachable from here to test against) — every plausible key is tried,
-// same multi-fallback convention convPhone()/normalizeConversation() already use
-// elsewhere in this app, rather than guessing one shape and silently breaking if it's
-// wrong. If every candidate for a field comes up empty, that column renders as "—" (not a
-// guess), and the response's `sample` field carries one raw row back so the real shape
-// can be inspected and this mapping adjusted.
+// Confirmed against a real response from this exact API (a UAE e-invoicing-style sales
+// voucher feed): issueDate/buyerName/payableAmount are the real fields — sellerName is
+// Whizz itself, not the customer, and totalIncludingTax/lineExtensionTotal can be 0 on a
+// row where payableAmount is the only populated total, so that's the one used. The
+// original generic guesses are kept as fallbacks after the confirmed names, in case a
+// future response from this API (a different voucher type, a schema update) doesn't carry
+// one of these exact keys — never the other way round.
 function firstOf(row, keys) {
   for (const k of keys) {
     if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
@@ -81,9 +81,9 @@ function firstOf(row, keys) {
   return '';
 }
 function normalizeInvoice(raw) {
-  const date = firstOf(raw, ['date', 'Date', 'invoiceDate', 'InvoiceDate', 'salesDate', 'SalesDate', 'docDate', 'DocDate', 'billDate', 'BillDate']);
-  const customerName = firstOf(raw, ['customerName', 'CustomerName', 'custName', 'CustName', 'partyName', 'PartyName', 'customer', 'Customer', 'clientName', 'ClientName']);
-  const amount = firstOf(raw, ['invoiceAmount', 'InvoiceAmount', 'amount', 'Amount', 'netAmount', 'NetAmount', 'totalAmount', 'TotalAmount', 'grandTotal', 'GrandTotal', 'billAmount', 'BillAmount']);
+  const date = firstOf(raw, ['issueDate', 'date', 'Date', 'invoiceDate', 'InvoiceDate', 'salesDate', 'SalesDate', 'docDate', 'DocDate', 'billDate', 'BillDate']);
+  const customerName = firstOf(raw, ['buyerName', 'customerName', 'CustomerName', 'custName', 'CustName', 'partyName', 'PartyName', 'customer', 'Customer', 'clientName', 'ClientName']);
+  const amount = firstOf(raw, ['payableAmount', 'invoiceAmount', 'InvoiceAmount', 'amount', 'Amount', 'netAmount', 'NetAmount', 'totalAmount', 'TotalAmount', 'grandTotal', 'GrandTotal', 'billAmount', 'BillAmount']);
   return { date: String(date || ''), customerName: String(customerName || ''), invoiceAmount: Number(amount) || 0 };
 }
 
