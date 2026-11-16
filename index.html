@@ -1788,12 +1788,14 @@ body.dark{
             <div class="fg" style="max-width:320px;">
               <input class="fi" id="enq-search" placeholder="Search by customer name..." oninput="applyEnqFilter()"/>
             </div>
+            <div style="margin-bottom:12px;"><div class="eyebrow">Inbox</div><div class="chips" id="enq-inbox-chips"></div></div>
+            <div style="margin-bottom:12px;"><div class="eyebrow">Category</div><div class="chips" id="enq-category-chips"></div></div>
             <div style="margin-bottom:12px;"><div class="eyebrow">Country</div><div class="chips" id="enq-country-chips"></div></div>
             <div style="overflow-x:auto;">
               <table class="stock-table">
-                <thead><tr><th>Date</th><th>Customer Name</th><th>Brand</th><th>Model</th><th style="text-align:right;">Quantity</th><th>Country</th><th>Mobile Number</th></tr></thead>
+                <thead><tr><th>Date</th><th>Customer Name</th><th>Brand</th><th>Model</th><th>Category</th><th style="text-align:right;">Quantity</th><th>Inbox</th><th>Country</th><th>Mobile Number</th></tr></thead>
                 <tbody id="enq-table-body">
-                  <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">Click Refresh to load</td></tr>
+                  <tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px;">Click Refresh to load</td></tr>
                 </tbody>
               </table>
             </div>
@@ -7014,6 +7016,15 @@ function quantityFromText(text){
   const m=ENQ_QTY_PATTERN.exec(text||'');
   return m?(m[1]||m[2]||''):'';
 }
+// Known product category names — not already cached anywhere (unlike S.cache.brands),
+// so this does its own fetch, same as buildPhoneToBrandMap()'s identical
+// whizz-get-contacts call elsewhere in this app.
+async function categoryTermsOnly(){
+  try{
+    const data=await apiW('whizz-get-contacts');
+    return[...new Set((data.contacts||[]).map(c=>c.category).filter(c=>c&&c.length>=3))];
+  }catch(e){ return[]; }
+}
 // Which of the given terms (default: all known brand/product terms) this
 // conversation's available text mentions. Shared by the Enquiries list and
 // the "Inquiry" highlight shown directly on Conversation list items.
@@ -7025,9 +7036,9 @@ function matchedProductsForConversation(c,terms){
   const lower=text.toLowerCase();
   return terms.filter(t=>lower.includes(t.toLowerCase()));
 }
-function computeEnquiriesFromConversations(){
-  const brandTerms=brandTermsOnly(),modelTerms=modelTermsOnly();
-  if(!brandTerms.length&&!modelTerms.length)return[];
+async function computeEnquiriesFromConversations(){
+  const brandTerms=brandTermsOnly(),modelTerms=modelTermsOnly(),categoryTerms=await categoryTermsOnly();
+  if(!brandTerms.length&&!modelTerms.length&&!categoryTerms.length)return[];
   const byPhone={};
   (S.cache.conversations||[]).forEach(c=>{
     const text=conversationSearchText(c);
@@ -7035,7 +7046,8 @@ function computeEnquiriesFromConversations(){
     const lower=text.toLowerCase();
     const matchedBrands=brandTerms.filter(t=>lower.includes(t.toLowerCase()));
     const matchedModels=modelTerms.filter(t=>lower.includes(t.toLowerCase()));
-    if(!matchedBrands.length&&!matchedModels.length)return;
+    const matchedCategories=categoryTerms.filter(t=>lower.includes(t.toLowerCase()));
+    if(!matchedBrands.length&&!matchedModels.length&&!matchedCategories.length)return;
     const qty=quantityFromText(text);
     const phone=convPhone(c)||('conv:'+c.id);
     const existing=byPhone[phone];
@@ -7046,12 +7058,16 @@ function computeEnquiriesFromConversations(){
         country:countryFromPhone(convPhone(c))||'—',
         brands:new Set(matchedBrands),
         models:new Set(matchedModels),
+        categories:new Set(matchedCategories),
+        inboxes:new Set([inboxLabelFor(c.inboxId)]),
         quantity:qty,
         lastActivity:c.last_activity||0
       };
     }else{
       matchedBrands.forEach(m=>existing.brands.add(m));
       matchedModels.forEach(m=>existing.models.add(m));
+      matchedCategories.forEach(m=>existing.categories.add(m));
+      existing.inboxes.add(inboxLabelFor(c.inboxId));
       if(!existing.quantity&&qty)existing.quantity=qty;
       if((c.last_activity||0)>existing.lastActivity)existing.lastActivity=c.last_activity||0;
       if((!existing.name||existing.name==='Unknown')&&c.contact_name)existing.name=c.contact_name;
@@ -7063,7 +7079,9 @@ function computeEnquiriesFromConversations(){
       name:e.name,
       brand:[...e.brands].join(', ')||'—',
       model:[...e.models].join(', ')||'—',
+      category:[...e.categories].join(', ')||'—',
       quantity:e.quantity||'—',
+      inbox:[...e.inboxes].join(', ')||'—',
       date:e.lastActivity?new Date(e.lastActivity*1000).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):'—',
       lastActivity:e.lastActivity||0,
       country:e.country,
@@ -7072,24 +7090,41 @@ function computeEnquiriesFromConversations(){
 }
 async function refreshEnquiries(){
   await refreshConversations();
-  S.cache.enquiries=computeEnquiriesFromConversations();
+  S.cache.enquiries=await computeEnquiriesFromConversations();
   renderEnquiriesPage(S.cache.enquiries);
 }
 function renderEnquiriesPage(enquiries){
   enquiries=enquiries||[];
-  const countries=[...new Set(enquiries.map(e=>e.country).filter(Boolean))];
+  // '—' is this table's "nothing matched" placeholder, not a real value — excluded from
+  // every filter's chip list below (it would otherwise show up as its own filterable
+  // "country"/"inbox"/"category", which it isn't).
+  const noMatch=v=>v&&v!=='—';
+  const countries=[...new Set(enquiries.map(e=>e.country).filter(noMatch))];
   renderChipsFilter(countries,'enq-country-chips','filterEnqByCountry');
+  // An enquiry can span several inboxes/categories (same customer messaged more than one
+  // number, or mentioned more than one product category) — split() so each one gets its
+  // own filter chip rather than one combined "A, B" chip nothing would ever match against.
+  const inboxes=[...new Set(enquiries.flatMap(e=>(e.inbox||'').split(', ')).filter(noMatch))];
+  renderChipsFilter(inboxes,'enq-inbox-chips','filterEnqByInbox');
+  const categories=[...new Set(enquiries.flatMap(e=>(e.category||'').split(', ')).filter(noMatch))];
+  renderChipsFilter(categories,'enq-category-chips','filterEnqByCategory');
   document.getElementById('enq-total').textContent=`${enquiries.length} enquir${enquiries.length===1?'y':'ies'}`;
   applyEnqFilter();
 }
 function filterEnqByCountry(v,el){document.querySelectorAll('#enq-country-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyEnqFilter();}
+function filterEnqByInbox(v,el){document.querySelectorAll('#enq-inbox-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyEnqFilter();}
+function filterEnqByCategory(v,el){document.querySelectorAll('#enq-category-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');applyEnqFilter();}
 function applyEnqFilter(){
   const co=document.querySelector('#enq-country-chips .chip.active')?.textContent||'ALL';
+  const ib=document.querySelector('#enq-inbox-chips .chip.active')?.textContent||'ALL';
+  const ca=document.querySelector('#enq-category-chips .chip.active')?.textContent||'ALL';
   const q=(document.getElementById('enq-search')?.value||'').trim().toLowerCase();
   // S.cache.enquiries already arrives in "last listed in the sheet first" order — filter()
   // preserves that relative order, so no re-sorting happens here.
   let f=S.cache.enquiries||[];
   if(co!=='ALL') f=f.filter(e=>e.country===co);
+  if(ib!=='ALL') f=f.filter(e=>(e.inbox||'').split(', ').includes(ib));
+  if(ca!=='ALL') f=f.filter(e=>(e.category||'').split(', ').includes(ca));
   if(q) f=f.filter(e=>(e.name||'').toLowerCase().includes(q));
   S.enqFiltered=f;
   S.enqPage=1;
@@ -7107,12 +7142,12 @@ function renderEnqTable(){
   const page=Math.min(S.enqPage||1,totalPages);
   S.enqPage=page;
   if(!enquiries.length){
-    body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">No enquiries found</td></tr>';
+    body.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px;">No enquiries found</td></tr>';
   }else{
     const start=(page-1)*ENQ_PAGE_SIZE;
     const pageItems=enquiries.slice(start,start+ENQ_PAGE_SIZE);
     body.innerHTML=pageItems.map(e=>
-      `<tr><td>${e.date||'—'}</td><td class="td-bold">${e.name||'Unknown'}</td><td>${_hesc(e.brand||'—')}</td><td>${_hesc(e.model||'—')}</td><td style="text-align:right;">${_hesc(e.quantity||'—')}</td><td>${_hesc(e.country||'—')}</td><td>${_hesc(e.phone||'—')}</td></tr>`
+      `<tr><td>${e.date||'—'}</td><td class="td-bold">${e.name||'Unknown'}</td><td>${_hesc(e.brand||'—')}</td><td>${_hesc(e.model||'—')}</td><td>${_hesc(e.category||'—')}</td><td style="text-align:right;">${_hesc(e.quantity||'—')}</td><td>${_hesc(e.inbox||'—')}</td><td>${_hesc(e.country||'—')}</td><td>${_hesc(e.phone||'—')}</td></tr>`
     ).join('');
   }
   const pageInfo=document.getElementById('enq-page-info');
@@ -7124,8 +7159,8 @@ function renderEnqTable(){
 function exportEnquiriesCSV(){
   if(!S.cache.enquiries||!S.cache.enquiries.length){showToast('Load enquiries first','error');return;}
   const esc=v=>`"${String(v||'').replace(/"/g,'""')}"`;
-  const rows=S.cache.enquiries.map(e=>[e.date,e.name,e.brand,e.model,e.quantity,e.country,e.phone].map(esc).join(','));
-  downloadCSV(['Date,Customer Name,Brand,Model,Quantity,Country,Mobile Number', ...rows].join('\n'), 'whizz_enquiries.csv');
+  const rows=S.cache.enquiries.map(e=>[e.date,e.name,e.brand,e.model,e.category,e.quantity,e.inbox,e.country,e.phone].map(esc).join(','));
+  downloadCSV(['Date,Customer Name,Brand,Model,Category,Quantity,Inbox,Country,Mobile Number', ...rows].join('\n'), 'whizz_enquiries.csv');
   showToast('Export complete!','success');
 }
 
