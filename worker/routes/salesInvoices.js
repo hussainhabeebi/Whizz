@@ -108,13 +108,34 @@ export async function handleListSalesInvoices(request, env) {
   target.searchParams.set('endDate', endDate);
   if (settings.compCode) target.searchParams.set('compCode', settings.compCode);
 
-  let text;
-  try {
-    const response = await fetch(target.toString(), { headers: { 'x-api-key': apiKey } });
-    text = await response.text();
-    if (!response.ok) return json({ error: `Sales API returned HTTP ${response.status}: ${text.slice(0, 200)}` }, 502);
-  } catch (error) {
-    return json({ error: `Could not reach the sales API: ${error.message}` }, 502);
+  // The x-api-key header is rejected with this API's own "error code: 1003" — not a
+  // connection problem (that request did reach it and got a structured response), so
+  // this is most likely how the key is passed, not where. Tries every common convention
+  // in turn and uses whichever one the API actually accepts, rather than committing to
+  // one guess and leaving the whole module broken if it's wrong.
+  const attempts = [
+    { label: 'x-api-key header', headers: { 'x-api-key': apiKey }, extraParams: {} },
+    { label: 'Authorization: Bearer header', headers: { authorization: `Bearer ${apiKey}` }, extraParams: {} },
+    { label: 'Authorization header (no Bearer)', headers: { authorization: apiKey }, extraParams: {} },
+    { label: 'apiKey query param', headers: {}, extraParams: { apiKey } },
+    { label: 'api_key query param', headers: {}, extraParams: { api_key: apiKey } },
+    { label: '"ApiKey" header (no hyphen)', headers: { ApiKey: apiKey }, extraParams: {} },
+  ];
+  let text, lastError, succeededAs = null;
+  for (const attempt of attempts) {
+    const attemptUrl = new URL(target.toString());
+    for (const [k, v] of Object.entries(attempt.extraParams)) attemptUrl.searchParams.set(k, v);
+    try {
+      const response = await fetch(attemptUrl.toString(), { headers: attempt.headers });
+      const body = await response.text();
+      if (response.ok) { text = body; succeededAs = attempt.label; break; }
+      lastError = `HTTP ${response.status} (tried as ${attempt.label}): ${body.slice(0, 200)}`;
+    } catch (error) {
+      lastError = `Could not reach the sales API (tried as ${attempt.label}): ${error.message}`;
+    }
+  }
+  if (succeededAs === null) {
+    return json({ error: `Every way of sending the API key was rejected. Last attempt — ${lastError}` }, 502);
   }
 
   let data;
@@ -129,6 +150,7 @@ export async function handleListSalesInvoices(request, env) {
   const invoices = rows.map(normalizeInvoice);
   const total = invoices.reduce((sum, i) => sum + i.invoiceAmount, 0);
   // One raw row, not every row — enough to debug the field mapping above without
-  // bloating the response on a large date range.
-  return json({ invoices, total, count: invoices.length, sample: rows[0] || null });
+  // bloating the response on a large date range. authMethod says which of the attempts
+  // above actually worked, in case that's ever useful to know later.
+  return json({ invoices, total, count: invoices.length, sample: rows[0] || null, authMethod: succeededAs });
 }
