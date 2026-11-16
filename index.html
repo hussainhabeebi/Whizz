@@ -7018,12 +7018,44 @@ function quantityFromText(text){
 }
 // Known product category names — not already cached anywhere (unlike S.cache.brands),
 // so this does its own fetch, same as buildPhoneToBrandMap()'s identical
-// whizz-get-contacts call elsewhere in this app.
+// whizz-get-contacts call elsewhere in this app. Pulls from both category and
+// productInterest — a category a lead was tagged with only ever comes from one of these
+// two free-text fields depending on how that contact was entered, so relying on just one
+// would silently miss terms the other already has on file.
 async function categoryTermsOnly(){
   try{
     const data=await apiW('whizz-get-contacts');
-    return[...new Set((data.contacts||[]).map(c=>c.category).filter(c=>c&&c.length>=3))];
+    const terms=new Set();
+    (data.contacts||[]).forEach(c=>{
+      if(c.category&&c.category.length>=3)terms.add(c.category);
+      if(c.productInterest&&c.productInterest.length>=3)terms.add(c.productInterest);
+    });
+    return[...terms];
   }catch(e){ return[]; }
+}
+// Enquiries' bulk conversation list only ever carries each conversation's single latest
+// message (Chatwoot's own last_non_activity_message) — an enquiry mentioned earlier in a
+// thread, then followed by any other reply, would otherwise never be seen by
+// conversationSearchText() at all, regardless of how complete the term lists above are.
+// This fetches full history per conversation (one extra request each, so bounded
+// concurrency rather than firing them all at once) and drops it into the same
+// S.convMessages cache loadThread() already uses — conversationSearchText() already folds
+// that in, so nothing downstream needs to change to benefit from it.
+async function fetchFullMessagesForEnquiries(conversations){
+  const CONCURRENCY=6;
+  const queue=[...conversations];
+  async function worker(){
+    while(queue.length){
+      const c=queue.shift();
+      if(Array.isArray(S.convMessages[c.id]))continue; // already cached from opening this thread earlier
+      try{
+        const d=await cw(`conversations/${encodeURIComponent(c.id)}/messages`);
+        const messages=d.messages||d.payload||null;
+        if(Array.isArray(messages)&&messages.length)S.convMessages[c.id]=messages;
+      }catch(e){ /* best-effort — conversationSearchText() falls back to last_message alone */ }
+    }
+  }
+  await Promise.all(Array.from({length:Math.min(CONCURRENCY,conversations.length)},worker));
 }
 // Which of the given terms (default: all known brand/product terms) this
 // conversation's available text mentions. Shared by the Enquiries list and
@@ -7090,6 +7122,7 @@ async function computeEnquiriesFromConversations(){
 }
 async function refreshEnquiries(){
   await refreshConversations();
+  await fetchFullMessagesForEnquiries(S.cache.conversations||[]);
   S.cache.enquiries=await computeEnquiriesFromConversations();
   renderEnquiriesPage(S.cache.enquiries);
 }
