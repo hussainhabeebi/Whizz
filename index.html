@@ -11224,6 +11224,13 @@ async function loadSalesInvoices(){
     S.cache.salesInvoices=d.invoices||[];
     renderSalesInvoicesTable(S.cache.salesInvoices);
     document.getElementById('si-total').textContent=S.cache.salesInvoices.length?`Total: ${(d.total||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:'';
+    // The API key is tried several ways server-side (header, Authorization, query param…)
+    // since this API's own rejection didn't say which one it wants — surfaced here once,
+    // not on every load, so it's visible without being noisy.
+    if(d.authMethod&&d.authMethod!=='x-api-key header'&&!S.salesAuthMethodNoted){
+      S.salesAuthMethodNoted=true;
+      showToast(`Connected via ${d.authMethod} (the default method was rejected)`,'success');
+    }
     // If every row came back with nothing mapped to Customer Name or Invoice Amount, the
     // external API's field names likely don't match any of the candidates this app tries —
     // d.sample (one raw row) is logged so the real shape can be inspected and fixed.
