@@ -1791,9 +1791,9 @@ body.dark{
             <div style="margin-bottom:12px;"><div class="eyebrow">Country</div><div class="chips" id="enq-country-chips"></div></div>
             <div style="overflow-x:auto;">
               <table class="stock-table">
-                <thead><tr><th>Customer Name</th><th>Product Interest</th><th>Country</th><th>Mobile Number</th></tr></thead>
+                <thead><tr><th>Date</th><th>Customer Name</th><th>Brand</th><th>Model</th><th style="text-align:right;">Quantity</th><th>Country</th><th>Mobile Number</th></tr></thead>
                 <tbody id="enq-table-body">
-                  <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">Click Refresh to load</td></tr>
+                  <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">Click Refresh to load</td></tr>
                 </tbody>
               </table>
             </div>
@@ -6980,16 +6980,39 @@ function conversationSearchText(c){
   return parts.join(' ');
 }
 // Brand/product terms to look for, pulled from whatever lead + stock data is
-// already loaded — no extra fetch just to build this list.
+// already loaded — no extra fetch just to build this list. Kept as one combined list
+// for matchedProductsForConversation()'s existing callers (the Conversations "Inquiry"
+// highlight doesn't need the brand/model split below); the Enquiries table itself uses
+// the two split lists so a match can be attributed to the right column.
 function brandProductTerms(){
+  return[...new Set([...brandTermsOnly(),...modelTermsOnly()])];
+}
+// Known brand names only (same list the rest of the app already treats as "brand" —
+// S.cache.brands, populated from contacts) — matched separately from product/model
+// terms so an Enquiries row can show Brand and Model in their own columns instead of
+// one mixed "Product Interest" list.
+function brandTermsOnly(){
+  return[...new Set((S.cache.brands||[]).filter(b=>b&&b.length>=3))];
+}
+// Known product/model names from Stock Evaluation (productName/alias) — these are the
+// actual model-style identifiers (e.g. "HP LaserJet M404", "DJI Mini 3"), distinct from
+// a brand name.
+function modelTermsOnly(){
   const terms=new Set();
-  (S.cache.brands||[]).forEach(b=>{if(b&&b.length>=3)terms.add(b);});
   (S.stock||[]).forEach(s=>{
-    if(s.brand&&s.brand.length>=3)terms.add(s.brand);
     if(s.productName&&s.productName.length>=3)terms.add(s.productName);
     if(s.alias&&s.alias.length>=3)terms.add(s.alias);
   });
   return[...terms];
+}
+// Best-effort quantity mention — a number immediately beside a quantity-style unit or
+// keyword (pcs, units, qty, sets, pieces, nos). A conversation that never states a
+// quantity in this shape is left blank rather than guessed, same "no match means '—',
+// never a guess" convention this app uses everywhere else.
+const ENQ_QTY_PATTERN=/\b(\d{1,6})\s*(?:pcs?\.?|pieces?|units?|nos\.?|sets?|qty|quantity)\b|\b(?:qty|quantity)[:\s]+(\d{1,6})\b/i;
+function quantityFromText(text){
+  const m=ENQ_QTY_PATTERN.exec(text||'');
+  return m?(m[1]||m[2]||''):'';
 }
 // Which of the given terms (default: all known brand/product terms) this
 // conversation's available text mentions. Shared by the Enquiries list and
@@ -7003,12 +7026,17 @@ function matchedProductsForConversation(c,terms){
   return terms.filter(t=>lower.includes(t.toLowerCase()));
 }
 function computeEnquiriesFromConversations(){
-  const terms=brandProductTerms();
-  if(!terms.length)return[];
+  const brandTerms=brandTermsOnly(),modelTerms=modelTermsOnly();
+  if(!brandTerms.length&&!modelTerms.length)return[];
   const byPhone={};
   (S.cache.conversations||[]).forEach(c=>{
-    const matched=matchedProductsForConversation(c,terms);
-    if(!matched.length)return;
+    const text=conversationSearchText(c);
+    if(!text.trim())return;
+    const lower=text.toLowerCase();
+    const matchedBrands=brandTerms.filter(t=>lower.includes(t.toLowerCase()));
+    const matchedModels=modelTerms.filter(t=>lower.includes(t.toLowerCase()));
+    if(!matchedBrands.length&&!matchedModels.length)return;
+    const qty=quantityFromText(text);
     const phone=convPhone(c)||('conv:'+c.id);
     const existing=byPhone[phone];
     if(!existing){
@@ -7016,18 +7044,31 @@ function computeEnquiriesFromConversations(){
         name:c.contact_name||'Unknown',
         phone:convPhone(c),
         country:countryFromPhone(convPhone(c))||'—',
-        products:new Set(matched),
+        brands:new Set(matchedBrands),
+        models:new Set(matchedModels),
+        quantity:qty,
         lastActivity:c.last_activity||0
       };
     }else{
-      matched.forEach(m=>existing.products.add(m));
+      matchedBrands.forEach(m=>existing.brands.add(m));
+      matchedModels.forEach(m=>existing.models.add(m));
+      if(!existing.quantity&&qty)existing.quantity=qty;
       if((c.last_activity||0)>existing.lastActivity)existing.lastActivity=c.last_activity||0;
       if((!existing.name||existing.name==='Unknown')&&c.contact_name)existing.name=c.contact_name;
     }
   });
   return Object.values(byPhone)
     .sort((a,b)=>b.lastActivity-a.lastActivity)
-    .map(e=>({name:e.name,productInterest:[...e.products].join(', '),country:e.country,phone:e.phone}));
+    .map(e=>({
+      name:e.name,
+      brand:[...e.brands].join(', ')||'—',
+      model:[...e.models].join(', ')||'—',
+      quantity:e.quantity||'—',
+      date:e.lastActivity?new Date(e.lastActivity*1000).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):'—',
+      lastActivity:e.lastActivity||0,
+      country:e.country,
+      phone:e.phone,
+    }));
 }
 async function refreshEnquiries(){
   await refreshConversations();
@@ -7066,12 +7107,12 @@ function renderEnqTable(){
   const page=Math.min(S.enqPage||1,totalPages);
   S.enqPage=page;
   if(!enquiries.length){
-    body.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">No enquiries found</td></tr>';
+    body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">No enquiries found</td></tr>';
   }else{
     const start=(page-1)*ENQ_PAGE_SIZE;
     const pageItems=enquiries.slice(start,start+ENQ_PAGE_SIZE);
     body.innerHTML=pageItems.map(e=>
-      `<tr><td class="td-bold">${e.name||'Unknown'}</td><td>${e.productInterest||'—'}</td><td>${e.country||'—'}</td><td>${e.phone||'—'}</td></tr>`
+      `<tr><td>${e.date||'—'}</td><td class="td-bold">${e.name||'Unknown'}</td><td>${_hesc(e.brand||'—')}</td><td>${_hesc(e.model||'—')}</td><td style="text-align:right;">${_hesc(e.quantity||'—')}</td><td>${_hesc(e.country||'—')}</td><td>${_hesc(e.phone||'—')}</td></tr>`
     ).join('');
   }
   const pageInfo=document.getElementById('enq-page-info');
@@ -7082,8 +7123,9 @@ function renderEnqTable(){
 }
 function exportEnquiriesCSV(){
   if(!S.cache.enquiries||!S.cache.enquiries.length){showToast('Load enquiries first','error');return;}
-  const rows=S.cache.enquiries.map(e=>`"${(e.name||'').replace(/"/g,'""')}","${(e.productInterest||'').replace(/"/g,'""')}","${(e.country||'').replace(/"/g,'""')}","${(e.phone||'').replace(/"/g,'""')}"`);
-  downloadCSV(['Customer Name,Product Interest,Country,Mobile Number', ...rows].join('\n'), 'whizz_enquiries.csv');
+  const esc=v=>`"${String(v||'').replace(/"/g,'""')}"`;
+  const rows=S.cache.enquiries.map(e=>[e.date,e.name,e.brand,e.model,e.quantity,e.country,e.phone].map(esc).join(','));
+  downloadCSV(['Date,Customer Name,Brand,Model,Quantity,Country,Mobile Number', ...rows].join('\n'), 'whizz_enquiries.csv');
   showToast('Export complete!','success');
 }
 
