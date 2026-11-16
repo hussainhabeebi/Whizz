@@ -22,6 +22,7 @@ import { handleMetaWebhookVerify, handleMetaWebhookEvent, handleGetDeliveryStatu
 import { handleCreateStagedRun, handleListStagedRuns, handlePauseStagedRun, handleResumeStagedRun, handleCancelStagedRun, processStagedCampaignRuns } from './routes/stagedCampaigns.js';
 import { handleGetTelegramSettings, handleSaveTelegramSettings, handleSetTelegramWebhook, handleTelegramWebhookEvent, handleListTelegramOptOuts, handleAddTelegramOptOut, handleRemoveTelegramOptOut, handleTelegramAudiencePreview, handleGetTelegramBotUsername, handleSendTelegramCampaign, handleListTelegramLeads, handleCreateTelegramLead, handleUpdateTelegramLead, handleDeleteTelegramLead, handleImportTelegramLeadsFromCrm, handleGenerateTelegramInviteLink, handleListTelegramConversations, handleGetTelegramConversationMessages } from './routes/telegramBot.js';
 import { handleGetEmailSettings, handleSaveEmailSettings, handleListEmailTemplates, handleCreateEmailTemplate, handleDeleteEmailTemplate, handlePreviewEmailAudience, handleSendEmailCampaign, handleListEmailCampaigns, handleGetEmailCampaignDetail, handleListEmailOptOuts, handleAddEmailOptOut, handleRemoveEmailOptOut, handleEmailUnsubscribe, handleResendWebhookEvent } from './routes/emailCampaigns.js';
+import { handleGetSalesInvoiceSettings, handleSaveSalesInvoiceSettings, handleListSalesInvoices } from './routes/salesInvoices.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -87,6 +88,9 @@ const routes = [
   { method: 'GET', path: '/api/email/campaigns', handler: handleListEmailCampaigns },
   { method: 'GET', path: '/api/email/opt-outs', handler: handleListEmailOptOuts },
   { method: 'POST', path: '/api/email/opt-outs', handler: handleAddEmailOptOut },
+  { method: 'GET', path: '/api/sales-invoices/settings', handler: handleGetSalesInvoiceSettings },
+  { method: 'POST', path: '/api/sales-invoices/settings', handler: handleSaveSalesInvoiceSettings },
+  { method: 'GET', path: '/api/sales-invoices', handler: handleListSalesInvoices },
 ];
 
 async function leadActor(request, env) {

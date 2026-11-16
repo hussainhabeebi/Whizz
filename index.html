@@ -976,6 +976,10 @@ body.dark{
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 15l2.5 2.5L15 13"/></svg>
         Daily Activity
       </div>
+      <div class="nav-item" data-page="sales-invoices" onclick="navigate('sales-invoices',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Sales Invoices
+      </div>
       <div class="nav-section">Data</div>
       <div class="nav-item" data-page="leads" onclick="navigate('leads',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
@@ -2057,6 +2061,53 @@ body.dark{
             <div id="ma-matrix-sends" style="margin-bottom:22px;"><div class="empty-state">Click Refresh to load.</div></div>
             <div class="eyebrow" style="margin-bottom:8px;">Conversations</div>
             <div id="ma-matrix-conv"><div class="empty-state">Click Refresh to load.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-sales-invoices">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Sales API Settings</div>
+            <span class="eyebrow" id="si-status" style="margin-bottom:0;">Checking…</span>
+          </div>
+          <div class="card-body">
+            <div class="fi-hint" style="margin-bottom:10px;">Pulls invoices live from your own sales/ERP system for whatever date range you pick below — nothing is stored in Whizz.</div>
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;">
+              <div class="fg"><label class="fl">Base URL</label><input class="fi" id="si-base-url" placeholder="http://host:port/GetSales/"/></div>
+              <div class="fg"><label class="fl">Company Code</label><input class="fi" id="si-comp-code" placeholder="COMP0011"/></div>
+              <div class="fg"><label class="fl">API Key</label><input class="fi" id="si-api-key" type="password" placeholder="Paste API key"/></div>
+            </div>
+            <button class="t-btn btn-primary" onclick="saveSalesInvoiceSettings()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+              Save Settings
+            </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Sales Invoices</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="date" class="fi" id="si-start-date" style="padding:6px 10px;font-size:12px;"/>
+              <span style="color:var(--text3);font-size:12px;">to</span>
+              <input type="date" class="fi" id="si-end-date" style="padding:6px 10px;font-size:12px;"/>
+              <button class="t-btn btn-primary t-btn-sm" onclick="loadSalesInvoices()">Load</button>
+              <button class="t-btn btn-ghost t-btn-sm" onclick="exportSalesInvoicesCSV()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="overflow-x:auto;">
+              <table class="stock-table">
+                <thead><tr><th>Date</th><th>Customer Name</th><th style="text-align:right;">Invoice Amount</th></tr></thead>
+                <tbody id="si-table-body">
+                  <tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px;">Pick a date range and click Load</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:10px;font-size:13px;font-weight:700;" id="si-total"></div>
           </div>
         </div>
       </div>
@@ -3628,8 +3679,8 @@ function saveConvIdSet(key,set){ try{localStorage.setItem(key,JSON.stringify([..
 function loadPinnedMsgMap(){ try{return JSON.parse(localStorage.getItem(PINNED_MSG_KEY)||'{}');}catch(e){return{};} }
 function savePinnedMsgMap(map){ try{localStorage.setItem(PINNED_MSG_KEY,JSON.stringify(map));}catch(e){} }
 const ROLE_EXPERIENCES={
-  Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','telegram','email-marketing','templates','conversations','enquiries','tasks','reports','marketing-activity','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
-  Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','telegram','email-marketing','templates','conversations','enquiries','tasks','reports','marketing-activity','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
+  Administrator:{label:'Administrator command centre',copy:'Control users, integrations, campaign safety and company-wide performance.',pages:['dashboard','onboarding','campaigns','suggestions','history','telegram','email-marketing','templates','conversations','enquiries','tasks','reports','marketing-activity','sales-invoices','leads','stock','pipeline','discovery','users','integrations','reliability'],actions:[['System health','reliability'],['Manage users','users'],['Executive report','reports']]},
+  Manager:{label:'Manager performance centre',copy:'Monitor the team, pipeline, campaigns and priorities requiring intervention.',pages:['dashboard','campaigns','suggestions','history','telegram','email-marketing','templates','conversations','enquiries','tasks','reports','marketing-activity','sales-invoices','leads','stock','pipeline','discovery'],actions:[['Review pipeline','pipeline'],['Campaign report','reports'],['Team inbox','conversations']]},
   Sales:{label:'My sales workspace',copy:'Focus on assigned leads, live conversations, follow-ups and the next best action.',pages:['dashboard','conversations','enquiries','tasks','leads','stock','pipeline','campaigns','suggestions','history','telegram','email-marketing','templates'],actions:[['Open inbox','conversations'],['My leads','leads'],["Today's tasks",'tasks']]}
 };
 let CURRENT_SESSION=null;
@@ -5423,8 +5474,8 @@ function navigate(page, el) {
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
   if(page!=='conversations' && S.liveSync) stopLiveSync();
-  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',telegram:'Telegram Marketing','email-marketing':'Email Marketing',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports','marketing-activity':'Daily Marketing Activity',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events',reliability:'System Health'};
-  const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',telegram:'Bulk outreach to contacts who’ve started your Telegram bot','email-marketing':'Bulk email outreach to contacts with an email on file',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms','marketing-activity':'Today\'s activity, a 14-day trend, and conversations by inbox & brand',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics'};
+  const titles={dashboard:'Dashboard',onboarding:'Setup Checklist',campaigns:'Campaigns',history:'Campaign History',telegram:'Telegram Marketing','email-marketing':'Email Marketing',templates:'Templates',conversations:'Conversations',enquiries:'Enquiries',reports:'Reports','marketing-activity':'Daily Marketing Activity','sales-invoices':'Sales Invoices',leads:'Leads',stock:'Stock Evaluation',suggestions:'Broadcast Suggestions',discovery:'Contact Discovery',users:'User Management',pipeline:'Lead Pipeline',integrations:'Integrations',tasks:'Tasks & Events',reliability:'System Health'};
+  const subtitles={dashboard:currentRoleExperience().copy,onboarding:'Get your workspace fully set up',campaigns:'Build and launch WhatsApp broadcasts',history:'Past campaign performance and delivery',telegram:'Bulk outreach to contacts who’ve started your Telegram bot','email-marketing':'Bulk email outreach to contacts with an email on file',templates:'Manage your approved WhatsApp templates',conversations:'Live customer conversations across channels',enquiries:'Conversations where a brand or product was mentioned',reports:'Analytics across brands, countries & platforms','marketing-activity':'Today\'s activity, a 14-day trend, and conversations by inbox & brand','sales-invoices':'Live invoices pulled from your own sales/ERP system',leads:'Browse and manage your lead pipeline data',stock:'Inventory levels and demand signals',suggestions:'Recommended audiences for your next campaign',discovery:'Find new wholesaler & retailer contacts',users:'Manage team access and permissions',pipeline:'Track leads through your sales stages',integrations:'Connect Brevo, WordPress & other tools',tasks:'Plan tasks and events by date and location',reliability:'Authentication, data and integration diagnostics'};
   document.getElementById('page-title').textContent=titles[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   S.page=page; document.body.dataset.page=page; closeSidebar();
@@ -5444,6 +5495,7 @@ function navigate(page, el) {
   if(page==='history'){renderScheduledList();loadStagedCampaigns();renderHistoryList();}
   if(page==='telegram'){initTelegramModule();}
   if(page==='email-marketing'){initEmailMarketingModule();}
+  if(page==='sales-invoices'){initSalesInvoicesModule();}
   if(page==='tasks'){renderTasksList();}
   // Background refresh (fresh data without blocking navigation)
   if(page==='dashboard'){refreshDashboard().catch(()=>{});}
@@ -11121,6 +11173,80 @@ async function toggleEmailCampaignDetail(id){
     const rows=(d.recipients||[]).slice(0,200).map(r=>`<tr><td>${_hesc(r.email)}</td><td>${_hesc(r.status)}</td><td>${r.openCount||0}</td><td>${r.clickCount||0}</td></tr>`).join('');
     detailEl.innerHTML=`<div style="overflow:auto;max-height:220px;border:1px solid var(--border);border-radius:6px;"><table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:var(--bg3);"><th style="padding:5px 8px;text-align:left;">Email</th><th style="padding:5px 8px;text-align:left;">Status</th><th style="padding:5px 8px;text-align:left;">Opens</th><th style="padding:5px 8px;text-align:left;">Clicks</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }catch(e){detailEl.innerHTML=`<div style="font-size:11px;color:var(--red);">${_hesc(e.message||'Failed to load')}</div>`;}
+}
+
+// ── Sales Invoices module (worker/routes/salesInvoices.js) — a live, read-only pull from
+// the company's own sales/ERP API for whatever date range is selected. Nothing is cached
+// beyond the current page view (S.cache.salesInvoices, for CSV export only); every Load
+// click is a fresh fetch, since this is someone else's system of record, not Whizz's own.
+async function initSalesInvoicesModule(){
+  loadSalesInvoiceSettings();
+  const today=new Date().toISOString().slice(0,10);
+  const startEl=document.getElementById('si-start-date'),endEl=document.getElementById('si-end-date');
+  if(startEl&&!startEl.value)startEl.value=today;
+  if(endEl&&!endEl.value)endEl.value=today;
+  loadSalesInvoices();
+}
+async function loadSalesInvoiceSettings(){
+  const statusEl=document.getElementById('si-status');
+  if(!statusEl)return;
+  try{
+    const d=await apiWMsg('api/sales-invoices/settings');
+    statusEl.textContent=d.hasApiKey?'Connected':'Not connected';
+    statusEl.style.color=d.hasApiKey?'var(--green)':'var(--text3)';
+    document.getElementById('si-base-url').value=d.baseUrl||'';
+    document.getElementById('si-comp-code').value=d.compCode||'';
+    document.getElementById('si-api-key').placeholder=d.hasApiKey?'Leave blank to keep the current key':'Paste API key';
+  }catch(e){statusEl.textContent='Status unavailable';}
+}
+async function saveSalesInvoiceSettings(){
+  const baseUrl=document.getElementById('si-base-url').value.trim();
+  const compCode=document.getElementById('si-comp-code').value.trim();
+  const apiKey=document.getElementById('si-api-key').value.trim();
+  if(!baseUrl){showToast('A base URL is required','error');return;}
+  try{
+    await apiWMsg('api/sales-invoices/settings','POST',{baseUrl,compCode,apiKey});
+    document.getElementById('si-api-key').value='';
+    showToast('Settings saved','success');
+    loadSalesInvoiceSettings();
+    loadSalesInvoices();
+  }catch(e){showToast(e.message||'Failed to save settings','error');}
+}
+async function loadSalesInvoices(){
+  const body=document.getElementById('si-table-body');
+  if(!body)return;
+  const startDate=document.getElementById('si-start-date').value,endDate=document.getElementById('si-end-date').value;
+  if(!startDate||!endDate){showToast('Pick a date range first','error');return;}
+  body.innerHTML='<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px;">Loading…</td></tr>';
+  document.getElementById('si-total').textContent='';
+  try{
+    const d=await apiWMsg(`api/sales-invoices?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`);
+    S.cache.salesInvoices=d.invoices||[];
+    renderSalesInvoicesTable(S.cache.salesInvoices);
+    document.getElementById('si-total').textContent=S.cache.salesInvoices.length?`Total: ${(d.total||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:'';
+    // If every row came back with nothing mapped to Customer Name or Invoice Amount, the
+    // external API's field names likely don't match any of the candidates this app tries —
+    // d.sample (one raw row) is logged so the real shape can be inspected and fixed.
+    if(S.cache.salesInvoices.length&&S.cache.salesInvoices.every(i=>!i.customerName&&!i.invoiceAmount)){
+      console.warn('[Whizz] Sales API rows didn\'t map to any known field names — raw sample row:',d.sample);
+      showToast('Connected, but the response fields didn\'t match — check the browser console for a raw sample row','error');
+    }
+  }catch(e){
+    body.innerHTML=`<tr><td colspan="3" style="text-align:center;color:var(--red);padding:20px;">${_hesc(e.message||'Failed to load')}</td></tr>`;
+  }
+}
+function renderSalesInvoicesTable(invoices){
+  const body=document.getElementById('si-table-body');
+  if(!body)return;
+  if(!invoices.length){body.innerHTML='<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px;">No invoices for this date range</td></tr>';return;}
+  body.innerHTML=invoices.map(i=>`<tr><td>${_hesc(i.date||'—')}</td><td class="td-bold">${_hesc(i.customerName||'—')}</td><td style="text-align:right;">${Number(i.invoiceAmount||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`).join('');
+}
+function exportSalesInvoicesCSV(){
+  if(!S.cache.salesInvoices||!S.cache.salesInvoices.length){showToast('Load invoices first','error');return;}
+  const esc=v=>`"${String(v||'').replace(/"/g,'""')}"`;
+  const rows=S.cache.salesInvoices.map(i=>[i.date,i.customerName,i.invoiceAmount].map(esc).join(','));
+  downloadCSV(['Date,Customer Name,Invoice Amount', ...rows].join('\n'), 'whizz_sales_invoices.csv');
+  showToast('Export complete!','success');
 }
 
 // ── Users Management ──
