@@ -381,6 +381,18 @@ async function repairSchema(env) {
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Sales Invoices module (worker/routes/salesInvoices.js) — connection settings only;
+  // the invoice list itself is always a live pull from the company's own sales/ERP API for
+  // whatever date range is selected, never stored here. Same singleton-row pattern as
+  // email_settings/telegram_settings.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS sales_invoice_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    baseUrl TEXT NOT NULL DEFAULT '',
+    compCode TEXT NOT NULL DEFAULT '',
+    apiKeyEncrypted TEXT,
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_team ON conversation_assignments(assignedTeamId)',
