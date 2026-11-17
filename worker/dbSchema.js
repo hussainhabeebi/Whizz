@@ -392,6 +392,19 @@ async function repairSchema(env) {
     apiKeyEncrypted TEXT,
     updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  // Imported invoices — for when the sales API itself isn't reachable from Cloudflare
+  // (IP-restricted to the office network) but is reachable from somewhere else that can
+  // paste/upload the same JSON here instead. invoiceRef as the primary key makes every
+  // import an upsert: re-importing an overlapping date range refreshes existing rows and
+  // adds new ones, but never deletes a row this particular import didn't mention.
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS sales_invoices (
+    invoiceRef TEXT PRIMARY KEY,
+    date TEXT NOT NULL DEFAULT '',
+    customerName TEXT NOT NULL DEFAULT '',
+    invoiceAmount REAL NOT NULL DEFAULT 0,
+    importedByEmail TEXT NOT NULL DEFAULT '',
+    importedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
 
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',
@@ -417,6 +430,7 @@ async function repairSchema(env) {
     "CREATE INDEX IF NOT EXISTS idx_staged_campaign_runs_due ON staged_campaign_runs(status, nextRunAt)",
     'CREATE INDEX IF NOT EXISTS idx_email_sends_campaign ON email_sends(campaignId)',
     'CREATE INDEX IF NOT EXISTS idx_email_sends_resend_id ON email_sends(resendId)',
+    'CREATE INDEX IF NOT EXISTS idx_sales_invoices_date ON sales_invoices(date)',
   ]) await safeRun(env, sql);
 }
 
