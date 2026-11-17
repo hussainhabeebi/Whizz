@@ -2084,6 +2084,21 @@ body.dark{
             </button>
           </div>
         </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head"><div class="card-title">Import Invoice Data</div></div>
+          <div class="card-body">
+            <div class="fi-hint" style="margin-bottom:10px;">If Whizz can't reach your sales API directly (network/firewall restricted to your office), pull the data from a machine that can and paste it here instead — upserted by invoice number, so nothing already imported is ever lost or duplicated. From PowerShell on a machine that can reach the API:<br/><code>(Invoke-WebRequest -Uri "&lt;base URL&gt;?startDate=YYYY-MM-DD&amp;endDate=YYYY-MM-DD&amp;compCode=&lt;code&gt;" -Headers @{"x-api-key"="&lt;key&gt;"}).Content</code><br/>Paste the full output below, or upload it as a saved .json file.</div>
+            <div class="fg"><textarea class="fi" id="si-import-text" rows="5" placeholder='Paste the API response JSON here, e.g. {"data":[{"issueDate":"2026-01-31","buyerName":"...","payableAmount":828504.16}]}'></textarea></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="file" class="fi" id="si-import-file" accept="application/json,.json" style="max-width:260px;" onchange="onSalesImportFileSelected(event)"/>
+              <button class="t-btn btn-primary t-btn-sm" onclick="importSalesInvoices()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Import
+              </button>
+              <span id="si-import-status" style="font-size:12px;color:var(--text3);"></span>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-head">
             <div class="card-title">Sales Invoices</div>
@@ -2092,6 +2107,7 @@ body.dark{
               <span style="color:var(--text3);font-size:12px;">to</span>
               <input type="date" class="fi" id="si-end-date" style="padding:6px 10px;font-size:12px;"/>
               <button class="t-btn btn-primary t-btn-sm" onclick="loadSalesInvoices()">Load</button>
+              <button class="t-btn btn-ghost t-btn-sm" onclick="loadSalesInvoices(true)" title="Retry pulling directly from the sales API, instead of what's already been imported">Try Live Pull</button>
               <button class="t-btn btn-ghost t-btn-sm" onclick="exportSalesInvoicesCSV()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Export CSV
@@ -2099,6 +2115,7 @@ body.dark{
             </div>
           </div>
           <div class="card-body">
+            <div class="fi-hint" style="margin-bottom:10px;" id="si-source-hint">Showing imported data.</div>
             <div style="overflow-x:auto;">
               <table class="stock-table">
                 <thead><tr><th>Date</th><th>Customer Name</th><th style="text-align:right;">Invoice Amount</th></tr></thead>
@@ -11212,31 +11229,40 @@ async function saveSalesInvoiceSettings(){
     loadSalesInvoices();
   }catch(e){showToast(e.message||'Failed to save settings','error');}
 }
-async function loadSalesInvoices(){
+// live=false (default): reads whatever's been imported into Whizz (worker/routes/
+// salesInvoices.js's handleListStoredSalesInvoices) — always available regardless of
+// whether Cloudflare can reach the sales API itself. live=true retries the direct pull
+// ("Try Live Pull" button), for once that network/firewall access is sorted.
+async function loadSalesInvoices(live){
   const body=document.getElementById('si-table-body');
   if(!body)return;
   const startDate=document.getElementById('si-start-date').value,endDate=document.getElementById('si-end-date').value;
   if(!startDate||!endDate){showToast('Pick a date range first','error');return;}
   body.innerHTML='<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px;">Loading…</td></tr>';
   document.getElementById('si-total').textContent='';
+  const hintEl=document.getElementById('si-source-hint');
+  if(hintEl)hintEl.textContent=live?'Showing a direct live pull from the sales API.':'Showing imported data.';
   try{
-    const d=await apiWMsg(`api/sales-invoices?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`);
+    const path=live?'api/sales-invoices':'api/sales-invoices/stored';
+    const d=await apiWMsg(`${path}?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`);
     S.cache.salesInvoices=d.invoices||[];
     renderSalesInvoicesTable(S.cache.salesInvoices);
     document.getElementById('si-total').textContent=S.cache.salesInvoices.length?`Total: ${(d.total||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:'';
-    // The API key is tried several ways server-side (header, Authorization, query param…)
-    // since this API's own rejection didn't say which one it wants — surfaced here once,
-    // not on every load, so it's visible without being noisy.
-    if(d.authMethod&&d.authMethod!=='x-api-key header'&&!S.salesAuthMethodNoted){
-      S.salesAuthMethodNoted=true;
-      showToast(`Connected via ${d.authMethod} (the default method was rejected)`,'success');
-    }
-    // If every row came back with nothing mapped to Customer Name or Invoice Amount, the
-    // external API's field names likely don't match any of the candidates this app tries —
-    // d.sample (one raw row) is logged so the real shape can be inspected and fixed.
-    if(S.cache.salesInvoices.length&&S.cache.salesInvoices.every(i=>!i.customerName&&!i.invoiceAmount)){
-      console.warn('[Whizz] Sales API rows didn\'t map to any known field names — raw sample row:',d.sample);
-      showToast('Connected, but the response fields didn\'t match — check the browser console for a raw sample row','error');
+    if(live){
+      // The API key is tried several ways server-side (header, Authorization, query
+      // param…) since this API's own rejection didn't say which one it wants — surfaced
+      // here once, not on every load, so it's visible without being noisy.
+      if(d.authMethod&&d.authMethod!=='x-api-key header'&&!S.salesAuthMethodNoted){
+        S.salesAuthMethodNoted=true;
+        showToast(`Connected via ${d.authMethod} (the default method was rejected)`,'success');
+      }
+      // If every row came back with nothing mapped to Customer Name or Invoice Amount,
+      // the external API's field names likely don't match any of the candidates this app
+      // tries — d.sample (one raw row) is logged so the real shape can be inspected.
+      if(S.cache.salesInvoices.length&&S.cache.salesInvoices.every(i=>!i.customerName&&!i.invoiceAmount)){
+        console.warn('[Whizz] Sales API rows didn\'t map to any known field names — raw sample row:',d.sample);
+        showToast('Connected, but the response fields didn\'t match — check the browser console for a raw sample row','error');
+      }
     }
   }catch(e){
     body.innerHTML=`<tr><td colspan="3" style="text-align:center;color:var(--red);padding:20px;">${_hesc(e.message||'Failed to load')}</td></tr>`;
@@ -11254,6 +11280,36 @@ function exportSalesInvoicesCSV(){
   const rows=S.cache.salesInvoices.map(i=>[i.date,i.customerName,i.invoiceAmount].map(esc).join(','));
   downloadCSV(['Date,Customer Name,Invoice Amount', ...rows].join('\n'), 'whizz_sales_invoices.csv');
   showToast('Export complete!','success');
+}
+// ── Import — pastes/uploads the exact JSON a machine with network access to the sales
+// API already pulled, so the table above has real data even while Cloudflare itself can't
+// reach that API directly. ──
+function onSalesImportFileSelected(event){
+  const file=event.target.files?.[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{ document.getElementById('si-import-text').value=String(reader.result||''); };
+  reader.readAsText(file);
+}
+async function importSalesInvoices(){
+  const statusEl=document.getElementById('si-import-status');
+  const raw=document.getElementById('si-import-text').value.trim();
+  if(!raw){showToast('Paste or upload the API response JSON first','error');return;}
+  let parsed;
+  try{ parsed=JSON.parse(raw); }
+  catch(e){ showToast('That doesn\'t look like valid JSON','error'); return; }
+  if(statusEl)statusEl.textContent='Importing…';
+  try{
+    const d=await apiWMsg('api/sales-invoices/import','POST',parsed);
+    if(statusEl)statusEl.textContent=`Imported ${d.imported} of ${d.totalInBatch} rows.`;
+    showToast(`Imported ${d.imported} invoice${d.imported===1?'':'s'}`,'success');
+    document.getElementById('si-import-text').value='';
+    document.getElementById('si-import-file').value='';
+    loadSalesInvoices();
+  }catch(e){
+    if(statusEl)statusEl.textContent='';
+    showToast(e.message||'Import failed','error');
+  }
 }
 
 // ── Users Management ──

@@ -1,7 +1,16 @@
-// ── Sales Invoices module — a live, read-only pull from the company's own sales/ERP API
-// for a selected date range. Nothing is stored in D1 except the connection settings
-// (base URL, company code, API key) — every invoice list is fetched fresh, same spirit as
-// this repo's other "live external pull" integrations rather than a synced local copy.
+// ── Sales Invoices module ──
+// Two ways to get data in, both ending up in the same table/export:
+// 1. Live pull (handleListSalesInvoices) — direct from the company's sales/ERP API for a
+//    selected date range. Requires that API to be reachable from Cloudflare's network,
+//    which it currently isn't (IP-restricted to the office network, out of this repo's
+//    control to fix).
+// 2. Import (handleImportSalesInvoices) — the same JSON the live API would have returned,
+//    pulled from a machine that CAN reach it (e.g. the office network) and pasted/uploaded
+//    here. Upserted into sales_invoices by invoiceRef, so re-importing an overlapping date
+//    range never creates duplicates or loses a row that isn't in this particular import.
+// Connection settings (base URL, company code, API key) are still the only thing this
+// module stores on its own for the live path — imported invoices are the one real stored
+// dataset.
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS }); }
 function emailFromAccess(request) { return (request.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase(); }
@@ -80,11 +89,30 @@ function firstOf(row, keys) {
   }
   return '';
 }
+// Cheap, deterministic, non-cryptographic — only ever used as a last-resort dedupe key
+// when a row has no invoiceRef/documentId at all, so the same malformed row re-imported
+// twice still collapses to one, rather than piling up duplicates.
+function cheapHash(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) { h = (Math.imul(31, h) + s.charCodeAt(i)) | 0; }
+  return 'ROW_' + (h >>> 0).toString(36);
+}
 function normalizeInvoice(raw) {
   const date = firstOf(raw, ['issueDate', 'date', 'Date', 'invoiceDate', 'InvoiceDate', 'salesDate', 'SalesDate', 'docDate', 'DocDate', 'billDate', 'BillDate']);
   const customerName = firstOf(raw, ['buyerName', 'customerName', 'CustomerName', 'custName', 'CustName', 'partyName', 'PartyName', 'customer', 'Customer', 'clientName', 'ClientName']);
   const amount = firstOf(raw, ['payableAmount', 'invoiceAmount', 'InvoiceAmount', 'amount', 'Amount', 'netAmount', 'NetAmount', 'totalAmount', 'TotalAmount', 'grandTotal', 'GrandTotal', 'billAmount', 'BillAmount']);
-  return { date: String(date || ''), customerName: String(customerName || ''), invoiceAmount: Number(amount) || 0 };
+  const invoiceRef = firstOf(raw, ['invoiceRef', 'documentId', 'InvoiceRef', 'DocumentId', 'invoiceNumber', 'InvoiceNumber']) || cheapHash(JSON.stringify(raw));
+  return { invoiceRef: String(invoiceRef), date: String(date || ''), customerName: String(customerName || ''), invoiceAmount: Number(amount) || 0 };
+}
+// Shared by the live pull and the import handler — the API wraps its array under a few
+// different possible keys depending on the endpoint, same multi-fallback spirit as the
+// field-name matching above.
+function extractRows(data) {
+  return Array.isArray(data) ? data
+    : Array.isArray(data?.data) ? data.data
+      : Array.isArray(data?.result) ? data.result
+        : Array.isArray(data?.sales) ? data.sales
+          : Array.isArray(data?.invoices) ? data.invoices : [];
 }
 
 export async function handleListSalesInvoices(request, env) {
@@ -142,15 +170,56 @@ export async function handleListSalesInvoices(request, env) {
   try { data = JSON.parse(text); }
   catch (error) { return json({ error: `Sales API did not return JSON: ${text.slice(0, 200)}` }, 502); }
 
-  const rows = Array.isArray(data) ? data
-    : Array.isArray(data.data) ? data.data
-      : Array.isArray(data.result) ? data.result
-        : Array.isArray(data.sales) ? data.sales
-          : Array.isArray(data.invoices) ? data.invoices : [];
+  const rows = extractRows(data);
   const invoices = rows.map(normalizeInvoice);
   const total = invoices.reduce((sum, i) => sum + i.invoiceAmount, 0);
   // One raw row, not every row — enough to debug the field mapping above without
   // bloating the response on a large date range. authMethod says which of the attempts
   // above actually worked, in case that's ever useful to know later.
   return json({ invoices, total, count: invoices.length, sample: rows[0] || null, authMethod: succeededAs });
+}
+
+// ── Import path — for when the live API isn't reachable from Cloudflare but is reachable
+// from somewhere else (e.g. the office network). Accepts the exact same JSON shape the
+// live API itself returns (or a bare array of rows), reusing extractRows/normalizeInvoice
+// so the two paths can never drift apart on field mapping. Upserts by invoiceRef: an
+// existing row is refreshed if the same invoice is imported again, but nothing already
+// stored is ever deleted just because this particular import doesn't mention it — each
+// import is additive, never a full replace.
+export async function handleImportSalesInvoices(request, env) {
+  const user = await currentUser(request, env);
+  if (!requireAdmin(user)) return json({ error: 'Administrator access required.' }, 403);
+  const body = await request.json().catch(() => null);
+  if (!body) return json({ error: 'Could not parse the pasted/uploaded data as JSON.' }, 400);
+  const rows = extractRows(body);
+  if (!rows.length) return json({ error: 'No invoice rows found in that data — expected an array, or an object with a data/result/sales/invoices array.' }, 400);
+
+  const invoices = rows.map(normalizeInvoice);
+  let imported = 0;
+  for (const inv of invoices) {
+    try {
+      await env.DB.prepare(`INSERT INTO sales_invoices (invoiceRef,date,customerName,invoiceAmount,importedByEmail,importedAt) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)
+        ON CONFLICT(invoiceRef) DO UPDATE SET date=excluded.date, customerName=excluded.customerName, invoiceAmount=excluded.invoiceAmount, importedByEmail=excluded.importedByEmail, importedAt=CURRENT_TIMESTAMP`)
+        .bind(inv.invoiceRef, inv.date, inv.customerName, inv.invoiceAmount, user.email).run();
+      imported++;
+    } catch (_) { /* one bad row shouldn't abort the whole import */ }
+  }
+  return json({ success: true, imported, totalInBatch: invoices.length });
+}
+
+export async function handleListStoredSalesInvoices(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: 'User is not provisioned in Whizz.' }, 403);
+  const url = new URL(request.url);
+  const today = new Date().toISOString().slice(0, 10);
+  const startDate = url.searchParams.get('startDate') || today;
+  const endDate = url.searchParams.get('endDate') || startDate;
+  // date is stored as the API's own ISO "YYYY-MM-DD" string — plain string comparison
+  // sorts/filters correctly for that format, same as every other ISO-date-as-TEXT column
+  // already in this schema (contacts.createdAt and friends).
+  const result = await env.DB.prepare('SELECT invoiceRef,date,customerName,invoiceAmount FROM sales_invoices WHERE date>=? AND date<=? ORDER BY date DESC, invoiceRef DESC')
+    .bind(startDate, endDate).all();
+  const invoices = result.results || [];
+  const total = invoices.reduce((sum, i) => sum + (Number(i.invoiceAmount) || 0), 0);
+  return json({ invoices, total, count: invoices.length });
 }
