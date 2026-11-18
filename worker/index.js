@@ -22,7 +22,7 @@ import { handleMetaWebhookVerify, handleMetaWebhookEvent, handleGetDeliveryStatu
 import { handleCreateStagedRun, handleListStagedRuns, handlePauseStagedRun, handleResumeStagedRun, handleCancelStagedRun, processStagedCampaignRuns } from './routes/stagedCampaigns.js';
 import { handleGetTelegramSettings, handleSaveTelegramSettings, handleSetTelegramWebhook, handleTelegramWebhookEvent, handleListTelegramOptOuts, handleAddTelegramOptOut, handleRemoveTelegramOptOut, handleTelegramAudiencePreview, handleGetTelegramBotUsername, handleSendTelegramCampaign, handleListTelegramLeads, handleCreateTelegramLead, handleUpdateTelegramLead, handleDeleteTelegramLead, handleImportTelegramLeadsFromCrm, handleGenerateTelegramInviteLink, handleListTelegramConversations, handleGetTelegramConversationMessages } from './routes/telegramBot.js';
 import { handleGetEmailSettings, handleSaveEmailSettings, handleListEmailTemplates, handleCreateEmailTemplate, handleDeleteEmailTemplate, handlePreviewEmailAudience, handleSendEmailCampaign, handleListEmailCampaigns, handleGetEmailCampaignDetail, handleListEmailOptOuts, handleAddEmailOptOut, handleRemoveEmailOptOut, handleEmailUnsubscribe, handleResendWebhookEvent } from './routes/emailCampaigns.js';
-import { handleGetSalesInvoiceSettings, handleSaveSalesInvoiceSettings, handleListSalesInvoices, handleImportSalesInvoices, handleListStoredSalesInvoices } from './routes/salesInvoices.js';
+import { handleGetSalesInvoiceSettings, handleSaveSalesInvoiceSettings, handleListSalesInvoices, handleImportSalesInvoices, handleListStoredSalesInvoices, handleListSalesCustomers, handleSaveSalesCustomerMatch, handleSalesByLeadReport } from './routes/salesInvoices.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -93,6 +93,9 @@ const routes = [
   { method: 'GET', path: '/api/sales-invoices', handler: handleListSalesInvoices },
   { method: 'POST', path: '/api/sales-invoices/import', handler: handleImportSalesInvoices },
   { method: 'GET', path: '/api/sales-invoices/stored', handler: handleListStoredSalesInvoices },
+  { method: 'GET', path: '/api/sales-invoices/customers', handler: handleListSalesCustomers },
+  { method: 'POST', path: '/api/sales-invoices/match', handler: handleSaveSalesCustomerMatch },
+  { method: 'GET', path: '/api/sales-invoices/report', handler: handleSalesByLeadReport },
 ];
 
 async function leadActor(request, env) {
