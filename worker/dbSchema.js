@@ -274,6 +274,7 @@ function schemaTasks(env) {
         country TEXT NOT NULL DEFAULT 'ALL',
         createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )`);
+      await addColumns(env, 'audience_segments', [['categories', "TEXT NOT NULL DEFAULT '[]'"]]);
       await safeRun(env, 'CREATE INDEX IF NOT EXISTS idx_audience_segments_owner ON audience_segments(ownerEmail)');
     },
 

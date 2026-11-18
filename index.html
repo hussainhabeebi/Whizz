@@ -1201,6 +1201,14 @@ body.dark{
                     <input class="fi" id="brand-chips-search" placeholder="Search brands…" oninput="onChipSearchInput('brand')" style="margin-bottom:8px;font-size:12px;padding:6px 10px;"/>
                     <div class="chips" id="brand-chips"></div>
                   </div>
+                  <div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+                      <div class="eyebrow" style="margin:0;">Category <span style="font-weight:400;text-transform:none;color:var(--text3);">— pick any number</span></div>
+                      <a href="javascript:void(0)" onclick="toggleFilterChip('category','ALL')" style="font-size:11px;color:var(--accent);text-decoration:none;">Clear</a>
+                    </div>
+                    <input class="fi" id="category-chips-search" placeholder="Search categories…" oninput="onChipSearchInput('category')" style="margin-bottom:8px;font-size:12px;padding:6px 10px;"/>
+                    <div class="chips" id="category-chips"></div>
+                  </div>
                 </div>
               </div>
               <div class="fi-hint" style="margin-bottom:8px;">Use the checkbox in the table header to select every row currently matching your filters, or check rows individually.</div>
@@ -3771,9 +3779,9 @@ async function loadUsers(){
 
 let S = {
   page: 'dashboard', convStatus: 'all',
-  groups: [], crossTabMatrix: [], templates: [], platforms: [], countries: [], brands: [], regions: [],
+  groups: [], crossTabMatrix: [], templates: [], platforms: [], countries: [], brands: [], categories: [], regions: [],
   selectedGroups: [], selectedTemplate: null,
-  activePlatforms: [], activeCountry: 'ALL', activeBrands: [], activeCampaignRegion: 'ALL', activeLeadsRegion: 'ALL', activeLeadsCountry: 'ALL', filteredGroups: [],
+  activePlatforms: [], activeCountry: 'ALL', activeBrands: [], activeCategories: [], activeCampaignRegion: 'ALL', activeLeadsRegion: 'ALL', activeLeadsCountry: 'ALL', filteredGroups: [],
   stock: [], stockCrossTab: [], stockBrands: [], stockRegions: [], stockParentGroups: [],
   activeStockBrand: 'ALL', activeStockRegion: 'ALL', activeStockParentGroup: 'ALL', activeStockStatus: 'ALL',
   discActiveWindow: 'maps',
@@ -3995,6 +4003,7 @@ function loadCache() {
     S.platforms = S.cache.platforms || [];
     S.countries = S.cache.countries || [];
     S.brands = S.cache.brands || [];
+    S.categories = S.cache.categories || [];
   }
   if (S.cache.templates) S.templates = S.cache.templates;
   const time = new Date(ts).toLocaleString('en-AE', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -5876,7 +5885,7 @@ function dedupeGroupsByPlatform(groups,canonMap){
   const merged={};
   groups.forEach(g=>{
     const platform=map[g.platform]||g.platform;
-    const key=`${platform}||${g.country}||${g.brand}`;
+    const key=`${platform}||${g.country}||${g.brand}||${g.category||''}`;
     if(!merged[key]){merged[key]={group:{...g,platform},bestCount:g.count||0};}
     else{
       const m=merged[key];
@@ -5916,12 +5925,14 @@ async function refreshLeadData(){
   S.cache.platforms=norm.platforms;
   S.cache.countries=d.countries||[];
   S.cache.brands=d.brands||[];
+  S.cache.categories=d.categories||[];
   S.cache.regions=d.regions||[...new Set((S.cache.groups||[]).map(g=>g.region||'Other'))].sort();
   S.groups=S.cache.groups;
   S.crossTabMatrix=S.cache.crossTabMatrix;
   S.platforms=S.cache.platforms;
   S.countries=S.cache.countries;
   S.brands=S.cache.brands;
+  S.categories=S.cache.categories;
   S.regions=S.cache.regions;
   const{allowedBrands:_ab,allowedPlatforms:_ap}=getCurrentUserRestrictions();
   let _filtG=S.cache.groups||[];
@@ -7534,6 +7545,7 @@ async function generateAiTemplate() {
 function chipFilterCounts(list,kind){
   const groups=S.groups||[],counts={};
   if(kind==='platform'){groups.forEach(g=>{counts[g.platform]=(counts[g.platform]||0)+g.count;});}
+  else if(kind==='category'){list.forEach(c=>{counts[c]=groups.filter(g=>(g.category||'').toLowerCase().includes(c.toLowerCase())).reduce((a,g)=>a+g.count,0);});}
   else{list.forEach(b=>{counts[b]=groups.filter(g=>g.brand.toLowerCase().includes(b.toLowerCase())).reduce((a,g)=>a+g.count,0);});}
   return counts;
 }
@@ -7549,16 +7561,19 @@ function renderFilterChips(list,containerId,activeArray,kind){
     return `<div class="chip ${active?'active':''}" onclick="toggleFilterChip('${kind}','${v.replace(/'/g,"\\'")}')">${_hesc(v)}${count}</div>`;
   }).join('');
 }
-function onChipSearchInput(kind){
+function renderChipKindFilter(kind){
   if(kind==='platform')renderFilterChips(S.platforms,'platform-chips',S.activePlatforms,'platform');
+  else if(kind==='category')renderFilterChips(S.categories,'category-chips',S.activeCategories,'category');
   else renderFilterChips(S.brands,'brand-chips',S.activeBrands,'brand');
 }
+function onChipSearchInput(kind){
+  renderChipKindFilter(kind);
+}
 function toggleFilterChip(kind,v){
-  const prop=kind==='platform'?'activePlatforms':'activeBrands';
+  const prop=kind==='platform'?'activePlatforms':kind==='category'?'activeCategories':'activeBrands';
   if(v==='ALL'){S[prop]=[];}
   else{const arr=S[prop],idx=arr.indexOf(v);if(idx===-1)arr.push(v);else arr.splice(idx,1);}
-  if(kind==='platform')renderFilterChips(S.platforms,'platform-chips',S.activePlatforms,'platform');
-  else renderFilterChips(S.brands,'brand-chips',S.activeBrands,'brand');
+  renderChipKindFilter(kind);
   applyGroupFilters();
 }
 function selectCampaignChannel(value,el){document.querySelectorAll('#camp-channel-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');}
@@ -7575,6 +7590,7 @@ function applyGroupFilters(){
   if(S.activeCampaignRegion!=='ALL') f=f.filter(g=>g.region===S.activeCampaignRegion);
   if(S.activeCountry!=='ALL') f=f.filter(g=>g.country===S.activeCountry);
   if(S.activeBrands.length) f=f.filter(g=>S.activeBrands.some(b=>g.brand.toLowerCase().includes(b.toLowerCase())));
+  if(S.activeCategories.length) f=f.filter(g=>S.activeCategories.some(c=>(g.category||'').toLowerCase().includes(c.toLowerCase())));
   S.filteredGroups=f;
   renderGroupCards(f,'camp-groups',true);
   updateAudienceLiveCount();
@@ -7586,6 +7602,7 @@ function renderCampGroups(groups){
   const campCountries=S.activeCampaignRegion==='ALL'?S.countries:[...new Set(groups.filter(g=>g.region===S.activeCampaignRegion).map(g=>g.country))].sort();
   populateCountrySelect('camp-country-sel',campCountries,S.activeCountry);
   renderFilterChips(S.brands,'brand-chips',S.activeBrands,'brand');
+  renderFilterChips(S.categories,'category-chips',S.activeCategories,'category');
   applyGroupFilters();
 }
 
@@ -7609,7 +7626,7 @@ async function saveCurrentAudienceSegment(){
   const name=await promptModal('Name this segment (e.g. "UAE Mix buyers"):');
   if(!name||!name.trim())return;
   try{
-    await apiWMsg('api/audience-segments','POST',{name:name.trim(),platforms:S.activePlatforms,brands:S.activeBrands,region:S.activeCampaignRegion,country:S.activeCountry});
+    await apiWMsg('api/audience-segments','POST',{name:name.trim(),platforms:S.activePlatforms,brands:S.activeBrands,categories:S.activeCategories,region:S.activeCampaignRegion,country:S.activeCountry});
     showToast(`Segment "${name.trim()}" saved`,'success');
     await loadAudienceSegments();
   }catch(e){showToast(e.message||'Failed to save segment','error');}
@@ -7621,6 +7638,7 @@ function applyAudienceSegment(id){
   if(!segment)return;
   S.activePlatforms=[...segment.platforms];
   S.activeBrands=[...segment.brands];
+  S.activeCategories=[...(segment.categories||[])];
   S.activeCampaignRegion=segment.region||'ALL';
   S.activeCountry=segment.country||'ALL';
   renderCampGroups(S.groups);
@@ -7647,7 +7665,7 @@ function renderGroupCards(groups,id,selectable,clickFn){
   const el=document.getElementById(id);
   if(!groups.length){el.innerHTML='<div style="text-align:center;color:var(--text3);font-size:12px;padding:28px;">Zero pipeline entities intersect selected matrix nodes</div>';return;}
   const fn=clickFn||'toggleGroup';
-  const allFilteredSelected=selectable&&groups.every(g=>S.selectedGroups.includes(`${g.platform}||${g.country}||${g.brand}`));
+  const allFilteredSelected=selectable&&groups.every(g=>S.selectedGroups.includes(`${g.platform}||${g.country}||${g.brand}||${g.category||''}`));
   el.innerHTML=`<div style="overflow:auto;border:1px solid var(--border);border-radius:10px;">
     <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px;">
       <thead><tr style="border-bottom:2px solid var(--border);">
@@ -7655,6 +7673,7 @@ function renderGroupCards(groups,id,selectable,clickFn){
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Platform</th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Country</th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Brand</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Category</th>
         <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Leads</th>
         <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);background:var(--bg2);">Trend</th>
       </tr></thead>
@@ -7663,14 +7682,16 @@ function renderGroupCards(groups,id,selectable,clickFn){
         let arrow='➔',trendClass='stable';
         if(g.trend==='Trending Up'){arrow='▲';trendClass='up';}
         if(g.trend==='Trending Down'){arrow='▼';trendClass='down';}
-        const groupKey=`${g.platform}||${g.country}||${g.brand}`;
+        const category=g.category||'';
+        const groupKey=`${g.platform}||${g.country}||${g.brand}||${category}`;
         const isSel=S.selectedGroups.includes(groupKey);
-        const call=selectable?`onclick="${fn}('${g.platform.replace(/'/g,"\\'")}', '${g.country.replace(/'/g,"\\'")}', '${g.brand.replace(/'/g,"\\'")}', this)"`:'';
+        const call=selectable?`onclick="${fn}('${g.platform.replace(/'/g,"\\'")}', '${g.country.replace(/'/g,"\\'")}', '${g.brand.replace(/'/g,"\\'")}', '${category.replace(/'/g,"\\'")}', this)"`:'';
         return `<tr class="group-card${isTail}${isSel?' selected':''}" ${call} style="cursor:${selectable?'pointer':'default'};border-bottom:1px solid var(--border);">
           ${selectable?`<td style="padding:9px 10px;"><input type="checkbox" tabindex="-1" style="pointer-events:none;" ${isSel?'checked':''}></td>`:''}
           <td style="padding:9px 10px;"><span class="g-platform" style="font-weight:500;color:var(--accent);">${g.platform}</span></td>
           <td style="padding:9px 10px;"><span class="g-country" style="color:var(--text);">${g.country}</span></td>
           <td style="padding:9px 10px;"><span class="g-brand" title="${g.brand}" style="color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;display:inline-block;vertical-align:middle;">${g.brand}</span></td>
+          <td style="padding:9px 10px;"><span class="g-category" title="${category}" style="color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;display:inline-block;vertical-align:middle;">${category}</span></td>
           <td style="padding:9px 10px;text-align:right;"><span class="g-count" style="font-family:var(--font-display);font-weight:700;color:var(--text);">${g.count}</span></td>
           <td style="padding:9px 10px;"><span class="g-trend ${trendClass}">${arrow} ${g.velocity30DayPct??0}%</span></td>
         </tr>`;
@@ -7703,12 +7724,12 @@ function buildLanguageVariantsPayload(){
   variants.forEach(t=>{map[t.language]={name:t.name,body:t.body||'',header:t.header||''};});
   return map;
 }
-function toggleGroup(platform,country,brand,el){el.classList.toggle('selected');const cb=el.querySelector('input[type=checkbox]');if(cb)cb.checked=el.classList.contains('selected');const key=platform+'||'+country+'||'+brand;const idx=S.selectedGroups.indexOf(key);if(idx===-1)S.selectedGroups.push(key);else S.selectedGroups.splice(idx,1);updateAudienceLiveCount();}
-function toggleAllGroups(cb){S.selectedGroups=[];document.querySelectorAll('#camp-groups .group-card').forEach(c=>{c.classList.toggle('selected',cb.checked);const rowCb=c.querySelector('input[type=checkbox]');if(rowCb)rowCb.checked=cb.checked;if(cb.checked){const p=c.querySelector('.g-platform').textContent,co=c.querySelector('.g-country').textContent,b=c.querySelector('.g-brand').getAttribute('title');S.selectedGroups.push(p+'||'+co+'||'+b);}});updateAudienceLiveCount();}
+function toggleGroup(platform,country,brand,category,el){el.classList.toggle('selected');const cb=el.querySelector('input[type=checkbox]');if(cb)cb.checked=el.classList.contains('selected');const key=platform+'||'+country+'||'+brand+'||'+(category||'');const idx=S.selectedGroups.indexOf(key);if(idx===-1)S.selectedGroups.push(key);else S.selectedGroups.splice(idx,1);updateAudienceLiveCount();}
+function toggleAllGroups(cb){S.selectedGroups=[];document.querySelectorAll('#camp-groups .group-card').forEach(c=>{c.classList.toggle('selected',cb.checked);const rowCb=c.querySelector('input[type=checkbox]');if(rowCb)rowCb.checked=cb.checked;if(cb.checked){const p=c.querySelector('.g-platform').textContent,co=c.querySelector('.g-country').textContent,b=c.querySelector('.g-brand').getAttribute('title'),ca=c.querySelector('.g-category')?.getAttribute('title')||'';S.selectedGroups.push(p+'||'+co+'||'+b+'||'+ca);}});updateAudienceLiveCount();}
 // Selects every row currently matching the platform/region/country/brand filters —
 // distinct from "Send to ALL contacts" above, which ignores filters entirely.
 function toggleAllFilteredGroups(cb){
-  const keys=(S.filteredGroups||[]).map(g=>`${g.platform}||${g.country}||${g.brand}`);
+  const keys=(S.filteredGroups||[]).map(g=>`${g.platform}||${g.country}||${g.brand}||${g.category||''}`);
   if(cb.checked){keys.forEach(k=>{if(!S.selectedGroups.includes(k))S.selectedGroups.push(k);});}
   else{S.selectedGroups=S.selectedGroups.filter(k=>!keys.includes(k));}
   renderGroupCards(S.filteredGroups||[],'camp-groups',true);
@@ -7718,7 +7739,7 @@ function toggleAllFilteredGroups(cb){
 function computeAudienceCount(){
   const allGroupsEl=document.getElementById('all-groups');
   const allGroups=(allGroupsEl&&allGroupsEl.checked)||S.selectedGroups.length===0;
-  return allGroups?(S.groups||[]).reduce((a,g)=>a+g.count,0):(S.groups||[]).filter(g=>S.selectedGroups.includes(g.platform+'||'+g.country+'||'+g.brand)).reduce((a,g)=>a+g.count,0);
+  return allGroups?(S.groups||[]).reduce((a,g)=>a+g.count,0):(S.groups||[]).filter(g=>S.selectedGroups.includes(g.platform+'||'+g.country+'||'+g.brand+'||'+(g.category||''))).reduce((a,g)=>a+g.count,0);
 }
 function updateAudienceLiveCount(){
   const el=document.getElementById('aud-live-count');
@@ -7805,13 +7826,14 @@ function requiredHeaderImagePayload(){
 // platform/country/brand/audiences shape the backend's resolveContactsForCampaign expects.
 function buildAudienceResolutionPayload(){
   const allGroups=document.getElementById('all-groups').checked||S.selectedGroups.length===0;
-  const selectedAudiences=allGroups?[]:S.selectedGroups.map(key=>{const [platform,country,brand]=key.split('||');return{platform,country,brand};});
+  const selectedAudiences=allGroups?[]:S.selectedGroups.map(key=>{const [platform,country,brand,category]=key.split('||');return{platform,country,brand,category:category||'ALL'};});
   const firstGroup=selectedAudiences[0];
   const useAll=allGroups||selectedAudiences.length!==1;
   return {
     platform:useAll?'ALL':(firstGroup?.platform||'ALL'),
     country:useAll?'ALL':(firstGroup?.country||'ALL'),
     brand:useAll?'ALL':(firstGroup?.brand||'ALL'),
+    category:useAll?'ALL':(firstGroup?.category||'ALL'),
     audiences:selectedAudiences,
     audience_rules:getCampaignAudienceRules(),
   };
@@ -8006,7 +8028,7 @@ function renderLeadsPage(groups,total){
     brandSel.innerHTML=`<option value="ALL">All Brands</option>`+filteredBrands.map(b=>`<option value="${b}"${b===cur?' selected':''}>${b}</option>`).join('');
   }
   loadLeadsContacts();
-  renderLeadScores(filteredGroups,'lead-score-list');
+  renderLeadScores(collapseGroupsByBrand(filteredGroups),'lead-score-list');
 }
 function renderChipsFilter(list,id,fn){
   const el=document.getElementById(id);
@@ -8824,8 +8846,8 @@ async function submitAddContact(){
 
 function exportLeadsCSV() {
   if (!S.cache.groups) { showToast('Load leads portfolio first', 'error'); return; }
-  const rows = S.cache.groups.map(g => `"${g.platform}","${g.country}","${g.brand}",${g.count},"${g.trend||'Stable'}"`);
-  downloadCSV(['Platform,Country,Brand,Count,TrendVelocity', ...rows].join('\n'), 'whizz_leads_distribution.csv');
+  const rows = S.cache.groups.map(g => `"${g.platform}","${g.country}","${g.brand}","${g.category||''}",${g.count},"${g.trend||'Stable'}"`);
+  downloadCSV(['Platform,Country,Brand,Category,Count,TrendVelocity', ...rows].join('\n'), 'whizz_leads_distribution.csv');
   showToast('Export complete!', 'success');
 }
 // ── Import Leads from CSV ──
@@ -9103,6 +9125,24 @@ function renderImportResultsTable(){
 }
 
 // ── Lead Scoring ──
+// Groups are now split per category (same platform/country/brand can appear as several
+// rows, one per category) so the campaign Audience step can filter by it. This widget
+// ranks by platform/country/brand only and doesn't show category, so it collapses those
+// splits back together first — otherwise a single high-volume brand could show up as
+// several same-looking, smaller-count rows instead of one.
+function collapseGroupsByBrand(groups) {
+  const merged = {};
+  (groups || []).forEach(g => {
+    const key = `${g.platform}||${g.country}||${g.brand}`;
+    if (!merged[key]) { merged[key] = { ...g, count: g.count || 0 }; }
+    else {
+      const m = merged[key], prevCount = m.count;
+      m.count += g.count || 0;
+      if ((g.count || 0) > prevCount) { m.trend = g.trend; m.velocity30DayPct = g.velocity30DayPct; }
+    }
+  });
+  return Object.values(merged);
+}
 function computeLeadScore(g) {
   const trend = g.trend === 'Trending Up' ? 1.2 : g.trend === 'Trending Down' ? 0.8 : 1.0;
   const vel = Math.max(0, g.velocity30DayPct || 0);
@@ -9643,7 +9683,7 @@ function renderReports(){
     .map(([c,n])=>`<div class="metric-row"><div class="m-label">${c}</div><div class="m-value" style="color:var(--accent)">${n}</div></div>`).join('');
 
   renderStockLeadsOverlap(allowedBrands,allowedPlatforms);
-  renderLeadScores(groups,'rep-lead-scores');
+  renderLeadScores(collapseGroupsByBrand(groups),'rep-lead-scores');
   renderRegionalHeatmap(groups);
   renderBrevoStats(S.cache.brevoCampaigns||[]);
   renderWpTraffic(S.cache.wpTrafficSites||[]);
@@ -13917,12 +13957,14 @@ async function autoSyncTick() {
         S.cache.platforms = norm.platforms;
         S.cache.countries = d.countries || [];
         S.cache.brands = d.brands || [];
+        S.cache.categories = d.categories || [];
         S.cache.regions = d.regions || [...new Set((S.cache.groups||[]).map(g=>g.region||'Other'))].sort();
         S.groups = S.cache.groups;
         S.crossTabMatrix = S.cache.crossTabMatrix;
         S.platforms = S.cache.platforms;
         S.countries = S.cache.countries;
         S.brands = S.cache.brands;
+        S.categories = S.cache.categories;
         S.regions = S.cache.regions;
       }).catch(() => {})
     ]);

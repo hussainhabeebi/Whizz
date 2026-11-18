@@ -134,27 +134,37 @@ function normalizeBrands(raw) {
   return parts.length ? parts : ['Unspecified'];
 }
 
+// Same comma/semicolon-list handling as normalizeBrands — a contact's category field can
+// likewise carry more than one value (e.g. "Electronics, Appliances").
+function normalizeCategories(raw) {
+  const parts = String(raw || '').split(/[,;]/).map(s => _titleCase(_normStr(s))).filter(Boolean);
+  return parts.length ? parts : ['Unspecified'];
+}
+
 async function ownedLeadSummary(env, user) {
   const clause = user.role === 'Administrator' ? '(? IS NOT NULL)'
     : user.role === 'Manager' ? '(ownerEmail IS NULL OR teamId=?)' : 'ownerEmail=?';
   const scope = user.role === 'Sales' ? user.email : (user.teamId || '');
-  const result = await env.DB.prepare(`SELECT platform,country,brand,COUNT(*) count FROM contacts WHERE ${clause}
-    GROUP BY platform,country,brand ORDER BY count DESC`).bind(scope).all();
+  const result = await env.DB.prepare(`SELECT platform,country,brand,category,COUNT(*) count FROM contacts WHERE ${clause}
+    GROUP BY platform,country,brand,category ORDER BY count DESC`).bind(scope).all();
 
-  // Normalize and re-aggregate (merge synonyms, title-case, split comma-brands). A row whose
-  // brand field lists several brands contributes its count to each brand's own group, so a
-  // multi-brand contact is findable under every brand it carries, not just the first.
+  // Normalize and re-aggregate (merge synonyms, title-case, split comma-brands/categories). A
+  // row whose brand or category field lists several values contributes its count to each
+  // value's own group, so a multi-brand/multi-category contact is findable under every value
+  // it carries, not just the first.
   const aggMap = new Map();
   for (const row of (result.results || [])) {
     const platform = _titleCase(_normStr(row.platform || 'Unknown'));
     const country = normalizeCountry(row.country);
     const count = Number(row.count || 0);
     for (const brand of normalizeBrands(row.brand)) {
-      const key = `${platform}||${country}||${brand}`;
-      if (aggMap.has(key)) {
-        aggMap.get(key).count += count;
-      } else {
-        aggMap.set(key, { platform, country, brand, count, region: regionForCountry(country), trend: 'Stable', velocity30DayPct: 0 });
+      for (const category of normalizeCategories(row.category)) {
+        const key = `${platform}||${country}||${brand}||${category}`;
+        if (aggMap.has(key)) {
+          aggMap.get(key).count += count;
+        } else {
+          aggMap.set(key, { platform, country, brand, category, count, region: regionForCountry(country), trend: 'Stable', velocity30DayPct: 0 });
+        }
       }
     }
   }
@@ -170,12 +180,12 @@ async function ownedLeadSummary(env, user) {
   const regions = [...new Set(groups.map(g => g.region))].sort();
   return Response.json({ groups, crossTabMatrix: [...matrix.values()], totalDistributedItems: groups.reduce((n,g)=>n+g.count,0),
     platforms: [...new Set(groups.map(g=>g.platform))], countries: [...new Set(groups.map(g=>g.country))].sort(),
-    brands: [...new Set(groups.map(g=>g.brand))], regions });
+    brands: [...new Set(groups.map(g=>g.brand))], categories: [...new Set(groups.map(g=>g.category))].sort(), regions });
 }
 
 export async function resolveContactsForCampaign(env, user, body) {
   const audiences = Array.isArray(body.audiences) && body.audiences.length > 0 ? body.audiences : null;
-  const targets = audiences || [{ platform: body.platform || 'ALL', country: body.country || 'ALL', brand: body.brand || 'ALL' }];
+  const targets = audiences || [{ platform: body.platform || 'ALL', country: body.country || 'ALL', brand: body.brand || 'ALL', category: body.category || 'ALL' }];
 
   // Build ownership filter appended at end of bind list
   let ownerFilter = '';
@@ -194,6 +204,7 @@ export async function resolveContactsForCampaign(env, user, body) {
       t.platform || 'ALL', t.platform || 'ALL',
       t.country  || 'ALL', t.country  || 'ALL',
       t.brand    || 'ALL', t.brand    || 'ALL',
+      t.category || 'ALL', t.category || 'ALL',
     ];
     if (ownerParam !== undefined) binds.push(ownerParam);
     const { results } = await env.DB.prepare(
@@ -201,6 +212,7 @@ export async function resolveContactsForCampaign(env, user, body) {
        WHERE (? = 'ALL' OR LOWER(platform) = LOWER(?))
          AND (? = 'ALL' OR LOWER(country) = LOWER(?))
          AND (? = 'ALL' OR (',' || REPLACE(LOWER(brand), ', ', ',') || ',') LIKE ('%,' || LOWER(?) || ',%'))
+         AND (? = 'ALL' OR (',' || REPLACE(LOWER(category), ', ', ',') || ',') LIKE ('%,' || LOWER(?) || ',%'))
          ${ownerFilter}
        ORDER BY leadScore DESC`
     ).bind(...binds).all();
