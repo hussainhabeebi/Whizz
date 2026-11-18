@@ -13,10 +13,11 @@ async function currentUser(request, env) {
 }
 
 function normalizeRow(row) {
-  let platforms = [], brands = [];
+  let platforms = [], brands = [], categories = [];
   try { platforms = JSON.parse(row.platforms || '[]'); } catch (_) {}
   try { brands = JSON.parse(row.brands || '[]'); } catch (_) {}
-  return { id: row.id, name: row.name, ownerEmail: row.ownerEmail, platforms, brands, region: row.region || 'ALL', country: row.country || 'ALL', createdAt: row.createdAt };
+  try { categories = JSON.parse(row.categories || '[]'); } catch (_) {}
+  return { id: row.id, name: row.name, ownerEmail: row.ownerEmail, platforms, brands, categories, region: row.region || 'ALL', country: row.country || 'ALL', createdAt: row.createdAt };
 }
 
 export async function handleListAudienceSegments(request, env) {
@@ -41,11 +42,12 @@ export async function handleCreateAudienceSegment(request, env) {
   if (!name) return json({ error: 'A name is required.' }, 400);
   const platforms = Array.isArray(body.platforms) ? body.platforms : [];
   const brands = Array.isArray(body.brands) ? body.brands : [];
+  const categories = Array.isArray(body.categories) ? body.categories : [];
   const region = String(body.region || 'ALL');
   const country = String(body.country || 'ALL');
-  const result = await env.DB.prepare('INSERT INTO audience_segments (name,ownerEmail,teamId,platforms,brands,region,country) VALUES (?,?,?,?,?,?,?)')
-    .bind(name, user.email, user.teamId || 'sales', JSON.stringify(platforms), JSON.stringify(brands), region, country).run();
-  return json({ segment: { id: result.meta.last_row_id, name, ownerEmail: user.email, platforms, brands, region, country } }, 201);
+  const result = await env.DB.prepare('INSERT INTO audience_segments (name,ownerEmail,teamId,platforms,brands,categories,region,country) VALUES (?,?,?,?,?,?,?,?)')
+    .bind(name, user.email, user.teamId || 'sales', JSON.stringify(platforms), JSON.stringify(brands), JSON.stringify(categories), region, country).run();
+  return json({ segment: { id: result.meta.last_row_id, name, ownerEmail: user.email, platforms, brands, categories, region, country } }, 201);
 }
 
 export async function handleDeleteAudienceSegment(request, env, id) {
