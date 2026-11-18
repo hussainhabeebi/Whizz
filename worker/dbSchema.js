@@ -405,6 +405,21 @@ async function repairSchema(env) {
     importedByEmail TEXT NOT NULL DEFAULT '',
     importedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  // Maps a sales voucher's free-text customerName to a CRM contact, once per distinct
+  // name rather than per invoice — applies automatically to every past and future invoice
+  // with that same name. contactId=NULL means "reviewed, confirmed no matching lead",
+  // distinct from no row existing at all ("not reviewed yet") — the app layer tells these
+  // apart, not this schema. method is 'auto' (a confident approximate-name match applied
+  // without review) or 'manual' (a person picked it, including explicitly confirming "no
+  // match").
+  await safeRun(env, `CREATE TABLE IF NOT EXISTS sales_customer_matches (
+    customerName TEXT PRIMARY KEY,
+    contactId INTEGER,
+    contactName TEXT NOT NULL DEFAULT '',
+    method TEXT NOT NULL DEFAULT 'manual',
+    matchedByEmail TEXT NOT NULL DEFAULT '',
+    matchedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
 
   for (const sql of [
     'CREATE INDEX IF NOT EXISTS idx_conversation_assignment_user ON conversation_assignments(assignedUserEmail)',

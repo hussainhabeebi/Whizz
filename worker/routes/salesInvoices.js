@@ -20,6 +20,7 @@ async function currentUser(request, env) {
   return email ? env.DB.prepare('SELECT email,role FROM users WHERE email=?').bind(email).first() : null;
 }
 function requireAdmin(user) { return user && user.role === 'Administrator'; }
+function requireAdminOrManager(user) { return user && (user.role === 'Administrator' || user.role === 'Manager'); }
 
 // Same AES-GCM technique/secret as every other stored credential in this repo (Meta
 // access token, Chatwoot token, Telegram bot token, Resend API key) — kept as a local
@@ -222,4 +223,74 @@ export async function handleListStoredSalesInvoices(request, env) {
   const invoices = result.results || [];
   const total = invoices.reduce((sum, i) => sum + (Number(i.invoiceAmount) || 0), 0);
   return json({ invoices, total, count: invoices.length });
+}
+
+// ── Matching sales customers to CRM leads/contacts ──
+// A sales voucher's customerName is free text from the ERP side — it has no relationship
+// to the contacts table at all until explicitly matched. Matching happens once per
+// distinct customerName (not per invoice), stored in sales_customer_matches, and applies
+// automatically to every past and future invoice with that same name. A row with
+// contactId=NULL means "reviewed, confirmed no matching lead" — distinct from no row at
+// all, which means "not reviewed yet". The actual fuzzy/approximate-name suggestion logic
+// lives client-side (reuses this app's existing levenshteinDistance(), the same approach
+// already used to de-duplicate near-identical platform names) — this backend only stores
+// and serves confirmed matches, never guesses one on its own.
+export async function handleListSalesCustomers(request, env) {
+  const user = await currentUser(request, env);
+  if (!requireAdminOrManager(user)) return json({ error: 'Manager or Administrator access required.' }, 403);
+  const result = await env.DB.prepare(`
+    SELECT i.customerName, COUNT(*) invoiceCount, SUM(i.invoiceAmount) totalAmount, MAX(i.date) lastDate,
+      m.contactId, m.contactName matchedContactName, m.method matchMethod
+    FROM sales_invoices i LEFT JOIN sales_customer_matches m ON m.customerName = i.customerName
+    GROUP BY i.customerName
+    ORDER BY totalAmount DESC
+  `).all();
+  // reviewed=false (no row in sales_customer_matches at all) vs reviewed=true with
+  // contactId=null (explicitly confirmed as "no matching lead") must stay distinguishable
+  // on the frontend — SQL NULL alone can't tell those apart, so this flags it explicitly.
+  const customers = (result.results || []).map(r => ({
+    customerName: r.customerName, invoiceCount: r.invoiceCount, totalAmount: r.totalAmount, lastDate: r.lastDate,
+    contactId: r.contactId ?? null, matchedContactName: r.matchedContactName || '', matchMethod: r.matchMethod || '',
+    reviewed: r.matchMethod !== null && r.matchMethod !== undefined,
+  }));
+  return json({ customers });
+}
+
+export async function handleSaveSalesCustomerMatch(request, env) {
+  const user = await currentUser(request, env);
+  if (!requireAdminOrManager(user)) return json({ error: 'Manager or Administrator access required.' }, 403);
+  const body = await request.json().catch(() => ({}));
+  const customerName = String(body.customerName || '').trim();
+  if (!customerName) return json({ error: 'customerName is required.' }, 400);
+  const contactId = body.contactId === null || body.contactId === undefined || body.contactId === '' ? null : Number(body.contactId);
+  const contactName = String(body.contactName || '').trim();
+  const method = body.method === 'auto' ? 'auto' : 'manual';
+  await env.DB.prepare(`INSERT INTO sales_customer_matches (customerName,contactId,contactName,method,matchedByEmail,matchedAt) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(customerName) DO UPDATE SET contactId=excluded.contactId, contactName=excluded.contactName, method=excluded.method, matchedByEmail=excluded.matchedByEmail, matchedAt=CURRENT_TIMESTAMP`)
+    .bind(customerName, contactId, contactName, method, user.email).run();
+  return json({ success: true });
+}
+
+// ── Sales by Lead report — every matched invoice rolled up per contact, with that
+// contact's own CRM brand/platform/country for cross-cutting. Unmatched sales are
+// reported separately rather than silently dropped from the totals. ──
+export async function handleSalesByLeadReport(request, env) {
+  const user = await currentUser(request, env);
+  if (!requireAdminOrManager(user)) return json({ error: 'Manager or Administrator access required.' }, 403);
+  const matched = await env.DB.prepare(`
+    SELECT c.id contactId, c.contactName, c.company, c.brand, c.platform, c.country,
+      COUNT(i.invoiceRef) invoiceCount, SUM(i.invoiceAmount) totalSales, MAX(i.date) lastSaleDate
+    FROM sales_invoices i
+    JOIN sales_customer_matches m ON m.customerName = i.customerName
+    JOIN contacts c ON c.id = m.contactId
+    GROUP BY c.id
+    ORDER BY totalSales DESC
+  `).all();
+  const unmatched = await env.DB.prepare(`
+    SELECT COUNT(DISTINCT i.customerName) customerCount, COUNT(*) invoiceCount, COALESCE(SUM(i.invoiceAmount),0) totalAmount
+    FROM sales_invoices i
+    LEFT JOIN sales_customer_matches m ON m.customerName = i.customerName
+    WHERE m.contactId IS NULL
+  `).first();
+  return json({ rows: matched.results || [], unmatched: unmatched || { customerCount: 0, invoiceCount: 0, totalAmount: 0 } });
 }

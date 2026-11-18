@@ -2127,6 +2127,49 @@ body.dark{
             <div style="display:flex;justify-content:flex-end;margin-top:10px;font-size:13px;font-weight:700;" id="si-total"></div>
           </div>
         </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head">
+            <div class="card-title">Match Customers to Leads</div>
+            <div style="display:flex;gap:8px;">
+              <button class="t-btn btn-ghost t-btn-sm" onclick="findSalesCustomerMatches()">Find Matches</button>
+              <button class="t-btn btn-primary t-btn-sm" onclick="autoMatchAllSalesCustomers()">Auto-Match All</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="fi-hint" style="margin-bottom:10px;">Matches each sales customer name to a CRM lead/contact — once per name, applied to every invoice with that name, past and future. A close/exact name match is applied automatically; anything less certain is suggested here for you to confirm or correct.</div>
+            <div style="overflow-x:auto;">
+              <table class="stock-table">
+                <thead><tr><th>Customer Name (Sales)</th><th style="text-align:right;">Total Sales</th><th style="text-align:right;">Invoices</th><th>Match</th><th>Action</th></tr></thead>
+                <tbody id="sim-table-body">
+                  <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">Click "Find Matches" to load</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head">
+            <div class="card-title">Sales by Lead</div>
+            <div style="display:flex;gap:8px;">
+              <button class="t-btn btn-ghost t-btn-sm" onclick="loadSalesByLeadReport()">Refresh</button>
+              <button class="t-btn btn-ghost t-btn-sm" onclick="exportSalesByLeadReportCSV()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="overflow-x:auto;">
+              <table class="stock-table">
+                <thead><tr><th>Contact</th><th>Brand</th><th>Platform</th><th>Country</th><th style="text-align:right;">Total Sales</th><th style="text-align:right;">Invoices</th><th>Last Sale</th></tr></thead>
+                <tbody id="sbl-table-body">
+                  <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">Click Refresh to load</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top:10px;font-size:12px;color:var(--text3);" id="sbl-unmatched"></div>
+          </div>
+        </div>
       </div>
 
       <div class="page" id="page-leads">
@@ -11203,6 +11246,7 @@ async function initSalesInvoicesModule(){
   if(startEl&&!startEl.value)startEl.value=today;
   if(endEl&&!endEl.value)endEl.value=today;
   loadSalesInvoices();
+  loadSalesByLeadReport();
 }
 async function loadSalesInvoiceSettings(){
   const statusEl=document.getElementById('si-status');
@@ -11310,6 +11354,181 @@ async function importSalesInvoices(){
     if(statusEl)statusEl.textContent='';
     showToast(e.message||'Import failed','error');
   }
+}
+
+// ── Matching sales customer names to CRM leads — reuses normalizePlatformKey()/
+// levenshteinDistance() (already built for platform-name de-duplication) as a normalized
+// edit-distance ratio, rather than inventing a second string-similarity approach. A
+// customer name is matched once (not per invoice) and the match applies to every invoice
+// with that name, past and future. ──
+// Standard, globally-recognized legal-entity suffixes (not a guess at this company's own
+// vocabulary) that routinely differ between how a sales/ERP system and a CRM record the
+// same company — e.g. a sales voucher's "ZTG TRADING L.L.C" against a CRM company field
+// of just "ZTG Trading". Stripped only for a second comparison pass below, never shown to
+// the user and never the only score computed.
+const COMPANY_SUFFIX_RE=/\b(l\.?l\.?c\.?|fzco|fze|fz\s*llc|dmcc|ltd\.?|llp|inc\.?|co\.?|general\s*trading|trading\s*co|trading|establishment|est\.?|free\s*zone)\b/gi;
+function stripCompanySuffix(s){
+  return normalizePlatformKey(String(s||'').replace(COMPANY_SUFFIX_RE,' '));
+}
+function companyNameSimilarity(a,b){
+  const na=normalizePlatformKey(a),nb=normalizePlatformKey(b);
+  if(!na||!nb)return 0;
+  if(na===nb)return 1;
+  const rawScore=1-levenshteinDistance(na,nb)/Math.max(na.length,nb.length);
+  const sa=stripCompanySuffix(a),sb=stripCompanySuffix(b);
+  if(!sa||!sb)return rawScore;
+  if(sa===sb)return 1; // exact once legal-entity suffixes are stripped — safe at any length
+  // Below this, a fuzzy (non-exact) comparison on a very short stripped name risks a
+  // coincidental match — same 5-char floor buildPlatformCanonicalMap() already uses
+  // before clustering on a 1-character difference.
+  if(sa.length<5||sb.length<5)return rawScore;
+  const strippedScore=1-levenshteinDistance(sa,sb)/Math.max(sa.length,sb.length);
+  return Math.max(rawScore,strippedScore);
+}
+// 0.92+ is treated as confident enough to auto-apply without review (Auto-Match All) —
+// everything below that is only ever a suggestion a person has to confirm.
+const SALES_MATCH_AUTO_THRESHOLD=0.92;
+// Below this, the best available contact is still mathematically "the closest one," but
+// showing it as a "Suggested" pick would overstate a near-coincidental score — the picker
+// just starts blank instead.
+const SALES_MATCH_SUGGEST_FLOOR=0.4;
+async function findSalesCustomerMatches(){
+  const body=document.getElementById('sim-table-body');
+  if(!body)return;
+  body.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">Loading…</td></tr>';
+  try{
+    const [custData,contactData]=await Promise.all([
+      apiWMsg('api/sales-invoices/customers'),
+      apiW('whizz-get-contacts'),
+    ]);
+    S.cache.salesCustomers=custData.customers||[];
+    S.salesMatchContacts=(contactData.contacts||[]).filter(c=>c.company||c.contactName);
+    // Only unreviewed rows need a fresh suggestion computed — an already-matched or
+    // confirmed-no-match row keeps whatever's already on file until "Change"/"Undo".
+    S.cache.salesCustomers.forEach(cust=>{
+      if(cust.reviewed){ cust.suggestedContact=null; cust.suggestedScore=0; return; }
+      let best=null,bestScore=0;
+      S.salesMatchContacts.forEach(c=>{
+        const score=Math.max(c.company?companyNameSimilarity(cust.customerName,c.company):0,c.contactName?companyNameSimilarity(cust.customerName,c.contactName):0);
+        if(score>bestScore){bestScore=score;best=c;}
+      });
+      cust.suggestedContact=best;
+      cust.suggestedScore=bestScore;
+    });
+    renderSalesCustomerMatchTable();
+  }catch(e){
+    body.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--red);padding:20px;">${_hesc(e.message||'Failed to load')}</td></tr>`;
+  }
+}
+function salesContactOptionsHtml(selectedId){
+  const contacts=S.salesMatchContacts||[];
+  return '<option value="">— pick a lead —</option>'+contacts.map(c=>
+    `<option value="${c.id}"${String(c.id)===String(selectedId)?' selected':''}>${_hesc(c.company||c.contactName)}${c.company&&c.contactName?' — '+_hesc(c.contactName):''}</option>`
+  ).join('');
+}
+function renderSalesCustomerMatchTable(){
+  const body=document.getElementById('sim-table-body');
+  if(!body)return;
+  const customers=S.cache.salesCustomers||[];
+  if(!customers.length){body.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">No sales customers yet — import or load invoices first.</td></tr>';return;}
+  body.innerHTML=customers.map((cust,i)=>{
+    const amount=Number(cust.totalAmount||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    let matchCell,actionCell;
+    if(cust.reviewed&&cust.contactId){
+      matchCell=`<span style="color:var(--green);font-weight:600;">${_hesc(cust.matchedContactName||'Matched')}</span> <span style="color:var(--text3);font-size:10.5px;">(${_hesc(cust.matchMethod||'manual')})</span>`;
+      actionCell=`<a href="javascript:void(0)" onclick="reopenSalesCustomerMatchRow(${i})" style="color:var(--accent);font-size:11.5px;">Change</a>`;
+    }else if(cust.reviewed&&!cust.contactId){
+      matchCell='<span style="color:var(--text3);">No matching lead</span>';
+      actionCell=`<a href="javascript:void(0)" onclick="reopenSalesCustomerMatchRow(${i})" style="color:var(--accent);font-size:11.5px;">Undo</a>`;
+    }else{
+      const suggestion=(cust.suggestedContact&&cust.suggestedScore>=SALES_MATCH_SUGGEST_FLOOR)?cust.suggestedContact:null;
+      matchCell=suggestion?`<span style="color:var(--amber);">Suggested: ${_hesc(suggestion.company||suggestion.contactName)} (${Math.round((cust.suggestedScore||0)*100)}%)</span>`:'<span style="color:var(--text3);">No suggestion</span>';
+      actionCell=`<select class="fs" id="sim-sel-${i}" style="font-size:11.5px;padding:4px 6px;margin-right:4px;max-width:160px;">${salesContactOptionsHtml(suggestion?suggestion.id:'')}</select>`+
+        `<button class="t-btn btn-primary t-btn-sm" style="padding:4px 10px;font-size:11px;" onclick="confirmSalesCustomerMatchRow(${i})">Confirm</button> `+
+        `<button class="t-btn btn-ghost t-btn-sm" style="padding:4px 10px;font-size:11px;" onclick="noMatchSalesCustomerRow(${i})">No Match</button>`;
+    }
+    return `<tr><td class="td-bold">${_hesc(cust.customerName||'—')}</td><td style="text-align:right;">${amount}</td><td style="text-align:right;">${cust.invoiceCount||0}</td><td>${matchCell}</td><td style="white-space:nowrap;">${actionCell}</td></tr>`;
+  }).join('');
+}
+// Re-opens a matched/confirmed-no-match row for editing — local only until Confirm/No
+// Match is actually clicked again, so a reconsidered "Change" that's abandoned mid-way
+// never touches the backend record.
+function reopenSalesCustomerMatchRow(i){
+  const cust=(S.cache.salesCustomers||[])[i];
+  if(!cust)return;
+  cust.reviewed=false;
+  renderSalesCustomerMatchTable();
+}
+async function confirmSalesCustomerMatchRow(i){
+  const cust=(S.cache.salesCustomers||[])[i];
+  if(!cust)return;
+  const sel=document.getElementById(`sim-sel-${i}`);
+  const contactId=sel?.value||'';
+  if(!contactId){showToast('Pick a lead first, or use "No Match"','error');return;}
+  const contact=(S.salesMatchContacts||[]).find(c=>String(c.id)===String(contactId));
+  try{
+    await apiWMsg('api/sales-invoices/match','POST',{customerName:cust.customerName,contactId:Number(contactId),contactName:contact?.company||contact?.contactName||'',method:'manual'});
+    cust.reviewed=true;cust.contactId=Number(contactId);cust.matchedContactName=contact?.company||contact?.contactName||'';cust.matchMethod='manual';
+    renderSalesCustomerMatchTable();
+    showToast('Match saved','success');
+  }catch(e){showToast(e.message||'Failed to save match','error');}
+}
+async function noMatchSalesCustomerRow(i){
+  const cust=(S.cache.salesCustomers||[])[i];
+  if(!cust)return;
+  try{
+    await apiWMsg('api/sales-invoices/match','POST',{customerName:cust.customerName,contactId:null,method:'manual'});
+    cust.reviewed=true;cust.contactId=null;cust.matchedContactName='';cust.matchMethod='manual';
+    renderSalesCustomerMatchTable();
+    showToast('Marked as no matching lead','success');
+  }catch(e){showToast(e.message||'Failed to save','error');}
+}
+async function autoMatchAllSalesCustomers(){
+  if(!S.cache.salesCustomers)await findSalesCustomerMatches();
+  const candidates=(S.cache.salesCustomers||[]).filter(c=>!c.reviewed&&c.suggestedContact&&c.suggestedScore>=SALES_MATCH_AUTO_THRESHOLD);
+  if(!candidates.length){showToast('No confident matches to auto-apply — review the rest manually below','error');return;}
+  let applied=0;
+  for(const cust of candidates){
+    try{
+      await apiWMsg('api/sales-invoices/match','POST',{customerName:cust.customerName,contactId:cust.suggestedContact.id,contactName:cust.suggestedContact.company||cust.suggestedContact.contactName||'',method:'auto'});
+      cust.reviewed=true;cust.contactId=cust.suggestedContact.id;cust.matchedContactName=cust.suggestedContact.company||cust.suggestedContact.contactName||'';cust.matchMethod='auto';
+      applied++;
+    }catch(e){ /* one failure shouldn't block the rest of the batch */ }
+  }
+  renderSalesCustomerMatchTable();
+  showToast(`Auto-matched ${applied} customer${applied===1?'':'s'}`,'success');
+}
+
+// ── Sales by Lead report — every matched invoice rolled up per contact, with that
+// contact's own CRM brand/platform/country. Unmatched sales are shown as a separate total
+// rather than silently excluded. ──
+async function loadSalesByLeadReport(){
+  const body=document.getElementById('sbl-table-body');
+  if(!body)return;
+  body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">Loading…</td></tr>';
+  try{
+    const d=await apiWMsg('api/sales-invoices/report');
+    S.cache.salesByLead=d.rows||[];
+    if(!S.cache.salesByLead.length){
+      body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">No matched sales yet — match some customers above first.</td></tr>';
+    }else{
+      body.innerHTML=S.cache.salesByLead.map(r=>
+        `<tr><td class="td-bold">${_hesc(r.company||r.contactName||'—')}</td><td>${_hesc(r.brand||'—')}</td><td>${_hesc(r.platform||'—')}</td><td>${_hesc(r.country||'—')}</td><td style="text-align:right;">${Number(r.totalSales||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td style="text-align:right;">${r.invoiceCount||0}</td><td>${_hesc(r.lastSaleDate||'—')}</td></tr>`
+      ).join('');
+    }
+    const u=d.unmatched||{};
+    const unmatchedEl=document.getElementById('sbl-unmatched');
+    if(unmatchedEl)unmatchedEl.textContent=u.invoiceCount?`${u.invoiceCount} invoice(s) from ${u.customerCount} unmatched customer name(s), totalling ${Number(u.totalAmount||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}, aren't matched to a lead yet.`:'';
+  }catch(e){
+    body.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--red);padding:20px;">${_hesc(e.message||'Failed to load')}</td></tr>`;
+  }
+}
+function exportSalesByLeadReportCSV(){
+  if(!S.cache.salesByLead||!S.cache.salesByLead.length){showToast('Load the report first','error');return;}
+  const esc=v=>`"${String(v||'').replace(/"/g,'""')}"`;
+  const rows=S.cache.salesByLead.map(r=>[r.company||r.contactName,r.brand,r.platform,r.country,r.totalSales,r.invoiceCount,r.lastSaleDate].map(esc).join(','));
+  downloadCSV(['Contact,Brand,Platform,Country,Total Sales,Invoices,Last Sale', ...rows].join('\n'), 'whizz_sales_by_lead.csv');
+  showToast('Export complete!','success');
 }
 
 // ── Users Management ──
