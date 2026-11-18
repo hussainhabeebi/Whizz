@@ -897,6 +897,7 @@ body.dark{
     <div class="login-title" id="login-status-title">Checking your sign-in…</div>
     <div class="login-sub" id="login-status-sub">Verifying your Cloudflare Access session.</div>
     <div class="login-error" id="login-error" style="display:none;"></div>
+    <button class="login-btn" id="login-retry-btn" style="display:none;margin-top:12px;" onclick="window.location.reload()">Reload</button>
     <div class="login-footer">Powered by Whizz Technologies · v1.0</div>
   </div>
 </div>
@@ -3808,11 +3809,17 @@ function showLoginError(message) {
   const err = document.getElementById('login-error');
   err.textContent = message;
   err.style.display = 'block';
+  const retryBtn = document.getElementById('login-retry-btn');
+  if (retryBtn) retryBtn.style.display = 'block';
 }
 
 async function bootAuth() {
+  const timeoutMs = 15000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const r = await fetch('/api/me', { credentials: 'include' });
+    const r = await fetch('/api/me', { credentials: 'include', signal: controller.signal });
+    clearTimeout(timer);
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       showLoginError(data.error || 'Sign-in required. Please reload the page.');
@@ -3829,7 +3836,12 @@ async function bootAuth() {
     try { localStorage.setItem('whizz_session', JSON.stringify(session)); } catch {}
     initApp(session);
   } catch(err) {
-    showLoginError('Sign-in error: ' + (err.message || 'Please reload the page.'));
+    clearTimeout(timer);
+    if (err.name === 'AbortError') {
+      showLoginError('Sign-in is taking longer than expected. Please reload the page.');
+    } else {
+      showLoginError('Sign-in error: ' + (err.message || 'Please reload the page.'));
+    }
   }
 }
 
