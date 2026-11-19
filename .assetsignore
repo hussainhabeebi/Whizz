@@ -6,5 +6,6 @@ package-lock.json
 Dockerfile
 n8n-workflows/
 node_modules/
+desktop/
 .git/
 .github/
