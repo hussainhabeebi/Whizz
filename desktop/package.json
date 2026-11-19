@@ -1,0 +1,36 @@
+{
+  "name": "whizz-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Whizz desktop app — a native window around the Whizz web app, with a bounded set of CRUD features (leads, sales invoices, segments, country-language map, conversions) kept usable offline via a local SQLite mirror + sync queue. Everything else (sending WhatsApp/Telegram/email, live conversations, the Sales/ERP live pull, Lead Intelligence) stays online-only, same as the website.",
+  "main": "src/main.js",
+  "scripts": {
+    "prebuild": "node scripts/copy-index-html.js",
+    "start": "npm run prebuild && electron .",
+    "build:win": "npm run prebuild && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.whizz.desktop",
+    "productName": "Whizz",
+    "files": [
+      "src/**/*",
+      "dist/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  }
+}
