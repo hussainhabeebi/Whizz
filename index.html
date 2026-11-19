@@ -2075,6 +2075,11 @@ body.dark{
       </div>
 
       <div class="page" id="page-sales-invoices">
+        <div class="chips" id="si-tabs" style="margin-bottom:16px;">
+          <div class="chip active" onclick="switchSalesInvoicesTab('invoices',this)">Invoices</div>
+          <div class="chip" onclick="switchSalesInvoicesTab('import-history',this)">Import History</div>
+        </div>
+        <div id="si-tab-invoices">
         <div class="card" style="margin-bottom:16px;">
           <div class="card-head">
             <div class="card-title">Sales API Settings</div>
@@ -2145,12 +2150,13 @@ body.dark{
             </div>
           </div>
           <div class="card-body">
-            <div class="fi-hint" style="margin-bottom:10px;">Matches each sales customer name to a CRM lead/contact — once per name, applied to every invoice with that name, past and future. A close/exact name match is applied automatically; anything less certain is suggested here for you to confirm or correct.</div>
+            <div class="fi-hint" style="margin-bottom:10px;">Matches each sales customer name to a CRM lead/contact — once per name, applied to every invoice with that name, past and future. A close/exact name match is applied automatically; anything less certain is suggested here for you to confirm or correct. The Campaign column is a manual note — pick from your own Campaign History or type a name — for which send you believe led to this sale.</div>
+            <datalist id="sales-campaign-options"></datalist>
             <div style="overflow-x:auto;">
               <table class="stock-table">
-                <thead><tr><th>Customer Name (Sales)</th><th style="text-align:right;">Total Sales</th><th style="text-align:right;">Invoices</th><th>Match</th><th>Action</th></tr></thead>
+                <thead><tr><th>Customer Name (Sales)</th><th style="text-align:right;">Total Sales</th><th style="text-align:right;">Invoices</th><th>Match</th><th>Campaign</th><th>Action</th></tr></thead>
                 <tbody id="sim-table-body">
-                  <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">Click "Find Matches" to load</td></tr>
+                  <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px;">Click "Find Matches" to load</td></tr>
                 </tbody>
               </table>
             </div>
@@ -2170,13 +2176,33 @@ body.dark{
           <div class="card-body">
             <div style="overflow-x:auto;">
               <table class="stock-table">
-                <thead><tr><th>Contact</th><th>Brand</th><th>Platform</th><th>Country</th><th style="text-align:right;">Total Sales</th><th style="text-align:right;">Invoices</th><th>Last Sale</th></tr></thead>
+                <thead><tr><th>Contact</th><th>Brand</th><th>Platform</th><th>Country</th><th style="text-align:right;">Total Sales</th><th style="text-align:right;">Invoices</th><th>Last Sale</th><th>Campaign</th></tr></thead>
                 <tbody id="sbl-table-body">
-                  <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">Click Refresh to load</td></tr>
+                  <tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">Click Refresh to load</td></tr>
                 </tbody>
               </table>
             </div>
             <div style="margin-top:10px;font-size:12px;color:var(--text3);" id="sbl-unmatched"></div>
+          </div>
+        </div>
+        </div>
+        <div id="si-tab-import-history" style="display:none;">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Import History</div>
+              <button class="t-btn btn-ghost t-btn-sm" onclick="loadSalesImportLog()">Refresh</button>
+            </div>
+            <div class="card-body">
+              <div class="fi-hint" style="margin-bottom:10px;">A log of every import action — who ran it, when, and how many rows it carried. Only a small sample (10–20 rows) is kept per import just so you can confirm it went through; the full data is in the Invoices tab.</div>
+              <div style="overflow-x:auto;">
+                <table class="stock-table">
+                  <thead><tr><th>When</th><th>Imported By</th><th style="text-align:right;">Rows Imported</th><th></th></tr></thead>
+                  <tbody id="si-import-log-body">
+                    <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">Click Refresh to load</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -11300,6 +11326,62 @@ async function initSalesInvoicesModule(){
   loadSalesInvoices();
   loadSalesByLeadReport();
 }
+// ── Invoices / Import History tabs ──
+function switchSalesInvoicesTab(tab,el){
+  document.querySelectorAll('#si-tabs .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('si-tab-invoices').style.display=tab==='invoices'?'block':'none';
+  document.getElementById('si-tab-import-history').style.display=tab==='import-history'?'block':'none';
+  if(tab==='import-history'&&!S.cache.salesImportLog)loadSalesImportLog();
+}
+async function loadSalesImportLog(){
+  const body=document.getElementById('si-import-log-body');
+  if(!body)return;
+  body.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">Loading…</td></tr>';
+  try{
+    const d=await apiWMsg('api/sales-invoices/import-log');
+    S.cache.salesImportLog=d.imports||[];
+    renderSalesImportLogTable(S.cache.salesImportLog);
+  }catch(e){
+    body.innerHTML=`<tr><td colspan="4" style="text-align:center;color:var(--red);padding:20px;">${_hesc(e.message||'Failed to load')}</td></tr>`;
+  }
+}
+function renderSalesImportLogTable(imports){
+  const body=document.getElementById('si-import-log-body');
+  if(!body)return;
+  if(!imports.length){body.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">No imports yet.</td></tr>';return;}
+  body.innerHTML=imports.map((entry,i)=>{
+    const when=entry.createdAt?new Date(entry.createdAt+(entry.createdAt.includes('Z')?'':'Z')).toLocaleString('en-AE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+    return `<tr>
+      <td>${_hesc(when)}</td>
+      <td>${_hesc(entry.importedByEmail||'—')}</td>
+      <td style="text-align:right;">${entry.importedCount||0} / ${entry.totalRows||0}</td>
+      <td><a href="javascript:void(0)" onclick="toggleImportLogPreview(${i})" style="color:var(--accent);font-size:11.5px;">Preview</a></td>
+    </tr>
+    <tr id="si-import-log-preview-${i}" style="display:none;"><td colspan="4" style="padding:0 0 10px 0;">
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:8px;margin-top:4px;">
+        <table class="stock-table" style="margin:0;">
+          <thead><tr><th>Date</th><th>Customer Name</th><th style="text-align:right;">Invoice Amount</th></tr></thead>
+          <tbody>${(entry.sampleRows||[]).map(r=>`<tr><td>${_hesc(r.date||'—')}</td><td>${_hesc(r.customerName||'—')}</td><td style="text-align:right;">${Number(r.invoiceAmount||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:12px;">No sample rows</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--text3);padding:6px 2px 0;">Showing up to ${(entry.sampleRows||[]).length} sample row(s) of ${entry.totalRows||0} imported — not the full batch.</div>
+    </td></tr>`;
+  }).join('');
+}
+function toggleImportLogPreview(i){
+  const row=document.getElementById(`si-import-log-preview-${i}`);
+  if(row)row.style.display=row.style.display==='none'?'table-row':'none';
+}
+// Campaign names this browser has actually sent (Campaign History is local-only — there's
+// no server-side campaign log to pull from), deduped, for the Match table's Campaign
+// autocomplete. Free text is still accepted — this just saves retyping a recent name.
+function populateSalesCampaignOptions(){
+  const el=document.getElementById('sales-campaign-options');
+  if(!el)return;
+  const names=[...new Set((S.history||[]).map(h=>h.template).filter(Boolean))];
+  el.innerHTML=names.map(n=>`<option value="${_hesc(n)}"></option>`).join('');
+}
 async function loadSalesInvoiceSettings(){
   const statusEl=document.getElementById('si-status');
   if(!statusEl)return;
@@ -11447,7 +11529,7 @@ const SALES_MATCH_SUGGEST_FLOOR=0.4;
 async function findSalesCustomerMatches(){
   const body=document.getElementById('sim-table-body');
   if(!body)return;
-  body.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">Loading…</td></tr>';
+  body.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px;">Loading…</td></tr>';
   try{
     const [custData,contactData]=await Promise.all([
       apiWMsg('api/sales-invoices/customers'),
@@ -11469,7 +11551,7 @@ async function findSalesCustomerMatches(){
     });
     renderSalesCustomerMatchTable();
   }catch(e){
-    body.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--red);padding:20px;">${_hesc(e.message||'Failed to load')}</td></tr>`;
+    body.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px;">${_hesc(e.message||'Failed to load')}</td></tr>`;
   }
 }
 function salesContactOptionsHtml(selectedId){
@@ -11481,8 +11563,9 @@ function salesContactOptionsHtml(selectedId){
 function renderSalesCustomerMatchTable(){
   const body=document.getElementById('sim-table-body');
   if(!body)return;
+  populateSalesCampaignOptions();
   const customers=S.cache.salesCustomers||[];
-  if(!customers.length){body.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">No sales customers yet — import or load invoices first.</td></tr>';return;}
+  if(!customers.length){body.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px;">No sales customers yet — import or load invoices first.</td></tr>';return;}
   body.innerHTML=customers.map((cust,i)=>{
     const amount=Number(cust.totalAmount||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
     let matchCell,actionCell;
@@ -11499,8 +11582,28 @@ function renderSalesCustomerMatchTable(){
         `<button class="t-btn btn-primary t-btn-sm" style="padding:4px 10px;font-size:11px;" onclick="confirmSalesCustomerMatchRow(${i})">Confirm</button> `+
         `<button class="t-btn btn-ghost t-btn-sm" style="padding:4px 10px;font-size:11px;" onclick="noMatchSalesCustomerRow(${i})">No Match</button>`;
     }
-    return `<tr><td class="td-bold">${_hesc(cust.customerName||'—')}</td><td style="text-align:right;">${amount}</td><td style="text-align:right;">${cust.invoiceCount||0}</td><td>${matchCell}</td><td style="white-space:nowrap;">${actionCell}</td></tr>`;
+    // Campaign tagging only applies once a lead-match decision exists (Matched or
+    // explicitly "No matching lead") — before that there's no sales_customer_matches row
+    // to attach it to yet, and saving one just to hold a campaign tag would incorrectly
+    // flip the row to "reviewed" before anyone actually reviewed the lead match.
+    const campaignCell=cust.reviewed
+      ?`<input class="fs" id="sim-campaign-${i}" list="sales-campaign-options" value="${_hesc(cust.campaignLabel||'')}" placeholder="— none —" style="font-size:11.5px;padding:4px 6px;max-width:140px;" onchange="saveSalesCustomerMatchCampaign(${i},this.value)"/>`
+      :'<span style="color:var(--text3);font-size:11px;">match a lead first</span>';
+    return `<tr><td class="td-bold">${_hesc(cust.customerName||'—')}</td><td style="text-align:right;">${amount}</td><td style="text-align:right;">${cust.invoiceCount||0}</td><td>${matchCell}</td><td>${campaignCell}</td><td style="white-space:nowrap;">${actionCell}</td></tr>`;
   }).join('');
+}
+// The Campaign tag is independent of the lead-matching action — editable whether or not
+// the row has been reviewed yet, so tagging a likely source campaign never forces a lead
+// match decision first.
+async function saveSalesCustomerMatchCampaign(i,value){
+  const cust=(S.cache.salesCustomers||[])[i];
+  if(!cust)return;
+  const campaignLabel=String(value||'').trim();
+  try{
+    await apiWMsg('api/sales-invoices/match','POST',{customerName:cust.customerName,contactId:cust.contactId??null,contactName:cust.matchedContactName||'',method:cust.matchMethod||'manual',campaignLabel});
+    cust.campaignLabel=campaignLabel;
+    showToast('Campaign tag saved','success');
+  }catch(e){showToast(e.message||'Failed to save campaign tag','error');}
 }
 // Re-opens a matched/confirmed-no-match row for editing — local only until Confirm/No
 // Match is actually clicked again, so a reconsidered "Change" that's abandoned mid-way
@@ -11557,29 +11660,29 @@ async function autoMatchAllSalesCustomers(){
 async function loadSalesByLeadReport(){
   const body=document.getElementById('sbl-table-body');
   if(!body)return;
-  body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">Loading…</td></tr>';
+  body.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">Loading…</td></tr>';
   try{
     const d=await apiWMsg('api/sales-invoices/report');
     S.cache.salesByLead=d.rows||[];
     if(!S.cache.salesByLead.length){
-      body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">No matched sales yet — match some customers above first.</td></tr>';
+      body.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">No matched sales yet — match some customers above first.</td></tr>';
     }else{
       body.innerHTML=S.cache.salesByLead.map(r=>
-        `<tr><td class="td-bold">${_hesc(r.company||r.contactName||'—')}</td><td>${_hesc(r.brand||'—')}</td><td>${_hesc(r.platform||'—')}</td><td>${_hesc(r.country||'—')}</td><td style="text-align:right;">${Number(r.totalSales||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td style="text-align:right;">${r.invoiceCount||0}</td><td>${_hesc(r.lastSaleDate||'—')}</td></tr>`
+        `<tr><td class="td-bold">${_hesc(r.company||r.contactName||'—')}</td><td>${_hesc(r.brand||'—')}</td><td>${_hesc(r.platform||'—')}</td><td>${_hesc(r.country||'—')}</td><td style="text-align:right;">${Number(r.totalSales||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td style="text-align:right;">${r.invoiceCount||0}</td><td>${_hesc(r.lastSaleDate||'—')}</td><td>${_hesc((r.campaignLabels||'').split(',').filter(Boolean).join(', ')||'—')}</td></tr>`
       ).join('');
     }
     const u=d.unmatched||{};
     const unmatchedEl=document.getElementById('sbl-unmatched');
     if(unmatchedEl)unmatchedEl.textContent=u.invoiceCount?`${u.invoiceCount} invoice(s) from ${u.customerCount} unmatched customer name(s), totalling ${Number(u.totalAmount||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}, aren't matched to a lead yet.`:'';
   }catch(e){
-    body.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--red);padding:20px;">${_hesc(e.message||'Failed to load')}</td></tr>`;
+    body.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--red);padding:20px;">${_hesc(e.message||'Failed to load')}</td></tr>`;
   }
 }
 function exportSalesByLeadReportCSV(){
   if(!S.cache.salesByLead||!S.cache.salesByLead.length){showToast('Load the report first','error');return;}
   const esc=v=>`"${String(v||'').replace(/"/g,'""')}"`;
-  const rows=S.cache.salesByLead.map(r=>[r.company||r.contactName,r.brand,r.platform,r.country,r.totalSales,r.invoiceCount,r.lastSaleDate].map(esc).join(','));
-  downloadCSV(['Contact,Brand,Platform,Country,Total Sales,Invoices,Last Sale', ...rows].join('\n'), 'whizz_sales_by_lead.csv');
+  const rows=S.cache.salesByLead.map(r=>[r.company||r.contactName,r.brand,r.platform,r.country,r.totalSales,r.invoiceCount,r.lastSaleDate,(r.campaignLabels||'').split(',').filter(Boolean).join('; ')].map(esc).join(','));
+  downloadCSV(['Contact,Brand,Platform,Country,Total Sales,Invoices,Last Sale,Campaign', ...rows].join('\n'), 'whizz_sales_by_lead.csv');
   showToast('Export complete!','success');
 }
 
