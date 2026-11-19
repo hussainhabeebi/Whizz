@@ -23,6 +23,7 @@ import { handleCreateStagedRun, handleListStagedRuns, handlePauseStagedRun, hand
 import { handleGetTelegramSettings, handleSaveTelegramSettings, handleSetTelegramWebhook, handleTelegramWebhookEvent, handleListTelegramOptOuts, handleAddTelegramOptOut, handleRemoveTelegramOptOut, handleTelegramAudiencePreview, handleGetTelegramBotUsername, handleSendTelegramCampaign, handleListTelegramLeads, handleCreateTelegramLead, handleUpdateTelegramLead, handleDeleteTelegramLead, handleImportTelegramLeadsFromCrm, handleGenerateTelegramInviteLink, handleListTelegramConversations, handleGetTelegramConversationMessages } from './routes/telegramBot.js';
 import { handleGetEmailSettings, handleSaveEmailSettings, handleListEmailTemplates, handleCreateEmailTemplate, handleDeleteEmailTemplate, handlePreviewEmailAudience, handleSendEmailCampaign, handleListEmailCampaigns, handleGetEmailCampaignDetail, handleListEmailOptOuts, handleAddEmailOptOut, handleRemoveEmailOptOut, handleEmailUnsubscribe, handleResendWebhookEvent } from './routes/emailCampaigns.js';
 import { handleGetSalesInvoiceSettings, handleSaveSalesInvoiceSettings, handleListSalesInvoices, handleImportSalesInvoices, handleListStoredSalesInvoices, handleListSalesCustomers, handleSaveSalesCustomerMatch, handleSalesByLeadReport, handleListSalesImportLog } from './routes/salesInvoices.js';
+import { handleDesktopPairStart, handleDesktopPairClaim, handleDesktopListDevices, handleDesktopRevokeDevice, resolveDesktopAuthHeader } from './routes/desktopAuth.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -97,6 +98,10 @@ const routes = [
   { method: 'POST', path: '/api/sales-invoices/match', handler: handleSaveSalesCustomerMatch },
   { method: 'GET', path: '/api/sales-invoices/report', handler: handleSalesByLeadReport },
   { method: 'GET', path: '/api/sales-invoices/import-log', handler: handleListSalesImportLog },
+  { method: 'POST', path: '/api/desktop/pair/start', handler: handleDesktopPairStart },
+  { method: 'POST', path: '/api/desktop/pair/claim', handler: handleDesktopPairClaim },
+  { method: 'GET', path: '/api/desktop/devices', handler: handleDesktopListDevices },
+  { method: 'POST', path: '/api/desktop/revoke', handler: handleDesktopRevokeDevice },
 ];
 
 async function leadActor(request, env) {
@@ -170,6 +175,11 @@ export default {
     if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/whizz-')) {
       try { await ensureDatabaseSchema(env); }
       catch (err) { return Response.json({ error: `D1 schema repair failed: ${err.message}` }, { status: 503 }); }
+      // Widens identity before anything below reads the Access header: a browser's real
+      // Cloudflare Access header passes through untouched, while a paired desktop app's
+      // Bearer token (which Access never sees) is resolved to that same header here, once,
+      // so every route handler downstream keeps working completely unchanged either way.
+      request = await resolveDesktopAuthHeader(request, env);
     }
 
     if (url.pathname === '/api/lead-intelligence/callback' && request.method === 'POST') {

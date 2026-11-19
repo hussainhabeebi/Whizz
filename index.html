@@ -1028,6 +1028,9 @@ body.dark{
           <div class="u-name" id="u-name">Whizz Admin</div>
           <div class="u-role" id="u-role">Administrator</div>
         </div>
+        <button class="logout-btn" onclick="openDesktopPairModal()" title="Pair a desktop app">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </button>
         <button class="logout-btn" onclick="doLogout()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
@@ -2998,6 +3001,29 @@ body.dark{
     <div class="modal-foot">
       <button class="t-btn btn-ghost" onclick="closeModal('modal-merge-platforms')">Cancel</button>
       <button class="t-btn btn-primary" onclick="submitMergePlatforms()">Merge</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pair a Desktop App Modal -->
+<div class="modal-overlay" id="modal-desktop-pair">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Desktop App</div><button class="modal-close" onclick="closeModal('modal-desktop-pair')">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px;line-height:1.5;">Pair the Whizz desktop app to this account. Generate a code here, then enter it in the desktop app to connect it — no password needed.</div>
+      <div class="fg"><label class="fl">Device name (optional)</label><input class="fi" id="dp-label" placeholder="e.g. Hussain's Laptop"/></div>
+      <button class="t-btn btn-primary t-btn-sm" onclick="startDesktopPairing()">Generate Pairing Code</button>
+      <div id="dp-code-wrap" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--border2);border-radius:10px;background:var(--bg3);text-align:center;">
+        <div style="font-family:var(--font-display);font-size:28px;font-weight:700;letter-spacing:0.12em;color:var(--accent);" id="dp-code"></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;">Enter this in the desktop app. Expires <span id="dp-code-expiry"></span>.</div>
+      </div>
+      <div style="margin-top:18px;">
+        <div class="eyebrow">Paired Devices</div>
+        <div id="dp-devices-list" style="font-size:12px;color:var(--text3);">Loading…</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="t-btn btn-ghost" onclick="closeModal('modal-desktop-pair')">Close</button>
     </div>
   </div>
 </div>
@@ -5787,6 +5813,47 @@ function toggleTheme(){
 
 // ── Modal Helpers ──
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ── Pair a Desktop App ──
+function openDesktopPairModal(){
+  document.getElementById('modal-desktop-pair').classList.add('open');
+  document.getElementById('dp-code-wrap').style.display='none';
+  document.getElementById('dp-code').textContent='';
+  loadDesktopDevices();
+}
+async function startDesktopPairing(){
+  const label=document.getElementById('dp-label').value.trim();
+  try{
+    const d=await apiWMsg('api/desktop/pair/start','POST',{label});
+    document.getElementById('dp-code').textContent=d.code;
+    document.getElementById('dp-code-expiry').textContent=new Date(d.expiresAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    document.getElementById('dp-code-wrap').style.display='block';
+  }catch(e){showToast(e.message||'Failed to generate a pairing code','error');}
+}
+async function loadDesktopDevices(){
+  const el=document.getElementById('dp-devices-list');
+  if(!el)return;
+  try{
+    const d=await apiWMsg('api/desktop/devices');
+    const devices=d.devices||[];
+    if(!devices.length){el.innerHTML='No desktop devices paired yet.';return;}
+    el.innerHTML=devices.map(dev=>{
+      const last=dev.lastUsedAt?new Date(dev.lastUsedAt+(dev.lastUsedAt.includes('Z')?'':'Z')).toLocaleDateString('en-AE',{day:'2-digit',month:'short'}):'—';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);">
+        <div><div style="color:var(--text);font-weight:600;">${_hesc(dev.label||'Desktop App')}</div><div style="font-size:10.5px;color:var(--text3);">Last used ${last}</div></div>
+        <a href="javascript:void(0)" onclick="revokeDesktopDevice('${dev.id}')" style="color:var(--red);font-size:11.5px;">Revoke</a>
+      </div>`;
+    }).join('');
+  }catch(e){el.innerHTML=`<span style="color:var(--red);">${_hesc(e.message||'Failed to load')}</span>`;}
+}
+async function revokeDesktopDevice(id){
+  if(!await confirmModal('Revoke this device? It will need to be paired again to reconnect.',{danger:true,confirmText:'Revoke'}))return;
+  try{
+    await apiWMsg('api/desktop/revoke','POST',{id});
+    showToast('Device revoked','success');
+    loadDesktopDevices();
+  }catch(e){showToast(e.message||'Failed to revoke device','error');}
+}
 
 // Apply saved theme on load
 (function(){
