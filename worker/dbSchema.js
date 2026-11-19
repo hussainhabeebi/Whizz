@@ -490,6 +490,33 @@ function schemaTasks(env) {
       createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
 
+    // Desktop app auth (worker/routes/desktopAuth.js) — a long-lived Bearer token stands
+    // in for the Cloudflare Access header a browser gets for free, since a local desktop
+    // app can't sit behind Access the same way. Only the token's hash is ever stored here;
+    // revokedAt (not a delete) keeps a record of past devices for the user's own "Desktop
+    // App" list in Settings.
+    () => safeRun(env, `CREATE TABLE IF NOT EXISTS desktop_auth (
+      tokenHash TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      label TEXT NOT NULL DEFAULT 'Desktop App',
+      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      lastUsedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      revokedAt TEXT
+    )`),
+    // Short-lived device-pairing handshake rows (see handleDesktopPairStart/Claim) — each
+    // one is deleted the moment it's claimed or found expired, so this table only ever
+    // holds currently-in-progress pairing attempts, never a lasting record. Unlike
+    // desktop_auth, the token here is plaintext: this is the one brief window it has to be
+    // revealed to a device that isn't authenticated yet.
+    () => safeRun(env, `CREATE TABLE IF NOT EXISTS desktop_pairing_codes (
+      code TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      label TEXT NOT NULL DEFAULT 'Desktop App',
+      tokenHash TEXT NOT NULL,
+      token TEXT NOT NULL,
+      expiresAt TEXT NOT NULL
+    )`),
+
     // These three indexes' tables (conversation_assignments, telegram_messages/telegram_leads,
     // directory_prospects) are created by other entries above — safe to run concurrently with
     // everything else here since D1 only needs the table to exist by the time this specific
