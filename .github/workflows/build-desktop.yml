@@ -1,0 +1,34 @@
+name: Build Desktop App
+
+# Builds on windows-latest specifically because producing a real Windows .exe reliably
+# needs an actual Windows toolchain (for native module rebuilding and the NSIS installer
+# step) — cross-compiling one from Linux/macOS isn't dependable. This is the guaranteed
+# path to a working installer regardless of where desktop/'s source was written.
+on:
+  push:
+    branches: [main]
+    paths: ['desktop/**']
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - run: npm run build:win
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whizz-desktop-windows
+          path: desktop/release/*.exe
+          if-no-files-found: error

@@ -2,6 +2,7 @@
   "name": "whizz-desktop",
   "version": "1.0.0",
   "private": true,
+  "author": "Whizz",
   "description": "Whizz desktop app — a native window around the Whizz web app, with a bounded set of CRUD features (leads, sales invoices, segments, country-language map, conversions) kept usable offline via a local SQLite mirror + sync queue. Everything else (sending WhatsApp/Telegram/email, live conversations, the Sales/ERP live pull, Lead Intelligence) stays online-only, same as the website.",
   "main": "src/main.js",
   "scripts": {
@@ -12,6 +13,9 @@
   "build": {
     "appId": "com.whizz.desktop",
     "productName": "Whizz",
+    "directories": {
+      "output": "release"
+    },
     "files": [
       "src/**/*",
       "dist/**/*",
@@ -19,7 +23,8 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,
