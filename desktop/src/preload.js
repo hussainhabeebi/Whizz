@@ -1,6 +1,12 @@
-// Intentionally empty for now — index.html runs as the renderer completely unmodified,
-// talking to the local server over plain relative fetch() calls, so there's nothing it
-// needs from Node/Electron yet. Kept as a real preload (with contextIsolation on and
-// nodeIntegration off in main.js) rather than skipping it, so native-UX features added
-// later (tray status, notifications) have a safe place to expose a minimal bridge without
-// loosening the renderer's security posture to do it.
+// Exposes a tiny, explicit bridge into the renderer (index.html, running completely
+// unmodified otherwise) — contextIsolation stays on and nodeIntegration stays off in
+// main.js, so this is the only thing the page can reach into Node/Electron through.
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('whizzDesktop', {
+  // Lets index.html's existing addNotif() (the single place every in-app notification is
+  // already created) also surface a native OS toast when running inside this app, with no
+  // duplicated "what counts as new" logic on either side.
+  notify: (title, body) => ipcRenderer.send('whizz-notify', { title, body }),
+  getStatus: () => ipcRenderer.invoke('whizz-get-status'),
+});

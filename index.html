@@ -35,6 +35,7 @@ body.dark{
 .sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-left:4px;transition:background 0.3s;}
 .sync-idle{background:var(--border2);}
 .sync-syncing{background:var(--amber);animation:spinning 1s linear infinite;}
+.sync-offline{background:var(--red);}
 .sync-ok{background:var(--green);}
 .sync-error{background:var(--red);}
 
@@ -1051,6 +1052,7 @@ body.dark{
       </div>
       <div class="topbar-right">
         <span class="last-upd" id="last-upd"></span>
+        <span id="offline-label" style="display:none;font-size:11px;color:var(--red);font-weight:600;margin-right:2px;" title="No internet — showing the last synced local data. Changes made now will sync once back online."></span>
         <span class="sync-dot sync-idle" id="sync-dot" title="Auto-sync active"></span>
         <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark/light mode">
           <svg id="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -5515,6 +5517,13 @@ function addNotif(text) {
   if (S.notifications.length > 20) S.notifications = S.notifications.slice(0, 20);
   localStorage.setItem(NOTIF_KEY, JSON.stringify(S.notifications));
   renderNotifs(); document.getElementById('notif-dot').classList.add('show');
+  // window.whizzDesktop only exists inside the Whizz desktop app (see desktop/src/preload.js)
+  // — surfaces this exact same notification as a native OS toast there too, without
+  // duplicating any of the "what counts as new" logic already deciding when to call
+  // addNotif() in the first place. A no-op in a normal browser.
+  if (window.whizzDesktop && typeof window.whizzDesktop.notify === 'function') {
+    window.whizzDesktop.notify('Whizz', text);
+  }
 }
 function renderNotifs() {
   const el = document.getElementById('notif-list');
@@ -14110,6 +14119,25 @@ function updateSyncIndicator(state) {
   if (!dot) return;
   dot.className = 'sync-dot sync-' + state;
 }
+// window.whizzDesktop only exists inside the Whizz desktop app (desktop/src/preload.js) —
+// a plain browser tab never runs this. Only ever overrides the dot when genuinely offline;
+// otherwise it steps out of the way and lets autoSyncTick()'s own state management continue
+// exactly as it already does on the website.
+function checkDesktopOfflineStatus() {
+  if (!window.whizzDesktop || typeof window.whizzDesktop.getStatus !== 'function') return;
+  window.whizzDesktop.getStatus().then(status => {
+    const label = document.getElementById('offline-label');
+    if (!label) return;
+    if (status && status.online === false) {
+      label.textContent = status.outboxCount ? `Offline (${status.outboxCount} pending)` : 'Offline';
+      label.style.display = 'inline';
+      updateSyncIndicator('offline');
+    } else {
+      label.style.display = 'none';
+    }
+  }).catch(() => {});
+}
+if (window.whizzDesktop) setInterval(checkDesktopOfflineStatus, 10000);
 
 async function autoSyncTick() {
   updateSyncIndicator('syncing');
