@@ -205,7 +205,29 @@ export async function handleImportSalesInvoices(request, env) {
       imported++;
     } catch (_) { /* one bad row shouldn't abort the whole import */ }
   }
+  // Log the import action itself — a small (10-20 row) sample, never the full batch, kept
+  // only so someone can confirm an import went through and roughly what it contained. The
+  // complete data (all `invoices.length` rows) is already in sales_invoices above.
+  try {
+    await env.DB.prepare(`INSERT INTO sales_import_log (importedByEmail,totalRows,importedCount,sampleRowsJson,createdAt) VALUES (?,?,?,?,CURRENT_TIMESTAMP)`)
+      .bind(user.email, invoices.length, imported, JSON.stringify(invoices.slice(0, 15))).run();
+  } catch (_) { /* the import itself already succeeded above — logging it is best-effort */ }
   return json({ success: true, imported, totalInBatch: invoices.length });
+}
+
+// ── Import History — an audit trail of past import actions, distinct from the full
+// invoice data. Each entry keeps only a small sample of the rows it imported, so this is
+// never a substitute for sales_invoices/the Sales Invoices table above. ──
+export async function handleListSalesImportLog(request, env) {
+  const user = await currentUser(request, env);
+  if (!requireAdminOrManager(user)) return json({ error: 'Manager or Administrator access required.' }, 403);
+  const result = await env.DB.prepare('SELECT id,importedByEmail,totalRows,importedCount,sampleRowsJson,createdAt FROM sales_import_log ORDER BY createdAt DESC LIMIT 100').all();
+  const imports = (result.results || []).map(r => {
+    let sampleRows = [];
+    try { sampleRows = JSON.parse(r.sampleRowsJson || '[]'); } catch (_) {}
+    return { id: r.id, importedByEmail: r.importedByEmail, totalRows: r.totalRows, importedCount: r.importedCount, createdAt: r.createdAt, sampleRows };
+  });
+  return json({ imports });
 }
 
 export async function handleListStoredSalesInvoices(request, env) {
@@ -240,7 +262,7 @@ export async function handleListSalesCustomers(request, env) {
   if (!requireAdminOrManager(user)) return json({ error: 'Manager or Administrator access required.' }, 403);
   const result = await env.DB.prepare(`
     SELECT i.customerName, COUNT(*) invoiceCount, SUM(i.invoiceAmount) totalAmount, MAX(i.date) lastDate,
-      m.contactId, m.contactName matchedContactName, m.method matchMethod
+      m.contactId, m.contactName matchedContactName, m.method matchMethod, m.campaignLabel
     FROM sales_invoices i LEFT JOIN sales_customer_matches m ON m.customerName = i.customerName
     GROUP BY i.customerName
     ORDER BY totalAmount DESC
@@ -251,6 +273,7 @@ export async function handleListSalesCustomers(request, env) {
   const customers = (result.results || []).map(r => ({
     customerName: r.customerName, invoiceCount: r.invoiceCount, totalAmount: r.totalAmount, lastDate: r.lastDate,
     contactId: r.contactId ?? null, matchedContactName: r.matchedContactName || '', matchMethod: r.matchMethod || '',
+    campaignLabel: r.campaignLabel || '',
     reviewed: r.matchMethod !== null && r.matchMethod !== undefined,
   }));
   return json({ customers });
@@ -265,9 +288,21 @@ export async function handleSaveSalesCustomerMatch(request, env) {
   const contactId = body.contactId === null || body.contactId === undefined || body.contactId === '' ? null : Number(body.contactId);
   const contactName = String(body.contactName || '').trim();
   const method = body.method === 'auto' ? 'auto' : 'manual';
-  await env.DB.prepare(`INSERT INTO sales_customer_matches (customerName,contactId,contactName,method,matchedByEmail,matchedAt) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)
-    ON CONFLICT(customerName) DO UPDATE SET contactId=excluded.contactId, contactName=excluded.contactName, method=excluded.method, matchedByEmail=excluded.matchedByEmail, matchedAt=CURRENT_TIMESTAMP`)
-    .bind(customerName, contactId, contactName, method, user.email).run();
+  const existing = await env.DB.prepare('SELECT campaignLabel FROM sales_customer_matches WHERE customerName=?').bind(customerName).first();
+  const campaignLabel = body.campaignLabel !== undefined ? String(body.campaignLabel).trim() : (existing?.campaignLabel || '');
+  await env.DB.prepare(`INSERT INTO sales_customer_matches (customerName,contactId,contactName,method,campaignLabel,matchedByEmail,matchedAt) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(customerName) DO UPDATE SET contactId=excluded.contactId, contactName=excluded.contactName, method=excluded.method, campaignLabel=excluded.campaignLabel, matchedByEmail=excluded.matchedByEmail, matchedAt=CURRENT_TIMESTAMP`)
+    .bind(customerName, contactId, contactName, method, campaignLabel, user.email).run();
+  // A sale matched to a real lead counts as that lead having converted — feeds straight
+  // into the existing Conversion Report (contacts.convertedAt) with no other wiring needed.
+  // COALESCE never overwrites an earlier conversion (e.g. one already marked by hand from
+  // the Leads page), and uses this customer's earliest invoice date rather than "now" so
+  // the conversion report reflects when the sale actually happened.
+  if (contactId !== null) {
+    const earliest = await env.DB.prepare('SELECT MIN(date) minDate FROM sales_invoices WHERE customerName=?').bind(customerName).first();
+    const convertedAt = earliest?.minDate || new Date().toISOString();
+    await env.DB.prepare('UPDATE contacts SET convertedAt=COALESCE(convertedAt,?), updatedAt=CURRENT_TIMESTAMP WHERE id=?').bind(convertedAt, contactId).run();
+  }
   return json({ success: true });
 }
 
@@ -279,7 +314,8 @@ export async function handleSalesByLeadReport(request, env) {
   if (!requireAdminOrManager(user)) return json({ error: 'Manager or Administrator access required.' }, 403);
   const matched = await env.DB.prepare(`
     SELECT c.id contactId, c.contactName, c.company, c.brand, c.platform, c.country,
-      COUNT(i.invoiceRef) invoiceCount, SUM(i.invoiceAmount) totalSales, MAX(i.date) lastSaleDate
+      COUNT(i.invoiceRef) invoiceCount, SUM(i.invoiceAmount) totalSales, MAX(i.date) lastSaleDate,
+      GROUP_CONCAT(DISTINCT NULLIF(m.campaignLabel, '')) campaignLabels
     FROM sales_invoices i
     JOIN sales_customer_matches m ON m.customerName = i.customerName
     JOIN contacts c ON c.id = m.contactId

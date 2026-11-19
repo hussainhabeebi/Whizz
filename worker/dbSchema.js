@@ -461,13 +461,33 @@ function schemaTasks(env) {
     // apart, not this schema. method is 'auto' (a confident approximate-name match applied
     // without review) or 'manual' (a person picked it, including explicitly confirming "no
     // match").
-    () => safeRun(env, `CREATE TABLE IF NOT EXISTS sales_customer_matches (
-      customerName TEXT PRIMARY KEY,
-      contactId INTEGER,
-      contactName TEXT NOT NULL DEFAULT '',
-      method TEXT NOT NULL DEFAULT 'manual',
-      matchedByEmail TEXT NOT NULL DEFAULT '',
-      matchedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    async () => {
+      await safeRun(env, `CREATE TABLE IF NOT EXISTS sales_customer_matches (
+        customerName TEXT PRIMARY KEY,
+        contactId INTEGER,
+        contactName TEXT NOT NULL DEFAULT '',
+        method TEXT NOT NULL DEFAULT 'manual',
+        matchedByEmail TEXT NOT NULL DEFAULT '',
+        matchedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      // Free-text, manually typed/picked campaign label (there's no server-side campaign
+      // log to link to — campaign history only ever lived in each browser's own
+      // localStorage) — a lightweight way to tag which send is believed to have led to
+      // this sale, for attribution on the Sales by Lead report.
+      await addColumns(env, 'sales_customer_matches', [['campaignLabel', "TEXT NOT NULL DEFAULT ''"]]);
+    },
+    // One row per import action (not per invoice) — a lightweight audit trail distinct from
+    // the full sales_invoices table. Only a small sample of rows is kept per import (not the
+    // whole batch) since its only job is letting someone confirm an import actually went
+    // through and roughly what it contained; the complete data stays in sales_invoices,
+    // nothing here is ever used for reporting or matching.
+    () => safeRun(env, `CREATE TABLE IF NOT EXISTS sales_import_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      importedByEmail TEXT NOT NULL DEFAULT '',
+      totalRows INTEGER NOT NULL DEFAULT 0,
+      importedCount INTEGER NOT NULL DEFAULT 0,
+      sampleRowsJson TEXT NOT NULL DEFAULT '[]',
+      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
 
     // These three indexes' tables (conversation_assignments, telegram_messages/telegram_leads,
