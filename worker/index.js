@@ -23,7 +23,7 @@ import { handleCreateStagedRun, handleListStagedRuns, handlePauseStagedRun, hand
 import { handleGetTelegramSettings, handleSaveTelegramSettings, handleSetTelegramWebhook, handleTelegramWebhookEvent, handleListTelegramOptOuts, handleAddTelegramOptOut, handleRemoveTelegramOptOut, handleTelegramAudiencePreview, handleGetTelegramBotUsername, handleSendTelegramCampaign, handleListTelegramLeads, handleCreateTelegramLead, handleUpdateTelegramLead, handleDeleteTelegramLead, handleImportTelegramLeadsFromCrm, handleGenerateTelegramInviteLink, handleListTelegramConversations, handleGetTelegramConversationMessages } from './routes/telegramBot.js';
 import { handleGetEmailSettings, handleSaveEmailSettings, handleListEmailTemplates, handleCreateEmailTemplate, handleDeleteEmailTemplate, handlePreviewEmailAudience, handleSendEmailCampaign, handleListEmailCampaigns, handleGetEmailCampaignDetail, handleListEmailOptOuts, handleAddEmailOptOut, handleRemoveEmailOptOut, handleEmailUnsubscribe, handleResendWebhookEvent } from './routes/emailCampaigns.js';
 import { handleGetSalesInvoiceSettings, handleSaveSalesInvoiceSettings, handleListSalesInvoices, handleImportSalesInvoices, handleListStoredSalesInvoices, handleListSalesCustomers, handleSaveSalesCustomerMatch, handleSalesByLeadReport, handleListSalesImportLog } from './routes/salesInvoices.js';
-import { handleDesktopPairStart, handleDesktopPairClaim, handleDesktopListDevices, handleDesktopRevokeDevice, resolveDesktopAuthHeader } from './routes/desktopAuth.js';
+import { handleDesktopPairStart, handleDesktopPairClaim, handleDesktopListDevices, handleDesktopRevokeDevice, handleDesktopOtpRequest, handleDesktopOtpVerify, resolveDesktopAuthHeader } from './routes/desktopAuth.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
 const routes = [
@@ -102,6 +102,8 @@ const routes = [
   { method: 'POST', path: '/api/desktop/pair/claim', handler: handleDesktopPairClaim },
   { method: 'GET', path: '/api/desktop/devices', handler: handleDesktopListDevices },
   { method: 'POST', path: '/api/desktop/revoke', handler: handleDesktopRevokeDevice },
+  { method: 'POST', path: '/api/desktop/otp/request', handler: handleDesktopOtpRequest },
+  { method: 'POST', path: '/api/desktop/otp/verify', handler: handleDesktopOtpVerify },
 ];
 
 async function leadActor(request, env) {

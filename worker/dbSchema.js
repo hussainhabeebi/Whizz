@@ -516,6 +516,16 @@ function schemaTasks(env) {
       token TEXT NOT NULL,
       expiresAt TEXT NOT NULL
     )`),
+    // One row per email with a currently-pending login code — a fresh request overwrites
+    // it (ON CONFLICT), never stacks. attempts caps brute-forcing a 6-digit code before it
+    // expires; only the hash is ever stored, same as desktop_auth's tokens.
+    () => safeRun(env, `CREATE TABLE IF NOT EXISTS desktop_otp_codes (
+      email TEXT PRIMARY KEY,
+      codeHash TEXT NOT NULL,
+      expiresAt TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
 
     // These three indexes' tables (conversation_assignments, telegram_messages/telegram_leads,
     // directory_prospects) are created by other entries above — safe to run concurrently with

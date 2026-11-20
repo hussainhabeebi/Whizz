@@ -2,27 +2,59 @@
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>Pair Whizz Desktop</title>
+<title>Sign in to Whizz Desktop</title>
 <style>
-  body{font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#0f1115;color:#e6e8ec;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;}
+  body{font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#0f1115;color:#e6e8ec;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
   .card{max-width:380px;width:100%;padding:32px;background:#171a21;border:1px solid #2a2e38;border-radius:14px;text-align:center;}
   h1{font-size:18px;margin:0 0 8px;}
-  p{font-size:13px;color:#9aa0ab;line-height:1.5;margin:0 0 20px;}
-  input{width:100%;box-sizing:border-box;padding:12px;font-size:20px;letter-spacing:0.15em;text-align:center;text-transform:uppercase;border-radius:8px;border:1px solid #2a2e38;background:#0f1115;color:#e6e8ec;margin-bottom:14px;}
+  p{font-size:13px;color:#9aa0ab;line-height:1.5;margin:0 0 16px;}
+  input{width:100%;box-sizing:border-box;padding:12px;font-size:16px;border-radius:8px;border:1px solid #2a2e38;background:#0f1115;color:#e6e8ec;margin-bottom:12px;}
+  input.code-input{font-size:20px;letter-spacing:0.15em;text-align:center;text-transform:uppercase;}
   button{width:100%;padding:12px;font-size:14px;font-weight:600;border-radius:8px;border:0;background:#4f7cff;color:#fff;cursor:pointer;}
   button:disabled{opacity:0.5;cursor:not-allowed;}
+  button.secondary{background:transparent;border:1px solid #2a2e38;color:#9aa0ab;margin-top:8px;}
   .err{color:#ff6b6b;font-size:12px;margin-top:12px;min-height:16px;}
+  .ok{color:#4fcf8f;font-size:12px;margin-top:12px;min-height:16px;}
+  .divider{display:flex;align-items:center;gap:10px;margin:22px 0;color:#5a6070;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;}
+  .divider::before,.divider::after{content:'';flex:1;height:1px;background:#2a2e38;}
 </style>
 </head>
 <body>
   <div class="card">
-    <h1>Pair Whizz Desktop</h1>
-    <p>In Whizz on your browser, open the "Desktop App" button in the sidebar and generate a pairing code. Enter it below.</p>
-    <input id="code" maxlength="8" placeholder="ABCD1234" autofocus/>
-    <button id="submit" onclick="claim()">Connect</button>
-    <div class="err" id="err"></div>
+    <h1>Sign in to Whizz Desktop</h1>
+
+    <div id="otp-step-email">
+      <p>Enter the email Whizz already knows you by — we'll send a 6-digit login code.</p>
+      <input id="otp-email" type="email" placeholder="you@company.com" autofocus/>
+      <button id="otp-send-btn" onclick="requestOtp()">Send Code</button>
+      <div class="err" id="otp-email-err"></div>
+    </div>
+
+    <div id="otp-step-code" style="display:none;">
+      <p>Enter the code sent to <strong id="otp-email-display"></strong>.</p>
+      <input id="otp-code" class="code-input" maxlength="6" placeholder="123456"/>
+      <button id="otp-verify-btn" onclick="verifyOtp()">Verify &amp; Sign In</button>
+      <button class="secondary" onclick="backToEmail()">Use a different email</button>
+      <div class="err" id="otp-code-err"></div>
+      <div class="ok" id="otp-code-ok"></div>
+    </div>
+
+    <div class="divider">or</div>
+
+    <div>
+      <p>In Whizz on your browser, open the "Desktop App" button in the sidebar and generate a pairing code.</p>
+      <input id="code" class="code-input" maxlength="8" placeholder="ABCD1234"/>
+      <button id="submit" onclick="claim()">Connect with Code</button>
+      <div class="err" id="err"></div>
+    </div>
   </div>
   <script>
+    async function saveTokenAndEnter(token){
+      const saveRes=await fetch('/local/save-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token})});
+      if(!saveRes.ok) throw new Error('Could not save the login token locally.');
+      window.location.href='/index.html';
+    }
+
     async function claim(){
       const btn=document.getElementById('submit'), err=document.getElementById('err');
       const code=document.getElementById('code').value.trim();
@@ -32,15 +64,59 @@
         const claimRes=await fetch('/api/desktop/pair/claim',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code})});
         const claimData=await claimRes.json();
         if(!claimRes.ok) throw new Error(claimData.error||'Invalid or expired code.');
-        const saveRes=await fetch('/local/save-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:claimData.token})});
-        if(!saveRes.ok) throw new Error('Could not save the pairing token locally.');
-        window.location.href='/index.html';
+        await saveTokenAndEnter(claimData.token);
       }catch(e){
         err.textContent=e.message||'Something went wrong.';
         btn.disabled=false;
       }
     }
     document.getElementById('code').addEventListener('keydown',e=>{if(e.key==='Enter')claim();});
+
+    let _otpEmail='';
+    async function requestOtp(){
+      const btn=document.getElementById('otp-send-btn'), err=document.getElementById('otp-email-err');
+      const email=document.getElementById('otp-email').value.trim();
+      if(!email){err.textContent='Enter your email first.';return;}
+      btn.disabled=true; err.textContent='';
+      try{
+        const res=await fetch('/api/desktop/otp/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email})});
+        const data=await res.json();
+        if(!res.ok) throw new Error(data.error||'Could not send a login code.');
+        _otpEmail=email;
+        document.getElementById('otp-email-display').textContent=email;
+        document.getElementById('otp-step-email').style.display='none';
+        document.getElementById('otp-step-code').style.display='block';
+        document.getElementById('otp-code').focus();
+      }catch(e){
+        err.textContent=e.message||'Something went wrong.';
+      }
+      btn.disabled=false;
+    }
+    function backToEmail(){
+      document.getElementById('otp-step-code').style.display='none';
+      document.getElementById('otp-step-email').style.display='block';
+      document.getElementById('otp-code').value='';
+      document.getElementById('otp-code-err').textContent='';
+      document.getElementById('otp-code-ok').textContent='';
+    }
+    async function verifyOtp(){
+      const btn=document.getElementById('otp-verify-btn'), err=document.getElementById('otp-code-err'), ok=document.getElementById('otp-code-ok');
+      const code=document.getElementById('otp-code').value.trim();
+      if(!code){err.textContent='Enter the code first.';return;}
+      btn.disabled=true; err.textContent='';
+      try{
+        const res=await fetch('/api/desktop/otp/verify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:_otpEmail,code})});
+        const data=await res.json();
+        if(!res.ok) throw new Error(data.error||'Incorrect or expired code.');
+        ok.textContent='Signed in — opening Whizz…';
+        await saveTokenAndEnter(data.token);
+      }catch(e){
+        err.textContent=e.message||'Something went wrong.';
+        btn.disabled=false;
+      }
+    }
+    document.getElementById('otp-code').addEventListener('keydown',e=>{if(e.key==='Enter')verifyOtp();});
+    document.getElementById('otp-email').addEventListener('keydown',e=>{if(e.key==='Enter')requestOtp();});
   </script>
 </body>
 </html>
