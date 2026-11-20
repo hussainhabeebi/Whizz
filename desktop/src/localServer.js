@@ -125,22 +125,41 @@ function buildForwardHeaders(req, token) {
   return headers;
 }
 
+function serveFromCache(res, cacheKey) {
+  const cached = db.getCache(cacheKey);
+  if (cached) {
+    res.writeHead(cached.status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-whizz-offline-cache': cached.dirty ? 'dirty' : 'fresh' });
+    res.end(cached.body);
+  } else {
+    sendJson(res, 503, { error: 'Offline, and nothing cached yet for this view.' });
+  }
+}
+
 async function handleSyncableRead(res, resource, cacheKeyBase, baseUrl, token, req) {
   const cacheKey = `${resource.key}::${cacheKeyBase}`;
   try {
     const upstream = await fetchWithTimeout(`${baseUrl}${cacheKeyBase}`, { headers: buildForwardHeaders(req, token) });
     const text = await upstream.text();
-    if (upstream.ok) db.setCache(cacheKey, text, upstream.status);
+    if (!upstream.ok) {
+      // A real error response (403, 500, …) — forward it as-is so the renderer sees the
+      // actual message, never silently swapped for stale cache.
+      res.writeHead(upstream.status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(text);
+      return;
+    }
+    // A 200 with an empty or unparseable body is a real (if rare) failure mode — e.g. a
+    // cold Worker isolate or transient hiccup — and must never be cached or served as if
+    // it were good data: that would corrupt this resource's cache for every offline read
+    // after it (this is exactly what, uncaught, once produced a session with no email/
+    // name/role and left the app half-initialized). Treat it the same as a network error.
+    let validJson = !!text;
+    if (validJson) { try { JSON.parse(text); } catch (_) { validJson = false; } }
+    if (!validJson) { serveFromCache(res, cacheKey); return; }
+    db.setCache(cacheKey, text, upstream.status);
     res.writeHead(upstream.status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
     res.end(text);
   } catch (_) {
-    const cached = db.getCache(cacheKey);
-    if (cached) {
-      res.writeHead(cached.status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-whizz-offline-cache': cached.dirty ? 'dirty' : 'fresh' });
-      res.end(cached.body);
-    } else {
-      sendJson(res, 503, { error: 'Offline, and nothing cached yet for this view.' });
-    }
+    serveFromCache(res, cacheKey);
   }
 }
 
