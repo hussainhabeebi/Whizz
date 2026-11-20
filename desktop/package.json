@@ -8,7 +8,8 @@
   "scripts": {
     "prebuild": "node scripts/copy-index-html.js",
     "start": "npm run prebuild && electron .",
-    "build:win": "npm run prebuild && electron-builder --win"
+    "build:win": "npm run prebuild && electron-builder --win",
+    "build:win:publish": "npm run prebuild && electron-builder --win --publish always"
   },
   "build": {
     "appId": "com.whizz.desktop",
@@ -29,10 +30,18 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "hussainhabeebi",
+        "repo": "Whizz"
+      }
+    ]
   },
   "dependencies": {
-    "better-sqlite3": "^11.5.0"
+    "better-sqlite3": "^11.5.0",
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "electron": "^33.2.0",
