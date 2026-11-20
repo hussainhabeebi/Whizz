@@ -112,7 +112,13 @@ async function handleRequest(req, res, { getToken, getBaseUrl }) {
 function buildForwardHeaders(req, token) {
   const headers = {};
   for (const [k, v] of Object.entries(req.headers)) {
-    if (['host', 'connection', 'content-length'].includes(k.toLowerCase())) continue;
+    // accept-encoding is excluded deliberately, not just host/connection/content-length:
+    // forwarding the renderer's own value turns off Node's automatic response
+    // decompression on THIS outgoing fetch (most HTTP clients stop auto-decompressing the
+    // moment the caller sets Accept-Encoding manually, since that signals "I'll handle
+    // decoding myself") — leaving `text` below as raw, still-compressed bytes misread as a
+    // string. Omitting it lets Node's fetch set its own and decompress transparently.
+    if (['host', 'connection', 'content-length', 'accept-encoding'].includes(k.toLowerCase())) continue;
     headers[k] = v;
   }
   if (token) headers['authorization'] = `Bearer ${token}`;
