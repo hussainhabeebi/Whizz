@@ -3887,6 +3887,14 @@ async function bootAuth() {
       showLoginError(data.error || 'Sign-in required. Please reload the page.');
       return;
     }
+    // A 200 with no email means something between here and the server returned an empty
+    // or malformed body (seen once via a cold-start hiccup in the desktop app's local
+    // proxy) — fail loudly here rather than building a session with no identity and
+    // silently limping into a half-initialized app shell.
+    if (!data.email) {
+      showLoginError('Sign-in response was incomplete. Please reload the page.');
+      return;
+    }
     let previousSession = null;
     try { previousSession = JSON.parse(localStorage.getItem('whizz_session') || 'null'); } catch {}
     if (data.resetAt && previousSession && previousSession.email === data.email && previousSession.loginTime < data.resetAt) {
