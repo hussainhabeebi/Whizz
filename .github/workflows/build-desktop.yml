@@ -10,6 +10,9 @@ on:
     paths: ['desktop/**']
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -25,7 +28,25 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build:win
+      # Each push to desktop/** becomes its own GitHub Release, tagged by version — that's
+      # the update feed electron-updater polls, so the version must strictly increase every
+      # build. GITHUB_RUN_NUMBER is per-workflow and monotonic, so 1.0.<run_number> is always
+      # a valid next version with zero manual bumping.
+      - name: Set release version
+        shell: bash
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = require('./package.json');
+            p.version = '1.0.' + process.env.GITHUB_RUN_NUMBER;
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          "
+
+      # --publish always both builds the installer and publishes it (plus the latest.yml
+      # electron-updater needs) to a GitHub Release tagged with the version above.
+      - run: npm run build:win:publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-artifact@v4
         with:

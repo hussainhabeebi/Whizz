@@ -5,6 +5,7 @@ const { startSyncLoop } = require('./syncLoop');
 const { createTray } = require('./tray');
 const authStore = require('./authStore');
 const config = require('./config');
+const { startAutoUpdate } = require('./autoUpdate');
 
 const ICON_PATH = path.join(__dirname, '..', 'assets', 'icon.png');
 
@@ -54,6 +55,8 @@ async function createWindow() {
 
   const hasToken = !!authStore.getToken();
   mainWindow.loadURL(`http://127.0.0.1:${port}/${hasToken ? 'index.html' : 'pairing.html'}`);
+
+  startAutoUpdate();
 }
 
 ipcMain.on('whizz-notify', (event, { title, body }) => {
