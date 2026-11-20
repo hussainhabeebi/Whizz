@@ -173,7 +173,10 @@ async function processOneStagedRun(env, run, accessToken) {
       }
       sentCount++;
       const wamid = data.messages?.[0]?.id;
-      if (contact.id) await env.DB.prepare('UPDATE contacts SET lastContactedAt=CURRENT_TIMESTAMP WHERE id=?').bind(contact.id).run();
+      if (contact.id) {
+        await env.DB.prepare('UPDATE contacts SET lastContactedAt=CURRENT_TIMESTAMP WHERE id=?').bind(contact.id).run();
+        try { await env.DB.prepare('INSERT INTO outreach_log (contactId,platform,campaignType,campaignRef,sentByEmail) VALUES (?,?,?,?,?)').bind(contact.id, 'WhatsApp', 'staged', run.templateName, run.createdByEmail).run(); } catch (_) {}
+      }
       if (wamid) {
         try { await env.DB.prepare('INSERT INTO message_delivery_status (wamid,phone,status) VALUES (?,?,?) ON CONFLICT(wamid) DO NOTHING').bind(wamid, toSendableNumber(contact.phone), 'sent').run(); }
         catch (_) {}

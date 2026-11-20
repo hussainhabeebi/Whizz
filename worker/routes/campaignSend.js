@@ -265,7 +265,10 @@ export async function handleSendCampaignMeta(request, env) {
       }
       const wamid = data.messages?.[0]?.id;
       results.push({ contactId: contact.id, name: contact.contactName, phone: contact.phone, status: 'sent', messageId: wamid });
-      if (contact.id) await env.DB.prepare('UPDATE contacts SET lastContactedAt=CURRENT_TIMESTAMP WHERE id=?').bind(contact.id).run();
+      if (contact.id) {
+        await env.DB.prepare('UPDATE contacts SET lastContactedAt=CURRENT_TIMESTAMP WHERE id=?').bind(contact.id).run();
+        try { await env.DB.prepare('INSERT INTO outreach_log (contactId,platform,campaignType,campaignRef,sentByEmail) VALUES (?,?,?,?,?)').bind(contact.id, 'WhatsApp', 'normal', contactTemplateName, user.email).run(); } catch (_) {}
+      }
       if (wamid) {
         try { await env.DB.prepare('INSERT INTO message_delivery_status (wamid,phone,status) VALUES (?,?,?) ON CONFLICT(wamid) DO NOTHING').bind(wamid, toSendableNumber(contact.phone), 'sent').run(); }
         catch (_) {}
@@ -373,6 +376,13 @@ export async function handleSendTemplateMessageMeta(request, env) {
     try { await env.DB.prepare('INSERT INTO message_delivery_status (wamid,phone,status) VALUES (?,?,?) ON CONFLICT(wamid) DO NOTHING').bind(wamid, phone, 'sent').run(); }
     catch (_) {}
   }
+  // Best-effort contact match by phone — this endpoint is only ever given phone/name, not
+  // a contacts-table id, so a single-send to a non-CRM number simply isn't attributable
+  // (same as campaignSend's own targetContacts path for resend-to-failed).
+  try {
+    const match = await env.DB.prepare("SELECT id FROM contacts WHERE REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','')=REPLACE(REPLACE(REPLACE(?,'+',''),' ',''),'-','') LIMIT 1").bind(phone).first();
+    if (match?.id) await env.DB.prepare('INSERT INTO outreach_log (contactId,platform,campaignType,campaignRef,sentByEmail) VALUES (?,?,?,?,?)').bind(match.id, 'WhatsApp', 'normal', templateName, user.email).run();
+  } catch (_) {}
   return json({ messageId: wamid, mirrored });
 }
 

@@ -1910,6 +1910,28 @@ body.dark{
           </div>
         </div>
 
+        <div class="card" style="margin-bottom:16px;" id="rep-outreach-vs-sales-card">
+          <div class="card-head">
+            <div class="card-title">Outreach vs Sales</div>
+            <span style="font-size:10px;color:var(--text3);">WhatsApp (normal + staged) &amp; email outreach crossed against sales invoices</span>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
+              <div class="fg" style="margin:0;"><label class="fl">From</label><input type="date" class="fi" id="ovs-from" style="padding:6px 10px;font-size:12px;"/></div>
+              <div class="fg" style="margin:0;"><label class="fl">To</label><input type="date" class="fi" id="ovs-to" style="padding:6px 10px;font-size:12px;"/></div>
+              <div class="fg" style="margin:0;"><label class="fl">Brand</label><select class="fs" id="ovs-brand" style="width:auto;padding:6px 10px;font-size:12px;"><option value="ALL">All brands</option></select></div>
+              <div class="fg" style="margin:0;"><label class="fl">Platform</label><select class="fs" id="ovs-platform" style="width:auto;padding:6px 10px;font-size:12px;"><option value="ALL">All channels</option><option value="WhatsApp">WhatsApp</option><option value="Email">Email</option></select></div>
+              <button class="t-btn btn-primary" onclick="refreshOutreachVsSalesReport()">Apply</button>
+              <button class="t-btn btn-ghost" onclick="downloadOutreachVsSalesReport()" title="Download a presentable PDF-ready report">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download Report
+              </button>
+            </div>
+            <div class="fi-hint" style="margin-bottom:12px;">"Converted" counts a contact reached in this range who has ANY recorded sale, any time — a sale often lands after the outreach that led to it. WhatsApp per-lead detail only covers sends made since this report shipped; nothing retroactive.</div>
+            <div id="ovs-content"><div class="empty-state">Click Apply to load</div></div>
+          </div>
+        </div>
+
         <div class="card" style="margin-bottom:16px;">
           <div class="card-head">
             <div class="card-title">Lead Platform Tracking &amp; Conversion</div>
@@ -6191,7 +6213,9 @@ async function loadWpTrafficForPeriod(){
 }
 async function refreshReportsPage(){
   populateReportsPeriodSelect();
-  await Promise.all([refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshConversionStats(),refreshTeamActivity(),refreshInboxActivity()]);
+  const tasks=[refreshStats(),refreshLeadData(),loadBrevoStatsForPeriod(),loadWpTrafficForPeriod(),refreshConversionStats(),refreshTeamActivity(),refreshInboxActivity()];
+  if(CURRENT_SESSION&&CURRENT_SESSION.role!=='Sales')tasks.push(refreshOutreachVsSalesReport());
+  await Promise.all(tasks);
   renderReports();
 }
 
@@ -6257,6 +6281,145 @@ function renderInboxActivity(){
       <thead><tr><th class="row-h">Number</th><th>Week of</th><th>Sent</th><th>Replies</th></tr></thead>
       <tbody>${rows.join('')}</tbody>
     </table></div>`;
+}
+async function refreshOutreachVsSalesReport(){
+  try{
+    const fromEl=document.getElementById('ovs-from'),toEl=document.getElementById('ovs-to');
+    const brandEl=document.getElementById('ovs-brand'),platformEl=document.getElementById('ovs-platform');
+    if(brandEl&&brandEl.options.length<=1){
+      (S.cache.brands||[]).forEach(b=>{const o=document.createElement('option');o.value=b;o.textContent=b;brandEl.appendChild(o);});
+    }
+    const params=new URLSearchParams();
+    if(fromEl&&fromEl.value)params.set('from',fromEl.value);
+    if(toEl&&toEl.value)params.set('to',toEl.value);
+    if(brandEl&&brandEl.value&&brandEl.value!=='ALL')params.set('brand',brandEl.value);
+    if(platformEl&&platformEl.value&&platformEl.value!=='ALL')params.set('platform',platformEl.value);
+    const qs=params.toString();
+    const d=await apiWMsg(`api/reports/outreach-vs-sales${qs?'?'+qs:''}`);
+    S.cache.outreachVsSales=d;
+    if(fromEl&&!fromEl.value)fromEl.value=d.summary.from;
+    if(toEl&&!toEl.value)toEl.value=d.summary.to;
+  }catch(e){S.cache.outreachVsSales=null;}
+}
+function renderOutreachVsSalesReport(){
+  const card=document.getElementById('rep-outreach-vs-sales-card'),el=document.getElementById('ovs-content');
+  if(!el)return;
+  if(card)card.style.display=(CURRENT_SESSION&&CURRENT_SESSION.role==='Sales')?'none':'block';
+  const d=S.cache.outreachVsSales;
+  if(!d){el.innerHTML='<div class="empty-state">Click Apply to load</div>';return;}
+  const{summary,bySegment,trend,byLead}=d;
+  const pct=n=>`${(n*100).toFixed(1)}%`;
+  const money=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:0});
+  const tiles=[
+    ['Outreach Sent',summary.outreachCount.toLocaleString(),'amber'],
+    ['Contacts Reached',summary.contactsReached.toLocaleString(),'blue'],
+    ['Sales Invoices',summary.salesCount.toLocaleString(),'green'],
+    ['Sales Value',money(summary.salesValue),'green'],
+    ['Converted Contacts',summary.convertedContacts.toLocaleString(),'green'],
+    ['Conversion Rate',pct(summary.conversionRate),'amber'],
+  ];
+  const tileHtml=tiles.map(([label,value,color])=>`<div class="stat-card ${color}" style="padding:12px 14px;"><div class="s-label">${label}</div><div class="s-value">${value}</div></div>`).join('');
+  const segRows=(bySegment||[]).map(s=>`<tr><td>${_hesc(s.brand)}</td><td>${_hesc(s.platform)}</td><td class="ptrack-num">${s.outreachCount}</td><td class="ptrack-num">${s.contactsReached}</td></tr>`).join('')
+    ||'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px;">No outreach in this range.</td></tr>';
+  const trendRows=(trend||[]).map(t=>`<tr><td>${_hesc(t.bucket)}</td><td class="ptrack-num">${t.outreachCount}</td><td class="ptrack-num">${t.salesCount}</td><td class="ptrack-num">${money(t.salesValue)}</td></tr>`).join('')
+    ||'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px;">No activity in this range.</td></tr>';
+  const leadRows=(byLead||[]).slice(0,50).map(l=>`<tr><td>${_hesc(l.contactName)}</td><td>${_hesc(l.brand)}</td><td>${_hesc((l.platforms||[]).join(', '))}</td><td class="ptrack-num">${l.outreachCount}</td><td>${l.lastOutreachAt?new Date(l.lastOutreachAt).toLocaleDateString():'—'}</td><td class="ptrack-num">${l.salesInvoiceCount}</td><td class="ptrack-num">${money(l.salesValue)}</td><td>${l.converted?'<span style="color:var(--green);font-weight:600;">Yes</span>':'No'}</td></tr>`).join('')
+    ||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:14px;">No leads reached in this range.</td></tr>';
+  const leadNote=(byLead||[]).length>50?`<div style="font-size:10.5px;color:var(--text3);margin-top:8px;">Showing top 50 of ${byLead.length} by outreach count — download the full report for everything.</div>`:'';
+  el.innerHTML=`
+    <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px;">${tileHtml}</div>
+    <div class="two-col-section" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;">
+      <div>
+        <div class="section-title" style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">By Brand &amp; Channel</div>
+        <table class="ptrack-tbl" style="width:100%;"><thead><tr><th>Brand</th><th>Channel</th><th>Sent</th><th>Reached</th></tr></thead><tbody>${segRows}</tbody></table>
+      </div>
+      <div>
+        <div class="section-title" style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Trend (${d.summary.granularity})</div>
+        <table class="ptrack-tbl" style="width:100%;"><thead><tr><th>Period</th><th>Sent</th><th>Sales</th><th>Value</th></tr></thead><tbody>${trendRows}</tbody></table>
+      </div>
+    </div>
+    <div class="section-title" style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Per-Lead Detail</div>
+    <div class="heatmap-wrap"><table class="heatmap-tbl ptrack-tbl">
+      <thead><tr><th>Lead</th><th>Brand</th><th>Channel(s)</th><th>Outreach</th><th>Last Contacted</th><th>Invoices</th><th>Sales Value</th><th>Converted</th></tr></thead>
+      <tbody>${leadRows}</tbody>
+    </table></div>
+    ${leadNote}
+  `;
+}
+function buildOutreachVsSalesReportHtml(d){
+  const{summary,bySegment,trend,byLead}=d;
+  const pct=n=>`${(n*100).toFixed(1)}%`;
+  const money=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:0});
+  const segRows=(bySegment||[]).map(s=>`<tr><td>${_hesc(s.brand)}</td><td>${_hesc(s.platform)}</td><td>${s.outreachCount}</td><td>${s.contactsReached}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:#94a3b8;">No outreach in this range.</td></tr>';
+  const trendRows=(trend||[]).map(t=>`<tr><td>${_hesc(t.bucket)}</td><td>${t.outreachCount}</td><td>${t.salesCount}</td><td>${money(t.salesValue)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:#94a3b8;">No activity in this range.</td></tr>';
+  const leadRows=(byLead||[]).map(l=>`<tr><td>${_hesc(l.contactName)}</td><td>${_hesc(l.brand)}</td><td>${_hesc((l.platforms||[]).join(', '))}</td><td>${l.outreachCount}</td><td>${l.lastOutreachAt?new Date(l.lastOutreachAt).toLocaleDateString():'—'}</td><td>${l.salesInvoiceCount}</td><td>${money(l.salesValue)}</td><td>${l.converted?'Yes':'No'}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:#94a3b8;">No leads reached in this range.</td></tr>';
+  return`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Whizz Outreach vs Sales Report — ${summary.from} to ${summary.to}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',Arial,sans-serif;background:#f1f3f7;color:#0f172a;padding:32px;}
+.page{max-width:1000px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,0.08);padding:40px;}
+.report-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #f1f3f7;padding-bottom:20px;margin-bottom:28px;}
+.brand{font-family:Georgia,serif;font-weight:800;font-size:26px;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.header-meta{text-align:right;font-size:13px;}
+.header-meta .title{font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px;}
+.muted{color:#94a3b8;font-size:12px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;}
+.kpi-card{border-radius:12px;padding:18px;border:1px solid #e8ecf2;}
+.kpi-card.amber{background:rgba(245,158,11,0.08);}
+.kpi-card.green{background:rgba(22,163,74,0.08);}
+.kpi-card.blue{background:rgba(37,99,235,0.08);}
+.kpi-label{font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+.kpi-value{font-size:26px;font-weight:800;line-height:1;margin-bottom:6px;}
+.kpi-card.amber .kpi-value{color:#d97706;}
+.kpi-card.green .kpi-value{color:#16a34a;}
+.kpi-card.blue .kpi-value{color:#2563eb;}
+.kpi-sub{font-size:11px;color:#94a3b8;}
+.section{margin-bottom:28px;}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#0f172a;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e8ecf2;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#475569;padding:8px 10px;border-bottom:2px solid #e8ecf2;}
+td{padding:9px 10px;border-bottom:1px solid #f1f3f7;}
+.two-col-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+.print-btn{display:block;margin:0 auto 20px;padding:10px 20px;background:#f59e0b;color:#000;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;}
+.report-footer{text-align:center;font-size:11px;color:#94a3b8;padding-top:16px;border-top:1px solid #e8ecf2;}
+@media print{.no-print{display:none;}body{background:#fff;padding:0;}.page{box-shadow:none;padding:0;}}
+</style></head>
+<body>
+<div class="page">
+  <div class="report-header">
+    <div class="brand">Whizz.</div>
+    <div class="header-meta">
+      <div class="title">Outreach vs Sales Report</div>
+      <div class="muted">${summary.from} to ${summary.to} · Generated ${new Date().toLocaleString()}</div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card amber"><div class="kpi-label">Outreach Sent</div><div class="kpi-value">${summary.outreachCount.toLocaleString()}</div><div class="kpi-sub">${summary.contactsReached.toLocaleString()} contacts reached</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Sales Invoices</div><div class="kpi-value">${summary.salesCount.toLocaleString()}</div><div class="kpi-sub">${money(summary.salesValue)} in this range</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Conversion Rate</div><div class="kpi-value">${pct(summary.conversionRate)}</div><div class="kpi-sub">${summary.convertedContacts.toLocaleString()} converted · ${money(summary.convertedValue)} value</div></div>
+  </div>
+  <div class="section">
+    <div class="section-title">By Brand &amp; Channel</div>
+    <table><thead><tr><th>Brand</th><th>Channel</th><th>Sent</th><th>Reached</th></tr></thead><tbody>${segRows}</tbody></table>
+  </div>
+  <div class="section">
+    <div class="section-title">Trend (${summary.granularity})</div>
+    <table><thead><tr><th>Period</th><th>Sent</th><th>Sales</th><th>Value</th></tr></thead><tbody>${trendRows}</tbody></table>
+  </div>
+  <div class="section">
+    <div class="section-title">Per-Lead Detail</div>
+    <table><thead><tr><th>Lead</th><th>Brand</th><th>Channel(s)</th><th>Outreach</th><th>Last Contacted</th><th>Invoices</th><th>Sales Value</th><th>Converted</th></tr></thead><tbody>${leadRows}</tbody></table>
+  </div>
+  <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+  <div class="report-footer">Whizz Marketing Console — Outreach vs Sales. "Converted" = reached in this range with any recorded sale, any time.</div>
+</div>
+</body></html>`;
+}
+function downloadOutreachVsSalesReport(){
+  const d=S.cache.outreachVsSales;
+  if(!d){showToast('Click Apply first to load the report.','error');return;}
+  downloadHTML(buildOutreachVsSalesReportHtml(d),`Whizz-Outreach-vs-Sales-${d.summary.from}-to-${d.summary.to}.html`);
 }
 // Backfill for weeks the server-tracked log doesn't cover: sums this device's own
 // Campaign History (bulk sends only) by inbox + week. Only used where the server has
@@ -9766,6 +9929,7 @@ function renderReports(){
   renderSummaryStats();
   renderTeamActivity();
   renderInboxActivity();
+  renderOutreachVsSalesReport();
   renderConversionReport();
   renderPlatformTracking();
 

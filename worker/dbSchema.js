@@ -490,6 +490,22 @@ function schemaTasks(env) {
       createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
 
+    // Per-recipient WhatsApp outreach log (campaignSend.js's normal bulk/single-template
+    // sends + stagedCampaigns.js's staged batches) — the one piece of per-contact send
+    // history WhatsApp was missing (email already has it via email_sends). Powers the
+    // Outreach vs Sales report's segment/lead-level breakdowns. Only sends made from the
+    // moment this shipped are recorded here — nothing retroactive; contacts.lastContactedAt
+    // existed before but only ever tracks the single most-recent touch, not a usable history.
+    () => safeRun(env, `CREATE TABLE IF NOT EXISTS outreach_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contactId INTEGER NOT NULL,
+      platform TEXT NOT NULL DEFAULT 'WhatsApp',
+      campaignType TEXT NOT NULL DEFAULT 'normal',
+      campaignRef TEXT NOT NULL DEFAULT '',
+      sentByEmail TEXT NOT NULL DEFAULT '',
+      sentAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+
     // Desktop app auth (worker/routes/desktopAuth.js) — a long-lived Bearer token stands
     // in for the Cloudflare Access header a browser gets for free, since a local desktop
     // app can't sit behind Access the same way. Only the token's hash is ever stored here;
@@ -544,6 +560,8 @@ function schemaTasks(env) {
     () => safeRun(env, 'CREATE INDEX IF NOT EXISTS idx_directory_prospects_status ON directory_prospects(status)'),
     () => safeRun(env, 'CREATE INDEX IF NOT EXISTS idx_directory_prospects_score ON directory_prospects(leadScore)'),
     () => safeRun(env, 'CREATE INDEX IF NOT EXISTS idx_directory_prospects_updated ON directory_prospects(updatedAt)'),
+    () => safeRun(env, 'CREATE INDEX IF NOT EXISTS idx_outreach_log_contact ON outreach_log(contactId)'),
+    () => safeRun(env, 'CREATE INDEX IF NOT EXISTS idx_outreach_log_sentat ON outreach_log(sentAt)'),
   ];
 }
 

@@ -23,6 +23,7 @@ import { handleCreateStagedRun, handleListStagedRuns, handlePauseStagedRun, hand
 import { handleGetTelegramSettings, handleSaveTelegramSettings, handleSetTelegramWebhook, handleTelegramWebhookEvent, handleListTelegramOptOuts, handleAddTelegramOptOut, handleRemoveTelegramOptOut, handleTelegramAudiencePreview, handleGetTelegramBotUsername, handleSendTelegramCampaign, handleListTelegramLeads, handleCreateTelegramLead, handleUpdateTelegramLead, handleDeleteTelegramLead, handleImportTelegramLeadsFromCrm, handleGenerateTelegramInviteLink, handleListTelegramConversations, handleGetTelegramConversationMessages } from './routes/telegramBot.js';
 import { handleGetEmailSettings, handleSaveEmailSettings, handleListEmailTemplates, handleCreateEmailTemplate, handleDeleteEmailTemplate, handlePreviewEmailAudience, handleSendEmailCampaign, handleListEmailCampaigns, handleGetEmailCampaignDetail, handleListEmailOptOuts, handleAddEmailOptOut, handleRemoveEmailOptOut, handleEmailUnsubscribe, handleResendWebhookEvent } from './routes/emailCampaigns.js';
 import { handleGetSalesInvoiceSettings, handleSaveSalesInvoiceSettings, handleListSalesInvoices, handleImportSalesInvoices, handleListStoredSalesInvoices, handleListSalesCustomers, handleSaveSalesCustomerMatch, handleSalesByLeadReport, handleListSalesImportLog } from './routes/salesInvoices.js';
+import { handleOutreachVsSalesReport } from './routes/outreachVsSales.js';
 import { handleDesktopPairStart, handleDesktopPairClaim, handleDesktopListDevices, handleDesktopRevokeDevice, handleDesktopOtpRequest, handleDesktopOtpVerify, resolveDesktopAuthHeader } from './routes/desktopAuth.js';
 import { ensureDatabaseSchema } from './dbSchema.js';
 
@@ -97,6 +98,7 @@ const routes = [
   { method: 'GET', path: '/api/sales-invoices/customers', handler: handleListSalesCustomers },
   { method: 'POST', path: '/api/sales-invoices/match', handler: handleSaveSalesCustomerMatch },
   { method: 'GET', path: '/api/sales-invoices/report', handler: handleSalesByLeadReport },
+  { method: 'GET', path: '/api/reports/outreach-vs-sales', handler: handleOutreachVsSalesReport },
   { method: 'GET', path: '/api/sales-invoices/import-log', handler: handleListSalesImportLog },
   { method: 'POST', path: '/api/desktop/pair/start', handler: handleDesktopPairStart },
   { method: 'POST', path: '/api/desktop/pair/claim', handler: handleDesktopPairClaim },
