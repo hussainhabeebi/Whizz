@@ -125,12 +125,27 @@ function buildForwardHeaders(req, token) {
   return headers;
 }
 
+// None of this app's syncable endpoints ever legitimately return an empty object on
+// success — a real /api/me has email/name/role, a real list endpoint has its array key,
+// etc. Rejecting {} (and anything unparseable/empty) catches both a bad live response
+// (checked before caching it) and a bad row written before this check existed (checked
+// again before ever serving a cached row), so a corrupt cache entry — however it got
+// there — can never be handed to the renderer as if it were real data.
+function isUsableJsonBody(text) {
+  if (!text) return false;
+  let parsed;
+  try { parsed = JSON.parse(text); } catch (_) { return false; }
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length === 0) return false;
+  return true;
+}
+
 function serveFromCache(res, cacheKey) {
   const cached = db.getCache(cacheKey);
-  if (cached) {
+  if (cached && isUsableJsonBody(cached.body)) {
     res.writeHead(cached.status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-whizz-offline-cache': cached.dirty ? 'dirty' : 'fresh' });
     res.end(cached.body);
   } else {
+    if (cached) db.invalidateResource(cacheKey.split('::')[0]); // a bad row — drop it rather than leave it to keep failing this same check forever
     sendJson(res, 503, { error: 'Offline, and nothing cached yet for this view.' });
   }
 }
@@ -147,14 +162,13 @@ async function handleSyncableRead(res, resource, cacheKeyBase, baseUrl, token, r
       res.end(text);
       return;
     }
-    // A 200 with an empty or unparseable body is a real (if rare) failure mode — e.g. a
-    // cold Worker isolate or transient hiccup — and must never be cached or served as if
-    // it were good data: that would corrupt this resource's cache for every offline read
-    // after it (this is exactly what, uncaught, once produced a session with no email/
-    // name/role and left the app half-initialized). Treat it the same as a network error.
-    let validJson = !!text;
-    if (validJson) { try { JSON.parse(text); } catch (_) { validJson = false; } }
-    if (!validJson) { serveFromCache(res, cacheKey); return; }
+    // A 200 with an empty, unparseable, or empty-object body is a real (if rare) failure
+    // mode — e.g. a cold Worker isolate or transient hiccup — and must never be cached or
+    // served as if it were good data: that would corrupt this resource's cache for every
+    // offline read after it (this is exactly what, uncaught, once produced a session with
+    // no email/name/role and left the app half-initialized). Treat it the same as a
+    // network error.
+    if (!isUsableJsonBody(text)) { serveFromCache(res, cacheKey); return; }
     db.setCache(cacheKey, text, upstream.status);
     res.writeHead(upstream.status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
     res.end(text);
