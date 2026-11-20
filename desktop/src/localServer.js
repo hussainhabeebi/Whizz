@@ -30,6 +30,14 @@ function readBody(req) {
     req.on('error', reject);
   });
 }
+// Node's fetch wraps the actually-useful error (ECONNREFUSED, ENOTFOUND, a TLS failure, …)
+// in `.cause` and leaves its own `.message` as the uninformative "fetch failed" — unwrap it
+// so the diagnostic detail shown to the renderer says *why*, not just *that* it failed.
+function describeFetchError(err) {
+  if (err && err.cause && err.cause.message) return err.cause.message;
+  return (err && err.message) || String(err);
+}
+
 async function fetchWithTimeout(url, options) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS);
@@ -139,14 +147,19 @@ function isUsableJsonBody(text) {
   return true;
 }
 
-function serveFromCache(res, cacheKey) {
+// `reason` is a short, non-sensitive diagnostic string (a caught error's message, or a
+// snippet of an unusable upstream body) surfaced as `detail` on the 503 — otherwise
+// "the real site timed out", "DNS failed", and "Cloudflare Access served its own HTML
+// login page instead of JSON" (a routing gap, not a connectivity one) are all
+// indistinguishable from the renderer's point of view.
+function serveFromCache(res, cacheKey, reason) {
   const cached = db.getCache(cacheKey);
   if (cached && isUsableJsonBody(cached.body)) {
     res.writeHead(cached.status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-whizz-offline-cache': cached.dirty ? 'dirty' : 'fresh' });
     res.end(cached.body);
   } else {
     if (cached) db.invalidateResource(cacheKey.split('::')[0]); // a bad row — drop it rather than leave it to keep failing this same check forever
-    sendJson(res, 503, { error: 'Offline, and nothing cached yet for this view.' });
+    sendJson(res, 503, { error: 'Offline, and nothing cached yet for this view.', detail: reason || undefined });
   }
 }
 
@@ -168,12 +181,15 @@ async function handleSyncableRead(res, resource, cacheKeyBase, baseUrl, token, r
     // offline read after it (this is exactly what, uncaught, once produced a session with
     // no email/name/role and left the app half-initialized). Treat it the same as a
     // network error.
-    if (!isUsableJsonBody(text)) { serveFromCache(res, cacheKey); return; }
+    if (!isUsableJsonBody(text)) {
+      serveFromCache(res, cacheKey, `Got a 200 that wasn't usable JSON: ${text.slice(0, 160)}`);
+      return;
+    }
     db.setCache(cacheKey, text, upstream.status);
     res.writeHead(upstream.status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
     res.end(text);
-  } catch (_) {
-    serveFromCache(res, cacheKey);
+  } catch (err) {
+    serveFromCache(res, cacheKey, describeFetchError(err));
   }
 }
 
@@ -202,8 +218,8 @@ async function proxyPassthrough(res, baseUrl, token, req, bodyBuffer) {
     upstream.headers.forEach((v, k) => { if (!['content-encoding', 'content-length', 'transfer-encoding'].includes(k)) headers[k] = v; });
     res.writeHead(upstream.status, headers);
     res.end(text);
-  } catch (_) {
-    sendJson(res, 503, { error: 'This needs an internet connection.' });
+  } catch (err) {
+    sendJson(res, 503, { error: 'This needs an internet connection.', detail: describeFetchError(err) });
   }
 }
 

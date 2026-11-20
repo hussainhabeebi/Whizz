@@ -3884,7 +3884,7 @@ async function bootAuth() {
     clearTimeout(timer);
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
-      showLoginError(data.error || 'Sign-in required. Please reload the page.');
+      showLoginError((data.error || 'Sign-in required. Please reload the page.') + (data.detail ? ' (' + data.detail + ')' : ''));
       return;
     }
     // A 200 with no email means something between here and the server returned an empty
